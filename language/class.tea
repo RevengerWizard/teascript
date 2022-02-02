@@ -1,0 +1,40 @@
+class Foo
+{
+    // Class properties
+    a = 0
+    b = 0
+
+    // Class constructor
+    init(a, b)
+    {
+        this.a = a
+        this.b = b
+    }
+
+    // Class method
+    say(message)
+    {
+        print(message)
+    }
+}
+
+// Anonymous object instancing
+Foo(12, 24).say("Hello")    // Expect: Hello
+
+// Object instancing
+var foo = Foo(32, 48)
+foo.say("World")    // Expect: World
+
+// Class inheritance
+class Bar : Foo
+{
+    shout(message)
+    {
+        print(message + "!")
+    }
+}
+
+Bar(32, 48).shout("World")  // Expect: World!
+
+var bar = Foo(26, 46)
+bar.say("Hello")    // Expect: Hello

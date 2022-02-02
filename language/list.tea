@@ -1,0 +1,35 @@
+// Empty list
+var bar = []
+print(bar)      // Expect: []
+
+// List of strings
+var foo = ["a", "b", "c"]
+print(foo)      // Expect: [a, b, c]
+
+// List of numbers
+foo = [43, 45.2, 12.90, 36]
+print(foo)      // Expect: [43, 45.2, 12.90, 36]
+
+// List of bools
+foo = [true, false, true]
+print(foo)      // Expect: [true, false, true]
+
+// Mixed list
+foo = [1, "b", false]
+print(foo)      // Expect: [1, b, false]
+
+// List of lists
+bar = ["Hello", "World", [12, 36, 42], true]
+print(bar)      // Expect: [Hello, World, [12, 36, 42], true]
+
+// Directly print a list
+print([1, 2, 3])    // Expect: [1, 2, 3]
+
+foo = [1, 2]
+
+print(foo[0])   // Expect: 1
+
+// Assign value to an element list
+foo[0] = 2
+
+print(foo[0])    // Expect: 2

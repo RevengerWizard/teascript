@@ -1,0 +1,11 @@
+#ifndef TEA_CONFIG_H
+#define TEA_CONFIG_H
+
+#define TEA_REPOSITORY ""
+
+#define TEA_VERSION_MAJOR 0
+#define TEA_VERSION_MINOR 0
+#define TEA_VERSION_STRING "0.0"
+#define TEA_BYTECODE_VERSION 0
+
+#endif
