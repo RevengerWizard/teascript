@@ -316,6 +316,7 @@ static void statement();
 static void declaration();
 static TeaParseRule* get_rule(TeaTokenType type);
 static void parse_precendence(TeaPrecedence precedence);
+static void anonymous(bool can_assign);
 
 static uint8_t identifier_constant(TeaToken* name)
 {
@@ -836,7 +837,7 @@ TeaParseRule rules[] = {
     UNUSED,                               // TOKEN_ELSE
     PREFIX(literal),                      // TOKEN_FALSE
     UNUSED,                               // TOKEN_FOR
-    UNUSED,                               // TOKEN_FUNCTION
+    PREFIX(anonymous),                    // TOKEN_FUNCTION
     UNUSED,                               // TOKEN_CASE
     UNUSED,                               // TOKEN_SWITCH
     UNUSED,                               // TOKEN_DEFAULT
@@ -945,6 +946,11 @@ static void function(TeaFunctionType type)
         emit_byte(compiler.upvalues[i].is_local ? 1 : 0);
         emit_byte(compiler.upvalues[i].index);
     }
+}
+
+static void anonymous(bool can_assign)
+{
+    function(TYPE_FUNCTION);
 }
 
 static void method()

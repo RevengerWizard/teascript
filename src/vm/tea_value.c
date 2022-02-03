@@ -12,6 +12,10 @@ bool tea_values_equal(TeaValue a, TeaValue b)
     {
         return AS_NUMBER(a) == AS_NUMBER(b);
     }
+    if(IS_STRING(a) && IS_STRING(b))
+    {
+        return a == b;
+    }
     else if(IS_OBJECT(a) && IS_OBJECT(b))
     {
         return tea_objects_equal(a, b);

@@ -26,10 +26,17 @@ print(bar)      // Expect: [Hello, World, [12, 36, 42], true]
 print([1, 2, 3])    // Expect: [1, 2, 3]
 
 foo = [1, 2]
-
 print(foo[0])   // Expect: 1
 
 // Assign value to an element list
 foo[0] = 2
 
 print(foo[0])    // Expect: 2
+
+foo = [1, 2, 43, 12]
+
+// Loop a list
+for(x in foo)
+{
+    print(x)
+}
