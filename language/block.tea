@@ -1,13 +1,13 @@
 // Variable inside global scope
-a = 12
+var a = 12
 print(a)    // Expect: 12
 
 // Assign to global variable a
 {
-    a = "hello"
+    var a = "hello"
     print(a)    // Expect: hello
     {
-        a = 243
+        var a = 243
         print(a)    // Expect: 243
     }
 }
@@ -15,17 +15,17 @@ print(a)    // Expect: 243
 
 {
     // Variable declared inside block
-    b = 9
+    var b = 9
     print(b)    // Expect: 9
     {
-        b = "no"
+        var b = "no"
         print(b)    // Expect: no
 
         // Variable declared inside block
-        e = 42
+        var e = 42
         print(e)
         {
-            e = 43
+            var e = 43
             print(e)    // Expect: 43
         }
     }

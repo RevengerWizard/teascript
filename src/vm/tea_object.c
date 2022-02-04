@@ -289,7 +289,7 @@ void tea_print_object(TeaValue value)
     }
 }
 
-bool list_equals(TeaValue a, TeaValue b)
+static bool list_equals(TeaValue a, TeaValue b)
 {
     TeaObjectList* l1 = AS_LIST(a);
     TeaObjectList* l2 = AS_LIST(b);
@@ -310,6 +310,45 @@ bool list_equals(TeaValue a, TeaValue b)
     return true;
 }
 
+static bool map_equals(TeaValue a, TeaValue b)
+{
+    TeaObjectMap* m1 = AS_MAP(a);
+    TeaObjectMap* m2 = AS_MAP(b);
+
+    if(m1->items.count != m2->items.count)
+    {
+        return true;
+    }
+
+    if(m1->items.count == 0)
+    {
+        return true;
+    }
+
+    for(int i = 0; i < m1->items.capacity; i++)
+    {
+        TeaEntry* item = &m1->items.entries[i];
+
+        if(item->key == NULL)
+        {
+            continue;
+        }
+
+        TeaValue value;
+        if(!tea_table_get(&m2->items, item->key, &value))
+        {
+            return false;
+        }
+
+        if(!tea_values_equal(item->value, value))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool tea_objects_equal(TeaValue a, TeaValue b)
 {
     if(OBJECT_TYPE(a) != OBJECT_TYPE(b)) return false;
@@ -319,6 +358,10 @@ bool tea_objects_equal(TeaValue a, TeaValue b)
         case OBJ_LIST:
         {
             return list_equals(a, b);
+        }
+        case OBJ_MAP:
+        {
+            return map_equals(a, b);
         }
         case OBJ_STRING:
         {
