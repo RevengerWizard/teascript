@@ -570,6 +570,25 @@ static InterpretResult run()
     } \
     while(false)
 
+#ifdef DEBUG_TRACE_EXECUTION
+    #define DEBUG() \
+        do \
+        { \
+            printf("          "); \
+            for(TeaValue* slot = vm.stack; slot < vm.stack_top; slot++) \
+            { \
+                printf("[ "); \
+                tea_print_value(*slot); \
+                printf(" ]"); \
+            } \
+            printf("\n"); \
+            tea_disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code)); \
+        } \
+        while(false)
+#else
+    #define DEBUG() do { } while (false)
+#endif
+
 #ifdef COMPUTED_GOTO
 
     static void* dispatch_table[] = {
@@ -581,6 +600,7 @@ static InterpretResult run()
     #define DISPATCH() \
         do \
         { \
+            DEBUG(); \
             goto *dispatch_table[instruction = READ_BYTE()]; \
         } \
         while(false)
@@ -592,6 +612,7 @@ static InterpretResult run()
 
     #define INTREPRET_LOOP \
         loop: \
+            DEBUG(); \
             switch(instruction = READ_BYTE())
 
     #define DISPATCH() goto loop
@@ -602,18 +623,6 @@ static InterpretResult run()
 
     while(true)
     {
-/*#ifdef DEBUG_TRACE_EXECUTION
-        printf("          ");
-        for(TeaValue* slot = vm.stack; slot < vm.stack_top; slot++)
-        {
-            printf("[ ");
-            tea_print_value(*slot);
-            printf(" ]");
-        }
-        printf("\n");
-        tea_disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
-#endif*/
-
         uint8_t instruction;
         INTREPRET_LOOP
         {

@@ -765,11 +765,60 @@ static void this_(bool can_assign)
     variable(false);
 }
 
+static bool fold_unary(TeaTokenType operatorType) 
+{
+    TeaTokenType valueToken = parser.previous.type;
+
+    switch (operatorType) 
+    {
+        case TOKEN_BANG: 
+        {
+            if(valueToken == TOKEN_TRUE) 
+            {
+                TeaChunk* chunk = current_chunk();
+                chunk->code[chunk->count - 1] = OP_FALSE;
+                return true;
+            } 
+            else if(valueToken == TOKEN_FALSE) 
+            {
+                TeaChunk* chunk = current_chunk();
+                chunk->code[chunk->count - 1] = OP_TRUE;
+                return true;
+            }
+
+            return false;
+        }
+
+        case TOKEN_MINUS: 
+        {
+            if(valueToken == TOKEN_NUMBER) 
+            {
+                TeaChunk* chunk = current_chunk();
+                uint8_t constant = chunk->code[chunk->count - 1];
+                chunk->constants.values[constant] = NUMBER_VAL(-AS_NUMBER(chunk->constants.values[constant]));
+                return true;
+            }
+
+            return false;
+        }
+
+        default: 
+        {
+            return false;
+        }
+    }
+}
+
 static void unary(bool can_assign)
 {
     TeaTokenType operator_type = parser.previous.type;
 
     parse_precendence(PREC_UNARY);
+
+    if(fold_unary(operator_type))
+    {
+        return;
+    }
 
     // Emit the operator instruction.
     switch(operator_type)
