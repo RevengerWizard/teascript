@@ -222,7 +222,17 @@ static void print_map(TeaObjectMap* map)
 
     for(int i = 0; i < map->items.capacity; i++)
     {
-        
+        if(!(map->items.entries[i].key == NULL))
+        {
+            if(!first) 
+            {
+                printf(", ");
+            }
+            first = false;
+            tea_print_value(OBJECT_VAL(map->items.entries[i].key));
+            printf(" = ");
+            tea_print_value(map->items.entries[i].value);
+        }
     }
     
     printf("}");

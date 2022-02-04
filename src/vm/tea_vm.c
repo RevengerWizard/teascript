@@ -142,6 +142,28 @@ static bool subscript(TeaValue index_value, TeaValue subscript_value)
                 tea_runtime_error("List index out of bounds.");
                 return false;
             }
+            case OBJ_MAP:
+            {
+                TeaObjectMap* map = AS_MAP(subscript_value);
+                if(!IS_STRING(index_value))
+                {
+                    tea_runtime_error("Map key must be a string.");
+                    return false;
+                }
+
+                TeaObjectString* key = AS_STRING(index_value);
+                TeaValue value;
+                tea_pop();
+                tea_pop();
+                if(tea_table_get(&map->items, key, &value))
+                {
+                    tea_push(value);
+                    return true;
+                }
+
+                tea_runtime_error("Key does not exist within map.");
+                return false;
+            }
             case OBJ_STRING:
             {
                 if(!IS_NUMBER(index_value)) 
@@ -213,6 +235,24 @@ static bool subscript_store(TeaValue item_value, TeaValue index_value, TeaValue 
 
                 tea_runtime_error("List index out of bounds.");
                 return false;
+            }
+            case OBJ_MAP:
+            {
+                TeaObjectMap* map = AS_MAP(subscript_value);
+                if(!IS_STRING(index_value))
+                {
+                    tea_runtime_error("Map key must be a string.");
+                    return false;
+                }
+
+                TeaObjectString* key = AS_STRING(index_value);
+                tea_table_set(&map->items, key, item_value);
+                tea_pop();
+                tea_pop();
+                tea_pop();
+                tea_push(NULL_VAL);
+                
+                return true;
             }
             default:
                 break;
@@ -411,7 +451,7 @@ static bool bind_method(TeaObjectClass* klass, TeaObjectString* name)
     return true;
 }
 
-static bool property(TeaValue receiver, TeaObjectString* name)
+static bool get_property(TeaValue receiver, TeaObjectString* name)
 {
     if(IS_OBJECT(receiver))
     {
@@ -452,12 +492,61 @@ static bool property(TeaValue receiver, TeaObjectString* name)
                 tea_runtime_error("'%s' module has no property: '%s'.", module->name->chars, name->chars);
                 return false;
             }
+            case OBJ_MAP:
+            {
+                TeaObjectMap* map = AS_MAP(receiver);
+                TeaValue value;
+
+                if(tea_table_get(&map->items, name, &value))
+                {
+                    tea_pop();
+                    tea_push(value);
+                    return true;
+                }
+                
+                tea_runtime_error("Map has no property");
+                return false;
+            }
             default:
                 break;
         }
     }
 
     tea_runtime_error("Only instances have properties.");
+    return false;
+}
+
+static bool set_property(TeaObjectString* name, TeaValue receiver)
+{
+    if(IS_OBJECT(receiver))
+    {
+        switch(OBJECT_TYPE(receiver))
+        {
+            case OBJ_INSTANCE:
+            {
+                TeaObjectInstance* instance = AS_INSTANCE(receiver);
+                tea_table_set(&instance->fields, name, peek(0));
+                tea_pop();
+                tea_pop();
+                tea_push(NULL_VAL);
+                return true;
+            }
+            case OBJ_MAP:
+            {
+                TeaObjectMap* map = AS_MAP(receiver);
+                tea_table_set(&map->items, name, peek(0));
+                tea_pop();
+                tea_pop();
+                tea_pop();
+                tea_push(NULL_VAL);
+                return true;
+            }
+            default:
+                break;
+        }
+    }
+
+    tea_runtime_error("Can not set property on type");
     return false;
 }
 
@@ -706,7 +795,7 @@ static InterpretResult run()
                 TeaValue receiver = peek(0);
                 TeaObjectString* name = READ_STRING();
                 STORE_FRAME;
-                if(!property(receiver, name))
+                if(!get_property(receiver, name))
                 {
                     return INTERPRET_RUNTIME_ERROR;
                 }
@@ -716,18 +805,13 @@ static InterpretResult run()
             }
             CASE_CODE(SET_PROPERTY):
             {
-                if(!IS_INSTANCE(peek(1)))
+                TeaObjectString* name = READ_STRING();
+                TeaValue receiver = peek(1);
+                STORE_FRAME;
+                if(!set_property(name, receiver))
                 {
-                    STORE_FRAME;
-                    tea_runtime_error("Only instances have fields.");
                     return INTERPRET_RUNTIME_ERROR;
                 }
-
-                TeaObjectInstance* instance = AS_INSTANCE(peek(1));
-                tea_table_set(&instance->fields, READ_STRING(), peek(0));
-                TeaValue value = tea_pop();
-                tea_pop();
-                tea_push(value);
                 DISPATCH();
             }
             CASE_CODE(GET_SUPER):
@@ -758,6 +842,23 @@ static InterpretResult run()
                 vm.stack_top -= item_count + 1;
 
                 tea_push(OBJECT_VAL(list));
+                DISPATCH();
+            }
+            CASE_CODE(MAP):
+            {
+                uint8_t item_count = READ_BYTE();
+                TeaObjectMap* map = tea_new_map();
+
+                tea_push(OBJECT_VAL(map));
+
+                for(int i = item_count * 2; i > 0; i -= 2)
+                {
+                    tea_table_set(&map->items, AS_STRING(peek(i)), peek(i - 1));
+                }
+
+                vm.stack_top -= item_count * 2 + 1;
+
+                tea_push(OBJECT_VAL(map));
                 DISPATCH();
             }
             CASE_CODE(SUBSCRIPT):

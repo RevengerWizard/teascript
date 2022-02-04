@@ -613,7 +613,7 @@ static void list(bool can_assign)
                 break;
             }
 
-            parse_precendence(PREC_OR);
+            expression();
 
             if(item_count == UINT8_COUNT)
             {
@@ -633,7 +633,35 @@ static void list(bool can_assign)
 
 static void map(bool can_assign)
 {
-    
+    int item_count = 0;
+    if(!check(TOKEN_RIGHT_BRACE))
+    {
+        do
+        {
+            if(check(TOKEN_RIGHT_BRACE))
+            {
+                // Traling comma case
+                break;
+            }
+
+            consume(TOKEN_NAME, "Expected key name");
+            emit_constant(OBJECT_VAL(tea_copy_string(parser.previous.start, parser.previous.length)));
+            consume(TOKEN_EQUAL, "Expected '=' after key name.");
+            expression();
+            if(item_count == UINT8_COUNT)
+            {
+                error("Cannot have more than 256 items in a map literal.");
+            }
+            item_count++;
+        }
+        while(match(TOKEN_COMMA));
+    }
+
+    consume(TOKEN_RIGHT_BRACE, "Expect '} after map literal.'");
+
+    emit_bytes(OP_MAP, item_count);
+
+    return;
 }
 
 static void subscript(TeaToken previous_token, bool can_assign)
@@ -849,13 +877,13 @@ TeaParseRule rules[] = {
     UNUSED,                               // TOKEN_RIGHT_PAREN
     RULE(list, subscript, SUBSCRIPT),     // TOKEN_LEFT_BRACKET
     UNUSED,                               // TOKEN_RIGHT_BRACKET
-    UNUSED,                               // TOKEN_LEFT_BRACE
+    PREFIX(map),                          // TOKEN_LEFT_BRACE
     UNUSED,                               // TOKEN_RIGHT_BRACE
     UNUSED,                               // TOKEN_COMMA
-    OPERATOR(dot, CALL),                  // TOKEN_DOT
+    OPERATOR(dot, SUBSCRIPT),             // TOKEN_DOT
     UNUSED,                               // TOKEN_COLON
     UNUSED,                               // TOKEN_QUESTION
-    //UNUSED,                               // TOKEN_SEMICOLON
+    //UNUSED,                             // TOKEN_SEMICOLON
     RULE(unary, binary, TERM),            // TOKEN_MINUS
     OPERATOR(binary, TERM),               // TOKEN_PLUS
     OPERATOR(binary, FACTOR),             // TOKEN_SLASH
