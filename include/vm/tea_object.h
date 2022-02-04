@@ -177,6 +177,8 @@ void tea_print_object(TeaValue value);
 
 bool tea_objects_equal(TeaValue a, TeaValue b);
 
+const char* tea_object_type(TeaValue a);
+
 static inline bool is_object_type(TeaValue value, TeaObjectType type)
 {
     return IS_OBJECT(value) && AS_OBJECT(value)->type == type;

@@ -310,9 +310,41 @@ bool tea_objects_equal(TeaValue a, TeaValue b)
         {
             return list_equals(a, b);
         }
+        case OBJ_STRING:
+        {
+            return a == b;
+        }
         default:
             break;
     }
 
     return false;
+}
+
+const char* tea_object_type(TeaValue a)
+{
+    switch(OBJECT_TYPE(a))
+    {
+        case OBJ_MODULE:
+            return "module";
+        case OBJ_CLASS:
+            return "class";
+        case OBJ_BOUND_METHOD:
+            return "method";
+        case OBJ_INSTANCE:
+            return "instance";
+        case OBJ_STRING:
+            return "string";
+        case OBJ_LIST:
+            return "list";
+        case OBJ_MAP:
+            return "map";
+        case OBJ_CLOSURE:
+        case OBJ_FUNCTION:
+            return "function";
+        case OBJ_NATIVE:
+            return "native";
+        default:
+            return "unknown";
+    }
 }

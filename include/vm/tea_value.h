@@ -95,6 +95,7 @@ typedef struct
 
 #endif
 
+const char* tea_value_type(TeaValue a);
 bool tea_values_equal(TeaValue a, TeaValue b);
 char* tea_value_string(TeaValue value);
 void tea_print_value(TeaValue value);

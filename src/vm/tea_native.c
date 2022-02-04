@@ -107,37 +107,10 @@ static TeaValue error_native(int arg_count, TeaValue* args)
 static TeaValue type_native(int arg_count, TeaValue* args)
 {
     VALIDATE_ARG_COUNT(type, 1);
-    if(IS_NUMBER(args[0]))
-    {        
-        return OBJECT_VAL(tea_copy_string("number", 6));
-    }
-    else if(IS_STRING(args[0]))
-    {
-        return OBJECT_VAL(tea_copy_string("string", 6));
-    }
-    else if(IS_BOOL(args[0]))
-    {
-        return OBJECT_VAL(tea_copy_string("bool", 4));
-    }
-    else if(IS_LIST(args[0]))
-    {
-        return OBJECT_VAL(tea_copy_string("list", 4));
-    }
-    else if(IS_MAP(args[0]))
-    {
-        return OBJECT_VAL(tea_copy_string("map", 3));
-    }
-    else if(IS_NULL(args[0]))
-    {
-        return OBJECT_VAL(tea_copy_string("null", 4));
-    }
-    else
-    {
-        // For some reason IS_FUNCTION doesn't work to check a function type
-        return OBJECT_VAL(tea_copy_string("function", 8));
-    }
 
-    return EMPTY_VAL;
+    const char* type = tea_value_type(args[0]);
+
+    return OBJECT_VAL(tea_copy_string(type, (int)strlen(type)));
 }
 
 static TeaValue number_native(int arg_count, TeaValue* args)

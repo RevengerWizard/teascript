@@ -5,16 +5,32 @@
 #include "memory/tea_memory.h"
 #include "vm/tea_value.h"
 
+const char* tea_value_type(TeaValue a)
+{
+    if(IS_BOOL(a))
+    {
+        return "bool";
+    }
+    else if(IS_NULL(a))
+    {
+        return "null";
+    }
+    else if(IS_NUMBER(a))
+    {
+        return "number";
+    }
+    else if(IS_OBJECT(a))
+    {
+        return tea_object_type(a);
+    }
+}
+
 bool tea_values_equal(TeaValue a, TeaValue b)
 {
 #ifdef NAN_TAGGING
     if(IS_NUMBER(a) && IS_NUMBER(b))
     {
         return AS_NUMBER(a) == AS_NUMBER(b);
-    }
-    if(IS_STRING(a) && IS_STRING(b))
-    {
-        return a == b;
     }
     else if(IS_OBJECT(a) && IS_OBJECT(b))
     {
