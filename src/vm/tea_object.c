@@ -235,7 +235,8 @@ static void print_function(TeaObjectFunction* function)
         printf("<script>");
         return;
     }
-    printf("<function %s>", function->name->chars);
+    //printf("<function %s>", function->name->chars);
+    printf("<function>");
 }
 
 void tea_print_object(TeaValue value)
