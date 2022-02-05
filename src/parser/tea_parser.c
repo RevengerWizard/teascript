@@ -666,8 +666,33 @@ static void map(bool can_assign)
 
 static void subscript(TeaToken previous_token, bool can_assign)
 {
-    parse_precendence(PREC_OR);
-    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after index.");
+    if(match(TOKEN_COLON))
+    {
+        emit_byte(OP_NULL);
+        expression();
+        emit_byte(OP_SLICE);
+        consume(TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
+        return;
+    }
+
+    expression();
+
+    if(match(TOKEN_COLON))
+    {
+        if(check(TOKEN_RIGHT_BRACKET))
+        {
+            emit_byte(OP_NULL);
+        }
+        else
+        {
+            expression();
+        }
+        emit_byte(OP_SLICE);
+        consume(TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
+        return;
+    }
+
+    consume(TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
 
     if(can_assign && match(TOKEN_EQUAL))
     {

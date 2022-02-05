@@ -263,6 +263,121 @@ static bool subscript_store(TeaValue item_value, TeaValue index_value, TeaValue 
     return false;
 }
 
+static bool slice(TeaValue object, TeaValue start, TeaValue end)
+{
+    if(!IS_OBJECT(object))
+    {
+        tea_runtime_error("Can only slice on lists and strings.");
+        return false;
+    }
+
+    if((!IS_NUMBER(start) && !IS_NULL(start)) || (!IS_NUMBER(end) && !IS_NULL(end)))
+    {
+        tea_runtime_error("Slice index must be a number");
+        return false;
+    }
+
+    int index_start;
+    int index_end;
+    TeaValue return_value;
+
+    if(IS_NULL(start))
+    {
+        index_start = 0;
+    }
+    else
+    {
+        index_start = AS_NUMBER(start);
+
+        if(index_start < 0)
+        {
+            index_start = 0;
+        }
+    }
+
+    switch(OBJECT_TYPE(object))
+    {
+        case OBJ_LIST:
+        {
+            TeaObjectList* new_list = tea_new_list();
+            tea_push(OBJECT_VAL(new_list));
+            TeaObjectList* list = AS_LIST(object);
+
+            if(IS_NULL(end))
+            {
+                index_end = list->items.count;
+            }
+            else
+            {
+                index_end = AS_NUMBER(end);
+
+                if(index_end > list->items.count)
+                {
+                    index_end = list->items.count;
+                }
+                else if(index_end < 0)
+                {
+                    index_end = list->items.count + index_end;
+                }
+            }
+
+            for(int i = index_start; i < index_end; i++)
+            {
+                tea_write_value_array(&new_list->items, list->items.values[i]);
+            }
+
+            tea_pop();
+            return_value = OBJECT_VAL(new_list);
+
+            break;
+        }
+        case OBJ_STRING:
+        {
+            TeaObjectString* string = AS_STRING(object);
+
+            if(IS_NULL(end)) 
+            {
+                index_end = string->length;
+            } 
+            else 
+            {
+                index_end = AS_NUMBER(end);
+
+                if(index_end > string->length) 
+                {
+                    index_end = string->length;
+                }
+                else if(index_end < 0) 
+                {
+                    index_end = string->length + index_end;
+                }
+            }
+
+            // Ensure the start index is below the end index
+            if(index_start > index_end) 
+            {
+                return_value = OBJECT_VAL(tea_copy_string("", 0));
+            } 
+            else 
+            {
+                return_value = OBJECT_VAL(tea_copy_string(string->chars + index_start, index_end - index_start));
+            }
+            break;
+        }
+        default:
+        {
+            tea_runtime_error("Can only slice lists and strings!");
+            return false;
+        }
+    }
+
+    tea_pop();
+    tea_pop();
+    tea_pop();
+    tea_push(return_value);
+    return true;
+}
+
 static bool call(TeaObjectClosure* closure, int arg_count)
 {
     if(arg_count != closure->function->arity)
@@ -881,6 +996,18 @@ static InterpretResult run()
                 TeaValue list = peek(2);
                 STORE_FRAME;
                 if(!subscript_store(item, index, list))
+                {
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                DISPATCH();
+            }
+            CASE_CODE(SLICE):
+            {
+                TeaValue end_index = peek(0);
+                TeaValue start_index = peek(1);
+                TeaValue object = peek(2);
+                STORE_FRAME;
+                if(!slice(object, start_index, end_index))
                 {
                     return INTERPRET_RUNTIME_ERROR;
                 }
