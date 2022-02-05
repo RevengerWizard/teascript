@@ -115,7 +115,11 @@ static TeaValue type_native(int arg_count, TeaValue* args)
 
 static TeaValue number_native(int arg_count, TeaValue* args)
 {
-    if(IS_STRING(args[0]))
+    if(IS_BOOL(args[0]))
+    {
+        return AS_BOOL(args[0]) ? NUMBER_VAL(1) : NUMBER_VAL(0);
+    }
+    else if(IS_STRING(args[0]))
     {
         char* n = AS_CSTRING(args[0]);
         char* end;
@@ -133,7 +137,12 @@ static TeaValue number_native(int arg_count, TeaValue* args)
     }
 }
 
-static TeaValue string_native(int arg_count, TeaValue* args)
+/*static TeaValue string_native(int arg_count, TeaValue* args)
+{
+    return EMPTY_VAL;
+}*/
+
+static TeaValue len_native(int arg_count, TeaValue* args)
 {
     return EMPTY_VAL;
 }
@@ -160,6 +169,9 @@ void tea_define_natives(TeaVM* vm)
     tea_native_function(vm, &vm->globals, "type", type_native);
 
     tea_native_function(vm, &vm->globals, "number", number_native);
+    //tea_native_function(vm, &vm->globals, "bool", bool_native);
     //tea_native_function(vm, &vm->globals, "string", string_native);
     //tea_native_function(vm, &vm->globals, "list", list_native);
+
+    //tea_native_function(vm, &vm->globals, "len", len_native);
 }
