@@ -1167,5 +1167,10 @@ InterpretResult tea_interpret(const char* source)
 
 bool tea_is_falsey(TeaValue value)
 {
-    return IS_NULL(value) || (IS_BOOL(value) && !AS_BOOL(value)) || (IS_NUMBER(value) && AS_NUMBER(value) == 0) || (IS_STRING(value) && AS_CSTRING(value)[0] == '\0') || (IS_LIST(value) && AS_LIST(value)->items.count == 0);
+    return  IS_NULL(value) || 
+            (IS_BOOL(value) && !AS_BOOL(value)) || 
+            (IS_NUMBER(value) && AS_NUMBER(value) == 0) || 
+            (IS_STRING(value) && AS_CSTRING(value)[0] == '\0') || 
+            (IS_LIST(value) && AS_LIST(value)->items.count == 0) ||
+            (IS_MAP(value) && AS_MAP(value)->items.count == 0);
 }
