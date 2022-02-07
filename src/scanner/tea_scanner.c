@@ -194,9 +194,21 @@ static TeaTokenType identifier_type()
 {
     switch(scanner.start[0])
     {
-        case 'a': return check_keyword(1, 2, "nd", TOKEN_AND);
+        case 'a':
+        {
+            if(scanner.current - scanner.start > 1)
+            {
+                switch(scanner.start[1])
+                {
+                    case 'n': return check_keyword(2, 1, "d", TOKEN_AND);
+                    case 's': return check_keyword(2, 0, "", TOKEN_AS);
+                }
+            }
+            break;
+        }
         case 'b': return check_keyword(1, 4, "reak", TOKEN_BREAK);
         case 'c':
+        {
             if(scanner.current - scanner.start > 1)
             {
                 switch(scanner.start[1])
@@ -207,9 +219,11 @@ static TeaTokenType identifier_type()
                 }
             }
             break;
+        }
         case 'd': return check_keyword(1, 6, "efault", TOKEN_DEFAULT);
         case 'e': return check_keyword(1, 3, "lse", TOKEN_ELSE);
         case 'f':
+        {
             if(scanner.current - scanner.start > 1)
             {
                 switch(scanner.start[1])
@@ -220,7 +234,9 @@ static TeaTokenType identifier_type()
                 }
             }
             break;
+        }
         case 'i':
+        {
             if(scanner.current - scanner.start > 1)
             {
                 switch(scanner.start[1])
@@ -230,10 +246,12 @@ static TeaTokenType identifier_type()
                 }
             }
             break;
+        }
         case 'n': return check_keyword(1, 3, "ull", TOKEN_NULL);
         case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
         case 'r': return check_keyword(1, 5, "eturn", TOKEN_RETURN);
         case 's':
+        {
             if(scanner.current - scanner.start > 1)
             {
                 switch(scanner.start[1])
@@ -243,7 +261,9 @@ static TeaTokenType identifier_type()
                 }
             }
             break;
+        }
         case 't':
+        {
             if(scanner.current - scanner.start > 1)
             {
                 switch(scanner.start[1])
@@ -253,6 +273,7 @@ static TeaTokenType identifier_type()
                 }
             }
             break;
+        }
         case 'v': return check_keyword(1, 2, "ar", TOKEN_VAR);
         case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE);
     }
@@ -331,15 +352,14 @@ TeaToken tea_scan_token()
         case ']': return make_token(TOKEN_RIGHT_BRACKET);
         case '{': return make_token(TOKEN_LEFT_BRACE);
         case '}': return make_token(TOKEN_RIGHT_BRACE);
-        //case ';': return make_token(TOKEN_SEMICOLON);
         case ',': return make_token(TOKEN_COMMA);
         case ':': return make_token(TOKEN_COLON);
         case '?': return make_token(TOKEN_QUESTION);
         case '.': return make_token(TOKEN_DOT);
         case '-': return make_token(TOKEN_MINUS);
         case '+': return make_token(TOKEN_PLUS);
-        case '/': return make_token(TOKEN_SLASH);
         case '*': return make_token(TOKEN_STAR);
+        case '/': return make_token(TOKEN_SLASH);
         case '!': return make_token(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
         case '=': return make_token(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
         case '<': return make_token(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);

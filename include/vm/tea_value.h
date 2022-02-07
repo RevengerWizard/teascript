@@ -21,23 +21,23 @@ typedef struct TeaObjectFile TeaObjectFile;
 
 typedef uint64_t TeaValue;
 
-#define IS_BOOL(value) (((value) | 1) == TRUE_VAL)
-#define IS_NULL(value) ((value) == NULL_VAL)
-#define IS_EMPTY(value) ((value) == EMPTY_VAL)
-#define IS_NUMBER(value) (((value)&QNAN) != QNAN)
+#define IS_BOOL(value)      (((value) | 1) == TRUE_VAL)
+#define IS_NULL(value)      ((value) == NULL_VAL)
+#define IS_EMPTY(value)     ((value) == EMPTY_VAL)
+#define IS_NUMBER(value)    (((value) & QNAN) != QNAN)
 #define IS_OBJECT(value) \
     (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 
-#define AS_BOOL(value) ((value) == TRUE_VAL)
+#define AS_BOOL(value)      ((value) == TRUE_VAL)
 #define AS_NUMBER(value) value_to_num(value)
 #define AS_OBJECT(value) \
     ((TeaObject*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
-#define BOOL_VAL(b) ((b) ? TRUE_VAL : FALSE_VAL)
-#define FALSE_VAL ((TeaValue)(uint64_t)(QNAN | TAG_FALSE))
-#define TRUE_VAL ((TeaValue)(uint64_t)(QNAN | TAG_TRUE))
-#define NULL_VAL ((TeaValue)(uint64_t)(QNAN | TAG_NULL))
-#define EMPTY_VAL ((TeaValue)(uint64_t)(QNAN | TAG_EMPTY))
+#define BOOL_VAL(b)     ((b) ? TRUE_VAL : FALSE_VAL)
+#define FALSE_VAL       ((TeaValue)(uint64_t)(QNAN | TAG_FALSE))
+#define TRUE_VAL        ((TeaValue)(uint64_t)(QNAN | TAG_TRUE))
+#define NULL_VAL        ((TeaValue)(uint64_t)(QNAN | TAG_NULL))
+#define EMPTY_VAL       ((TeaValue)(uint64_t)(QNAN | TAG_EMPTY))
 #define NUMBER_VAL(num) num_to_value(num)
 #define OBJECT_VAL(obj) \
     (TeaValue)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))

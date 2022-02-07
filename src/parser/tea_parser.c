@@ -18,6 +18,7 @@ typedef struct
     TeaToken previous;
     bool had_error;
     bool panic_mode;
+    TeaObjectModule* module;
 } TeaParser;
 
 typedef enum
@@ -250,7 +251,7 @@ static void init_compiler(TeaCompiler* compiler, TeaFunctionType type)
     compiler->type = type;
     compiler->local_count = 0;
     compiler->scope_depth = 0;
-    compiler->function = tea_new_function();
+    compiler->function = tea_new_function(parser.module);
     current = compiler;
     if(type != TYPE_SCRIPT)
     {
@@ -283,6 +284,17 @@ static TeaObjectFunction* end_compiler()
         tea_disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "<script>");
     }
 #endif
+
+    if(current->enclosing != NULL)
+    {
+        emit_bytes(OP_CLOSURE, make_constant(OBJECT_VAL(function)));
+
+        for(int i = 0; i < function->upvalue_count; i++)
+        {
+            emit_byte(current->upvalues[i].is_local ? 1 : 0);
+            emit_byte(current->upvalues[i].index);
+        }
+    }
 
     current = current->enclosing;
     return function;
@@ -524,8 +536,7 @@ static void binary(TeaToken previous_token, bool can_assign)
         }
         case TOKEN_MINUS:
         {
-            //emit_byte(OP_SUBTRACT);
-            emit_bytes(OP_NEGATE, OP_ADD);
+            emit_byte(OP_SUBTRACT);
             break;
         }
         case TOKEN_STAR:
@@ -818,60 +829,11 @@ static void this_(bool can_assign)
     variable(false);
 }
 
-static bool fold_unary(TeaTokenType operatorType) 
-{
-    TeaTokenType valueToken = parser.previous.type;
-
-    switch (operatorType) 
-    {
-        case TOKEN_BANG: 
-        {
-            if(valueToken == TOKEN_TRUE) 
-            {
-                TeaChunk* chunk = current_chunk();
-                chunk->code[chunk->count - 1] = OP_FALSE;
-                return true;
-            } 
-            else if(valueToken == TOKEN_FALSE) 
-            {
-                TeaChunk* chunk = current_chunk();
-                chunk->code[chunk->count - 1] = OP_TRUE;
-                return true;
-            }
-
-            return false;
-        }
-
-        case TOKEN_MINUS: 
-        {
-            if(valueToken == TOKEN_NUMBER) 
-            {
-                TeaChunk* chunk = current_chunk();
-                uint8_t constant = chunk->code[chunk->count - 1];
-                chunk->constants.values[constant] = NUMBER_VAL(-AS_NUMBER(chunk->constants.values[constant]));
-                return true;
-            }
-
-            return false;
-        }
-
-        default: 
-        {
-            return false;
-        }
-    }
-}
-
 static void unary(bool can_assign)
 {
     TeaTokenType operator_type = parser.previous.type;
 
     parse_precendence(PREC_UNARY);
-
-    if(fold_unary(operator_type))
-    {
-        return;
-    }
 
     // Emit the operator instruction.
     switch(operator_type)
@@ -894,7 +856,6 @@ static void unary(bool can_assign)
 #define UNUSED                  { NULL, NULL, PREC_NONE }
 #define RULE(pr, in, prec)      { pr, in, PREC_##prec }    
 #define PREFIX(pr)              { pr, NULL, PREC_NONE }
-//#define INFIX(in)             { NULL, in, PREC_NONE }
 #define OPERATOR(in, prec)      { NULL, in, PREC_##prec }
 
 TeaParseRule rules[] = {
@@ -908,7 +869,6 @@ TeaParseRule rules[] = {
     OPERATOR(dot, SUBSCRIPT),             // TOKEN_DOT
     UNUSED,                               // TOKEN_COLON
     UNUSED,                               // TOKEN_QUESTION
-    //UNUSED,                             // TOKEN_SEMICOLON
     RULE(unary, binary, TERM),            // TOKEN_MINUS
     OPERATOR(binary, TERM),               // TOKEN_PLUS
     OPERATOR(binary, FACTOR),             // TOKEN_SLASH
@@ -948,6 +908,7 @@ TeaParseRule rules[] = {
     OPERATOR(or_, OR),                    // TOKEN_OR
     UNUSED,                               // TOKEN_IMPORT
     UNUSED,                               // TOKEN_FROM
+    UNUSED,                               // TOKEN_AS
     UNUSED,                               // TOKEN_RETURN
     PREFIX(super_),                       // TOKEN_SUPER
     PREFIX(this_),                        // TOKEN_THIS
@@ -963,7 +924,6 @@ TeaParseRule rules[] = {
 #undef UNUSED
 #undef RULE
 #undef PREFIX
-//#undef INFIX
 #undef OPERATOR
 
 static void parse_precendence(TeaPrecedence precedence)
@@ -983,8 +943,8 @@ static void parse_precendence(TeaPrecedence precedence)
     {
         TeaToken token = parser.previous;
         advance();
-        TeaParseInfixFn infixRule = get_rule(parser.previous.type)->infix;
-        infixRule(token, can_assign);
+        TeaParseInfixFn infix_rule = get_rule(parser.previous.type)->infix;
+        infix_rule(token, can_assign);
     }
 
     if(can_assign && match(TOKEN_EQUAL))
@@ -1041,13 +1001,6 @@ static void function(TeaFunctionType type)
     block();
 
     TeaObjectFunction* function = end_compiler();
-    emit_bytes(OP_CLOSURE, make_constant(OBJECT_VAL(function)));
-
-    for(int i = 0; i < function->upvalue_count; i++)
-    {
-        emit_byte(compiler.upvalues[i].is_local ? 1 : 0);
-        emit_byte(compiler.upvalues[i].index);
-    }
 }
 
 static void anonymous(bool can_assign)
@@ -1146,7 +1099,6 @@ static void var_declaration()
         {
             emit_byte(OP_NULL);
         }
-        //consume(TOKEN_SEMICOLON, "Expect ';' after variable declaration.");
 
         define_variable(global);
     }
@@ -1156,7 +1108,6 @@ static void var_declaration()
 static void expression_statement()
 {
     expression();
-    //consume(TOKEN_SEMICOLON, "Expect ';' after expression.");
     emit_byte(OP_POP);
 }
 
@@ -1352,7 +1303,19 @@ static void import_statement()
 {
     if(match(TOKEN_STRING))
     {
+        uint8_t import_constant = make_constant(OBJECT_VAL(tea_copy_string(parser.previous.start + 1,  parser.previous.length - 2)));
 
+        emit_bytes(OP_IMPORT, import_constant);
+        emit_byte(OP_POP);
+
+        if(match(TOKEN_AS)) 
+        {
+            uint8_t import_name = parse_variable("Expect import alias.");
+            emit_byte(OP_IMPORT_VARIABLE);
+            define_variable(import_name);
+        }
+
+        emit_byte(OP_IMPORT_END);
     }
     else
     {
@@ -1412,8 +1375,6 @@ static void synchronize()
 
     while(parser.current.type != TOKEN_EOF)
     {
-        //if(parser.previous.type == TOKEN_SEMICOLON)
-        //    return;
         switch(parser.current.type)
         {
             case TOKEN_CLASS:
@@ -1422,7 +1383,9 @@ static void synchronize()
             case TOKEN_FOR:
             case TOKEN_IF:
             case TOKEN_WHILE:
+            case TOKEN_BREAK:
             case TOKEN_RETURN:
+            case TOKEN_IMPORT:
                 return;
 
             default:; // Do nothing.
@@ -1497,7 +1460,7 @@ static void statement()
     }
 }
 
-TeaObjectFunction* tea_compile(const char* source)
+TeaObjectFunction* tea_compile(TeaObjectModule* module, const char* source)
 {
     tea_init_scanner(source);
     TeaCompiler compiler;
@@ -1505,6 +1468,7 @@ TeaObjectFunction* tea_compile(const char* source)
 
     parser.had_error = false;
     parser.panic_mode = false;
+    parser.module = module;
 
     advance();
 

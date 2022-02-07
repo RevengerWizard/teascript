@@ -33,10 +33,10 @@ TeaObjectFile* tea_new_file()
 
 TeaObjectModule* tea_new_module(TeaObjectString* name)
 {
-    TeaValue moduleVal;
-    if(tea_table_get(&vm.modules, name, &moduleVal)) 
+    TeaValue module_val;
+    if(tea_table_get(&vm.modules, name, &module_val)) 
     {
-        return AS_MODULE(moduleVal);
+        return AS_MODULE(module_val);
     }
 
     TeaObjectModule* module = ALLOCATE_OBJECT(TeaObjectModule, OBJ_MODULE);
@@ -44,10 +44,7 @@ TeaObjectModule* tea_new_module(TeaObjectString* name)
     module->name = name;
     module->path = NULL;
 
-    tea_push(OBJECT_VAL(module));
     tea_table_set(&vm.modules, name, OBJECT_VAL(module));
-
-    tea_pop();
 
     return module;
 }
@@ -103,12 +100,13 @@ TeaObjectClosure* tea_new_closure(TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* tea_new_function()
+TeaObjectFunction* tea_new_function(TeaObjectModule* module)
 {
     TeaObjectFunction* function = ALLOCATE_OBJECT(TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->upvalue_count = 0;
     function->name = NULL;
+    function->module = module;
     tea_init_chunk(&function->chunk);
 
     return function;

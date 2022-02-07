@@ -4,6 +4,7 @@
 
 #include "vm/tea_vm.h"
 #include "util/tea_file.h"
+#include "memory/tea_memory.h"
 
 char* tea_read_file(const char* path)
 {
@@ -18,7 +19,7 @@ char* tea_read_file(const char* path)
     size_t file_size = ftell(file);
     rewind(file);
 
-    char* buffer = (char*)malloc(file_size + 1);
+    char* buffer = ALLOCATE(char, file_size + 1);
     if(buffer == NULL)
     {
         fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
@@ -58,7 +59,7 @@ TeaObjectString* tea_get_directory(char* source)
 {
     // find only files with .tea extension
     int len = strlen(source);
-    if(tea_ends_with(source, "tea", len)) 
+    if(!tea_ends_with(source, ".tea", len)) 
     {
         source = "";
     }
@@ -124,6 +125,7 @@ TeaObjectString* tea_dir_name(char* path, int len)
 
 bool tea_resolve_path(char* directory, char* path, char* ret)
 {
+
     char buffer[PATH_MAX];
     if(*path == DIR_SEPARATOR)
     {

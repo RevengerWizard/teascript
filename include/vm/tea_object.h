@@ -83,6 +83,7 @@ typedef struct
     int upvalue_count;
     TeaChunk chunk;
     TeaObjectString* name;
+    TeaObjectModule* module;
 } TeaObjectFunction;
 
 typedef TeaValue (*TeaNativeFunction)(int arg_count, TeaValue* args);
@@ -162,7 +163,7 @@ TeaObjectMap* tea_new_map();
 TeaObjectBoundMethod* tea_new_bound_method(TeaValue receiver, TeaObjectClosure* method);
 TeaObjectClass* tea_new_class(TeaObjectString* name);
 TeaObjectClosure* tea_new_closure(TeaObjectFunction* function);
-TeaObjectFunction* tea_new_function();
+TeaObjectFunction* tea_new_function(TeaObjectModule* module);
 TeaObjectInstance* tea_new_instance(TeaObjectClass* klass);
 TeaObjectNative* tea_new_native(TeaNativeFunction function);
 

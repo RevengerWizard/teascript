@@ -9,6 +9,7 @@
 #include "memory/tea_memory.h"
 #include "vm/tea_vm.h"
 #include "vm/tea_native.h"
+#include "util/tea_file.h"
 
 #include "types/tea_string.h"
 #include "types/tea_list.h"
@@ -732,7 +733,7 @@ static void concatenate()
     tea_push(OBJECT_VAL(result));
 }
 
-static InterpretResult run()
+static TeaInterpretResult run()
 {
     TeaCallFrame* frame = &vm.frames[vm.frame_count - 1];
 
@@ -748,20 +749,18 @@ static InterpretResult run()
     (frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
-#define OP_ERROR(op) 0
-
-#define BINARY_OP(value_type, op)                        \
-    do                                                  \
-    {                                                   \
+#define BINARY_OP(value_type, op, type) \
+    do \
+    { \
         if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) \
-        {   \
-            STORE_FRAME;                             \
-            tea_runtime_error("Operands must be numbers.");  \
-            return INTERPRET_RUNTIME_ERROR;             \
-        }                                               \
-        double b = AS_NUMBER(tea_pop());                    \
-        double a = AS_NUMBER(tea_pop());                    \
-        tea_push(value_type(a op b));                        \
+        { \
+            STORE_FRAME; \
+            tea_runtime_error("Operands must be numbers."); \
+            return INTERPRET_RUNTIME_ERROR; \
+        } \
+        type b = AS_NUMBER(tea_pop()); \
+        type a = AS_NUMBER(peek(0)); \
+        vm.stack_top[-1] = value_type(a op b); \
     } \
     while(false)
 
@@ -837,22 +836,34 @@ static InterpretResult run()
                 DISPATCH();
             }
             CASE_CODE(CONSTANT_LONG):
+            {
                 DISPATCH();
+            }
             CASE_CODE(NULL):
+            {
                 tea_push(NULL_VAL);
                 DISPATCH();
+            }
             CASE_CODE(TRUE):
+            {
                 tea_push(BOOL_VAL(true));
                 DISPATCH();
+            }
             CASE_CODE(FALSE):
+            {
                 tea_push(BOOL_VAL(false));
                 DISPATCH();
-            CASE_CODE(DUP): 
+            }
+            CASE_CODE(DUP):
+            {
                 tea_push(peek(0)); 
                 DISPATCH();
+            }
             CASE_CODE(POP):
+            {
                 tea_pop();
                 DISPATCH();
+            }
             CASE_CODE(GET_LOCAL):
             {
                 uint8_t slot = READ_BYTE();
@@ -876,13 +887,6 @@ static InterpretResult run()
                 tea_push(value);
                 DISPATCH();
             }
-            CASE_CODE(DEFINE_GLOBAL):
-            {
-                TeaObjectString* name = READ_STRING();
-                tea_table_set(&vm.globals, name, peek(0));
-                tea_pop();
-                DISPATCH();
-            }
             CASE_CODE(SET_GLOBAL):
             {
                 TeaObjectString* name = READ_STRING();
@@ -891,6 +895,41 @@ static InterpretResult run()
                     tea_table_delete(&vm.globals, name);
                     RUNTIME_ERROR("Undefined variable '%s'.", name->chars);
                 }
+                DISPATCH();
+            }
+            CASE_CODE(GET_MODULE):
+            {
+                TeaObjectString* name = READ_STRING();
+                TeaValue value;
+                if(!tea_table_get(&frame->closure->function->module->values, name, &value)) 
+                {
+                    RUNTIME_ERROR("Undefined variable '%s'.", name->chars);
+                }
+                tea_push(value);
+                DISPATCH();
+            }
+            CASE_CODE(SET_MODULE):
+            {
+                TeaObjectString* name = READ_STRING();
+                if(tea_table_set(&frame->closure->function->module->values, name, peek(0))) 
+                {
+                    tea_table_delete(&frame->closure->function->module->values, name);
+                    RUNTIME_ERROR("Undefined variable '%s'.", name->chars);
+                }
+                DISPATCH();
+            }
+            CASE_CODE(DEFINE_MODULE):
+            {
+                TeaObjectString* name = READ_STRING();
+                tea_table_set(&frame->closure->function->module->values, name, peek(0));
+                tea_pop();
+                DISPATCH();
+            }
+            CASE_CODE(DEFINE_GLOBAL):
+            {
+                TeaObjectString* name = READ_STRING();
+                tea_table_set(&vm.globals, name, peek(0));
+                tea_pop();
                 DISPATCH();
             }
             CASE_CODE(GET_UPVALUE):
@@ -1021,11 +1060,15 @@ static InterpretResult run()
                 DISPATCH();
             }
             CASE_CODE(GREATER):
-                BINARY_OP(BOOL_VAL, >);
+            {
+                BINARY_OP(BOOL_VAL, >, double);
                 DISPATCH();
+            }
             CASE_CODE(LESS):
-                BINARY_OP(BOOL_VAL, <);
+            {
+                BINARY_OP(BOOL_VAL, <, double);
                 DISPATCH();
+            }
             CASE_CODE(ADD):
             {
                 if(IS_STRING(peek(0)) && IS_STRING(peek(1)))
@@ -1044,25 +1087,35 @@ static InterpretResult run()
                 }
                 DISPATCH();
             }
-            /*case OP_SUBTRACT:
-                BINARY_OP(NUMBER_VAL, -);
-                DISPATCH();*/
+            CASE_CODE(SUBTRACT):
+            {
+                BINARY_OP(NUMBER_VAL, -, double);
+                DISPATCH();
+            }
             CASE_CODE(MULTIPLY):
-                BINARY_OP(NUMBER_VAL, *);
+            {
+                BINARY_OP(NUMBER_VAL, *, double);
                 DISPATCH();
+            }
             CASE_CODE(DIVIDE):
-                BINARY_OP(NUMBER_VAL, /);
+            {
+                BINARY_OP(NUMBER_VAL, /, double);
                 DISPATCH();
+            }
             CASE_CODE(NOT):
+            {
                 tea_push(BOOL_VAL(tea_is_falsey(tea_pop())));
                 DISPATCH();
+            }
             CASE_CODE(NEGATE):
+            {
                 if(!IS_NUMBER(peek(0)))
                 {
                     RUNTIME_ERROR("Operand must be a number.");
                 }
                 tea_push(NUMBER_VAL(-AS_NUMBER(tea_pop())));
                 DISPATCH();
+            }
             CASE_CODE(JUMP):
             {
                 uint16_t offset = READ_SHORT();
@@ -1127,6 +1180,7 @@ static InterpretResult run()
                 TeaObjectFunction* function = AS_FUNCTION(READ_CONSTANT());
                 TeaObjectClosure* closure = tea_new_closure(function);
                 tea_push(OBJECT_VAL(closure));
+                
                 for(int i = 0; i < closure->upvalue_count; i++)
                 {
                     uint8_t isLocal = READ_BYTE();
@@ -1143,9 +1197,11 @@ static InterpretResult run()
                 DISPATCH();
             }
             CASE_CODE(CLOSE_UPVALUE):
+            {
                 close_upvalues(vm.stack_top - 1);
                 tea_pop();
                 DISPATCH();
+            }
             CASE_CODE(RETURN):
             {
                 TeaValue result = tea_pop();
@@ -1164,15 +1220,16 @@ static InterpretResult run()
                 DISPATCH();
             }
             CASE_CODE(CLASS):
+            {
                 tea_push(OBJECT_VAL(tea_new_class(READ_STRING())));
                 DISPATCH();
+            }
             CASE_CODE(INHERIT):
             {
                 TeaValue superclass = peek(1);
                 if(!IS_CLASS(superclass))
                 {
-                    tea_runtime_error("Superclass must be a class.");
-                    return INTERPRET_RUNTIME_ERROR;
+                    RUNTIME_ERROR("Superclass must be a class.");
                 }
 
                 TeaObjectClass* subclass = AS_CLASS(peek(0));
@@ -1181,10 +1238,61 @@ static InterpretResult run()
                 DISPATCH();
             }
             CASE_CODE(METHOD):
+            {
                 define_method(READ_STRING());
                 DISPATCH();
+            }
             CASE_CODE(IMPORT):
             {
+                TeaObjectString* file_name = READ_STRING();
+
+                TeaValue module_val;
+                // If we have imported this file already, skip.
+                if(tea_table_get(&vm.modules, file_name, &module_val)) 
+                {
+                    vm.last_module = AS_MODULE(module_val);
+                    tea_push(NULL_VAL);
+                    DISPATCH();
+                }
+
+                char path[PATH_MAX];
+                if(!tea_resolve_path(frame->closure->function->module->path->chars, file_name->chars, path)) 
+                {
+                    RUNTIME_ERROR("Could not open file \"%s\".", file_name->chars);
+                }
+
+                char* source = tea_read_file(path);
+
+                if(source == NULL) 
+                {
+                    RUNTIME_ERROR("Could not open file \"%s\".", file_name->chars);
+                }
+
+                TeaObjectString* path_object = tea_copy_string(path, strlen(path));
+                tea_push(OBJECT_VAL(path_object));
+                TeaObjectModule* module = tea_new_module(path_object);
+                module->path = tea_dir_name(path, strlen(path));
+                vm.last_module = module;
+                tea_pop();
+
+                tea_push(OBJECT_VAL(module));
+                TeaObjectFunction* function = tea_compile(module, (char*)source);
+                tea_pop();
+
+                FREE_ARRAY(char, source, strlen(source) + 1);
+
+                if(function == NULL) 
+                    return INTERPRET_COMPILE_ERROR;
+                tea_push(OBJECT_VAL(function));
+                TeaObjectClosure* closure = tea_new_closure(function);
+                tea_pop();
+                tea_push(OBJECT_VAL(closure));
+
+                STORE_FRAME;
+                call(closure, 0);
+                frame = &vm.frames[vm.frame_count - 1];
+                ip = frame->ip;
+
                 DISPATCH();
             }
             CASE_CODE(IMPORT_NATIVE):
@@ -1250,6 +1358,34 @@ static InterpretResult run()
 
                 DISPATCH();
             }
+            CASE_CODE(IMPORT_VARIABLE):
+            {
+                tea_push(OBJECT_VAL(vm.last_module));
+                DISPATCH();
+            }
+            CASE_CODE(IMPORT_FROM):
+            {
+                int var_count = READ_BYTE();
+
+                for(int i = 0; i < var_count; i++)
+                {
+                    TeaValue module_variable;
+                    TeaObjectString* variable = READ_STRING();
+
+                    if(!tea_table_get(&vm.last_module->values, variable, &module_variable))
+                    {
+                        RUNTIME_ERROR("%s can't be found in module %s", variable->chars, vm.last_module->name->chars);
+                    }
+
+                    tea_push(module_variable);
+                }
+                DISPATCH();
+            }
+            CASE_CODE(IMPORT_END):
+            {
+                vm.last_module = frame->closure->function->module;
+                DISPATCH();
+            }
             CASE_CODE(FILE_OPEN):
             {
                 DISPATCH();
@@ -1270,22 +1406,18 @@ static InterpretResult run()
 #undef RUNTIME_ERROR
 }
 
-void hack(bool b)
+TeaInterpretResult tea_interpret(const char* module_name, const char* source)
 {
-    run();
-    if(b)
-        hack(false);
-}
+    TeaObjectString* name = tea_copy_string(module_name, (int)strlen(module_name));
+    TeaObjectModule* module = tea_new_module(name);
 
-InterpretResult tea_interpret(const char* source)
-{
-    TeaObjectFunction* function = tea_compile(source);
+    module->path = tea_get_directory((char*)module_name);
+
+    TeaObjectFunction* function = tea_compile(module, (char*)source);
     if(function == NULL)
         return INTERPRET_COMPILE_ERROR;
 
-    tea_push(OBJECT_VAL(function));
     TeaObjectClosure* closure = tea_new_closure(function);
-    tea_pop();
     tea_push(OBJECT_VAL(closure));
     call(closure, 0);
 
