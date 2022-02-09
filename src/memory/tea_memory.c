@@ -131,7 +131,7 @@ static void blacken_object(TeaObject* object)
         {
             TeaObjectClosure* closure = (TeaObjectClosure*)object;
             tea_mark_object((TeaObject*)closure->function);
-            for (int i = 0; i < closure->upvalue_count; i++)
+            for(int i = 0; i < closure->upvalue_count; i++)
             {
                 tea_mark_object((TeaObject *)closure->upvalues[i]);
             }
@@ -227,8 +227,10 @@ static void free_object(TeaObject* object)
             break;
         }
         case OBJ_NATIVE:
+        {
             FREE(TeaObjectNative, object);
             break;
+        }
         case OBJ_STRING:
         {
             TeaObjectString* string = (TeaObjectString*)object;
@@ -237,8 +239,10 @@ static void free_object(TeaObject* object)
             break;
         }
         case OBJ_UPVALUE:
+        {
             FREE(TeaObjectUpvalue, object);
             break;
+        }
     }
 }
 

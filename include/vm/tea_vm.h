@@ -54,7 +54,7 @@ extern TeaVM vm;
 void tea_init_vm();
 void tea_free_vm();
 void tea_runtime_error(const char* format, ...);
-TeaInterpretResult tea_interpret(const char* module_name, const char* source);
+TeaInterpretResult tea_interpret(const char* source);
 void tea_push(TeaValue value);
 TeaValue tea_pop();
 bool tea_is_falsey(TeaValue value);

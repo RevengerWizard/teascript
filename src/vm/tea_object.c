@@ -100,13 +100,12 @@ TeaObjectClosure* tea_new_closure(TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* tea_new_function(TeaObjectModule* module)
+TeaObjectFunction* tea_new_function()
 {
     TeaObjectFunction* function = ALLOCATE_OBJECT(TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->upvalue_count = 0;
     function->name = NULL;
-    function->module = module;
     tea_init_chunk(&function->chunk);
 
     return function;

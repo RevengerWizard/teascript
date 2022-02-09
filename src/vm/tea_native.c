@@ -137,16 +137,6 @@ static TeaValue number_native(int arg_count, TeaValue* args)
     }
 }
 
-/*static TeaValue string_native(int arg_count, TeaValue* args)
-{
-    return EMPTY_VAL;
-}*/
-
-static TeaValue len_native(int arg_count, TeaValue* args)
-{
-    return EMPTY_VAL;
-}
-
 void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
 {
     TeaObjectString* property = tea_copy_string(name, strlen(name));

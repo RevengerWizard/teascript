@@ -144,34 +144,39 @@ static void skip_whitespace()
                 advance();
                 break;
             case '/':
-                if(peek_next() == '/')
-                {
-                    // A comment goes until the end of the line.
-                    while(peek() != '\n' && !is_at_end())
-                    {
-                        advance();
-                    }
-                }
-                else if(peek_next() == '*')
+                if(peek_next() == '*') 
                 {
                     advance();
                     advance();
-
-                    char a = peek();
-                    char b = peek_next();
-
-                    while((peek() != '*' || peek_next() != '/') && !is_at_end()) 
+                    while(true) 
                     {
-                        if(peek() == '\n') 
+                        while(peek() != '*' && !is_at_end()) 
                         {
-                            scanner.line++;
+                            if((c = advance()) == '\n') 
+                            {
+                                scanner.line++;
+                            }
                         }
 
+                        if(is_at_end())
+                            return;
+
+                        if(peek_next() == '/') 
+                        {
+                            break;
+                        }
                         advance();
                     }
-
                     advance();
                     advance();
+                } 
+                else if(peek_next() == '/') 
+                {
+                    while(peek() != '\n' && !is_at_end()) advance();
+                } 
+                else 
+                {
+                    return;
                 }
                 break;
             default:

@@ -20,7 +20,7 @@ static void repl()
             break;
         }
 
-        tea_interpret("repl", line);
+        tea_interpret(line);
     }
 }
 
@@ -61,7 +61,7 @@ static char* read_file(const char* path)
 static void run_file(const char* path)
 {
     char* source = read_file(path);
-    TeaInterpretResult result = tea_interpret(path, source);
+    TeaInterpretResult result = tea_interpret(source);
     free(source);
 
     if(result == INTERPRET_COMPILE_ERROR)

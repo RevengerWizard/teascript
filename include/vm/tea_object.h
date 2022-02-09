@@ -163,7 +163,7 @@ TeaObjectMap* tea_new_map();
 TeaObjectBoundMethod* tea_new_bound_method(TeaValue receiver, TeaObjectClosure* method);
 TeaObjectClass* tea_new_class(TeaObjectString* name);
 TeaObjectClosure* tea_new_closure(TeaObjectFunction* function);
-TeaObjectFunction* tea_new_function(TeaObjectModule* module);
+TeaObjectFunction* tea_new_function();
 TeaObjectInstance* tea_new_instance(TeaObjectClass* klass);
 TeaObjectNative* tea_new_native(TeaNativeFunction function);
 

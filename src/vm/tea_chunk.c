@@ -58,26 +58,6 @@ void tea_write_chunk(TeaChunk* chunk, uint8_t byte, int line)
     line_start->line = line;
 }
 
-// Add a constant to the array and get the index back
-void tea_write_constant(TeaChunk* chunk, TeaValue value, int line)
-{
-    int index = tea_add_constant(chunk, value);
-
-    // Check if the constant fits inside a single chunk
-    if(index < 256)     // Short OPCODE
-    {
-        tea_write_chunk(chunk, OP_CONSTANT, line);
-        tea_write_chunk(chunk, (uint8_t)index, line);
-    }
-    else    // Long OPCODE
-    {
-        tea_write_chunk(chunk, OP_CONSTANT_LONG, line);
-        tea_write_chunk(chunk, (uint8_t)(index & 0xff), line);
-        tea_write_chunk(chunk, (uint8_t)((index >> 8) & 0xff), line);
-        tea_write_chunk(chunk, (uint8_t)((index >> 16) & 0xff), line);
-    }
-}
-
 int tea_add_constant(TeaChunk* chunk, TeaValue value)
 {
     tea_push(value);
@@ -92,7 +72,7 @@ int tea_get_line(TeaChunk* chunk, int instruction)
     int start = 0;
     int end = chunk->line_count - 1;
 
-    for (;;) 
+    while(true)
     {
         int mid = (start + end) / 2;
         TeaLineStart* line = &chunk->lines[mid];

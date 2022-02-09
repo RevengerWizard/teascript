@@ -87,8 +87,6 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
     {
         case OP_CONSTANT:
             return constant_instruction("OP_CONSTANT", chunk, offset);
-        case OP_CONSTANT_LONG:
-            return long_constant_instruction("OP_CONSTANT_LONG", chunk, offset);
         case OP_NULL:
             return simple_instruction("OP_NULL", offset);
         case OP_TRUE:
@@ -131,8 +129,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_LESS", offset);
         case OP_ADD:
             return simple_instruction("OP_ADD", offset);
-        //case OP_SUBTRACT:
-        //    return simple_instruction("OP_SUBTRACT", offset);
+        case OP_SUBTRACT:
+            return simple_instruction("OP_SUBTRACT", offset);
         case OP_MULTIPLY:
             return simple_instruction("OP_MULTIPLY", offset);
         case OP_DIVIDE:

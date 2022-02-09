@@ -18,7 +18,6 @@ typedef struct
     TeaToken previous;
     bool had_error;
     bool panic_mode;
-    TeaObjectModule* module;
 } TeaParser;
 
 typedef enum
@@ -251,7 +250,7 @@ static void init_compiler(TeaCompiler* compiler, TeaFunctionType type)
     compiler->type = type;
     compiler->local_count = 0;
     compiler->scope_depth = 0;
-    compiler->function = tea_new_function(parser.module);
+    compiler->function = tea_new_function();
     current = compiler;
     if(type != TYPE_SCRIPT)
     {
@@ -285,18 +284,8 @@ static TeaObjectFunction* end_compiler()
     }
 #endif
 
-    if(current->enclosing != NULL)
-    {
-        emit_bytes(OP_CLOSURE, make_constant(OBJECT_VAL(function)));
-
-        for(int i = 0; i < function->upvalue_count; i++)
-        {
-            emit_byte(current->upvalues[i].is_local ? 1 : 0);
-            emit_byte(current->upvalues[i].index);
-        }
-    }
-
     current = current->enclosing;
+    
     return function;
 }
 
@@ -866,7 +855,7 @@ TeaParseRule rules[] = {
     PREFIX(map),                          // TOKEN_LEFT_BRACE
     UNUSED,                               // TOKEN_RIGHT_BRACE
     UNUSED,                               // TOKEN_COMMA
-    OPERATOR(dot, SUBSCRIPT),             // TOKEN_DOT
+    OPERATOR(dot, CALL),                  // TOKEN_DOT
     UNUSED,                               // TOKEN_COLON
     UNUSED,                               // TOKEN_QUESTION
     RULE(unary, binary, TERM),            // TOKEN_MINUS
@@ -1001,6 +990,13 @@ static void function(TeaFunctionType type)
     block();
 
     TeaObjectFunction* function = end_compiler();
+    emit_bytes(OP_CLOSURE, make_constant(OBJECT_VAL(function)));
+
+    for(int i = 0; i < function->upvalue_count; i++)
+    {
+        emit_byte(current->upvalues[i].is_local ? 1 : 0);
+        emit_byte(current->upvalues[i].index);
+    }
 }
 
 static void anonymous(bool can_assign)
@@ -1167,93 +1163,6 @@ static void for_statement()
     end_scope();
 }
 
-#define MAX_CASES 256
-
-static void switch_statement()
-{
-    consume(TOKEN_LEFT_PAREN, "Expect '(' after switch");
-    expression();
-    consume(TOKEN_RIGHT_PAREN, "Expect ')' after value");
-    consume(TOKEN_LEFT_BRACE, "Expect '{' before switch cases");
-
-    int state = 0;  // 0: before all cases, 1: before default, 2: after default.
-    int case_ends[MAX_CASES];
-    int case_count = 0;
-    int previous_case_skip = -1;
-
-    while(!match(TOKEN_RIGHT_BRACE) && !match(TOKEN_EOF))
-    {
-        if(match(TOKEN_CASE) || match(TOKEN_DEFAULT))
-        {
-            TeaTokenType case_type = parser.previous.type;
-
-            if(state == 2)
-            {
-                error("Can't have another case or default after the default case");
-            }
-
-            if(state == 1)
-            {
-                // At the end of the previous case, jump over the others
-                case_ends[case_count++] = emit_jump(OP_JUMP);
-
-                // Patch its condition to jump to the next case (this one)
-                patch_jump(previous_case_skip);
-                emit_byte(OP_POP);
-            }
-
-            if(case_type == TOKEN_CASE)
-            {
-                state = 1;
-
-                // See if the case is equal to the value
-                emit_byte(OP_DUP);
-                expression();
-
-                consume(TOKEN_COLON, "Expect ':' after case value");
-
-                emit_byte(OP_EQUAL);
-                previous_case_skip = emit_jump(OP_JUMP_IF_FALSE);
-
-                // Pop the comparison result
-                emit_byte(OP_POP);
-            }
-            else
-            {
-                state = 2;
-                consume(TOKEN_COLON, "Expect ':' after default");
-                previous_case_skip = -1;
-            }
-        }
-        else
-        {
-            // Otherwise, it's a statement inside the current case
-            if(state == 0)
-            {
-                error("Can't have statements before any case");
-            }
-            statement();
-        }
-    }
-
-    // If we ended without a default case, patch its condition jump.
-    if(state == 1) 
-    {
-        patch_jump(previous_case_skip);
-        emit_byte(OP_POP);
-    }
-
-    // Patch all the case jumps to the end.
-    for(int i = 0; i < case_count; i++) 
-    {
-        patch_jump(case_ends[i]);
-    }
-
-    emit_byte(OP_POP); // The switch value.
-}
-
-#undef MAX_CASES
-
 static void if_statement()
 {
     consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
@@ -1303,19 +1212,7 @@ static void import_statement()
 {
     if(match(TOKEN_STRING))
     {
-        uint8_t import_constant = make_constant(OBJECT_VAL(tea_copy_string(parser.previous.start + 1,  parser.previous.length - 2)));
-
-        emit_bytes(OP_IMPORT, import_constant);
-        emit_byte(OP_POP);
-
-        if(match(TOKEN_AS)) 
-        {
-            uint8_t import_name = parse_variable("Expect import alias.");
-            emit_byte(OP_IMPORT_VARIABLE);
-            define_variable(import_name);
-        }
-
-        emit_byte(OP_IMPORT_END);
+        
     }
     else
     {
@@ -1424,10 +1321,6 @@ static void statement()
     {
         for_statement();
     }
-    else if(match(TOKEN_SWITCH))
-    {
-        switch_statement();
-    }
     else if(match(TOKEN_IF))
     {
         if_statement();
@@ -1446,7 +1339,7 @@ static void statement()
     }
     else if(match(TOKEN_FROM))
     {
-        from_import_statement();
+        //from_import_statement();
     }
     else if(match(TOKEN_LEFT_BRACE))
     {
@@ -1460,7 +1353,7 @@ static void statement()
     }
 }
 
-TeaObjectFunction* tea_compile(TeaObjectModule* module, const char* source)
+TeaObjectFunction* tea_compile(const char* source)
 {
     tea_init_scanner(source);
     TeaCompiler compiler;
@@ -1468,7 +1361,6 @@ TeaObjectFunction* tea_compile(TeaObjectModule* module, const char* source)
 
     parser.had_error = false;
     parser.panic_mode = false;
-    parser.module = module;
 
     advance();
 
