@@ -11,6 +11,7 @@ typedef TeaValue (*TeaNativeModule)(TeaVM* vm);
 typedef struct
 {
     char* name;
+    int length;
     TeaNativeModule module;
 } TeaNativeModules;
 

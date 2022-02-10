@@ -61,15 +61,28 @@ static TeaValue mid_native(int arg_count, TeaValue* args)
         double y = AS_NUMBER(args[1]);
         double z = AS_NUMBER(args[2]);
 
-        if(x >= y && x <= z)
+        double mid;
+
+        if(x > y)
         {
-            return NUMBER_VAL(x);
+            if(y > z)
+                mid = y;
+            else if(x > z)
+                mid = z;
+            else
+                mid = x;
         }
-        if(y >= x && y <= z)
+        else
         {
-            return NUMBER_VAL(y);
+            if(x > z)
+                mid = x;
+            else if(y > z)
+                mid = z;
+            else
+                mid = y;
         }
-        return NUMBER_VAL(z);
+
+        return NUMBER_VAL(mid);
     }
     else
     {

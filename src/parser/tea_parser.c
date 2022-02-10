@@ -1220,10 +1220,7 @@ static void import_statement()
         uint8_t import_name = identifier_constant(&parser.previous);
         declare_variable(parser.previous);
 
-        int index = tea_find_native_module(
-            (char*)parser.previous.start,
-            parser.current.length - parser.previous.length
-        );
+        int index = tea_find_native_module((char*)parser.previous.start, parser.previous.length);
 
         if(index == -1) 
         {
