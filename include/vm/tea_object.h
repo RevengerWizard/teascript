@@ -11,6 +11,7 @@
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
+#define IS_RANGE(value) is_object_type(value, OBJ_RANGE)
 #define IS_FILE(value) is_object_type(value, OBJ_FILE)
 #define IS_MODULE(value) is_object_type(value, OBJ_MODULE)
 #define IS_LIST(value) is_object_type(value, OBJ_LIST)
@@ -23,6 +24,7 @@
 #define IS_NATIVE(value) is_object_type(value, OBJ_NATIVE)
 #define IS_STRING(value) is_object_type(value, OBJ_STRING)
 
+#define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
 #define AS_FILE(value) ((TeaObjectFile*)AS_OBJECT(value))
 #define AS_MODULE(value) ((TeaObjectModule*)AS_OBJECT(value))
 #define AS_LIST(value) ((TeaObjectList*)AS_OBJECT(value))
@@ -39,6 +41,7 @@
 
 typedef enum
 {
+    OBJ_RANGE,
     OBJ_FILE,
     OBJ_MODULE,
     OBJ_LIST,
@@ -59,6 +62,14 @@ struct TeaObject
     bool is_marked;
     struct TeaObject* next;
 };
+
+typedef struct
+{
+    TeaObject obj;
+    double from;
+    double to;
+    bool inclusive;
+} TeaObjectRange;
 
 struct TeaObjectFile
 {
@@ -151,6 +162,8 @@ typedef struct
     TeaValue receiver;
     TeaObjectClosure* method;
 } TeaObjectBoundMethod;
+
+TeaObjectRange* tea_new_range(double from, double to, bool inclusive);
 
 TeaObjectFile* tea_new_file();
 

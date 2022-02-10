@@ -28,6 +28,7 @@ typedef enum
     PREC_AND,        // and
     PREC_EQUALITY,   // == !=
     PREC_COMPARISON, // < > <= >=
+    PREC_RANGE,      // .. ...
     PREC_TERM,       // + -
     PREC_FACTOR,     // * /
     PREC_UNARY,      // ! -
@@ -842,8 +843,28 @@ static void unary(bool can_assign)
     }
 }
 
+static void range(TeaToken previous_token, bool can_assign)
+{
+    bool inclusive = parser.previous.type == TOKEN_DOT_DOT ? false : true;
+
+    expression();
+
+    if(inclusive)
+    {
+        emit_byte(OP_TRUE);
+    }
+    else
+    {
+        emit_byte(OP_FALSE);
+    }
+    emit_byte(OP_RANGE);
+
+    return;
+}
+
 #define UNUSED                  { NULL, NULL, PREC_NONE }
-#define RULE(pr, in, prec)      { pr, in, PREC_##prec }    
+#define RULE(pr, in, prec)      { pr, in, PREC_##prec }
+#define INFIX(in)               { NULL, in, PREC_NONE }
 #define PREFIX(pr)              { pr, NULL, PREC_NONE }
 #define OPERATOR(in, prec)      { NULL, in, PREC_##prec }
 
@@ -878,8 +899,8 @@ TeaParseRule rules[] = {
     OPERATOR(binary, COMPARISON),         // TOKEN_LESS_EQUAL
     UNUSED,                               // TOKEN_PERCENT
     UNUSED,                               // TOKEN_PERCENT_EQUAL
-    UNUSED,                               // TOKEN_DOT_DOT
-    UNUSED,                               // TOKEN_DOT_DOT_DOT
+    OPERATOR(range, RANGE),             // TOKEN_DOT_DOT
+    OPERATOR(range, RANGE),             // TOKEN_DOT_DOT_DOT
     PREFIX(variable),                     // TOKEN_NAME
     PREFIX(string),                       // TOKEN_STRING
     PREFIX(number),                       // TOKEN_NUMBER
@@ -912,6 +933,7 @@ TeaParseRule rules[] = {
 
 #undef UNUSED
 #undef RULE
+#undef INFIX
 #undef PREFIX
 #undef OPERATOR
 

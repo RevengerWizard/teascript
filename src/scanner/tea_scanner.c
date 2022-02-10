@@ -115,6 +115,11 @@ static TeaToken make_token(TeaTokenType type)
     return token;
 }
 
+static TeaToken match_token(char c, TeaTokenType a, TeaTokenType b)
+{
+    return make_token(match(c) ? a : b);
+}
+
 static TeaToken error_token(const char *message)
 {
     TeaToken token;
@@ -360,7 +365,14 @@ TeaToken tea_scan_token()
         case ',': return make_token(TOKEN_COMMA);
         case ':': return make_token(TOKEN_COLON);
         case '?': return make_token(TOKEN_QUESTION);
-        case '.': return make_token(TOKEN_DOT);
+        case '.':
+        {
+            if(!match('.'))
+            {
+                return make_token(TOKEN_DOT);
+            }
+            return match_token('.', TOKEN_DOT_DOT_DOT, TOKEN_DOT_DOT);
+        }
         case '-': return make_token(TOKEN_MINUS);
         case '+': return make_token(TOKEN_PLUS);
         case '*': return make_token(TOKEN_STAR);

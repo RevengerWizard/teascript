@@ -26,6 +26,17 @@ static TeaObject* allocate_object(size_t size, TeaObjectType type)
     return object;
 }
 
+TeaObjectRange* tea_new_range(double from, double to, bool inclusive)
+{
+    TeaObjectRange* range = ALLOCATE_OBJECT(TeaObjectRange, OBJ_RANGE);
+
+    range->from = from;
+    range->to = to;
+    range->inclusive = inclusive;
+
+    return range;
+}
+
 TeaObjectFile* tea_new_file()
 {
     return ALLOCATE_OBJECT(TeaObjectFile, OBJ_FILE);
@@ -235,6 +246,22 @@ static void print_map(TeaObjectMap* map)
     printf("}");
 }
 
+static void print_range(TeaObjectRange* range)
+{
+    printf("%.15g", range->from);
+    
+    if(range->inclusive)
+    {
+        printf("...");
+    }
+    else
+    {
+        printf("..");
+    }
+
+    printf("%.15g", range->to);
+}
+
 static void print_function(TeaObjectFunction* function)
 {
     if(function->name == NULL)
@@ -250,6 +277,9 @@ void tea_print_object(TeaValue value)
 {
     switch(OBJECT_TYPE(value))
     {
+        case OBJ_RANGE:
+            print_range(AS_RANGE(value));
+            break;
         case OBJ_MODULE:
             printf("<%s module>", AS_MODULE(value)->name->chars);
             break;
@@ -375,6 +405,8 @@ const char* tea_object_type(TeaValue a)
 {
     switch(OBJECT_TYPE(a))
     {
+        case OBJ_RANGE:
+            return "range";
         case OBJ_MODULE:
             return "module";
         case OBJ_CLASS:

@@ -156,6 +156,7 @@ static void blacken_object(TeaObject* object)
             break;
         case OBJ_NATIVE:
         case OBJ_STRING:
+        case OBJ_RANGE:
         case OBJ_FILE:
             break;
     }
@@ -169,6 +170,11 @@ static void free_object(TeaObject* object)
 
     switch(object->type)
     {
+        case OBJ_RANGE:
+        {
+            FREE(TeaObjectRange, object);
+            break;
+        }
         case OBJ_FILE:
         {
             FREE(TeaObjectFile, object);

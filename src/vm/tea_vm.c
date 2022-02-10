@@ -946,10 +946,57 @@ static TeaInterpretResult run()
             }
             DISPATCH();
         }
+        CASE_CODE(RANGE):
+        {
+            TeaValue c = tea_pop();
+            TeaValue b = tea_pop();
+            TeaValue a = tea_pop();
+
+            if(!IS_NUMBER(a) || !IS_NUMBER(b)) 
+            {
+				RUNTIME_ERROR("Range operands must be numbers");
+			}
+
+            bool inclusive = AS_BOOL(c) ? true : false;
+
+            TeaObjectRange* range = tea_new_range(AS_NUMBER(a), AS_NUMBER(b), inclusive);
+            tea_push(OBJECT_VAL(range));
+
+            DISPATCH();
+        }
         CASE_CODE(LIST):
         {
             // Stack before: [item1, item2, ..., itemN] and after: [list]
             uint8_t item_count = READ_BYTE();
+            if(item_count == 1 && IS_RANGE(peek(0)))
+            {
+                TeaObjectRange* range = AS_RANGE(tea_pop());
+                TeaObjectList* list_range = tea_new_list();
+                tea_push(OBJECT_VAL(list_range));
+
+                int from = (int)range->from;
+                int to = (int)range->to;
+                int count;
+                
+                if(range->inclusive)
+                {
+                    count = to + 1;
+                }
+                else
+                {
+                    count = to;
+                }
+
+                for(int i = from; i < count; i++)
+                {
+                    tea_write_value_array(&list_range->items, NUMBER_VAL(i));
+                }
+
+                tea_pop();
+                tea_push(OBJECT_VAL(list_range));
+                DISPATCH();
+            }
+
             TeaObjectList* list = tea_new_list();
 
             // Add item to list
