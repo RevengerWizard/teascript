@@ -372,6 +372,7 @@ static int add_upvalue(TeaCompiler* compiler, uint8_t index, bool is_local)
 
     compiler->upvalues[upvalue_count].is_local = is_local;
     compiler->upvalues[upvalue_count].index = index;
+
     return compiler->function->upvalue_count++;
 }
 
@@ -416,6 +417,20 @@ static void declare_variable()
         return;
 
     TeaToken* name = &parser.previous;
+
+    for(int i = current->local_count - 1; i >= 0; i--)
+    {
+        TeaLocal* local = &current->locals[i];
+        if(local->depth != -1 && local->depth < current->scope_depth)
+        {
+            break;
+        }
+
+        if(identifiers_equal(name, &local->name))
+        {
+            error("Already a variable with this name in this scope.");
+        }
+    }
 
     add_local(*name);
 }
@@ -847,19 +862,13 @@ static void range(TeaToken previous_token, bool can_assign)
 {
     bool inclusive = parser.previous.type == TOKEN_DOT_DOT ? false : true;
 
-    expression();
+    emit_byte(inclusive ? OP_TRUE : OP_FALSE);
+    
+    TeaTokenType operator_type = parser.previous.type;
+    TeaParseRule* rule = get_rule(operator_type);
+    parse_precendence((TeaPrecedence)(rule->precedence + 1));
 
-    if(inclusive)
-    {
-        emit_byte(OP_TRUE);
-    }
-    else
-    {
-        emit_byte(OP_FALSE);
-    }
     emit_byte(OP_RANGE);
-
-    return;
 }
 
 #define UNUSED                  { NULL, NULL, PREC_NONE }
@@ -899,8 +908,8 @@ TeaParseRule rules[] = {
     OPERATOR(binary, COMPARISON),         // TOKEN_LESS_EQUAL
     UNUSED,                               // TOKEN_PERCENT
     UNUSED,                               // TOKEN_PERCENT_EQUAL
-    OPERATOR(range, RANGE),             // TOKEN_DOT_DOT
-    OPERATOR(range, RANGE),             // TOKEN_DOT_DOT_DOT
+    OPERATOR(range, RANGE),               // TOKEN_DOT_DOT
+    OPERATOR(range, RANGE),               // TOKEN_DOT_DOT_DOT
     PREFIX(variable),                     // TOKEN_NAME
     PREFIX(string),                       // TOKEN_STRING
     PREFIX(number),                       // TOKEN_NUMBER
@@ -1016,8 +1025,8 @@ static void function(TeaFunctionType type)
 
     for(int i = 0; i < function->upvalue_count; i++)
     {
-        emit_byte(current->upvalues[i].is_local ? 1 : 0);
-        emit_byte(current->upvalues[i].index);
+        emit_byte(compiler.upvalues[i].is_local ? 1 : 0);
+        emit_byte(compiler.upvalues[i].index);
     }
 }
 

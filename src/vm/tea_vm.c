@@ -948,19 +948,18 @@ static TeaInterpretResult run()
         }
         CASE_CODE(RANGE):
         {
-            TeaValue c = tea_pop();
             TeaValue b = tea_pop();
+            TeaValue c = tea_pop();
             TeaValue a = tea_pop();
 
             if(!IS_NUMBER(a) || !IS_NUMBER(b)) 
             {
-				RUNTIME_ERROR("Range operands must be numbers");
+				RUNTIME_ERROR("Range operands must be numbers.");
 			}
 
-            bool inclusive = AS_BOOL(c) ? true : false;
+            bool inclusive = AS_BOOL(c);
 
-            TeaObjectRange* range = tea_new_range(AS_NUMBER(a), AS_NUMBER(b), inclusive);
-            tea_push(OBJECT_VAL(range));
+            tea_push(OBJECT_VAL(tea_new_range(AS_NUMBER(a), AS_NUMBER(b), inclusive)));
 
             DISPATCH();
         }
@@ -999,8 +998,8 @@ static TeaInterpretResult run()
 
             TeaObjectList* list = tea_new_list();
 
-            // Add item to list
             tea_push(OBJECT_VAL(list)); // So list isn't sweeped by GC when appending the list
+            // Add items to list
             for(int i = item_count; i > 0; i--)
             {
                 tea_write_value_array(&list->items, peek(i));

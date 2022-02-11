@@ -115,6 +115,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return constant_instruction("OP_SET_PROPERTY", chunk, offset);
         case OP_GET_SUPER:
             return constant_instruction("OP_GET_SUPER", chunk, offset);
+        case OP_RANGE:
+            return simple_instruction("OP_RANGE", offset);
         case OP_LIST:
             return simple_instruction("OP_LIST", offset);
         case OP_SUBSCRIPT:

@@ -316,6 +316,19 @@ void tea_print_object(TeaValue value)
     }
 }
 
+static bool range_equals(TeaValue a, TeaValue b)
+{
+    TeaObjectRange* r1 = AS_RANGE(a);
+    TeaObjectRange* r2 = AS_RANGE(b);
+
+    if(r1->from == r2->from && r1->to == r2->to && r1->inclusive == r2->inclusive)
+    {
+        return true;
+    }
+
+    return false;
+}
+
 static bool list_equals(TeaValue a, TeaValue b)
 {
     TeaObjectList* l1 = AS_LIST(a);
@@ -382,6 +395,10 @@ bool tea_objects_equal(TeaValue a, TeaValue b)
 
     switch(OBJECT_TYPE(a))
     {
+        case OBJ_RANGE:
+        {
+            return range_equals(a, b);
+        }
         case OBJ_LIST:
         {
             return list_equals(a, b);
