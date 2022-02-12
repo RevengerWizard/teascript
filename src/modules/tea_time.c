@@ -4,7 +4,7 @@
 #include "vm/tea_vm.h"
 #include "vm/tea_native.h"
 
-static TeaValue clock_native(int arg_count, TeaValue* args)
+static TeaValue clock_native(int arg_count, TeaValue* args, bool* error)
 {
     return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }

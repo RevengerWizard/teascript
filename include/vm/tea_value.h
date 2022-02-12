@@ -97,7 +97,7 @@ typedef struct
 
 const char* tea_value_type(TeaValue a);
 bool tea_values_equal(TeaValue a, TeaValue b);
-char* tea_value_string(TeaValue value);
+char* tea_value_tostring(TeaValue value);
 void tea_print_value(TeaValue value);
 
 #endif

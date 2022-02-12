@@ -2,7 +2,7 @@
 #include "vm/tea_vm.h"
 #include "vm/tea_native.h"
 
-static TeaValue min_native(int arg_count, TeaValue* args)
+static TeaValue min_native(int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0) 
     {
@@ -22,8 +22,7 @@ static TeaValue min_native(int arg_count, TeaValue* args)
         TeaValue value = args[i];
         if(!IS_NUMBER(value)) 
         {
-            tea_runtime_error("A non-number value passed to min()");
-            return EMPTY_VAL;
+            NATIVE_ERROR("A non-number value passed to min()");
         }
 
         double current = AS_NUMBER(value);
@@ -37,12 +36,12 @@ static TeaValue min_native(int arg_count, TeaValue* args)
     return NUMBER_VAL(minimum);
 }
 
-static TeaValue max_native(int arg_count, TeaValue* args)
+static TeaValue max_native(int arg_count, TeaValue* args, bool* error)
 {
     
 }
 
-static TeaValue mid_native(int arg_count, TeaValue* args)
+static TeaValue mid_native(int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -86,42 +85,41 @@ static TeaValue mid_native(int arg_count, TeaValue* args)
     }
     else
     {
-        tea_runtime_error("mid() takes three numbers");
-        return EMPTY_VAL;
+        NATIVE_ERROR("mid() takes three numbers");
     }
 }
 
-static TeaValue floor_native(int arg_count, TeaValue* args)
+static TeaValue floor_native(int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue ceil_native(int arg_count, TeaValue* args)
+static TeaValue ceil_native(int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue round_native(int arg_count, TeaValue* args)
+static TeaValue round_native(int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue cos_native(int arg_count, TeaValue* args)
+static TeaValue cos_native(int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue sin_native(int arg_count, TeaValue* args)
+static TeaValue sin_native(int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue tan_native(int arg_count, TeaValue* args)
+static TeaValue tan_native(int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue sign_native(int arg_count, TeaValue* args)
+static TeaValue sign_native(int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -130,8 +128,7 @@ static TeaValue sign_native(int arg_count, TeaValue* args)
 
     if(!IS_NUMBER(args[0]))
     {
-        tea_runtime_error("sign() takes a number");
-        return EMPTY_VAL;
+        NATIVE_ERROR("sign() takes a number");
     }
 
     double n = AS_NUMBER(args[0]);

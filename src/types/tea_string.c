@@ -6,7 +6,7 @@
 #include "types/tea_string.h"
 #include "vm/tea_native.h"
 
-static TeaValue reverse_string(int arg_count, TeaValue* args)
+static TeaValue reverse_string(int arg_count, TeaValue* args, bool* error)
 {
     char* string = AS_CSTRING(args[0]);
 

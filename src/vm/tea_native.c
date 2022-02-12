@@ -6,7 +6,7 @@
 #include "memory/tea_memory.h"
 #include "vm/tea_native.h"
 
-static TeaValue print_native(int arg_count, TeaValue* args)
+static TeaValue print_native(int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -26,7 +26,7 @@ static TeaValue print_native(int arg_count, TeaValue* args)
     return EMPTY_VAL;
 }
 
-static TeaValue input_native(int arg_count, TeaValue* args)
+static TeaValue input_native(int arg_count, TeaValue* args, bool* error)
 {
     RANGE_ARG_COUNT(input, 1, "0 or 1");
 
@@ -35,8 +35,7 @@ static TeaValue input_native(int arg_count, TeaValue* args)
         TeaValue prompt = args[0];
         if(!IS_STRING(prompt)) 
         {
-            tea_runtime_error("input() only takes a string argument");
-            return EMPTY_VAL;
+            NATIVE_ERROR("input() only takes a string argument");
         }
 
         printf("%s", AS_CSTRING(prompt));
@@ -47,8 +46,7 @@ static TeaValue input_native(int arg_count, TeaValue* args)
 
     if(line == NULL) 
     {
-        tea_runtime_error("Memory error on input()!");
-        return EMPTY_VAL;
+        NATIVE_ERROR("Memory error on input()!");
     }
 
     int c = EOF;
@@ -82,29 +80,27 @@ static TeaValue input_native(int arg_count, TeaValue* args)
     return OBJECT_VAL(tea_take_string(line, length));
 }
 
-static TeaValue assert_native(int arg_count, TeaValue* args)
+static TeaValue assert_native(int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(assert, 2);
 
     if(tea_is_falsey(args[0]))
     {
-        tea_runtime_error("%s", AS_CSTRING(args[1]));
-
-        return EMPTY_VAL;
+        NATIVE_ERROR("%s", AS_CSTRING(args[1]));
     }
 
     return EMPTY_VAL;
 }
 
-static TeaValue error_native(int arg_count, TeaValue* args)
+static TeaValue error_native(int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(error, 1);
-    tea_runtime_error("%s", AS_CSTRING(args[0]));
+    NATIVE_ERROR("%s", AS_CSTRING(args[0]));
 
     return EMPTY_VAL;
 }
 
-static TeaValue type_native(int arg_count, TeaValue* args)
+static TeaValue type_native(int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(type, 1);
 
@@ -113,7 +109,7 @@ static TeaValue type_native(int arg_count, TeaValue* args)
     return OBJECT_VAL(tea_copy_string(type, (int)strlen(type)));
 }
 
-static TeaValue number_native(int arg_count, TeaValue* args)
+static TeaValue number_native(int arg_count, TeaValue* args, bool* error)
 {
     if(IS_BOOL(args[0]))
     {
@@ -129,8 +125,7 @@ static TeaValue number_native(int arg_count, TeaValue* args)
 
         if(errno != 0 || *end != '\0')
         {
-            tea_runtime_error("Failed conversion");
-            return EMPTY_VAL;
+            NATIVE_ERROR("Failed conversion");
         }
 
         return NUMBER_VAL(number);

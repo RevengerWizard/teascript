@@ -97,7 +97,7 @@ typedef struct
     TeaObjectModule* module;
 } TeaObjectFunction;
 
-typedef TeaValue (*TeaNativeFunction)(int arg_count, TeaValue* args);
+typedef TeaValue (*TeaNativeFunction)(int arg_count, TeaValue* args, bool* error);
 
 typedef struct
 {

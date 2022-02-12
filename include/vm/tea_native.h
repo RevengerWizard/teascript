@@ -1,17 +1,27 @@
 #ifndef TEA_NATIVE_H
 #define TEA_NATIVE_H
 
+#include <stdarg.h>
+
 #include "vm/tea_value.h"
 #include "vm/tea_object.h"
 #include "vm/tea_vm.h"
+
+#define NATIVE_ERROR(...) \
+    do \
+    { \
+        *error = true; \
+        tea_runtime_error(__VA_ARGS__); \
+        return EMPTY_VAL; \
+    } \
+    while(false)
 
 #define VALIDATE_ARG_COUNT(func_name, num_arg) \
     do \
     { \
         if(arg_count != num_arg) \
         { \
-            tea_runtime_error(#func_name "() expected " #num_arg " arguments but got %d.", arg_count); \
-            return EMPTY_VAL; \
+            NATIVE_ERROR(#func_name "() expected " #num_arg " arguments but got %d.", arg_count); \
         } \
     } \
     while(false)
@@ -21,8 +31,7 @@
     { \
         if(arg_count > num_arg) \
         { \
-            tea_runtime_error(#func_name "() expected either %s arguments (got %d).", s, arg_count); \
-            return EMPTY_VAL; \
+            NATIVE_ERROR(#func_name "() expected either %s arguments (got %d).", s, arg_count); \
         } \
     } \
     while(false)
