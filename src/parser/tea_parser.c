@@ -411,12 +411,10 @@ static void add_local(TeaToken name)
     local->is_captured = false;
 }
 
-static void declare_variable()
+static void declare_variable(TeaToken* name)
 {
     if(current->scope_depth == 0)
         return;
-
-    TeaToken* name = &parser.previous;
 
     for(int i = current->local_count - 1; i >= 0; i--)
     {
@@ -439,7 +437,7 @@ static uint8_t parse_variable(const char* error_message)
 {
     consume(TOKEN_NAME, error_message);
 
-    declare_variable();
+    declare_variable(&parser.previous);
     if(current->scope_depth > 0)
         return 0;
 
@@ -748,6 +746,12 @@ static void string(bool can_assign)
 
 static void named_variable(TeaToken name, bool can_assign)
 {
+#define SHORT_HAND_ASSIGNMENT(op) \
+    emit_bytes(get_op, (uint8_t)arg); \
+    expression(); \
+    emit_byte(op); \
+    emit_bytes(set_op, (uint8_t)arg);
+
     uint8_t get_op, set_op;
     int arg = resolve_local(current, &name);
     if(arg != -1)
@@ -771,6 +775,22 @@ static void named_variable(TeaToken name, bool can_assign)
     {
         expression();
         emit_bytes(set_op, (uint8_t)arg);
+    }
+    else if(can_assign && match(TOKEN_PLUS_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_ADD);
+    }
+    else if(can_assign && match(TOKEN_MINUS_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_SUBTRACT);
+    }
+    else if(can_assign && match(TOKEN_STAR_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_MULTIPLY);
+    }
+    else if(can_assign && match(TOKEN_SLASH_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_DIVIDE);
     }
     else
     {
@@ -1056,7 +1076,7 @@ static void class_declaration()
     consume(TOKEN_NAME, "Expect class name.");
     TeaToken class_name = parser.previous;
     uint8_t name_constant = identifier_constant(&parser.previous);
-    declare_variable();
+    declare_variable(&parser.previous);
 
     emit_bytes(OP_CLASS, name_constant);
     define_variable(name_constant);
@@ -1249,7 +1269,7 @@ static void import_statement()
     {
         consume(TOKEN_NAME, "Expect import identifier.");
         uint8_t import_name = identifier_constant(&parser.previous);
-        declare_variable(parser.previous);
+        declare_variable(&parser.previous);
 
         int index = tea_find_native_module((char*)parser.previous.start, parser.previous.length);
 
@@ -1267,7 +1287,70 @@ static void import_statement()
 
 static void from_import_statement()
 {
+    if(match(TOKEN_STRING))
+    {
 
+    }
+    else
+    {
+        consume(TOKEN_NAME, "Expect import identifier.");
+        uint8_t import_name = identifier_constant(&parser.previous);
+
+        int index = tea_find_native_module((char*)parser.previous.start, parser.previous.length);
+
+        consume(TOKEN_IMPORT, "Expect 'import' after identifier");
+
+        if(index == -1) 
+        {
+            error("Unknown module");
+        }
+
+        uint8_t variables[255];
+        TeaToken tokens[255];
+        int var_count = 0;
+
+        do 
+        {
+            consume(TOKEN_NAME, "Expect variable name.");
+            tokens[var_count] = parser.previous;
+            variables[var_count] = identifier_constant(&parser.previous);
+            var_count++;
+
+            if(var_count > 255) 
+            {
+                error("Cannot have more than 255 variables.");
+            }
+        } 
+        while(match(TOKEN_COMMA));
+
+        emit_bytes(OP_IMPORT_NATIVE, index);
+        emit_byte(import_name);
+        emit_byte(OP_POP);
+
+        emit_byte(OP_IMPORT_NATIVE_VARIABLE);
+        emit_bytes(import_name, var_count);
+
+        for(int i = 0; i < var_count; i++) 
+        {
+            emit_byte(variables[i]);
+        }
+
+        if(current->scope_depth == 0) 
+        {
+            for(int i = var_count - 1; i >= 0; i--) 
+            {
+                define_variable(variables[i]);
+            }
+        } 
+        else 
+        {
+            for (int i = 0; i < var_count; i++) 
+            {
+                declare_variable(&tokens[i]);
+                define_variable(0);
+            }
+        }
+    }
 }
 
 static void while_statement()
@@ -1311,6 +1394,7 @@ static void synchronize()
             case TOKEN_BREAK:
             case TOKEN_RETURN:
             case TOKEN_IMPORT:
+            case TOKEN_FROM:
                 return;
 
             default:; // Do nothing.
@@ -1367,7 +1451,7 @@ static void statement()
     }
     else if(match(TOKEN_FROM))
     {
-        //from_import_statement();
+        from_import_statement();
     }
     else if(match(TOKEN_LEFT_BRACE))
     {

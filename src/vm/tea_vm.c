@@ -434,10 +434,8 @@ static bool call_value(TeaValue callee, int arg_count)
             case OBJ_NATIVE:
             {
                 TeaNativeFunction native = AS_NATIVE(callee);
-                bool error;
+                bool error = false;
                 TeaValue result = native(arg_count, vm.stack_top - arg_count, &error);
-
-                printf("%d", error);
 
                 if(error)
                 {
@@ -460,7 +458,7 @@ static bool call_value(TeaValue callee, int arg_count)
 static bool call_native_method(TeaValue method, int arg_count)
 {
     TeaNativeFunction native = AS_NATIVE(method);
-    bool error;
+    bool error = false;
     TeaValue result = native(arg_count, vm.stack_top - arg_count - 1, &error);
 
     if(error)
@@ -861,11 +859,6 @@ static TeaInterpretResult run()
         CASE_CODE(FALSE):
         {
             tea_push(BOOL_VAL(false));
-            DISPATCH();
-        }
-        CASE_CODE(DUP):
-        {
-            tea_push(peek(0)); 
             DISPATCH();
         }
         CASE_CODE(POP):

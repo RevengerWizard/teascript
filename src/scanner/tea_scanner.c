@@ -241,6 +241,7 @@ static TeaTokenType identifier_type()
                     case 'a': return check_keyword(2, 3, "lse", TOKEN_FALSE);
                     case 'o': return check_keyword(2, 1, "r", TOKEN_FOR);
                     case 'u': return check_keyword(2, 6, "nction", TOKEN_FUNCTION);
+                    case 'r': return check_keyword(2, 2, "om", TOKEN_FROM);
                 }
             }
             break;
@@ -338,6 +339,11 @@ static TeaToken string()
     return make_token(TOKEN_STRING);
 }
 
+void tea_back_track()
+{
+    scanner.current--;
+}
+
 TeaToken tea_scan_token()
 {
     skip_whitespace();
@@ -373,10 +379,10 @@ TeaToken tea_scan_token()
             }
             return match_token('.', TOKEN_DOT_DOT_DOT, TOKEN_DOT_DOT);
         }
-        case '-': return make_token(TOKEN_MINUS);
-        case '+': return make_token(TOKEN_PLUS);
-        case '*': return make_token(TOKEN_STAR);
-        case '/': return make_token(TOKEN_SLASH);
+        case '-': return make_token(match('=') ? TOKEN_MINUS_EQUAL : TOKEN_MINUS);
+        case '+': return make_token(match('=') ? TOKEN_PLUS_EQUAL : TOKEN_PLUS);
+        case '*': return make_token(match('=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
+        case '/': return make_token(match('=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
         case '!': return make_token(match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
         case '=': return make_token(match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
         case '<': return make_token(match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
