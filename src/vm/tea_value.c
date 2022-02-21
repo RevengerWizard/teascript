@@ -57,27 +57,6 @@ bool tea_values_equal(TeaValue a, TeaValue b)
 #endif
 }
 
-static char* number_tostring(double number)
-{
-    if(isnan(number)) return "nan";
-    if(isinf(number))
-    {
-        if(number > 0.0)
-        {
-            return "infinity";
-        }
-        else
-        {
-            return "-infinity";
-        }
-    }
-
-    char buffer[24];
-    int length = sprintf(buffer, "%.15g", number);
-    
-    return "";
-}
-
 char* tea_value_tostring(TeaValue value)
 {
 #ifdef NAN_TAGGING
@@ -91,12 +70,19 @@ char* tea_value_tostring(TeaValue value)
     }
     else if(IS_NUMBER(value))
     {
-        return number_tostring(AS_NUMBER(value));
+        double number = AS_NUMBER(value);
+        int length = snprintf(NULL, 0, "%.15g", number) + 1;
+        char* string = ALLOCATE(char, length);
+        snprintf(string, length, "%.15g", number);
+
+        return string;
     }
     else if(IS_OBJECT(value))
     {
         return tea_object_tostring(value);
     }
+
+    return "unknown";
 #else
     // Support
 #endif

@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "tea_common.h"
-#include "parser/tea_parser.h"
+#include "compiler/tea_compiler.h"
 #include "memory/tea_memory.h"
 #include "scanner/tea_scanner.h"
 #include "modules/tea_module.h"
@@ -28,10 +28,14 @@ typedef enum
     PREC_AND,        // and
     PREC_EQUALITY,   // == !=
     PREC_COMPARISON, // < > <= >=
+    PREC_BOR,        // |
+    PREC_BXOR,       // ^
+    PREC_BAND,       // &
+    PREC_SHIFT,      // << >>
     PREC_RANGE,      // .. ...
     PREC_TERM,       // + -
     PREC_FACTOR,     // * /
-    PREC_UNARY,      // ! -
+    PREC_UNARY,      // ! - ~
     PREC_CALL,       // . ()
     PREC_SUBSCRIPT,  // []
     PREC_PRIMARY
@@ -552,8 +556,58 @@ static void binary(TeaToken previous_token, bool can_assign)
             emit_byte(OP_DIVIDE);
             break;
         }
+        case TOKEN_PERCENT:
+        {
+            emit_byte(OP_MOD);
+            break;
+        }
+        case TOKEN_AMPERSAND:
+        {
+            emit_byte(OP_BAND);
+            break;
+        }
+        case TOKEN_PIPE:
+        {
+            emit_byte(OP_BOR);
+            break;
+        }
+        case TOKEN_CARET:
+        {
+            emit_byte(OP_BXOR);
+            break;
+        }
+        case TOKEN_GREATER_GREATER:
+        {
+            emit_byte(OP_RSHIFT);
+            break;
+        }
+        case TOKEN_LESS_LESS:
+        {
+            emit_byte(OP_LSHIFT);
+            break;
+        }
         default: return; // Unreachable.
     }
+}
+
+static void ternary(TeaToken previous_token, bool can_assign)
+{
+    // Jump to else branch if the condition is false
+    int else_jump = emit_jump(OP_JUMP_IF_FALSE);
+
+    // Pop the condition
+    emit_byte(OP_POP);
+    expression();
+
+    int end_jump = emit_jump(OP_JUMP);
+
+    patch_jump(else_jump);
+    emit_byte(OP_POP);
+
+    consume(TOKEN_COLON, "Expected colon after ternary expression.");
+    expression();
+
+    patch_jump(end_jump);
 }
 
 static void call(TeaToken previous_token, bool can_assign)
@@ -564,24 +618,83 @@ static void call(TeaToken previous_token, bool can_assign)
 
 static void dot(TeaToken previous_token, bool can_assign)
 {
+#define SHORT_HAND_ASSIGNMENT(op) \
+    emit_bytes(OP_GET_PROPERTY_NO_POP, name); \
+    expression(); \
+    emit_byte(op); \
+    emit_bytes(OP_SET_PROPERTY, name);
+
+#define SHORT_HAND_INCREMENT(op) \
+    emit_bytes(OP_GET_PROPERTY_NO_POP, name); \
+    emit_constant(NUMBER_VAL(1)); \
+    emit_byte(op); \
+    emit_bytes(OP_SET_PROPERTY, name);
+
     consume(TOKEN_NAME, "Expect property name after '.'");
     uint8_t name = identifier_constant(&parser.previous);
+
+    if(match(TOKEN_LEFT_PAREN))
+    {
+        uint8_t arg_count = argument_list();
+        emit_bytes(OP_INVOKE, name);
+        emit_byte(arg_count);
+        return;
+    }
 
     if(can_assign && match(TOKEN_EQUAL))
     {
         expression();
         emit_bytes(OP_SET_PROPERTY, name);
     }
-    else if(match(TOKEN_LEFT_PAREN))
+    else if(can_assign && match(TOKEN_PLUS_EQUAL))
     {
-        uint8_t arg_count = argument_list();
-        emit_bytes(OP_INVOKE, name);
-        emit_byte(arg_count);
+        SHORT_HAND_ASSIGNMENT(OP_ADD);
+    }
+    else if(can_assign && match(TOKEN_MINUS_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_SUBTRACT);
+    }
+    else if(can_assign && match(TOKEN_STAR_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_MULTIPLY);
+    }
+    else if(can_assign && match(TOKEN_SLASH_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_DIVIDE);
+    }
+    else if(can_assign && match(TOKEN_PERCENT_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_MOD);
+    }
+    else if(can_assign && match(TOKEN_AMPERSAND_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BAND);
+    }
+    else if(can_assign && match(TOKEN_PIPE_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BOR);
+    }
+    else if(can_assign && match(TOKEN_CARET_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BXOR);
     }
     else
     {
-        emit_bytes(OP_GET_PROPERTY, name);
+        if(match(TOKEN_PLUS_PLUS))
+        {
+            SHORT_HAND_INCREMENT(OP_ADD);
+        }
+        else if(match(TOKEN_MINUS_MINUS))
+        {
+            SHORT_HAND_INCREMENT(OP_SUBTRACT);
+        }
+        else
+        {
+            emit_bytes(OP_GET_PROPERTY, name);
+        }
     }
+#undef SHORT_HAND_ASSIGNMENT
+#undef SHORT_HAND_INCREMENT
 }
 
 static void literal(bool can_assign)
@@ -680,6 +793,16 @@ static void map(bool can_assign)
 
 static void subscript(TeaToken previous_token, bool can_assign)
 {
+#define SHORT_HAND_ASSIGNMENT(op) \
+    expression(); \
+    emit_bytes(OP_SUBSCRIPT_PUSH, op); \
+    emit_byte(OP_SUBSCRIPT_STORE);
+
+#define SHORT_HAND_INCREMENT(op) \
+    emit_constant(NUMBER_VAL(1)); \
+    emit_bytes(OP_SUBSCRIPT_PUSH, op); \
+    emit_byte(OP_SUBSCRIPT_STORE);
+
     if(match(TOKEN_COLON))
     {
         emit_byte(OP_NULL);
@@ -713,12 +836,57 @@ static void subscript(TeaToken previous_token, bool can_assign)
         expression();
         emit_byte(OP_SUBSCRIPT_STORE);
     }
+    else if(can_assign && match(TOKEN_PLUS_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_ADD);
+    }
+    else if(can_assign && match(TOKEN_MINUS_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_SUBTRACT);
+    }
+    else if(can_assign && match(TOKEN_STAR_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_MULTIPLY);
+    }
+    else if(can_assign && match(TOKEN_SLASH_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_DIVIDE);
+    }
+    else if(can_assign && match(TOKEN_PERCENT_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_MOD);
+    }
+    else if(can_assign && match(TOKEN_AMPERSAND_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BAND);
+    }
+    else if(can_assign && match(TOKEN_PIPE_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BOR);
+    }
+    else if(can_assign && match(TOKEN_CARET_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BXOR);
+    }
     else
     {
-        emit_byte(OP_SUBSCRIPT);
+        if(match(TOKEN_PLUS_PLUS))
+        {
+            SHORT_HAND_INCREMENT(OP_ADD);
+        }
+        else if(match(TOKEN_MINUS_MINUS))
+        {
+            SHORT_HAND_INCREMENT(OP_SUBTRACT);
+        }
+        else
+        {
+            emit_byte(OP_SUBSCRIPT);
+        }
     }
 
     return;
+#undef SHORT_HAND_ASSIGNMENT
+#undef SHORT_HAND_INCREMENT
 }
 
 static void number(bool can_assign)
@@ -749,6 +917,12 @@ static void named_variable(TeaToken name, bool can_assign)
 #define SHORT_HAND_ASSIGNMENT(op) \
     emit_bytes(get_op, (uint8_t)arg); \
     expression(); \
+    emit_byte(op); \
+    emit_bytes(set_op, (uint8_t)arg);
+
+#define SHORT_HAND_INCREMENT(op) \
+    emit_bytes(get_op, (uint8_t)arg); \
+    emit_constant(NUMBER_VAL(1)); \
     emit_byte(op); \
     emit_bytes(set_op, (uint8_t)arg);
 
@@ -792,10 +966,39 @@ static void named_variable(TeaToken name, bool can_assign)
     {
         SHORT_HAND_ASSIGNMENT(OP_DIVIDE);
     }
+    else if(can_assign && match(TOKEN_PERCENT_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_MOD);
+    }
+    else if(can_assign && match(TOKEN_AMPERSAND_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BAND);
+    }
+    else if(can_assign && match(TOKEN_PIPE_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BOR);
+    }
+    else if(can_assign && match(TOKEN_CARET_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_BXOR);
+    }
     else
     {
-        emit_bytes(get_op, (uint8_t)arg);
+        if(match(TOKEN_PLUS_PLUS))
+        {
+            SHORT_HAND_INCREMENT(OP_ADD);
+        }
+        else if(match(TOKEN_MINUS_MINUS))
+        {
+            SHORT_HAND_INCREMENT(OP_SUBTRACT);
+        }
+        else
+        {
+            emit_bytes(get_op, (uint8_t)arg);
+        }
     }
+#undef SHORT_HAND_ASSIGNMENT
+#undef SHORT_HAND_INCREMENT
 }
 
 static void variable(bool can_assign)
@@ -873,6 +1076,11 @@ static void unary(bool can_assign)
             emit_byte(OP_NEGATE);
             break;
         }
+        case TOKEN_TILDE:
+        {
+            emit_byte(OP_BNOT);
+            break;
+        }
         default:
             return; // Unreachable.
     }
@@ -907,7 +1115,7 @@ TeaParseRule rules[] = {
     UNUSED,                               // TOKEN_COMMA
     OPERATOR(dot, CALL),                  // TOKEN_DOT
     UNUSED,                               // TOKEN_COLON
-    UNUSED,                               // TOKEN_QUESTION
+    OPERATOR(ternary, ASSIGNMENT),        // TOKEN_QUESTION
     RULE(unary, binary, TERM),            // TOKEN_MINUS
     OPERATOR(binary, TERM),               // TOKEN_PLUS
     OPERATOR(binary, FACTOR),             // TOKEN_SLASH
@@ -926,10 +1134,19 @@ TeaParseRule rules[] = {
     OPERATOR(binary, COMPARISON),         // TOKEN_GREATER_EQUAL
     OPERATOR(binary, COMPARISON),         // TOKEN_LESS
     OPERATOR(binary, COMPARISON),         // TOKEN_LESS_EQUAL
-    UNUSED,                               // TOKEN_PERCENT
+    OPERATOR(binary, FACTOR),             // TOKEN_PERCENT
     UNUSED,                               // TOKEN_PERCENT_EQUAL
     OPERATOR(range, RANGE),               // TOKEN_DOT_DOT
     OPERATOR(range, RANGE),               // TOKEN_DOT_DOT_DOT
+    OPERATOR(binary, BAND),               // TOKEN_AMPERSAND, 
+    UNUSED,                               // TOKEN_AMPERSAND_EQUAL,
+    OPERATOR(binary, BOR),                // TOKEN_PIPE, 
+    UNUSED,                               // TOKEN_PIPE_EQUAL,
+    OPERATOR(binary, BXOR),               // TOKEN_CARET, 
+    UNUSED,                               // TOKEN_CARET_EQUAL,
+    PREFIX(unary),                        // TOKEN_TILDE
+    OPERATOR(binary, SHIFT),              // TOKEN_GREATER_GREATER,
+    OPERATOR(binary, SHIFT),              // TOKEN_LESS_LESS,
     PREFIX(variable),                     // TOKEN_NAME
     PREFIX(string),                       // TOKEN_STRING
     PREFIX(number),                       // TOKEN_NUMBER
@@ -1165,7 +1382,18 @@ static void for_statement()
 
     if(match(TOKEN_VAR))
     {
-        var_declaration();
+        uint8_t global = parse_variable("Expect variable name.");
+
+        if(match(TOKEN_EQUAL))
+        {
+            expression();
+        }
+        else
+        {
+            emit_byte(OP_NULL);
+        }
+
+        define_variable(global);
         consume(TOKEN_COMMA, "Expect ',' after loop variable.");
     }
     else if(match(TOKEN_COMMA))

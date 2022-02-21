@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "parser/tea_parser.h"
+#include "compiler/tea_compiler.h"
 #include "memory/tea_memory.h"
 #include "vm/tea_vm.h"
 #include "util/tea_array.h"

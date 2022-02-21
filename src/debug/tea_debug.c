@@ -45,6 +45,38 @@ static int invoke_instruction(const char* name, TeaChunk* chunk, int offset)
     return offset + 3;
 }
 
+static int import_from_instruction(const char* name, TeaChunk* chunk, int offset)
+{
+    uint8_t constant = chunk->code[offset + 1];
+    uint8_t arg_count = chunk->code[offset + 2];
+    printf("%-16s %4d '", name, arg_count, constant);
+    tea_print_value(chunk->constants.values[constant]);
+    printf("'\n");
+
+    return offset + 1 + arg_count;
+}
+
+static int native_import_instruction(const char* name, TeaChunk* chunk, int offset)
+{
+    uint8_t module = chunk->code[offset + 2];
+    printf("%-16s '", name);
+    tea_print_value(chunk->constants.values[module]);
+    printf("'\n");
+
+    return offset + 3;
+}
+
+static int native_from_import_instruction(const char* name, TeaChunk* chunk, int offset)
+{
+    uint8_t constant = chunk->code[offset + 1];
+    uint8_t arg_count = chunk->code[offset + 2];
+    printf("%-16s '", name, arg_count, constant);
+    tea_print_value(chunk->constants.values[constant]);
+    printf("'\n");
+
+    return offset + 2 + arg_count;
+}
+
 static int simple_instruction(const char* name, int offset)
 {
     printf("%s\n", name);
@@ -95,6 +127,10 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_FALSE", offset);
         case OP_POP:
             return simple_instruction("OP_POP", offset);
+        case OP_UNPACK:
+            return byte_instruction("OP_UNPACK", chunk, offset);
+        case OP_GET_PROPERTY_NO_POP:
+            return constant_instruction("OP_GET_PROPERTY_NO_POP", chunk, offset);
         case OP_GET_LOCAL:
             return byte_instruction("OP_GET_LOCAL", chunk, offset);
         case OP_SET_LOCAL:
@@ -118,11 +154,15 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
         case OP_RANGE:
             return simple_instruction("OP_RANGE", offset);
         case OP_LIST:
-            return simple_instruction("OP_LIST", offset);
+            return byte_instruction("OP_LIST", chunk, offset);
+        case OP_MAP:
+            return byte_instruction("OP_MAP", chunk, offset);
         case OP_SUBSCRIPT:
             return simple_instruction("OP_SUBSCRIPT", offset);
         case OP_SUBSCRIPT_STORE:
             return simple_instruction("OP_SUBSCRIPT_STORE", offset);
+        case OP_SUBSCRIPT_PUSH:
+            return simple_instruction("OP_SUBSCRIPT_PUSH", offset);
         case OP_EQUAL:
             return simple_instruction("OP_EQUAL", offset);
         case OP_GREATER:
@@ -137,6 +177,18 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_MULTIPLY", offset);
         case OP_DIVIDE:
             return simple_instruction("OP_DIVIDE", offset);
+        case OP_MOD:
+            return simple_instruction("OP_MOD", offset);
+        case OP_BAND:
+            return simple_instruction("OP_BAND", offset);
+        case OP_BNOT:
+            return simple_instruction("OP_BNOT", offset);
+        case OP_BXOR:
+            return simple_instruction("OP_BXOR", offset);
+        case OP_LSHIFT:
+            return simple_instruction("OP_LSHIFT", offset);
+        case OP_RSHIFT:
+            return simple_instruction("OP_RSHIFT", offset);
         case OP_NOT:
             return simple_instruction("OP_NOT", offset);
         case OP_NEGATE:
@@ -181,6 +233,10 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_INHERIT", offset);
         case OP_METHOD:
             return constant_instruction("OP_METHOD", chunk, offset);
+        case OP_IMPORT_NATIVE:
+            return native_import_instruction("OP_IMPORT_NATIVE", chunk, offset);
+        case OP_IMPORT_NATIVE_VARIABLE:
+            return native_from_import_instruction("OP_IMPORT_NATIVE_VARIABLE", chunk, offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

@@ -84,7 +84,7 @@ static TeaValue assert_native(int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(assert, 2);
 
-    if(tea_is_falsey(args[0]))
+    if(is_falsey(args[0]))
     {
         NATIVE_ERROR("%s", AS_CSTRING(args[1]));
     }
@@ -95,6 +95,7 @@ static TeaValue assert_native(int arg_count, TeaValue* args, bool* error)
 static TeaValue error_native(int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(error, 1);
+    
     NATIVE_ERROR("%s", AS_CSTRING(args[0]));
 
     return EMPTY_VAL;
@@ -111,6 +112,8 @@ static TeaValue type_native(int arg_count, TeaValue* args, bool* error)
 
 static TeaValue number_native(int arg_count, TeaValue* args, bool* error)
 {
+    VALIDATE_ARG_COUNT(number, 1);
+
     if(IS_BOOL(args[0]))
     {
         return AS_BOOL(args[0]) ? NUMBER_VAL(1) : NUMBER_VAL(0);
@@ -130,6 +133,15 @@ static TeaValue number_native(int arg_count, TeaValue* args, bool* error)
 
         return NUMBER_VAL(number);
     }
+}
+
+static TeaValue string_native(int arg_count, TeaValue* args, bool* error)
+{
+    VALIDATE_ARG_COUNT(string, 1);
+
+    char* string = tea_value_tostring(args[0]);
+
+    return OBJECT_VAL(tea_take_string(string, strlen(string)));
 }
 
 void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
@@ -155,7 +167,7 @@ void tea_define_natives(TeaVM* vm)
 
     tea_native_function(vm, &vm->globals, "number", number_native);
     //tea_native_function(vm, &vm->globals, "bool", bool_native);
-    //tea_native_function(vm, &vm->globals, "string", string_native);
+    tea_native_function(vm, &vm->globals, "string", string_native);
     //tea_native_function(vm, &vm->globals, "list", list_native);
 
     //tea_native_function(vm, &vm->globals, "len", len_native);

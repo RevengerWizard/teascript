@@ -184,11 +184,11 @@ TeaObjectString* tea_copy_string(const char* chars, int length)
     if (interned != NULL)
         return interned;
 
-    char* heapChars = ALLOCATE(char, length + 1);
-    memcpy(heapChars, chars, length);
-    heapChars[length] = '\0';
+    char* heap_chars = ALLOCATE(char, length + 1);
+    memcpy(heap_chars, chars, length);
+    heap_chars[length] = '\0';
 
-    return allocate_string(heapChars, length, hash);
+    return allocate_string(heap_chars, length, hash);
 }
 
 TeaObjectUpvalue* tea_new_upvalue(TeaValue* slot)
@@ -201,9 +201,28 @@ TeaObjectUpvalue* tea_new_upvalue(TeaValue* slot)
     return upvalue;
 }
 
-char* tea_object_tostring(TeaValue value)
+static char* list_tostring(TeaObjectList* list)
 {
     return "";
+} 
+
+char* tea_object_tostring(TeaValue value)
+{
+    switch(OBJECT_TYPE(value))
+    {
+        case OBJ_LIST:
+        {
+            return "";
+        }
+        case OBJ_MAP:
+        {
+            return "";
+        }
+        case OBJ_STRING:
+        {
+            return AS_STRING(value)->chars;
+        }
+    }
 }
 
 static void print_list(TeaObjectList* list)

@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "tea_common.h"
-#include "parser/tea_parser.h"
+#include "compiler/tea_compiler.h"
 #include "debug/tea_debug.h"
 #include "vm/tea_object.h"
 #include "memory/tea_memory.h"
@@ -201,7 +201,7 @@ static bool subscript(TeaValue index_value, TeaValue subscript_value)
     return false;
 }
 
-static bool subscript_store(TeaValue item_value, TeaValue index_value, TeaValue subscript_value)
+static bool subscript_store(TeaValue item_value, TeaValue index_value, TeaValue subscript_value, bool assign)
 {
     if(IS_OBJECT(subscript_value))
     {
@@ -225,11 +225,19 @@ static bool subscript_store(TeaValue item_value, TeaValue index_value, TeaValue 
 
                 if(index >= 0 && index < list->items.count) 
                 {
-                    list->items.values[index] = item_value;
-                    tea_pop();
-                    tea_pop();
-                    tea_pop();
-                    tea_push(NULL_VAL);
+                    if(assign)
+                    {
+                        list->items.values[index] = item_value;
+                        tea_pop();
+                        tea_pop();
+                        tea_pop();
+                        tea_push(NULL_VAL);
+                    }
+                    else
+                    {
+                        vm.stack_top[-1] = list->items.values[index];
+                        tea_push(item_value);
+                    }
                     return true;
                 }
 
@@ -245,12 +253,26 @@ static bool subscript_store(TeaValue item_value, TeaValue index_value, TeaValue 
                     return false;
                 }
 
-                TeaObjectString* key = AS_STRING(index_value);
-                tea_table_set(&map->items, key, item_value);
-                tea_pop();
-                tea_pop();
-                tea_pop();
-                tea_push(NULL_VAL);
+                if(assign)
+                {
+                    TeaObjectString* key = AS_STRING(index_value);
+                    tea_table_set(&map->items, key, item_value);
+                    tea_pop();
+                    tea_pop();
+                    tea_pop();
+                    tea_push(NULL_VAL);
+                }
+                else
+                {
+                    TeaValue map_value;
+                    if(!tea_table_get(&map->items, AS_STRING(index_value), &map_value))
+                    {
+                        tea_runtime_error("Key does not exist within the map.");
+                        return false;
+                    }
+                    vm.stack_top[-1] = map_value;
+                    tea_push(item_value);
+                }
                 
                 return true;
             }
@@ -580,7 +602,7 @@ static bool bind_method(TeaObjectClass* klass, TeaObjectString* name)
     return true;
 }
 
-static bool get_property(TeaValue receiver, TeaObjectString* name)
+static bool get_property(TeaValue receiver, TeaObjectString* name, bool pop)
 {
     if(IS_OBJECT(receiver))
     {
@@ -593,7 +615,10 @@ static bool get_property(TeaValue receiver, TeaObjectString* name)
 
                 if(tea_table_get(&instance->fields, name, &value))
                 {
-                    tea_pop(); // Instance.
+                    if(pop)
+                    {
+                        tea_pop(); // Instance.
+                    }
                     tea_push(value);
                     return true;
                 }
@@ -628,7 +653,10 @@ static bool get_property(TeaValue receiver, TeaObjectString* name)
 
                 if(tea_table_get(&map->items, name, &value))
                 {
-                    tea_pop();
+                    if(pop)
+                    {
+                        tea_pop();
+                    }
                     tea_push(value);
                     return true;
                 }
@@ -664,7 +692,6 @@ static bool set_property(TeaObjectString* name, TeaValue receiver)
             {
                 TeaObjectMap* map = AS_MAP(receiver);
                 tea_table_set(&map->items, name, peek(0));
-                tea_pop();
                 tea_pop();
                 tea_pop();
                 tea_push(NULL_VAL);
@@ -777,6 +804,21 @@ static TeaInterpretResult run()
     } \
     while(false)
 
+#define BINARY_OP_FUNCTION(value_type, func, type) \
+    do \
+    { \
+        if(!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) \
+        { \
+            STORE_FRAME; \
+            tea_runtime_error("Operands must be numbers."); \
+            return INTERPRET_RUNTIME_ERROR; \
+        } \
+        type b = AS_NUMBER(tea_pop()); \
+        type a = AS_NUMBER(peek(0)); \
+        vm.stack_top[-1] = value_type(func(a, b)); \
+    } \
+    while(false)
+
 #define RUNTIME_ERROR(...) \
     do \
     { \
@@ -866,6 +908,32 @@ static TeaInterpretResult run()
             tea_pop();
             DISPATCH();
         }
+        CASE_CODE(UNPACK):
+        {
+            int unpack_count = READ_BYTE();
+            int var_count = READ_BYTE();
+
+            if(var_count != unpack_count) 
+            {
+                if(var_count < unpack_count) 
+                {
+                    RUNTIME_ERROR("Too many values to unpack.");
+                } 
+                else 
+                {
+                    RUNTIME_ERROR("Not enough values to unpack.");
+                }
+            }
+
+            for(int i = unpack_count; i >= 0; i--)
+            {
+                tea_push(peek(i));
+            }
+
+            vm.stack_top -= unpack_count + 1;
+
+            DISPATCH();
+        }
         CASE_CODE(GET_LOCAL):
         {
             uint8_t slot = READ_BYTE();
@@ -923,12 +991,21 @@ static TeaInterpretResult run()
             TeaValue receiver = peek(0);
             TeaObjectString* name = READ_STRING();
             STORE_FRAME;
-            if(!get_property(receiver, name))
+            if(!get_property(receiver, name, true))
             {
                 return INTERPRET_RUNTIME_ERROR;
             }
-            frame = &vm.frames[vm.frame_count - 1];
-            ip = frame->ip;
+            DISPATCH();
+        }
+        CASE_CODE(GET_PROPERTY_NO_POP):
+        {
+            TeaValue receiver = peek(0);
+            TeaObjectString* name = READ_STRING();
+            STORE_FRAME;
+            if(!get_property(receiver, name, false))
+            {
+                return INTERPRET_RUNTIME_ERROR;
+            }
             DISPATCH();
         }
         CASE_CODE(SET_PROPERTY):
@@ -1054,12 +1131,23 @@ static TeaInterpretResult run()
             TeaValue index = peek(1);
             TeaValue list = peek(2);
             STORE_FRAME;
-            if(!subscript_store(item, index, list))
+            if(!subscript_store(item, index, list, true))
             {
                 return INTERPRET_RUNTIME_ERROR;
             }
-            frame = &vm.frames[vm.frame_count - 1];
-            ip = frame->ip;
+            DISPATCH();
+        }
+        CASE_CODE(SUBSCRIPT_PUSH):
+        {
+            // Stack before list: [list, index, item] and after: [item]
+            TeaValue item = peek(0);
+            TeaValue index = peek(1);
+            TeaValue list = peek(2);
+            STORE_FRAME;
+            if(!subscript_store(item, index, list, false))
+            {
+                return INTERPRET_RUNTIME_ERROR;
+            }
             DISPATCH();
         }
         CASE_CODE(SLICE):
@@ -1072,8 +1160,6 @@ static TeaInterpretResult run()
             {
                 return INTERPRET_RUNTIME_ERROR;
             }
-            frame = &vm.frames[vm.frame_count - 1];
-            ip = frame->ip;
             DISPATCH();
         }
         CASE_CODE(EQUAL):
@@ -1105,6 +1191,30 @@ static TeaInterpretResult run()
                 double a = AS_NUMBER(tea_pop());
                 tea_push(NUMBER_VAL(a + b));
             }
+            else if(IS_LIST(peek(0)) && IS_LIST(peek(1)))
+            {
+                TeaObjectList* l2 = AS_LIST(peek(0));
+                TeaObjectList* l1 = AS_LIST(peek(1));
+
+                TeaObjectList* l = tea_new_list();
+                tea_push(OBJECT_VAL(l));
+
+                for(int i = 0; i < l1->items.count; i++)
+                {
+                    tea_write_value_array(&l->items, l1->items.values[i]);
+                }
+
+                for(int i = 0; i < l2->items.count; i++)
+                {
+                    tea_write_value_array(&l->items, l2->items.values[i]);
+                }
+
+                tea_pop();
+                tea_pop();
+                tea_pop();
+
+                tea_push(OBJECT_VAL(l));
+            }
             else
             {
                 RUNTIME_ERROR("Operands must be two numbers or two strings.");
@@ -1126,9 +1236,49 @@ static TeaInterpretResult run()
             BINARY_OP(NUMBER_VAL, /, double);
             DISPATCH();
         }
+        CASE_CODE(MOD):
+        {
+            BINARY_OP_FUNCTION(NUMBER_VAL, fmod, double);
+            DISPATCH();
+        }
+        CASE_CODE(BAND):
+        {
+            BINARY_OP(NUMBER_VAL, &, int);
+            DISPATCH();
+        }
+        CASE_CODE(BOR):
+        {
+            BINARY_OP(NUMBER_VAL, |, int);
+            DISPATCH();
+        }
+        CASE_CODE(BNOT):
+        {
+            if(!IS_NUMBER(peek(0)))
+            {
+                RUNTIME_ERROR("Operand must be a number.");
+            }
+            tea_push(NUMBER_VAL(~((int)AS_NUMBER(tea_pop()))));
+
+            DISPATCH();
+        }
+        CASE_CODE(BXOR):
+        {
+            BINARY_OP(NUMBER_VAL, ^, int);
+            DISPATCH();
+        }
+        CASE_CODE(LSHIFT):
+        {
+            BINARY_OP(NUMBER_VAL, <<, int);
+            DISPATCH();
+        }
+        CASE_CODE(RSHIFT):
+        {
+            BINARY_OP(NUMBER_VAL, >>, int);
+            DISPATCH();
+        }
         CASE_CODE(NOT):
         {
-            tea_push(BOOL_VAL(tea_is_falsey(tea_pop())));
+            tea_push(BOOL_VAL(is_falsey(tea_pop())));
             DISPATCH();
         }
         CASE_CODE(NEGATE):
@@ -1149,7 +1299,7 @@ static TeaInterpretResult run()
         CASE_CODE(JUMP_IF_FALSE):
         {
             uint16_t offset = READ_SHORT();
-            if(tea_is_falsey(peek(0)))
+            if(is_falsey(peek(0)))
             {
                 ip += offset;
             }
@@ -1336,6 +1486,7 @@ static TeaInterpretResult run()
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef BINARY_OP
+#undef BINARY_OP_FUNCTION
 #undef RUNTIME_ERROR
 }
 
@@ -1350,14 +1501,4 @@ TeaInterpretResult tea_interpret(const char* source)
     call(closure, 0);
 
     return run();
-}
-
-bool tea_is_falsey(TeaValue value)
-{
-    return  IS_NULL(value) || 
-            (IS_BOOL(value) && !AS_BOOL(value)) || 
-            (IS_NUMBER(value) && AS_NUMBER(value) == 0) || 
-            (IS_STRING(value) && AS_CSTRING(value)[0] == '\0') || 
-            (IS_LIST(value) && AS_LIST(value)->items.count == 0) ||
-            (IS_MAP(value) && AS_MAP(value)->items.count == 0);
 }
