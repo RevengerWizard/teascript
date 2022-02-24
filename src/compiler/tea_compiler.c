@@ -90,6 +90,15 @@ typedef struct TeaClassCompiler
     bool has_superclass;
 } TeaClassCompiler;
 
+typedef struct TeaLoop 
+{
+    struct TeaLoop* enclosing;
+    int start;
+    int body;
+    int end;
+    int scopeDepth;
+} TeaLoop;
+
 TeaParser parser;
 TeaCompiler* current = NULL;
 TeaClassCompiler* current_class = NULL;

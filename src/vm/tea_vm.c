@@ -1059,16 +1059,7 @@ static TeaInterpretResult run()
 
                 int from = (int)range->from;
                 int to = (int)range->to;
-                int count;
-                
-                if(range->inclusive)
-                {
-                    count = to + 1;
-                }
-                else
-                {
-                    count = to;
-                }
+                int count = range->inclusive ? to + 1 : to;
 
                 for(int i = from; i < count; i++)
                 {

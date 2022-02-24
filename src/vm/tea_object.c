@@ -269,14 +269,7 @@ static void print_range(TeaObjectRange* range)
 {
     printf("%.15g", range->from);
     
-    if(range->inclusive)
-    {
-        printf("...");
-    }
-    else
-    {
-        printf("..");
-    }
+    range->inclusive ? printf("...") : printf("..");
 
     printf("%.15g", range->to);
 }
