@@ -12,3 +12,4 @@ endif()
 file(GLOB_RECURSE SOURCE_FILES src/*.c src/debug/*.c src/util/*.c src/scanner/*.c src/parser/*.c src/memory/*.c src/vm/*.c src/types/*.c src/modules/*.c)
 include_directories(include/)
 add_executable(tea ${SOURCE_FILES})
+target_link_libraries(tea LINK_PUBLIC m) # Lib math

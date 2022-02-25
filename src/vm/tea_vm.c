@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "tea_common.h"
 #include "compiler/tea_compiler.h"
@@ -692,6 +693,15 @@ static bool set_property(TeaObjectString* name, TeaValue receiver)
             {
                 TeaObjectMap* map = AS_MAP(receiver);
                 tea_table_set(&map->items, name, peek(0));
+                tea_pop();
+                tea_pop();
+                tea_push(NULL_VAL);
+                return true;
+            }
+            case OBJ_MODULE:
+            {
+                TeaObjectModule* module = AS_MODULE(receiver);
+                tea_table_set(&module->values, name, peek(0));
                 tea_pop();
                 tea_pop();
                 tea_push(NULL_VAL);

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include "memory/tea_memory.h"
 #include "vm/tea_native.h"
@@ -128,11 +129,23 @@ static TeaValue number_native(int arg_count, TeaValue* args, bool* error)
 
         if(errno != 0 || *end != '\0')
         {
-            NATIVE_ERROR("Failed conversion");
+            NATIVE_ERROR("Failed conversion.");
         }
 
         return NUMBER_VAL(number);
     }
+}
+
+static TeaValue int_native(int arg_count, TeaValue* args, bool* error)
+{
+    VALIDATE_ARG_COUNT(int, 1);
+
+    if(!IS_NUMBER(args[0]))
+    {
+        NATIVE_ERROR("int() takes a number as parameter.");
+    }
+
+    return NUMBER_VAL((int)(AS_NUMBER(args[0])));
 }
 
 static TeaValue string_native(int arg_count, TeaValue* args, bool* error)
@@ -166,6 +179,7 @@ void tea_define_natives(TeaVM* vm)
     tea_native_function(vm, &vm->globals, "type", type_native);
 
     tea_native_function(vm, &vm->globals, "number", number_native);
+    tea_native_function(vm, &vm->globals, "int", int_native);
     //tea_native_function(vm, &vm->globals, "bool", bool_native);
     tea_native_function(vm, &vm->globals, "string", string_native);
     //tea_native_function(vm, &vm->globals, "list", list_native);
