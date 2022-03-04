@@ -97,8 +97,8 @@ TeaObjectClass* tea_new_class(TeaObjectString* name)
 
 TeaObjectClosure* tea_new_closure(TeaObjectFunction* function)
 {
-    TeaObjectUpvalue** upvalues = ALLOCATE(TeaObjectUpvalue*,function->upvalue_count);
-    for (int i = 0; i < function->upvalue_count; i++)
+    TeaObjectUpvalue** upvalues = ALLOCATE(TeaObjectUpvalue*, function->upvalue_count);
+    for(int i = 0; i < function->upvalue_count; i++)
     {
         upvalues[i] = NULL;
     }
@@ -111,12 +111,13 @@ TeaObjectClosure* tea_new_closure(TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* tea_new_function()
+TeaObjectFunction* tea_new_function(TeaObjectModule* module)
 {
     TeaObjectFunction* function = ALLOCATE_OBJECT(TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->upvalue_count = 0;
     function->name = NULL;
+    function->module = module;
     tea_init_chunk(&function->chunk);
 
     return function;
@@ -434,6 +435,8 @@ const char* tea_object_type(TeaValue a)
 {
     switch(OBJECT_TYPE(a))
     {
+        case OBJ_FILE:
+            return "file";
         case OBJ_RANGE:
             return "range";
         case OBJ_MODULE:

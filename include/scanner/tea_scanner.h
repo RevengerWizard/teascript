@@ -3,8 +3,14 @@
 
 #include "scanner/tea_token.h"
 
+typedef struct
+{
+    const char* start;
+    const char* current;
+    int line;
+} TeaScanner;
+
 void tea_init_scanner(const char* source);
-void tea_back_track();
 TeaToken tea_scan_token();
 
 #endif

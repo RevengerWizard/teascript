@@ -1,7 +1,7 @@
 #ifndef TEA_STATE_H
 #define TEA_STATE_H
 
-typedef struct TeaState
+/*typedef struct TeaState
 {
     struct TeaScanner* scanner;
     struct TeaCommpiler* compiler;
@@ -17,6 +17,6 @@ typedef enum
 
 TeaState* tea_init_state();
 void tea_free_state();
-TeaInterpretResult tea_interpret(TeaState* state, const char* module_name, const char* source);
+TeaInterpretResult tea_interpret(TeaState* state, const char* module_name, const char* source);*/
 
 #endif

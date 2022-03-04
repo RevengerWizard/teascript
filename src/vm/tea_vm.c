@@ -10,9 +10,11 @@
 #include "memory/tea_memory.h"
 #include "vm/tea_vm.h"
 #include "vm/tea_native.h"
+#include "util/tea_fs.h"
 
 #include "types/tea_string.h"
 #include "types/tea_list.h"
+#include "types/tea_file.h"
 
 #include "modules/tea_module.h"
 
@@ -75,9 +77,11 @@ void tea_init_vm()
 
     tea_init_table(&vm.string_methods);
     tea_init_table(&vm.list_methods);
+    tea_init_table(&vm.file_methods);
 
     tea_define_string_methods(&vm);
     tea_define_list_methods(&vm);
+    tea_define_file_methods(&vm);
 }
 
 void tea_free_vm()
@@ -90,6 +94,15 @@ void tea_free_vm()
 
     tea_free_table(&vm.string_methods);
     tea_free_table(&vm.list_methods);
+    tea_free_table(&vm.file_methods);
+
+#ifdef DEBUG_TRACE_MEMORY
+#ifdef __MINGW32__
+    printf("total bytes lost: %lu\n", (unsigned long)vm.bytes_allocated);
+#else
+    printf("total bytes lost: %zu\n", vm.bytes_allocated);
+#endif
+#endif
 }
 
 void tea_push(TeaValue value)
@@ -850,7 +863,7 @@ static TeaInterpretResult run()
                 printf(" ]"); \
             } \
             printf("\n"); \
-            tea_disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code)); \
+            tea_disassemble_instruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code)); \
         } \
         while(false)
 #else
@@ -913,35 +926,14 @@ static TeaInterpretResult run()
             tea_push(BOOL_VAL(false));
             DISPATCH();
         }
+        CASE_CODE(DUP):
+        {
+            tea_push(peek(0));
+            DISPATCH();
+        }
         CASE_CODE(POP):
         {
             tea_pop();
-            DISPATCH();
-        }
-        CASE_CODE(UNPACK):
-        {
-            int unpack_count = READ_BYTE();
-            int var_count = READ_BYTE();
-
-            if(var_count != unpack_count) 
-            {
-                if(var_count < unpack_count) 
-                {
-                    RUNTIME_ERROR("Too many values to unpack.");
-                } 
-                else 
-                {
-                    RUNTIME_ERROR("Not enough values to unpack.");
-                }
-            }
-
-            for(int i = unpack_count; i >= 0; i--)
-            {
-                tea_push(peek(i));
-            }
-
-            vm.stack_top -= unpack_count + 1;
-
             DISPATCH();
         }
         CASE_CODE(GET_LOCAL):
@@ -977,10 +969,38 @@ static TeaInterpretResult run()
             }
             DISPATCH();
         }
+        CASE_CODE(GET_MODULE):
+        {
+            TeaObjectString* name = READ_STRING();
+            TeaValue value;
+            if(!tea_table_get(&frame->closure->function->module->values, name, &value))
+            {
+                RUNTIME_ERROR("Undefined variable '%s'.", name->chars);
+            }
+            tea_push(value);
+            DISPATCH();
+        }
+        CASE_CODE(SET_MODULE):
+        {
+            TeaObjectString* name = READ_STRING();
+            if(tea_table_set(&frame->closure->function->module->values, name, peek(0)))
+            {
+                tea_table_delete(&frame->closure->function->module->values, name);
+                RUNTIME_ERROR("Undefined variable '%s'.", name->chars);
+            }
+            DISPATCH();
+        }
         CASE_CODE(DEFINE_GLOBAL):
         {
             TeaObjectString* name = READ_STRING();
             tea_table_set(&vm.globals, name, peek(0));
+            tea_pop();
+            DISPATCH();
+        }
+        CASE_CODE(DEFINE_MODULE):
+        {
+            TeaObjectString* name = READ_STRING();
+            tea_table_set(&frame->closure->function->module->values, name, peek(0));
             tea_pop();
             DISPATCH();
         }
@@ -1418,6 +1438,81 @@ static TeaInterpretResult run()
             define_method(READ_STRING());
             DISPATCH();
         }
+        CASE_CODE(IMPORT):
+        {
+            TeaObjectString* file_name = READ_STRING();
+            TeaValue module_value;
+
+            // If we have imported this file already, skip.
+            if(tea_table_get(&vm.modules, file_name, &module_value)) 
+            {
+                vm.last_module = AS_MODULE(module_value);
+                tea_push(NULL_VAL);
+                DISPATCH();
+            }
+
+            char path[PATH_MAX];
+            if(!tea_resolve_path(frame->closure->function->module->path->chars, file_name->chars, path))
+            {
+                RUNTIME_ERROR("Could not open file \"%s\".", file_name->chars);
+            }
+
+            char* source = tea_read_file(path);
+
+            if(source == NULL) 
+            {
+                RUNTIME_ERROR("Could not open file \"%s\".", file_name->chars);
+            }
+
+            TeaObjectString* path_obj = tea_copy_string(path, strlen(path));
+            TeaObjectModule* module = tea_new_module(path_obj);
+            module->path = tea_dirname(path, strlen(path));
+            vm.last_module = module;
+
+            TeaObjectFunction* function = tea_compile(module, source);
+
+            FREE_ARRAY(char, source, strlen(source) + 1);
+
+            if(function == NULL) return INTERPRET_COMPILE_ERROR;
+            TeaObjectClosure* closure = tea_new_closure(function);
+            tea_push(OBJECT_VAL(closure));
+
+            frame->ip = ip;
+            call(closure, 0);
+            frame = &vm.frames[vm.frame_count - 1];
+            ip = frame->ip;
+
+            DISPATCH();
+        }
+        CASE_CODE(IMPORT_VARIABLE):
+        {
+            tea_push(OBJECT_VAL(vm.last_module));
+            DISPATCH();
+        }
+        CASE_CODE(IMPORT_FROM):
+        {
+            int var_count = READ_BYTE();
+
+            for(int i = 0; i < var_count; i++) 
+            {
+                TeaValue module_variable;
+                TeaObjectString* variable = READ_STRING();
+
+                if(!tea_table_get(&vm.last_module->values, variable, &module_variable)) 
+                {
+                    RUNTIME_ERROR("%s can't be found in module %s", variable->chars, vm.last_module->name->chars);
+                }
+
+                tea_push(module_variable);
+            }
+
+            DISPATCH();
+        }
+        CASE_CODE(IMPORT_END):
+        {
+            vm.last_module = frame->closure->function->module;
+            DISPATCH();
+        }
         CASE_CODE(IMPORT_NATIVE):
         {
             int index = READ_BYTE();
@@ -1454,7 +1549,7 @@ static TeaInterpretResult run()
             TeaObjectString* file_name = READ_STRING();
             int var_count = READ_BYTE();
 
-            TeaValue module_val;;
+            TeaValue module_val;
             TeaObjectModule* module;
 
             if(tea_table_get(&vm.modules, file_name, &module_val)) 
@@ -1477,6 +1572,31 @@ static TeaInterpretResult run()
 
             DISPATCH();
         }
+        CASE_CODE(OPEN_FILE):
+        {
+            TeaValue file_obj = peek(0);
+
+            if(!IS_FILE(file_obj))
+            {
+                RUNTIME_ERROR("Expect a file object.");
+            }
+
+            TeaObjectFile* file = AS_FILE(file_obj);
+
+            tea_pop();
+            tea_push(OBJECT_VAL(file));
+
+            DISPATCH();
+        }
+        CASE_CODE(CLOSE_FILE):
+        {
+            uint8_t slot = READ_BYTE();
+            TeaValue file = frame->slots[slot];
+            TeaObjectFile* file_object = AS_FILE(file);
+            //fclose(file_object->file);
+            printf("closed?\n");
+            DISPATCH();
+        }
     }
 
     return INTERPRET_RUNTIME_ERROR;
@@ -1491,9 +1611,14 @@ static TeaInterpretResult run()
 #undef RUNTIME_ERROR
 }
 
-TeaInterpretResult tea_interpret(const char* source)
+TeaInterpretResult tea_interpret(char* module_name, const char* source)
 {
-    TeaObjectFunction* function = tea_compile(source);
+    TeaObjectString* name = tea_copy_string(module_name, strlen(module_name));
+    TeaObjectModule* module = tea_new_module(name);
+
+    module->path = tea_get_directory(module_name);
+
+    TeaObjectFunction* function = tea_compile(module, source);
     if(function == NULL)
         return INTERPRET_COMPILE_ERROR;
 

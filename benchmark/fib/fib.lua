@@ -10,4 +10,4 @@ local start = os.clock()
 
 io.write(fib(35).."\n")
 
-io.write(string.format("elapsed: %.8f\n", os.clock() - start))
+io.write(string.format("elapsed: %g\n", os.clock() - start))

@@ -81,6 +81,22 @@ static TeaValue input_native(int arg_count, TeaValue* args, bool* error)
     return OBJECT_VAL(tea_take_string(line, length));
 }
 
+static TeaValue open_native(int arg_count, TeaValue* args, bool* error)
+{
+    VALIDATE_ARG_COUNT(open, 2);
+
+    if(!IS_STRING(args[0]) || !IS_STRING(args[1]))
+    {
+        NATIVE_ERROR("open() expects two strings.");
+    }
+
+    TeaObjectFile* file = tea_new_file();
+    file->path = AS_STRING(args[0])->chars;
+    file->type = AS_STRING(args[1])->chars;
+
+    return OBJECT_VAL(file);
+}
+
 static TeaValue assert_native(int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(assert, 2);
@@ -174,6 +190,7 @@ void tea_define_natives(TeaVM* vm)
 {
     tea_native_function(vm, &vm->globals, "print", print_native);
     tea_native_function(vm, &vm->globals, "input", input_native);
+    tea_native_function(vm, &vm->globals, "open", open_native);
     tea_native_function(vm, &vm->globals, "assert", assert_native);
     tea_native_function(vm, &vm->globals, "error", error_native);
     tea_native_function(vm, &vm->globals, "type", type_native);

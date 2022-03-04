@@ -24,6 +24,8 @@ const char* tea_value_type(TeaValue a)
     {
         return tea_object_type(a);
     }
+
+    return "unknown";
 }
 
 bool tea_values_equal(TeaValue a, TeaValue b)
@@ -99,10 +101,6 @@ void tea_print_value(TeaValue value)
     {
         printf("null");
     }
-    else if(IS_EMPTY(value))
-    {
-        return;
-    }
     else if(IS_NUMBER(value))
     {
         printf("%.15g", AS_NUMBER(value));
@@ -111,6 +109,8 @@ void tea_print_value(TeaValue value)
     {
         tea_print_object(value);
     }
+
+    return;
 #else
     switch(value.type)
     {

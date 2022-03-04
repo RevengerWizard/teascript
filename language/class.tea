@@ -28,9 +28,14 @@ foo.say("World")    // Expect: World
 // Class inheritance
 class Bar : Foo
 {
+    init(a, b)
+    {
+        super.init(a, b)
+    }
+
     shout(message)
     {
-        print(message + "!")
+        super.say(message + "!")
     }
 }
 

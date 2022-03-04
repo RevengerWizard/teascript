@@ -127,8 +127,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_FALSE", offset);
         case OP_POP:
             return simple_instruction("OP_POP", offset);
-        case OP_UNPACK:
-            return byte_instruction("OP_UNPACK", chunk, offset);
+        case OP_DUP:
+            return simple_instruction("OP_DUP", offset);
         case OP_GET_PROPERTY_NO_POP:
             return constant_instruction("OP_GET_PROPERTY_NO_POP", chunk, offset);
         case OP_GET_LOCAL:
@@ -137,10 +137,16 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return byte_instruction("OP_SET_LOCAL", chunk, offset);
         case OP_GET_GLOBAL:
             return constant_instruction("OP_GET_GLOBAL", chunk, offset);
-        case OP_DEFINE_GLOBAL:
-            return constant_instruction("OP_DEFINE_GLOBAL", chunk, offset);
         case OP_SET_GLOBAL:
             return constant_instruction("OP_SET_GLOBAL", chunk, offset);
+        case OP_GET_MODULE:
+            return constant_instruction("OP_GET_MODULE", chunk, offset);
+        case OP_SET_MODULE:
+            return constant_instruction("OP_SET_MODULE", chunk, offset);
+        case OP_DEFINE_GLOBAL:
+            return constant_instruction("OP_DEFINE_GLOBAL", chunk, offset);
+        case OP_DEFINE_MODULE:
+            return constant_instruction("OP_DEFINE_MODULE", chunk, offset);
         case OP_GET_UPVALUE:
             return byte_instruction("OP_GET_UPVALUE", chunk, offset);
         case OP_SET_UPVALUE:
@@ -233,10 +239,22 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_INHERIT", offset);
         case OP_METHOD:
             return constant_instruction("OP_METHOD", chunk, offset);
+        case OP_IMPORT:
+            return constant_instruction("OP_IMPORT", chunk, offset);
+        case OP_IMPORT_VARIABLE:
+            return simple_instruction("OP_IMPORT_VARIABLE", offset);
+        case OP_IMPORT_FROM:
+            return import_from_instruction("OP_IMPORT_FROM", chunk, offset);
+        case OP_IMPORT_END:
+            return simple_instruction("OP_IMPORT_END", offset);
         case OP_IMPORT_NATIVE:
             return native_import_instruction("OP_IMPORT_NATIVE", chunk, offset);
         case OP_IMPORT_NATIVE_VARIABLE:
             return native_from_import_instruction("OP_IMPORT_NATIVE_VARIABLE", chunk, offset);
+        case OP_OPEN_FILE:
+            return simple_instruction("OP_OPEN_FILE", offset);
+        case OP_CLOSE_FILE:
+            return constant_instruction("OP_CLOSE_FILE", chunk, offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

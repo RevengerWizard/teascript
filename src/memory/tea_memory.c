@@ -16,6 +16,10 @@ void* tea_reallocate(void* pointer, size_t old_size, size_t new_size)
 {
     vm.bytes_allocated += new_size - old_size;
 
+#ifdef DEBUG_TRACE_MEMORY
+    printf("total bytes allocated: %zu\nnew allocation: %zu\nold allocation: %zu\n\n", vm.bytes_allocated, new_size, old_size);
+#endif
+
     if(new_size > old_size)
     {
 #ifdef DEBUG_STRESS_GC

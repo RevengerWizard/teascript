@@ -18,6 +18,7 @@ typedef struct
     TeaToken previous;
     bool had_error;
     bool panic_mode;
+    TeaObjectModule* module;
 } TeaParser;
 
 typedef enum
@@ -82,6 +83,9 @@ typedef struct TeaCompiler
     int local_count;
     TeaUpvalue upvalues[UINT8_COUNT];
     int scope_depth;
+
+    bool with_block;
+    TeaToken with_file;
 } TeaCompiler;
 
 typedef struct TeaClassCompiler
@@ -89,15 +93,6 @@ typedef struct TeaClassCompiler
     struct TeaClassCompiler* enclosing;
     bool has_superclass;
 } TeaClassCompiler;
-
-typedef struct TeaLoop 
-{
-    struct TeaLoop* enclosing;
-    int start;
-    int body;
-    int end;
-    int scopeDepth;
-} TeaLoop;
 
 TeaParser parser;
 TeaCompiler* current = NULL;
@@ -113,7 +108,7 @@ static void error_at(TeaToken* token, const char* message)
     if(parser.panic_mode)
         return;
     parser.panic_mode = true;
-    fprintf(stderr, "[line %d] Error", token->line);
+    fprintf(stderr, "File %s, [line %d] Error", parser.module->name->chars, token->line);
 
     if(token->type == TOKEN_EOF)
     {
@@ -264,7 +259,8 @@ static void init_compiler(TeaCompiler* compiler, TeaFunctionType type)
     compiler->type = type;
     compiler->local_count = 0;
     compiler->scope_depth = 0;
-    compiler->function = tea_new_function();
+    compiler->with_block = false;
+    compiler->function = tea_new_function(parser.module);
     current = compiler;
     if(type != TYPE_SCRIPT)
     {
@@ -473,7 +469,8 @@ static void define_variable(uint8_t global)
         return;
     }
 
-    emit_bytes(OP_DEFINE_GLOBAL, global);
+    //emit_bytes(OP_DEFINE_GLOBAL, global);
+    emit_bytes(OP_DEFINE_MODULE, global);
 }
 
 static uint8_t argument_list()
@@ -950,8 +947,20 @@ static void named_variable(TeaToken name, bool can_assign)
     else
     {
         arg = identifier_constant(&name);
-        get_op = OP_GET_GLOBAL;
-        set_op = OP_SET_GLOBAL;
+        //get_op = OP_GET_GLOBAL;
+        //set_op = OP_SET_GLOBAL;
+        TeaObjectString* string = tea_copy_string(name.start, name.length);
+        TeaValue value;
+        if(tea_table_get(&vm.globals, string, &value)) 
+        {
+            get_op = OP_GET_GLOBAL;
+            set_op = OP_SET_GLOBAL;
+        } 
+        else 
+        {
+            get_op = OP_GET_MODULE;
+            set_op = OP_SET_MODULE;
+        }
     }
 
     if(can_assign && match(TOKEN_EQUAL))
@@ -1171,6 +1180,7 @@ TeaParseRule rules[] = {
     UNUSED,                               // TOKEN_IF
     PREFIX(literal),                      // TOKEN_NULL
     OPERATOR(or_, OR),                    // TOKEN_OR
+    UNUSED,                               // TOKEN_WITH
     UNUSED,                               // TOKEN_IMPORT
     UNUSED,                               // TOKEN_FROM
     UNUSED,                               // TOKEN_AS
@@ -1179,9 +1189,11 @@ TeaParseRule rules[] = {
     PREFIX(this_),                        // TOKEN_THIS
     UNUSED,                               // TOKEN_CONTINUE
     UNUSED,                               // TOKEN_BREAK
+    UNUSED,                               // TOKEN_IN
     PREFIX(literal),                      // TOKEN_TRUE
     UNUSED,                               // TOKEN_VAR
     UNUSED,                               // TOKEN_WHILE
+    UNUSED,                               // TOKEN_DO
     UNUSED,                               // TOKEN_ERROR
     UNUSED,                               // TOKEN_EOF
 };
@@ -1473,6 +1485,132 @@ static void if_statement()
     patch_jump(end_jump);
 }
 
+static void switch_statement()
+{
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+    expression();
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after value.");
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before switch cases.");
+
+    int state = 0; // 0: before all cases, 1: before default, 2: after default.
+    int case_ends[256];
+    int case_count = 0;
+    int previous_case_skip = -1;
+
+    while(!match(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) 
+    {
+        if(match(TOKEN_CASE) || match(TOKEN_DEFAULT)) 
+        {
+            TeaTokenType case_type = parser.previous.type;
+
+            if(state == 2) 
+            {
+                error("Can't have another case or default after the default case.");
+            }
+
+            if(state == 1) 
+            {
+                // At the end of the previous case, jump over the others.
+                case_ends[case_count++] = emit_jump(OP_JUMP);
+
+                // Patch its condition to jump to the next case (this one).
+                patch_jump(previous_case_skip);
+                emit_byte(OP_POP);
+            }
+
+            if(case_type == TOKEN_CASE) 
+            {
+                state = 1;
+
+                // See if the case is equal to the value.
+                emit_byte(OP_DUP);
+                expression();
+
+                consume(TOKEN_COLON, "Expect ':' after case value.");
+
+                emit_byte(OP_EQUAL);
+                previous_case_skip = emit_jump(OP_JUMP_IF_FALSE);
+
+                // Pop the comparison result.
+                emit_byte(OP_POP);
+            } 
+            else 
+            {
+                state = 2;
+                consume(TOKEN_COLON, "Expect ':' after default.");
+                previous_case_skip = -1;
+            }
+        } 
+        else 
+        {
+            // Otherwise, it's a statement inside the current case.
+            if(state == 0) 
+            {
+                error("Can't have statements before any case.");
+            }
+            emit_byte(OP_POP);
+            statement();
+        }
+    }
+
+    // If we ended without a default case, patch its condition jump.
+    if(state == 1) 
+    {
+        patch_jump(previous_case_skip);
+        emit_byte(OP_POP);
+    }
+
+    // Patch all the case jumps to the end.
+    for(int i = 0; i < case_count; i++) 
+    {
+        patch_jump(case_ends[i]);
+    }
+
+    emit_byte(OP_POP); // The switch value.
+}
+
+static void with_statement()
+{
+    current->with_block = true;
+    consume(TOKEN_LEFT_PAREN, "Expect '(' after with statement.");
+    expression();
+    begin_scope();
+    
+    int file_index = current->local_count;
+    TeaLocal* local = &current->locals[current->local_count++];
+    local->depth = current->scope_depth;
+    local->is_captured = false;
+
+    consume(TOKEN_AS, "Expect alias.");
+    consume(TOKEN_NAME, "Expect file alias.");
+    local->name = parser.previous;
+    current->with_file = local->name;
+
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' after with statement.");
+    consume(TOKEN_LEFT_BRACE, "Expect '{' before with body.");
+
+    emit_byte(OP_OPEN_FILE);
+    block();
+    emit_bytes(OP_CLOSE_FILE, file_index);
+    end_scope();
+    current->with_block = false;
+}
+
+static void check_close_handle()
+{
+    if(current->with_block)
+    {
+        TeaToken token = current->with_file;
+        int local = resolve_local(current, &token);
+
+        if(local != -1)
+        {
+            emit_bytes(OP_CLOSE_FILE, local);
+        }
+        current->with_block = false;
+    }
+}
+
 static void return_statement()
 {
     if(current->type == TYPE_SCRIPT)
@@ -1482,6 +1620,7 @@ static void return_statement()
 
     if(check(TOKEN_RIGHT_BRACE))
     {
+        check_close_handle();
         emit_return();
     }
     else
@@ -1492,6 +1631,8 @@ static void return_statement()
         }
 
         expression();
+
+        check_close_handle();
         emit_byte(OP_RETURN);
     }
 }
@@ -1500,7 +1641,19 @@ static void import_statement()
 {
     if(match(TOKEN_STRING))
     {
-        
+        int import_constant = make_constant(OBJECT_VAL(tea_copy_string(parser.previous.start + 1, parser.previous.length - 2)));
+
+        emit_bytes(OP_IMPORT, import_constant);
+        emit_byte(OP_POP);
+
+        if(match(TOKEN_AS)) 
+        {
+            uint8_t import_name = parse_variable("Expect import alias.");
+            emit_byte(OP_IMPORT_VARIABLE);
+            define_variable(import_name);
+        }
+
+        emit_byte(OP_IMPORT_END);
     }
     else
     {
@@ -1515,6 +1668,16 @@ static void import_statement()
             error("Unknown module");
         }
 
+        if(match(TOKEN_AS)) 
+        {
+            uint8_t import_alias = parse_variable("Expect import alias.");
+            emit_bytes(OP_IMPORT_NATIVE, index);
+            emit_byte(import_alias);
+            define_variable(import_alias);
+
+            return;
+        }
+
         emit_bytes(OP_IMPORT_NATIVE, index);
         emit_byte(import_name);
 
@@ -1526,7 +1689,56 @@ static void from_import_statement()
 {
     if(match(TOKEN_STRING))
     {
+        int import_constant = make_constant(OBJECT_VAL(tea_copy_string(parser.previous.start + 1, parser.previous.length - 2)));
 
+        consume(TOKEN_IMPORT, "Expect 'import' after import path.");
+        emit_bytes(OP_IMPORT, import_constant);
+        emit_byte(OP_POP);
+
+        uint8_t variables[255];
+        TeaToken tokens[255];
+        int var_count = 0;
+
+        do 
+        {
+            consume(TOKEN_NAME, "Expect variable name.");
+            tokens[var_count] = parser.previous;
+            variables[var_count] = identifier_constant(&parser.previous);
+            var_count++;
+
+            if(var_count > 255) 
+            {
+                error("Cannot have more than 255 variables.");
+            }
+        } 
+        while(match(TOKEN_COMMA));
+
+        emit_bytes(OP_IMPORT_FROM, var_count);
+
+        for(int i = 0; i < var_count; i++) 
+        {
+            emit_byte(variables[i]);
+        }
+
+        // This needs to be two separate loops as we need
+        // all the variables popped before defining.
+        if(current->scope_depth == 0) 
+        {
+            for(int i = var_count - 1; i >= 0; i--) 
+            {
+                define_variable(variables[i]);
+            }
+        } 
+        else 
+        {
+            for(int i = 0; i < var_count; i++) 
+            {
+                declare_variable(&tokens[i]);
+                define_variable(0);
+            }
+        }
+
+        emit_byte(OP_IMPORT_END);
     }
     else
     {
@@ -1614,6 +1826,33 @@ static void while_statement()
     emit_byte(OP_POP);
 }
 
+static void do_statement()
+{
+    int loop_start = current_chunk()->count;
+
+    statement();
+
+    consume(TOKEN_WHILE, "Expect while after do statement.");
+
+    if(!check(TOKEN_LEFT_PAREN))
+    {
+        emit_byte(OP_TRUE);
+    }
+    else
+    {
+        consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+        expression();
+        consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+    }
+
+    int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
+    emit_byte(OP_POP);
+    emit_loop(loop_start);
+
+    patch_jump(exit_jump);
+    emit_byte(OP_POP);
+}
+
 static void synchronize()
 {
     parser.panic_mode = false;
@@ -1627,6 +1866,7 @@ static void synchronize()
             case TOKEN_VAR:
             case TOKEN_FOR:
             case TOKEN_IF:
+            case TOKEN_DO:
             case TOKEN_WHILE:
             case TOKEN_BREAK:
             case TOKEN_RETURN:
@@ -1674,13 +1914,25 @@ static void statement()
     {
         if_statement();
     }
+    else if(match(TOKEN_SWITCH))
+    {
+        switch_statement();
+    }
     else if(match(TOKEN_RETURN))
     {
         return_statement();
     }
+    else if(match(TOKEN_WITH))
+    {
+        with_statement();
+    }
     else if(match(TOKEN_WHILE))
     {
         while_statement();
+    }
+    else if(match(TOKEN_DO))
+    {
+        do_statement();
     }
     else if(match(TOKEN_IMPORT))
     {
@@ -1702,14 +1954,15 @@ static void statement()
     }
 }
 
-TeaObjectFunction* tea_compile(const char* source)
+TeaObjectFunction* tea_compile(TeaObjectModule* module, const char* source)
 {
+    parser.had_error = false;
+    parser.panic_mode = false;
+    parser.module = module;
+
     tea_init_scanner(source);
     TeaCompiler compiler;
     init_compiler(&compiler, TYPE_SCRIPT);
-
-    parser.had_error = false;
-    parser.panic_mode = false;
 
     advance();
 

@@ -30,6 +30,7 @@ typedef struct
 
     TeaTable string_methods;
     TeaTable list_methods;
+    TeaTable file_methods;
 
     TeaObjectString* init_string;
     TeaObjectUpvalue* open_upvalues;
@@ -54,7 +55,7 @@ extern TeaVM vm;
 void tea_init_vm();
 void tea_free_vm();
 void tea_runtime_error(const char* format, ...);
-TeaInterpretResult tea_interpret(const char* source);
+TeaInterpretResult tea_interpret(char* module_name, const char* source);
 void tea_push(TeaValue value);
 TeaValue tea_pop();
 

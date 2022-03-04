@@ -4,13 +4,6 @@
 #include "tea_common.h"
 #include "scanner/tea_scanner.h"
 
-typedef struct
-{
-    const char* start;
-    const char* current;
-    int line;
-} TeaScanner;
-
 TeaScanner scanner;
 
 void tea_init_scanner(const char* source)
@@ -235,7 +228,18 @@ static TeaTokenType identifier_type()
             }
             break;
         }
-        case 'd': return check_keyword(1, 6, "efault", TOKEN_DEFAULT);
+        case 'd':
+        {
+            if(scanner.current - scanner.start > 1)
+            {
+                switch(scanner.start[1])
+                {
+                    case 'e': return check_keyword(2, 5, "fault", TOKEN_DEFAULT);
+                    case 'o': return check_keyword(2, 0, "", TOKEN_DO);
+                }
+            }
+            break;
+        }
         case 'e': return check_keyword(1, 3, "lse", TOKEN_ELSE);
         case 'f':
         {
@@ -259,6 +263,7 @@ static TeaTokenType identifier_type()
                 {
                     case 'f': return check_keyword(2, 0, "", TOKEN_IF);
                     case 'm': return check_keyword(2, 4, "port", TOKEN_IMPORT);
+                    case 'n': return check_keyword(2, 0, "", TOKEN_IN);
                 }
             }
             break;
@@ -291,7 +296,18 @@ static TeaTokenType identifier_type()
             break;
         }
         case 'v': return check_keyword(1, 2, "ar", TOKEN_VAR);
-        case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE);
+        case 'w':
+        {
+            if(scanner.current - scanner.start > 1)
+            {
+                switch(scanner.start[1])
+                {
+                    case 'h': return check_keyword(2, 3, "ile", TOKEN_WHILE);
+                    case 'i': return check_keyword(2, 2, "th", TOKEN_WITH);
+                }
+            }
+            break;
+        }
     }
 
     return TOKEN_NAME;
@@ -342,11 +358,6 @@ static TeaToken string()
     advance();
 
     return make_token(TOKEN_STRING);
-}
-
-void tea_back_track()
-{
-    scanner.current--;
 }
 
 TeaToken tea_scan_token()
