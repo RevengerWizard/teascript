@@ -7,28 +7,25 @@
 #include "vm/tea_value.h"
 #include "vm/tea_vm.h"
 
-#define ALLOCATE_OBJECT(type, object_type) \
-    (type*)allocate_object(sizeof(type), object_type)
-
-static TeaObject* allocate_object(size_t size, TeaObjectType type)
+TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type)
 {
-    TeaObject* object = (TeaObject*)tea_reallocate(NULL, 0, size);
+    TeaObject* object = (TeaObject*)tea_reallocate(state, NULL, 0, size);
     object->type = type;
     object->is_marked = false;
 
-    object->next = vm.objects;
-    vm.objects = object;
+    object->next = state->vm->objects;
+    state->vm->objects = object;
 
 #ifdef DEBUG_LOG_GC
-    printf("%p allocate %zu for %d\n", (void *)object, size, type);
+    printf("%p allocate %zu for %d\n", (void*)object, size, type);
 #endif
 
     return object;
 }
 
-TeaObjectRange* tea_new_range(double from, double to, bool inclusive)
+TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool inclusive)
 {
-    TeaObjectRange* range = ALLOCATE_OBJECT(TeaObjectRange, OBJ_RANGE);
+    TeaObjectRange* range = ALLOCATE_OBJECT(state, TeaObjectRange, OBJ_RANGE);
 
     range->from = from;
     range->to = to;
@@ -37,57 +34,57 @@ TeaObjectRange* tea_new_range(double from, double to, bool inclusive)
     return range;
 }
 
-TeaObjectFile* tea_new_file()
+TeaObjectFile* tea_new_file(TeaState* state)
 {
-    return ALLOCATE_OBJECT(TeaObjectFile, OBJ_FILE);
+    return ALLOCATE_OBJECT(state, TeaObjectFile, OBJ_FILE);
 }
 
-TeaObjectModule* tea_new_module(TeaObjectString* name)
+TeaObjectModule* tea_new_module(TeaState* state, TeaObjectString* name)
 {
     TeaValue module_val;
-    if(tea_table_get(&vm.modules, name, &module_val)) 
+    if(tea_table_get(&state->vm->modules, name, &module_val)) 
     {
         return AS_MODULE(module_val);
     }
 
-    TeaObjectModule* module = ALLOCATE_OBJECT(TeaObjectModule, OBJ_MODULE);
+    TeaObjectModule* module = ALLOCATE_OBJECT(state, TeaObjectModule, OBJ_MODULE);
     tea_init_table(&module->values);
     module->name = name;
     module->path = NULL;
 
-    tea_table_set(&vm.modules, name, OBJECT_VAL(module));
+    tea_table_set(state, &state->vm->modules, name, OBJECT_VAL(module));
 
     return module;
 }
 
-TeaObjectList* tea_new_list()
+TeaObjectList* tea_new_list(TeaState* state)
 {
-    TeaObjectList* list = ALLOCATE_OBJECT(TeaObjectList, OBJ_LIST);
+    TeaObjectList* list = ALLOCATE_OBJECT(state, TeaObjectList, OBJ_LIST);
     tea_init_value_array(&list->items);
 
     return list;
 }
 
-TeaObjectMap* tea_new_map()
+TeaObjectMap* tea_new_map(TeaState* state)
 {
-    TeaObjectMap* map = ALLOCATE_OBJECT(TeaObjectMap, OBJ_MAP);
+    TeaObjectMap* map = ALLOCATE_OBJECT(state, TeaObjectMap, OBJ_MAP);
     tea_init_table(&map->items);
     
     return map;
 }
 
-TeaObjectBoundMethod* tea_new_bound_method(TeaValue receiver, TeaObjectClosure* method)
+TeaObjectBoundMethod* tea_new_bound_method(TeaState* state, TeaValue receiver, TeaObjectClosure* method)
 {
-    TeaObjectBoundMethod* bound = ALLOCATE_OBJECT(TeaObjectBoundMethod, OBJ_BOUND_METHOD);
+    TeaObjectBoundMethod* bound = ALLOCATE_OBJECT(state, TeaObjectBoundMethod, OBJ_BOUND_METHOD);
     bound->receiver = receiver;
     bound->method = method;
 
     return bound;
 }
 
-TeaObjectClass* tea_new_class(TeaObjectString* name)
+TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name)
 {
-    TeaObjectClass* klass = ALLOCATE_OBJECT(TeaObjectClass, OBJ_CLASS);
+    TeaObjectClass* klass = ALLOCATE_OBJECT(state, TeaObjectClass, OBJ_CLASS);
     klass->name = name;
     klass->initializer = NULL_VAL;
     tea_init_table(&klass->methods);
@@ -95,15 +92,15 @@ TeaObjectClass* tea_new_class(TeaObjectString* name)
     return klass;
 }
 
-TeaObjectClosure* tea_new_closure(TeaObjectFunction* function)
+TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function)
 {
-    TeaObjectUpvalue** upvalues = ALLOCATE(TeaObjectUpvalue*, function->upvalue_count);
+    TeaObjectUpvalue** upvalues = ALLOCATE(state, TeaObjectUpvalue*, function->upvalue_count);
     for(int i = 0; i < function->upvalue_count; i++)
     {
         upvalues[i] = NULL;
     }
 
-    TeaObjectClosure* closure = ALLOCATE_OBJECT(TeaObjectClosure, OBJ_CLOSURE);
+    TeaObjectClosure* closure = ALLOCATE_OBJECT(state, TeaObjectClosure, OBJ_CLOSURE);
     closure->function = function;
     closure->upvalues = upvalues;
     closure->upvalue_count = function->upvalue_count;
@@ -111,9 +108,9 @@ TeaObjectClosure* tea_new_closure(TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* tea_new_function(TeaObjectModule* module)
+TeaObjectFunction* tea_new_function(TeaState* state, TeaObjectModule* module)
 {
-    TeaObjectFunction* function = ALLOCATE_OBJECT(TeaObjectFunction, OBJ_FUNCTION);
+    TeaObjectFunction* function = ALLOCATE_OBJECT(state, TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->upvalue_count = 0;
     function->name = NULL;
@@ -123,33 +120,33 @@ TeaObjectFunction* tea_new_function(TeaObjectModule* module)
     return function;
 }
 
-TeaObjectInstance* tea_new_instance(TeaObjectClass* klass)
+TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass)
 {
-    TeaObjectInstance* instance = ALLOCATE_OBJECT(TeaObjectInstance, OBJ_INSTANCE);
+    TeaObjectInstance* instance = ALLOCATE_OBJECT(state, TeaObjectInstance, OBJ_INSTANCE);
     instance->klass = klass;
     tea_init_table(&instance->fields);
 
     return instance;
 }
 
-TeaObjectNative* tea_new_native(TeaNativeFunction function)
+TeaObjectNative* tea_new_native(TeaState* state, TeaNativeFunction function)
 {
-    TeaObjectNative* native = ALLOCATE_OBJECT(TeaObjectNative, OBJ_NATIVE);
+    TeaObjectNative* native = ALLOCATE_OBJECT(state, TeaObjectNative, OBJ_NATIVE);
     native->function = function;
 
     return native;
 }
 
-static TeaObjectString* allocate_string(char* chars, int length, uint32_t hash)
+static TeaObjectString* allocate_string(TeaState* state, char* chars, int length, uint32_t hash)
 {
-    TeaObjectString* string = ALLOCATE_OBJECT(TeaObjectString, OBJ_STRING);
+    TeaObjectString* string = ALLOCATE_OBJECT(state, TeaObjectString, OBJ_STRING);
     string->length = length;
     string->chars = chars;
     string->hash = hash;
 
-    tea_push(OBJECT_VAL(string));
-    tea_table_set(&vm.strings, string, NULL_VAL);
-    tea_pop();
+    tea_push(state->vm, OBJECT_VAL(string));
+    tea_table_set(state, &state->vm->strings, string, NULL_VAL);
+    tea_pop(state->vm);
 
     return string;
 }
@@ -165,36 +162,36 @@ static uint32_t hash_string(const char* key, int length)
     return hash;
 }
 
-TeaObjectString* tea_take_string(char* chars, int length)
+TeaObjectString* tea_take_string(TeaState* state, char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
-    TeaObjectString* interned = tea_table_find_string(&vm.strings, chars, length, hash);
+    TeaObjectString* interned = tea_table_find_string(&state->vm->strings, chars, length, hash);
     if(interned != NULL)
     {
-        FREE_ARRAY(char, chars, length + 1);
+        FREE_ARRAY(state, char, chars, length + 1);
         return interned;
     }
 
-    return allocate_string(chars, length, hash);
+    return allocate_string(state, chars, length, hash);
 }
 
-TeaObjectString* tea_copy_string(const char* chars, int length)
+TeaObjectString* tea_copy_string(TeaState* state, const char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
-    TeaObjectString* interned = tea_table_find_string(&vm.strings, chars, length, hash);
+    TeaObjectString* interned = tea_table_find_string(&state->vm->strings, chars, length, hash);
     if (interned != NULL)
         return interned;
 
-    char* heap_chars = ALLOCATE(char, length + 1);
+    char* heap_chars = ALLOCATE(state, char, length + 1);
     memcpy(heap_chars, chars, length);
     heap_chars[length] = '\0';
 
-    return allocate_string(heap_chars, length, hash);
+    return allocate_string(state, heap_chars, length, hash);
 }
 
-TeaObjectUpvalue* tea_new_upvalue(TeaValue* slot)
+TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot)
 {
-    TeaObjectUpvalue* upvalue = ALLOCATE_OBJECT(TeaObjectUpvalue, OBJ_UPVALUE);
+    TeaObjectUpvalue* upvalue = ALLOCATE_OBJECT(state, TeaObjectUpvalue, OBJ_UPVALUE);
     upvalue->closed = NULL_VAL;
     upvalue->location = slot;
     upvalue->next = NULL;

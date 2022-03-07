@@ -7,7 +7,7 @@
 #include "memory/tea_memory.h"
 #include "vm/tea_native.h"
 
-static TeaValue print_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue print_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -27,7 +27,7 @@ static TeaValue print_native(int arg_count, TeaValue* args, bool* error)
     return EMPTY_VAL;
 }
 
-static TeaValue input_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue input_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     RANGE_ARG_COUNT(input, 1, "0 or 1");
 
@@ -43,7 +43,7 @@ static TeaValue input_native(int arg_count, TeaValue* args, bool* error)
     }
 
     uint64_t current_size = 128;
-    char* line = ALLOCATE(char, current_size);
+    char* line = ALLOCATE(vm->state, char, current_size);
 
     if(line == NULL) 
     {
@@ -60,7 +60,7 @@ static TeaValue input_native(int arg_count, TeaValue* args, bool* error)
         {
             int old_size = current_size;
             current_size = GROW_CAPACITY(current_size);
-            line = GROW_ARRAY(char, line, old_size, current_size);
+            line = GROW_ARRAY(vm->state, char, line, old_size, current_size);
 
             if(line == NULL) 
             {
@@ -73,15 +73,15 @@ static TeaValue input_native(int arg_count, TeaValue* args, bool* error)
     // If length has changed, shrink
     if(length != current_size) 
     {
-        line = GROW_ARRAY(char, line, current_size, length + 1);
+        line = GROW_ARRAY(vm->state, char, line, current_size, length + 1);
     }
 
     line[length] = '\0';
 
-    return OBJECT_VAL(tea_take_string(line, length));
+    return OBJECT_VAL(tea_take_string(vm->state, line, length));
 }
 
-static TeaValue open_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue open_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(open, 2);
 
@@ -90,14 +90,14 @@ static TeaValue open_native(int arg_count, TeaValue* args, bool* error)
         NATIVE_ERROR("open() expects two strings.");
     }
 
-    TeaObjectFile* file = tea_new_file();
+    TeaObjectFile* file = tea_new_file(vm->state);
     file->path = AS_STRING(args[0])->chars;
     file->type = AS_STRING(args[1])->chars;
 
     return OBJECT_VAL(file);
 }
 
-static TeaValue assert_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue assert_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(assert, 2);
 
@@ -109,7 +109,7 @@ static TeaValue assert_native(int arg_count, TeaValue* args, bool* error)
     return EMPTY_VAL;
 }
 
-static TeaValue error_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue error_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(error, 1);
     
@@ -118,16 +118,16 @@ static TeaValue error_native(int arg_count, TeaValue* args, bool* error)
     return EMPTY_VAL;
 }
 
-static TeaValue type_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue type_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(type, 1);
 
     const char* type = tea_value_type(args[0]);
 
-    return OBJECT_VAL(tea_copy_string(type, (int)strlen(type)));
+    return OBJECT_VAL(tea_copy_string(vm->state, type, (int)strlen(type)));
 }
 
-static TeaValue number_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue number_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(number, 1);
 
@@ -152,7 +152,7 @@ static TeaValue number_native(int arg_count, TeaValue* args, bool* error)
     }
 }
 
-static TeaValue int_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue int_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(int, 1);
 
@@ -164,26 +164,35 @@ static TeaValue int_native(int arg_count, TeaValue* args, bool* error)
     return NUMBER_VAL((int)(AS_NUMBER(args[0])));
 }
 
-static TeaValue string_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue string_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(string, 1);
 
-    char* string = tea_value_tostring(args[0]);
+    char* string = tea_value_tostring(vm->state, args[0]);
 
-    return OBJECT_VAL(tea_take_string(string, strlen(string)));
+    return OBJECT_VAL(tea_take_string(vm->state, string, strlen(string)));
+}
+
+static TeaValue gc_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+{
+    VALIDATE_ARG_COUNT(gc, 0);
+
+    tea_collect_garbage(vm);
+
+    return EMPTY_VAL;
 }
 
 void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
 {
-    TeaObjectString* property = tea_copy_string(name, strlen(name));
-    tea_table_set(table, property, value);
+    TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
+    tea_table_set(vm->state, table, property, value);
 }
 
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
 {
-    TeaObjectNative* native = tea_new_native(function);
-    TeaObjectString* method = tea_copy_string(name, strlen(name));
-    tea_table_set(table, method, OBJECT_VAL(native));
+    TeaObjectNative* native = tea_new_native(vm->state, function);
+    TeaObjectString* method = tea_copy_string(vm->state, name, strlen(name));
+    tea_table_set(vm->state, table, method, OBJECT_VAL(native));
 }
 
 void tea_define_natives(TeaVM* vm)
@@ -194,6 +203,7 @@ void tea_define_natives(TeaVM* vm)
     tea_native_function(vm, &vm->globals, "assert", assert_native);
     tea_native_function(vm, &vm->globals, "error", error_native);
     tea_native_function(vm, &vm->globals, "type", type_native);
+    tea_native_function(vm, &vm->globals, "gc", gc_native);
 
     tea_native_function(vm, &vm->globals, "number", number_native);
     tea_native_function(vm, &vm->globals, "int", int_native);

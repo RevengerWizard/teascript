@@ -2,7 +2,7 @@
 #include "vm/tea_native.h"
 #include "memory/tea_memory.h"
 
-static TeaValue write_file(int arg_count, TeaValue* args, bool* error)
+static TeaValue write_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(write, 1);
 
@@ -25,7 +25,7 @@ static TeaValue write_file(int arg_count, TeaValue* args, bool* error)
     return NUMBER_VAL(chars_wrote);
 }
 
-static TeaValue writeline_file(int arg_count, TeaValue* args, bool* error)
+static TeaValue writeline_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(writeline, 1);
 
@@ -48,21 +48,21 @@ static TeaValue writeline_file(int arg_count, TeaValue* args, bool* error)
     return NUMBER_VAL(chars_wrote);
 }
 
-static TeaValue read_file(int arg_count, TeaValue* args, bool* error)
+static TeaValue read_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(read, 0);
 
     TeaObjectFile* file = AS_FILE(args[0]);
 }
 
-static TeaValue readline_file(int arg_count, TeaValue* args, bool* error)
+static TeaValue readline_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(readline, 0);
 
     return NULL_VAL;
 }
 
-static TeaValue seek_file(int arg_count, TeaValue* args, bool* error)
+static TeaValue seek_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     RANGE_ARG_COUNT(seek, 2, "1 or 2");
 

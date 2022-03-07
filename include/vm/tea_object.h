@@ -4,10 +4,11 @@
 #include <stdio.h>
 
 #include "tea_common.h"
+#include "tea_predefines.h"
+#include "memory/tea_memory.h"
 #include "vm/tea_chunk.h"
 #include "util/tea_table.h"
 #include "vm/tea_value.h"
-#include "util/tea_array.h"
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
@@ -39,6 +40,8 @@
 #define AS_STRING(value) ((TeaObjectString*)AS_OBJECT(value))
 #define AS_CSTRING(value) (((TeaObjectString*)AS_OBJECT(value))->chars)
 
+#define ALLOCATE_OBJECT(state, type, object_type) (type*)tea_allocate_object(state, sizeof(type), object_type)
+
 typedef enum
 {
     OBJ_RANGE,
@@ -55,6 +58,14 @@ typedef enum
     OBJ_STRING,
     OBJ_UPVALUE
 } TeaObjectType;
+
+typedef enum
+{
+    TYPE_FUNCTION,
+    TYPE_INITIALIZER,
+    TYPE_METHOD,
+    TYPE_SCRIPT
+} TeaFunctionType;
 
 struct TeaObject
 {
@@ -97,7 +108,7 @@ typedef struct
     TeaObjectModule* module;
 } TeaObjectFunction;
 
-typedef TeaValue (*TeaNativeFunction)(int arg_count, TeaValue* args, bool* error);
+typedef TeaValue (*TeaNativeFunction)(TeaVM* vm, int arg_count, TeaValue* args, bool* error);
 
 typedef struct
 {
@@ -163,34 +174,27 @@ typedef struct
     TeaObjectClosure* method;
 } TeaObjectBoundMethod;
 
-TeaObjectRange* tea_new_range(double from, double to, bool inclusive);
+TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type);
 
-TeaObjectFile* tea_new_file();
+TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool inclusive);
+TeaObjectFile* tea_new_file(TeaState* state);
+TeaObjectModule* tea_new_module(TeaState* state, TeaObjectString* name);
+TeaObjectList* tea_new_list(TeaState* state);
+TeaObjectMap* tea_new_map(TeaState* state);
+TeaObjectBoundMethod* tea_new_bound_method(TeaState* state, TeaValue receiver, TeaObjectClosure* method);
+TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name);
+TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function);
+TeaObjectFunction* tea_new_function(TeaState* state, TeaObjectModule* module);
+TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass);
+TeaObjectNative* tea_new_native(TeaState* state, TeaNativeFunction function);
+TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot);
 
-TeaObjectModule* tea_new_module(TeaObjectString* name);
-
-TeaObjectList* tea_new_list();
-
-TeaObjectMap* tea_new_map();
-
-TeaObjectBoundMethod* tea_new_bound_method(TeaValue receiver, TeaObjectClosure* method);
-TeaObjectClass* tea_new_class(TeaObjectString* name);
-TeaObjectClosure* tea_new_closure(TeaObjectFunction* function);
-TeaObjectFunction* tea_new_function(TeaObjectModule* module);
-TeaObjectInstance* tea_new_instance(TeaObjectClass* klass);
-TeaObjectNative* tea_new_native(TeaNativeFunction function);
-
-TeaObjectString* tea_take_string(char* chars, int length);
-TeaObjectString* tea_copy_string(const char* chars, int length);
-
-TeaObjectUpvalue* tea_new_upvalue(TeaValue* slot);
+TeaObjectString* tea_take_string(TeaState* state, char* chars, int length);
+TeaObjectString* tea_copy_string(TeaState* state, const char* chars, int length);
 
 char* tea_object_tostring(TeaValue value);
-
 void tea_print_object(TeaValue value);
-
 bool tea_objects_equal(TeaValue a, TeaValue b);
-
 const char* tea_object_type(TeaValue a);
 
 static inline bool is_object_type(TeaValue value, TeaObjectType type)

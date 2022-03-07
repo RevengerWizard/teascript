@@ -4,10 +4,8 @@
 #include <string.h>
 
 #include "tea_common.h"
-
-typedef struct TeaObject TeaObject;
-typedef struct TeaObjectString TeaObjectString;
-typedef struct TeaObjectFile TeaObjectFile;
+#include "tea_predefines.h"
+#include "util/tea_array.h"
 
 #ifdef NAN_TAGGING
 
@@ -18,8 +16,6 @@ typedef struct TeaObjectFile TeaObjectFile;
 #define TAG_FALSE   2   // 10.
 #define TAG_TRUE    3   // 11.
 #define TAG_EMPTY   4
-
-typedef uint64_t TeaValue;
 
 #define IS_BOOL(value)      (((value) | 1) == TRUE_VAL)
 #define IS_NULL(value)      ((value) == NULL_VAL)
@@ -95,9 +91,11 @@ typedef struct
 
 #endif
 
+DECLARE_ARRAY(TeaValueArray, TeaValue, value_array)
+
 const char* tea_value_type(TeaValue a);
 bool tea_values_equal(TeaValue a, TeaValue b);
-char* tea_value_tostring(TeaValue value);
+char* tea_value_tostring(TeaState* state, TeaValue value);
 void tea_print_value(TeaValue value);
 
 #endif

@@ -5,9 +5,9 @@
 #include "tea_common.h"
 #include "vm/tea_chunk.h"
 #include "debug/tea_debug.h"
-#include "vm/tea_vm.h"
+#include "state/tea_state.h"
 
-static void repl()
+static void repl(TeaState* state)
 {
     char line[1024];
     while(true)
@@ -20,7 +20,7 @@ static void repl()
             break;
         }
 
-        tea_interpret("repl", line);
+        tea_interpret(state, "repl", line);
     }
 }
 
@@ -58,11 +58,11 @@ static char* read_file(const char* path)
     return buffer;
 }
 
-static void run_file(const char* path)
+static void run_file(TeaState* state, const char* path)
 {
     char* source = read_file(path);
 
-    TeaInterpretResult result = tea_interpret((char*)path, source);
+    TeaInterpretResult result = tea_interpret(state, path, source);
     free(source);
 
     if(result == INTERPRET_COMPILE_ERROR)
@@ -73,15 +73,15 @@ static void run_file(const char* path)
 
 int main(int argc, const char* argv[])
 {
-    tea_init_vm();
+    TeaState* state = tea_init_state();
 
     if(argc == 1)
     {
-        repl();
+        repl(state);
     }
     else if(argc == 2)
     {
-        run_file(argv[1]);
+        run_file(state, argv[1]);
     }
     else
     {
@@ -89,7 +89,7 @@ int main(int argc, const char* argv[])
         exit(64);
     }
 
-    tea_free_vm();
+    tea_free_state(state);
 
     return 0;
 }

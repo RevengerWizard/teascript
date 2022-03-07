@@ -18,14 +18,14 @@ typedef struct
 } TeaTable;
 
 void tea_init_table(TeaTable* table);
-void tea_free_table(TeaTable* table);
+void tea_free_table(TeaState* state, TeaTable* table);
 bool tea_table_get(TeaTable* table, TeaObjectString* key, TeaValue* value);
-bool tea_table_set(TeaTable* table, TeaObjectString* key, TeaValue value);
+bool tea_table_set(TeaState* state, TeaTable* table, TeaObjectString* key, TeaValue value);
 bool tea_table_delete(TeaTable* table, TeaObjectString* key);
-void tea_table_add_all(TeaTable* from, TeaTable* to);
+void tea_table_add_all(TeaState* state, TeaTable* from, TeaTable* to);
 TeaObjectString* tea_table_find_string(TeaTable* table, const char* chars, int length, uint32_t hash);
 
 void tea_table_remove_white(TeaTable* table);
-void tea_mark_table(TeaTable* table);
+void tea_mark_table(TeaVM* vm, TeaTable* table);
 
 #endif

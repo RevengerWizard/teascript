@@ -2,7 +2,7 @@
 #include "vm/tea_vm.h"
 #include "vm/tea_native.h"
 
-static TeaValue min_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue min_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0) 
     {
@@ -36,12 +36,12 @@ static TeaValue min_native(int arg_count, TeaValue* args, bool* error)
     return NUMBER_VAL(minimum);
 }
 
-static TeaValue max_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue max_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     
 }
 
-static TeaValue mid_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue mid_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -89,37 +89,37 @@ static TeaValue mid_native(int arg_count, TeaValue* args, bool* error)
     }
 }
 
-static TeaValue floor_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue floor_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue ceil_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue ceil_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue round_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue round_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue cos_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue cos_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue sin_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue sin_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue tan_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue tan_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     return EMPTY_VAL;
 }
 
-static TeaValue sign_native(int arg_count, TeaValue* args, bool* error)
+static TeaValue sign_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -138,8 +138,8 @@ static TeaValue sign_native(int arg_count, TeaValue* args, bool* error)
 
 TeaValue tea_import_math(TeaVM* vm)
 {
-    TeaObjectString* name = tea_copy_string("math", 4);
-    TeaObjectModule* module = tea_new_module(name);
+    TeaObjectString* name = tea_copy_string(vm->state, "math", 4);
+    TeaObjectModule* module = tea_new_module(vm->state, name);
 
     tea_native_function(vm, &module->values, "min", min_native);
     tea_native_function(vm, &module->values, "max", max_native);

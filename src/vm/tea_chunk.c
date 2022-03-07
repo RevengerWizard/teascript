@@ -3,7 +3,7 @@
 #include "vm/tea_chunk.h"
 #include "memory/tea_memory.h"
 #include "vm/tea_vm.h"
-#include "util/tea_array.h"
+#include "vm/tea_value.h"
 
 void tea_init_chunk(TeaChunk* chunk)
 {
@@ -17,23 +17,23 @@ void tea_init_chunk(TeaChunk* chunk)
     chunk->lines = NULL;
 }
 
-void tea_free_chunk(TeaChunk* chunk)
+void tea_free_chunk(TeaState* state, TeaChunk* chunk)
 {
-    FREE_ARRAY(uint8_t, chunk->code, chunk->capacity);
-    FREE_ARRAY(int, chunk->lines, chunk->capacity);
-    tea_free_value_array(&chunk->constants);
+    FREE_ARRAY(state, uint8_t, chunk->code, chunk->capacity);
+    FREE_ARRAY(state, int, chunk->lines, chunk->capacity);
+    tea_free_value_array(state, &chunk->constants);
     tea_init_chunk(chunk);
     
-    FREE_ARRAY(TeaLineStart, chunk->lines, chunk->line_capacity);
+    FREE_ARRAY(state, TeaLineStart, chunk->lines, chunk->line_capacity);
 }
 
-void tea_write_chunk(TeaChunk* chunk, uint8_t byte, int line)
+void tea_write_chunk(TeaState* state, TeaChunk* chunk, uint8_t byte, int line)
 {
     if(chunk->capacity < chunk->count + 1)
     {
         int old_capacity = chunk->capacity;
         chunk->capacity = GROW_CAPACITY(old_capacity);
-        chunk->code = GROW_ARRAY(uint8_t, chunk->code, old_capacity, chunk->capacity);
+        chunk->code = GROW_ARRAY(state, uint8_t, chunk->code, old_capacity, chunk->capacity);
     }
 
     chunk->code[chunk->count] = byte;
@@ -50,7 +50,7 @@ void tea_write_chunk(TeaChunk* chunk, uint8_t byte, int line)
     {
         int old_capacity = chunk->line_capacity;
         chunk->line_capacity = GROW_CAPACITY(old_capacity);
-        chunk->lines = GROW_ARRAY(TeaLineStart, chunk->lines, old_capacity, chunk->line_capacity);
+        chunk->lines = GROW_ARRAY(state, TeaLineStart, chunk->lines, old_capacity, chunk->line_capacity);
     }
 
     TeaLineStart* line_start = &chunk->lines[chunk->line_count++];
@@ -58,11 +58,11 @@ void tea_write_chunk(TeaChunk* chunk, uint8_t byte, int line)
     line_start->line = line;
 }
 
-int tea_add_constant(TeaChunk* chunk, TeaValue value)
+int tea_add_constant(TeaState* state, TeaChunk* chunk, TeaValue value)
 {
-    tea_push(value);
-    tea_write_value_array(&chunk->constants, value);
-    tea_pop();
+    tea_push(state->vm, value);
+    tea_write_value_array(state, &chunk->constants, value);
+    tea_pop(state->vm);
 
     return chunk->constants.count - 1;
 }

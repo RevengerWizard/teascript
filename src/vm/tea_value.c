@@ -6,6 +6,8 @@
 #include "memory/tea_memory.h"
 #include "vm/tea_value.h"
 
+DEFINE_ARRAY(TeaValueArray, TeaValue, value_array)
+
 const char* tea_value_type(TeaValue a)
 {
     if(IS_BOOL(a))
@@ -59,7 +61,7 @@ bool tea_values_equal(TeaValue a, TeaValue b)
 #endif
 }
 
-char* tea_value_tostring(TeaValue value)
+char* tea_value_tostring(TeaState* state, TeaValue value)
 {
 #ifdef NAN_TAGGING
     if(IS_BOOL(value))
@@ -74,7 +76,7 @@ char* tea_value_tostring(TeaValue value)
     {
         double number = AS_NUMBER(value);
         int length = snprintf(NULL, 0, "%.15g", number) + 1;
-        char* string = ALLOCATE(char, length);
+        char* string = ALLOCATE(state, char, length);
         snprintf(string, length, "%.15g", number);
 
         return string;

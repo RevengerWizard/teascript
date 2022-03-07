@@ -1,14 +1,21 @@
 #ifndef TEA_STATE_H
 #define TEA_STATE_H
 
-/*typedef struct TeaState
+#include "tea_predefines.h"
+#include "tea_common.h"
+#include "vm/tea_object.h"
+
+typedef struct TeaState
 {
+    size_t bytes_allocated;
+    size_t next_gc;
+
     struct TeaScanner* scanner;
-    struct TeaCommpiler* compiler;
+    struct TeaCompiler* compiler;
     struct TeaVM* vm;
 } TeaState;
 
-typedef enum
+typedef enum TeaInterpretResult
 {
     INTERPRET_OK,
     INTERPRET_COMPILE_ERROR,
@@ -16,7 +23,7 @@ typedef enum
 } TeaInterpretResult;
 
 TeaState* tea_init_state();
-void tea_free_state();
-TeaInterpretResult tea_interpret(TeaState* state, const char* module_name, const char* source);*/
+void tea_free_state(TeaState* state);
+TeaInterpretResult tea_interpret(TeaState* state, const char* module_name, const char* source);
 
 #endif

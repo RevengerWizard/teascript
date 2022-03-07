@@ -50,6 +50,7 @@ typedef struct
 {
     TeaTokenType type;
     const char* start;
+    
     int length;
     int line;
 } TeaToken;

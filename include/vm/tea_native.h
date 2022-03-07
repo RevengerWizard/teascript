@@ -11,7 +11,7 @@
     do \
     { \
         *error = true; \
-        tea_runtime_error(__VA_ARGS__); \
+        tea_runtime_error(vm, __VA_ARGS__); \
         return EMPTY_VAL; \
     } \
     while(false)
@@ -36,7 +36,7 @@
     } \
     while(false)
 
-#define NATIVE_FUNCTION(name) static TeaValue name##_native(int arg_count, TeaValue* args, bool* error)
+#define NATIVE_FUNCTION(name) static TeaValue name##_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 
 void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value);
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function);

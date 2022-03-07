@@ -15,9 +15,9 @@ void tea_init_table(TeaTable* table)
     table->entries = NULL;
 }
 
-void tea_free_table(TeaTable* table)
+void tea_free_table(TeaState* state, TeaTable* table)
 {
-    FREE_ARRAY(TeaEntry, table->entries, table->capacity);
+    FREE_ARRAY(state, TeaEntry, table->entries, table->capacity);
     tea_init_table(table);
 }
 
@@ -67,9 +67,9 @@ bool tea_table_get(TeaTable* table, TeaObjectString* key, TeaValue* value)
     return true;
 }
 
-static void adjust_capacity(TeaTable* table, int capacity)
+static void adjust_capacity(TeaState* state, TeaTable* table, int capacity)
 {
-    TeaEntry* entries = ALLOCATE(TeaEntry, capacity);
+    TeaEntry* entries = ALLOCATE(state, TeaEntry, capacity);
     for(int i = 0; i < capacity; i++)
     {
         entries[i].key = NULL;
@@ -89,17 +89,17 @@ static void adjust_capacity(TeaTable* table, int capacity)
         table->count++;
     }
 
-    FREE_ARRAY(TeaEntry, table->entries, table->capacity);
+    FREE_ARRAY(state, TeaEntry, table->entries, table->capacity);
     table->entries = entries;
     table->capacity = capacity;
 }
 
-bool tea_table_set(TeaTable* table, TeaObjectString* key, TeaValue value)
+bool tea_table_set(TeaState* state, TeaTable* table, TeaObjectString* key, TeaValue value)
 {
     if(table->count + 1 > table->capacity * TABLE_MAX_LOAD)
     {
         int capacity = GROW_CAPACITY(table->capacity);
-        adjust_capacity(table, capacity);
+        adjust_capacity(state, table, capacity);
     }
 
     TeaEntry* entry = find_entry(table->entries, table->capacity, key);
@@ -131,14 +131,14 @@ bool tea_table_delete(TeaTable* table, TeaObjectString* key)
     return true;
 }
 
-void tea_table_add_all(TeaTable* from, TeaTable* to)
+void tea_table_add_all(TeaState* state, TeaTable* from, TeaTable* to)
 {
     for(int i = 0; i < from->capacity; i++)
     {
         TeaEntry* entry = &from->entries[i];
         if(entry->key != NULL)
         {
-            tea_table_set(to, entry->key, entry->value);
+            tea_table_set(state, to, entry->key, entry->value);
         }
     }
 }
@@ -180,12 +180,12 @@ void tea_table_remove_white(TeaTable* table)
     }
 }
 
-void tea_mark_table(TeaTable* table)
+void tea_mark_table(TeaVM* vm, TeaTable* table)
 {
     for(int i = 0; i < table->capacity; i++)
     {
         TeaEntry* entry = &table->entries[i];
-        tea_mark_object((TeaObject*)entry->key);
-        tea_mark_value(entry->value);
+        tea_mark_object(vm, (TeaObject*)entry->key);
+        tea_mark_value(vm, entry->value);
     }
 }

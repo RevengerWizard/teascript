@@ -1,6 +1,8 @@
 #ifndef TEA_VM_H
 #define TEA_VM_H
 
+#include "tea_predefines.h"
+#include "state/tea_state.h"
 #include "vm/tea_object.h"
 #include "util/tea_table.h"
 #include "vm/tea_value.h"
@@ -15,8 +17,10 @@ typedef struct
     TeaValue* slots;
 } TeaCallFrame;
 
-typedef struct
+typedef struct TeaVM
 {
+    TeaState* state;
+
     TeaCallFrame frames[FRAMES_MAX];
     int frame_count;
 
@@ -32,31 +36,33 @@ typedef struct
     TeaTable list_methods;
     TeaTable file_methods;
 
-    TeaObjectString* init_string;
     TeaObjectUpvalue* open_upvalues;
 
-    size_t bytes_allocated;
-    size_t next_GC;
     TeaObject* objects;
+
     int gray_count;
     int gray_capacity;
     TeaObject** gray_stack;
 } TeaVM;
 
-typedef enum
+void tea_init_vm(TeaState* state, TeaVM* vm);
+void tea_free_vm(TeaVM* vm);
+void tea_runtime_error(TeaVM* vm, const char* format, ...);
+TeaInterpretResult tea_interpret_module(TeaState* state, const char* module_name, const char* source);
+
+static inline void tea_push(TeaVM* vm, TeaValue value)
 {
-    INTERPRET_OK,
-    INTERPRET_COMPILE_ERROR,
-    INTERPRET_RUNTIME_ERROR
-} TeaInterpretResult;
+    *vm->stack_top++ = value;
+}
 
-extern TeaVM vm;
+static inline TeaValue tea_pop(TeaVM* vm)
+{
+    return *(--vm->stack_top);
+}
 
-void tea_init_vm();
-void tea_free_vm();
-void tea_runtime_error(const char* format, ...);
-TeaInterpretResult tea_interpret(char* module_name, const char* source);
-void tea_push(TeaValue value);
-TeaValue tea_pop();
+static inline TeaValue tea_peek(TeaVM* vm, int distance)
+{
+    return vm->stack_top[-1 - distance];
+}
 
 #endif
