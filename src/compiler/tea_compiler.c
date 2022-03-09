@@ -641,28 +641,19 @@ static void dot(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
 #undef SHORT_HAND_INCREMENT
 }
 
+static void boolean(TeaCompiler* compiler, bool can_assign)
+{
+    emit_byte(compiler, compiler->parser->previous.type == TOKEN_FALSE ? OP_FALSE : OP_TRUE);
+}
+
+static void null(TeaCompiler* compiler, bool can_assign)
+{
+    emit_byte(compiler, OP_NULL);
+}
+
 static void literal(TeaCompiler* compiler, bool can_assign)
 {
-    switch(compiler->parser->previous.type)
-    {
-        case TOKEN_FALSE:
-        {
-            emit_byte(compiler, OP_FALSE);
-            break;
-        }
-        case TOKEN_NULL:
-        {
-            emit_byte(compiler, OP_NULL);
-            break;
-        }
-        case TOKEN_TRUE:
-        {
-            emit_byte(compiler, OP_TRUE);
-            break;
-        }
-        default:
-            return; // Unreachable.
-    }
+    emit_constant(compiler, compiler->parser->previous.value);
 }
 
 static void grouping(TeaCompiler* compiler, bool can_assign)
@@ -1104,19 +1095,19 @@ TeaParseRule rules[] = {
     OPERATOR(binary, SHIFT),              // TOKEN_GREATER_GREATER,
     OPERATOR(binary, SHIFT),              // TOKEN_LESS_LESS,
     PREFIX(variable),                     // TOKEN_NAME
-    PREFIX(string),                       // TOKEN_STRING
-    PREFIX(number),                       // TOKEN_NUMBER
+    PREFIX(literal),                      // TOKEN_STRING
+    PREFIX(literal),                      // TOKEN_NUMBER
     OPERATOR(and_, AND),                  // TOKEN_AND
     UNUSED,                               // TOKEN_CLASS
     UNUSED,                               // TOKEN_ELSE
-    PREFIX(literal),                      // TOKEN_FALSE
+    PREFIX(boolean),                      // TOKEN_FALSE
     UNUSED,                               // TOKEN_FOR
     PREFIX(anonymous),                    // TOKEN_FUNCTION
     UNUSED,                               // TOKEN_CASE
     UNUSED,                               // TOKEN_SWITCH
     UNUSED,                               // TOKEN_DEFAULT
     UNUSED,                               // TOKEN_IF
-    PREFIX(literal),                      // TOKEN_NULL
+    PREFIX(null),                         // TOKEN_NULL
     OPERATOR(or_, OR),                    // TOKEN_OR
     UNUSED,                               // TOKEN_WITH
     UNUSED,                               // TOKEN_IMPORT
@@ -1128,7 +1119,7 @@ TeaParseRule rules[] = {
     UNUSED,                               // TOKEN_CONTINUE
     UNUSED,                               // TOKEN_BREAK
     UNUSED,                               // TOKEN_IN
-    PREFIX(literal),                      // TOKEN_TRUE
+    PREFIX(boolean),                      // TOKEN_TRUE
     UNUSED,                               // TOKEN_VAR
     UNUSED,                               // TOKEN_WHILE
     UNUSED,                               // TOKEN_DO
@@ -1920,6 +1911,9 @@ TeaObjectFunction* tea_compile(TeaState* state, TeaObjectModule* module, const c
 void tea_mark_compiler_roots(TeaState* state)
 {
     TeaCompiler* compiler = state->compiler;
+
+    tea_mark_value(state->vm, compiler->parser->previous.value);
+    tea_mark_value(state->vm, compiler->parser->current.value);
 
     while(compiler != NULL)
     {

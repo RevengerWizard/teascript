@@ -1,6 +1,8 @@
 #ifndef TEA_TOKEN_H
 #define TEA_TOKEN_H
 
+#include "tea_common.h"
+
 typedef enum
 {
     // Single-character tokens.
@@ -53,6 +55,8 @@ typedef struct
     
     int length;
     int line;
+
+    TeaValue value;
 } TeaToken;
 
 #endif

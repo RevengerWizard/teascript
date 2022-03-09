@@ -20,6 +20,11 @@ static void repl(TeaState* state)
             break;
         }
 
+        if(strcmp(line, "exit\n") == 0)
+        {
+            break;
+        }
+
         tea_interpret(state, "repl", line);
     }
 }

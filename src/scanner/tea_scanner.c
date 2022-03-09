@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include "tea_common.h"
 #include "scanner/tea_scanner.h"
@@ -323,11 +325,57 @@ static TeaToken identifier(TeaScanner* scanner)
     return make_token(scanner, identifier_type(scanner));
 }
 
+static TeaToken make_number_token(TeaScanner* scanner, bool is_hex, bool is_bin)
+{
+    errno = 0;
+	TeaValue value;
+
+	if(is_hex) 
+    {
+		value = NUMBER_VAL((double)strtoll(scanner->start, NULL, 16));
+	} 
+    else if(is_bin) 
+    {
+		value = NUMBER_VAL((int)strtoll(scanner->start + 2, NULL, 2));
+	} 
+    else 
+    {
+		value = NUMBER_VAL(strtod(scanner->start, NULL));
+	}
+
+	if(errno == ERANGE) 
+    {
+		errno = 0;
+		return error_token(scanner, "Number too big.");
+	}
+
+	TeaToken token = make_token(scanner, TOKEN_NUMBER);
+	token.value = value;
+
+	return token;
+}
+
 static TeaToken number(TeaScanner* scanner)
 {
-    // Hexadecimal representation
+    if(match(scanner, 'x'))
+    {
+        while(hex_digit(scanner) != -1)
+        {
+            continue;
+        }
 
-    // Binary representation
+        return make_number_token(scanner, true, false);
+    }
+
+    if(match(scanner, 'b'))
+    {
+        while(binary_digit(scanner) != -1)
+        {
+            continue;
+        }
+
+        return make_number_token(scanner, false, true);
+    }
 
     while(is_digit(peek(scanner)))
         advance(scanner);
@@ -342,12 +390,27 @@ static TeaToken number(TeaScanner* scanner)
             advance(scanner);
     }
 
-    return make_token(scanner, TOKEN_NUMBER);
+    if(match(scanner, 'e') || match(scanner, 'E'))
+    {
+        if(!match(scanner, '+'))
+        {
+            match(scanner, '-');
+        }
+
+        if(!is_digit(peek(scanner)))
+        {
+            return error_token(scanner, "Unterminated scientific notation.");
+        }
+
+        while(is_digit(peek(scanner))) advance(scanner);
+    }
+
+    return make_number_token(scanner, false, false);
 }
 
-static TeaToken string(TeaScanner* scanner)
+static TeaToken string(TeaScanner* scanner, char string_token)
 {
-    while(peek(scanner) != '"' && !is_at_end(scanner))
+    while(peek(scanner) != string_token && !is_at_end(scanner))
     {
         if(peek(scanner) == '\n')
             scanner->line++;
@@ -359,7 +422,10 @@ static TeaToken string(TeaScanner* scanner)
 
     advance(scanner);
 
-    return make_token(scanner, TOKEN_STRING);
+    TeaToken token = make_token(scanner, TOKEN_STRING);
+    token.value = OBJECT_VAL(tea_copy_string(scanner->state, scanner->start + 1, (int)(scanner->current - scanner->start - 2)));
+
+    return token;
 }
 
 TeaToken tea_scan_token(TeaScanner* scanner)
@@ -410,7 +476,8 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         case '=': return make_token(scanner, match(scanner, '=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
         case '<': return match_tokens(scanner, '=', '<', TOKEN_LESS_EQUAL, TOKEN_LESS_LESS, TOKEN_LESS);
         case '>': return match_tokens(scanner, '=', '>', TOKEN_GREATER_EQUAL, TOKEN_GREATER_GREATER, TOKEN_GREATER);
-        case '"': return string(scanner);
+        case '"': return string(scanner, '"');
+        case '\'': return string(scanner, '\'');
     }
 
     return error_token(scanner, "Unexpected character.");
