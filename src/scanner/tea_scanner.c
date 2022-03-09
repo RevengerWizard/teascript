@@ -25,6 +25,16 @@ static bool is_digit(char c)
     return c >= '0' && c <= '9';
 }
 
+static bool is_hex_digit(char c)
+{
+    return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'));
+}
+
+static bool is_binary_digit(char c)
+{
+    return (c >= '0' && c <= '1');
+}
+
 static bool is_at_end(TeaScanner* scanner)
 {
     return *scanner->current == '\0';
@@ -61,44 +71,6 @@ static bool match(TeaScanner* scanner, char expected)
     scanner->current++;
 
     return true;
-}
-
-static int hex_digit(TeaScanner* scanner)
-{
-    char c = advance(scanner);
-    
-    if(c >= '0' && c <= '9')
-    {
-        return c - '0';
-    }
-
-    if(c >= 'a' && c <= 'f')
-    {
-        return c - 'a' + 10;
-    }
-
-    if(c >= 'A' && c<= 'F')
-    {
-        return c - 'A' + 10;
-    }
-
-    scanner->current--;
-
-    return -1;
-}
-
-static int binary_digit(TeaScanner* scanner)
-{
-    char c = advance(scanner);
-
-    if(c >= '0' && c <= '1')
-    {
-        return c - '0';
-    }
-
-    scanner->current--;
-
-    return -1;
 }
 
 static TeaToken make_token(TeaScanner* scanner, TeaTokenType type)
@@ -357,20 +329,48 @@ static TeaToken make_number_token(TeaScanner* scanner, bool is_hex, bool is_bin)
 
 static TeaToken hex_number(TeaScanner* scanner)
 {
-    while(hex_digit(scanner) != -1) continue;
+    if(!is_hex_digit(peek(scanner)))
+    {
+        return error_token(scanner, "Invalid hex literal.");
+    }
+    while(is_hex_digit(peek(scanner))) advance(scanner);
 
     return make_number_token(scanner, true, false);
 }
 
 static TeaToken binary_number(TeaScanner* scanner)
 {
-    while(binary_digit(scanner) != -1) continue;
+    if(!is_binary_digit(peek(scanner)))
+    {
+        return error_token(scanner, "Invalid binary literal.");
+    }
+    while(is_binary_digit(peek(scanner))) advance(scanner);
 
     return make_number_token(scanner, false, true);
 }
 
+static TeaToken exponent_number(TeaScanner* scanner)
+{
+    if(!match(scanner, '+'))
+    {
+        match(scanner, '-');
+    }
+
+    if(!is_digit(peek(scanner)))
+    {
+        return error_token(scanner, "Unterminated scientific notation.");
+    }
+
+    while(is_digit(peek(scanner))) advance(scanner);
+
+    return make_number_token(scanner, false, false);
+}
+
 static TeaToken number(TeaScanner* scanner)
 {
+    if(is_digit(peek_next(scanner)))
+        return error_token(scanner, "Not a valid number.");
+
     if(scanner->start[0] == '0')
     {
         if(match(scanner, 'x') || match(scanner, 'X'))
@@ -386,10 +386,10 @@ static TeaToken number(TeaScanner* scanner)
     while(is_digit(peek(scanner)))
         advance(scanner);
 
-    // Look for a fractional part.
+    // Look for a fractional part
     if(peek(scanner) == '.' && is_digit(peek_next(scanner)))
     {
-        // Consume the ".".
+        // Consume the "."
         advance(scanner);
 
         while(is_digit(peek(scanner)))
@@ -398,17 +398,7 @@ static TeaToken number(TeaScanner* scanner)
 
     if(match(scanner, 'e') || match(scanner, 'E'))
     {
-        if(!match(scanner, '+'))
-        {
-            match(scanner, '-');
-        }
-
-        if(!is_digit(peek(scanner)))
-        {
-            return error_token(scanner, "Unterminated scientific notation.");
-        }
-
-        while(is_digit(peek(scanner))) advance(scanner);
+        return exponent_number(scanner);
     }
 
     return make_number_token(scanner, false, false);
@@ -463,6 +453,10 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         case '?': return make_token(scanner, TOKEN_QUESTION);
         case '.':
         {
+            if(is_digit(peek(scanner)))
+            {
+                return number(scanner);
+            }
             if(!match(scanner, '.'))
             {
                 return make_token(scanner, TOKEN_DOT);
