@@ -355,26 +355,32 @@ static TeaToken make_number_token(TeaScanner* scanner, bool is_hex, bool is_bin)
 	return token;
 }
 
+static TeaToken hex_number(TeaScanner* scanner)
+{
+    while(hex_digit(scanner) != -1) continue;
+
+    return make_number_token(scanner, true, false);
+}
+
+static TeaToken binary_number(TeaScanner* scanner)
+{
+    while(binary_digit(scanner) != -1) continue;
+
+    return make_number_token(scanner, false, true);
+}
+
 static TeaToken number(TeaScanner* scanner)
 {
-    if(match(scanner, 'x'))
+    if(scanner->start[0] == '0')
     {
-        while(hex_digit(scanner) != -1)
+        if(match(scanner, 'x') || match(scanner, 'X'))
         {
-            continue;
+            return hex_number(scanner);
         }
-
-        return make_number_token(scanner, true, false);
-    }
-
-    if(match(scanner, 'b'))
-    {
-        while(binary_digit(scanner) != -1)
+        if(match(scanner, 'b') || match(scanner, 'B'))
         {
-            continue;
+            return binary_number(scanner);
         }
-
-        return make_number_token(scanner, false, true);
     }
 
     while(is_digit(peek(scanner)))
