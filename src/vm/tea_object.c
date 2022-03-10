@@ -367,7 +367,7 @@ static bool map_equals(TeaValue a, TeaValue b)
 
     if(m1->items.count != m2->items.count)
     {
-        return true;
+        return false;
     }
 
     if(m1->items.count == 0)
@@ -417,15 +417,11 @@ bool tea_objects_equal(TeaValue a, TeaValue b)
         {
             return map_equals(a, b);
         }
-        case OBJ_STRING:
-        {
-            return a == b;
-        }
         default:
             break;
     }
 
-    return false;
+    return a == b;
 }
 
 const char* tea_object_type(TeaValue a)

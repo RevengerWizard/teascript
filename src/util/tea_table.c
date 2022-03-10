@@ -103,15 +103,15 @@ bool tea_table_set(TeaState* state, TeaTable* table, TeaObjectString* key, TeaVa
     }
 
     TeaEntry* entry = find_entry(table->entries, table->capacity, key);
-    bool isNewKey = entry->key == NULL;
+    bool is_new_key = entry->key == NULL;
 
-    if(isNewKey && IS_NULL(entry->value))
+    if(is_new_key && IS_NULL(entry->value))
         table->count++;
 
     entry->key = key;
     entry->value = value;
     
-    return isNewKey;
+    return is_new_key;
 }
 
 bool tea_table_delete(TeaTable* table, TeaObjectString* key)

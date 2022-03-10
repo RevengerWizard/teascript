@@ -782,7 +782,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 
 #define PUSH(value) (*vm->stack_top++ = value)
 #define POP() (*(--vm->stack_top))
-#define PEEK(distance) (vm->stack_top[-1 - distance])
+#define PEEK(distance) vm->stack_top[-1 - (distance)]
 #define DROP() (vm->stack_top--)
 #define DROP_MULTIPLE(amount) (vm->stack_top -= amount)
 #define STORE_FRAME (frame->ip = ip)
