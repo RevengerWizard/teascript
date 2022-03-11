@@ -20,7 +20,6 @@
 
 static void reset_stack(TeaVM* vm)
 {
-    vm->state = NULL;
     vm->stack_top = vm->stack;
     vm->frame_count = 0;
     vm->open_upvalues = NULL;
@@ -1573,6 +1572,10 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             TeaValue file = frame->slots[slot];
             TeaObjectFile* file_object = AS_FILE(file);
             //fclose(file_object->file);
+            DISPATCH();
+        }
+        CASE_CODE(END):
+        {
             DISPATCH();
         }
     }

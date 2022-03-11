@@ -371,10 +371,10 @@ static void declare_variable(TeaCompiler* compiler, TeaToken* name)
             break;
         }
 
-        if(identifiers_equal(name, &local->name))
+        /*if(identifiers_equal(name, &local->name))
         {
             error(compiler, "Already a variable with this name in this scope.");
-        }
+        }*/
     }
 
     add_local(compiler, *name);
@@ -1324,6 +1324,133 @@ static void expression_statement(TeaCompiler* compiler)
     expression(compiler);
     emit_byte(compiler, OP_POP);
 }
+ 
+static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
+{
+    switch(code[ip]) 
+    {
+        case OP_NULL:
+        case OP_TRUE:
+        case OP_FALSE:
+        case OP_SUBSCRIPT:
+        case OP_SUBSCRIPT_STORE:
+        case OP_SUBSCRIPT_PUSH:
+        case OP_SLICE:
+        case OP_POP:
+        case OP_EQUAL:
+        case OP_GREATER:
+        case OP_LESS:
+        case OP_ADD:
+        case OP_SUBTRACT:
+        case OP_MULTIPLY:
+        case OP_DIVIDE:
+        case OP_MOD:
+        case OP_NOT:
+        case OP_NEGATE:
+        case OP_CLOSE_UPVALUE:
+        case OP_RETURN:
+        case OP_IMPORT_VARIABLE:
+        case OP_IMPORT_END:
+        case OP_OPEN_FILE:
+        case OP_END:
+        case OP_BAND:
+        case OP_BXOR:
+        case OP_BOR:
+        case OP_LSHIFT:
+        case OP_RSHIFT:
+        {
+            return 0;
+        }
+        case OP_CONSTANT:
+        case OP_GET_LOCAL:
+        case OP_SET_LOCAL:
+        case OP_GET_GLOBAL:
+        case OP_GET_MODULE:
+        case OP_DEFINE_GLOBAL:
+        case OP_DEFINE_MODULE:
+        case OP_SET_MODULE:
+        case OP_GET_UPVALUE:
+        case OP_SET_UPVALUE:
+        case OP_GET_PROPERTY:
+        case OP_GET_PROPERTY_NO_POP:
+        case OP_SET_PROPERTY:
+        case OP_GET_SUPER:
+        case OP_CALL:
+        case OP_METHOD:
+        case OP_IMPORT:
+        case OP_LIST:
+        case OP_MAP:
+        case OP_CLOSE_FILE:
+        {
+            return 1;
+        }
+        case OP_JUMP:
+        case OP_JUMP_IF_FALSE:
+        case OP_LOOP:
+        case OP_INVOKE:
+        case OP_SUPER:
+        case OP_CLASS:
+        case OP_IMPORT_NATIVE:
+        {
+            return 2;
+        }
+        case OP_IMPORT_NATIVE_VARIABLE: 
+        {
+            int arg_count = code[ip + 2];
+
+            return 2 + arg_count;
+        }
+        case OP_CLOSURE: 
+        {
+            int constant = code[ip + 1];
+            TeaObjectFunction* loaded_fn = AS_FUNCTION(constants.values[constant]);
+
+            // There is one byte for the constant, then two for each upvalue.
+            return 1 + (loaded_fn->upvalue_count * 2);
+        }
+        case OP_IMPORT_FROM: 
+        {
+            // 1 + amount of variables imported
+            return 1 + code[ip + 1];
+        }
+    }
+
+    return 0;
+}
+
+static void begin_loop(TeaCompiler* compiler, TeaLoop* loop)
+{
+    loop->start = current_chunk(compiler)->count;
+    loop->scope_depth = compiler->scope_depth;
+    loop->enclosing = compiler->loop;
+    compiler->loop = loop;
+}
+
+static void end_loop(TeaCompiler* compiler)
+{
+    if(compiler->loop->end != -1)
+    {
+        patch_jump(compiler, compiler->loop->end);
+        emit_byte(compiler, OP_POP);
+    }
+
+    int i = compiler->loop->body;
+    while(i < compiler->function->chunk.count)
+    {
+        if(compiler->function->chunk.code[i] == OP_END)
+        {
+            compiler->function->chunk.code[i] = OP_JUMP;
+            patch_jump(compiler, i + 1);
+            i += 3;
+        }
+        else
+        {
+            i += 1 + get_arg_count(compiler->function->chunk.code, compiler->function->chunk.constants, i);
+        }
+    }
+
+    compiler->loop = compiler->loop->enclosing;
+}
 
 static void for_statement(TeaCompiler* compiler)
 {
@@ -1356,40 +1483,77 @@ static void for_statement(TeaCompiler* compiler)
         consume(compiler, TOKEN_COMMA, "Expect ',' after loop expression.");
     }
 
-    int loop_start = current_chunk(compiler)->count;
-    int exit_jump = -1;
+    TeaLoop loop;
+    begin_loop(compiler, &loop);
+
+    compiler->loop->end = -1;
+    
     if(!match(compiler, TOKEN_COMMA))
     {
         expression(compiler);
         consume(compiler, TOKEN_COMMA, "Expect ',' after loop condition.");
 
-        exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+        compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
         emit_byte(compiler, OP_POP); // Condition.
     }
 
     if(!match(compiler, TOKEN_RIGHT_PAREN))
     {
         int body_jump = emit_jump(compiler, OP_JUMP);
+
         int increment_start = current_chunk(compiler)->count;
         expression(compiler);
         emit_byte(compiler, OP_POP);
         consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
 
-        emit_loop(compiler, loop_start);
-        loop_start = increment_start;
+        emit_loop(compiler, compiler->loop->start);
+        compiler->loop->start = increment_start;
+        
         patch_jump(compiler, body_jump);
     }
 
+    compiler->loop->body = compiler->function->chunk.count;
     statement(compiler);
-    emit_loop(compiler, loop_start);
 
-    if(exit_jump != -1)
+    emit_loop(compiler, compiler->loop->start);
+
+    end_loop(compiler);
+    end_scope(compiler);
+}
+
+static void break_statement(TeaCompiler* compiler)
+{
+    if(compiler->loop == NULL)
     {
-        patch_jump(compiler, exit_jump);
-        emit_byte(compiler, OP_POP); // Condition.
+        error(compiler, "Cannot use 'break' outside of a loop.");
+        return;
     }
 
-    end_scope(compiler);
+    // Discard any locals created inside the loop
+    for(int i = compiler->local_count - 1; i >= 0 && compiler->locals[i].depth > compiler->loop->scope_depth; i--)
+    {
+        emit_byte(compiler, OP_POP);
+    }
+
+    emit_jump(compiler, OP_END);
+}
+
+static void continue_statement(TeaCompiler* compiler)
+{
+    if(compiler->loop == NULL)
+    {
+        error(compiler, "Cannot use 'continue' outside of a loop.");
+        return;
+    }
+
+    // Discard any locals created inside the loop
+    for(int i = compiler->local_count - 1; i >= 0 && compiler->locals[i].depth > compiler->loop->scope_depth; i--)
+    {
+        emit_byte(compiler, OP_POP);
+    }
+
+    // Jump to the top of the innermost loop
+    emit_loop(compiler, compiler->loop->start);
 }
 
 static void if_statement(TeaCompiler* compiler)
@@ -1733,7 +1897,8 @@ static void from_import_statement(TeaCompiler* compiler)
 
 static void while_statement(TeaCompiler* compiler)
 {
-    int loop_start = current_chunk(compiler)->count;
+    TeaLoop loop;
+    begin_loop(compiler, &loop);
 
     if(check(compiler, TOKEN_LEFT_BRACE))
     {
@@ -1746,19 +1911,25 @@ static void while_statement(TeaCompiler* compiler)
         consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
     }
 
-    int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_byte(compiler, OP_POP);
-    statement(compiler);
-    emit_loop(compiler, loop_start);
+    // Jump ot of the loop if the condition is false
+    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
-    patch_jump(compiler, exit_jump);
+    // Compile the body
     emit_byte(compiler, OP_POP);
+    compiler->loop->body = compiler->function->chunk.count;
+    statement(compiler);
+
+    // Loop back to the start
+    emit_loop(compiler, loop.start);
+    end_loop(compiler);
 }
 
 static void do_statement(TeaCompiler* compiler)
 {
-    int loop_start = current_chunk(compiler)->count;
+    TeaLoop loop;
+    begin_loop(compiler, &loop);
 
+    compiler->loop->body = compiler->function->chunk.count;
     statement(compiler);
 
     consume(compiler, TOKEN_WHILE, "Expect while after do statement.");
@@ -1774,12 +1945,12 @@ static void do_statement(TeaCompiler* compiler)
         consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
     }
 
-    int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_byte(compiler, OP_POP);
-    emit_loop(compiler, loop_start);
+    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
-    patch_jump(compiler, exit_jump);
     emit_byte(compiler, OP_POP);
+
+    emit_loop(compiler, loop.start);
+    end_loop(compiler);
 }
 
 static void synchronize(TeaCompiler* compiler)
@@ -1801,6 +1972,7 @@ static void synchronize(TeaCompiler* compiler)
             case TOKEN_RETURN:
             case TOKEN_IMPORT:
             case TOKEN_FROM:
+            case TOKEN_WITH:
                 return;
 
             default:; // Do nothing.
@@ -1870,6 +2042,14 @@ static void statement(TeaCompiler* compiler)
     else if(match(compiler, TOKEN_FROM))
     {
         from_import_statement(compiler);
+    }
+    else if(match(compiler, TOKEN_BREAK))
+    {
+        break_statement(compiler);
+    }
+    else if(match(compiler, TOKEN_CONTINUE))
+    {
+        continue_statement(compiler);
     }
     else if(match(compiler, TOKEN_LEFT_BRACE))
     {

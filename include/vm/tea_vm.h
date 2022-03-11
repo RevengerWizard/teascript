@@ -62,7 +62,7 @@ static inline TeaValue tea_pop(TeaVM* vm)
 
 static inline TeaValue tea_peek(TeaVM* vm, int distance)
 {
-    return vm->stack_top[-1 - distance];
+    return vm->stack_top[-1 - (distance)];
 }
 
 #endif
