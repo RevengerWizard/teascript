@@ -175,7 +175,6 @@ static void init_compiler(TeaState* state, TeaParser* parser, TeaCompiler* compi
     compiler->function = NULL;
     compiler->klass = NULL;
     compiler->loop = NULL;
-    compiler->with_block = false;
 
     if(parent != NULL)
     {
@@ -261,6 +260,7 @@ static void end_scope(TeaCompiler* compiler)
 }
 
 static void expression(TeaCompiler* compiler);
+static void expression_statement(TeaCompiler* compiler);
 static void statement(TeaCompiler* compiler);
 static void declaration(TeaCompiler* compiler);
 static TeaParseRule* get_rule(TeaTokenType type);
@@ -389,6 +389,15 @@ static uint8_t parse_variable(TeaCompiler* compiler, const char* error_message)
         return 0;
 
     return identifier_constant(compiler, &compiler->parser->previous);
+}
+
+static uint8_t parse_variable_at(TeaCompiler* compiler, TeaToken name)
+{
+    declare_variable(compiler, &name);
+    if(compiler->scope_depth > 0)
+        return 0;
+
+    return identifier_constant(compiler, &name);
 }
 
 static void mark_initialized(TeaCompiler* compiler)
@@ -1046,88 +1055,88 @@ static void range(TeaCompiler* compiler, TeaToken previous_token, bool can_assig
     emit_byte(compiler, OP_RANGE);
 }
 
-#define UNUSED                  { NULL, NULL, PREC_NONE }
+#define NONE                    { NULL, NULL, PREC_NONE }
 #define RULE(pr, in, prec)      { pr, in, PREC_##prec }
 #define INFIX(in)               { NULL, in, PREC_NONE }
 #define PREFIX(pr)              { pr, NULL, PREC_NONE }
 #define OPERATOR(in, prec)      { NULL, in, PREC_##prec }
 
 TeaParseRule rules[] = {
-    RULE(grouping, call, CALL),           // TOKEN_LEFT_PAREN
-    UNUSED,                               // TOKEN_RIGHT_PAREN
-    RULE(list, subscript, SUBSCRIPT),     // TOKEN_LEFT_BRACKET
-    UNUSED,                               // TOKEN_RIGHT_BRACKET
-    PREFIX(map),                          // TOKEN_LEFT_BRACE
-    UNUSED,                               // TOKEN_RIGHT_BRACE
-    UNUSED,                               // TOKEN_COMMA
-    OPERATOR(dot, CALL),                  // TOKEN_DOT
-    UNUSED,                               // TOKEN_COLON
-    OPERATOR(ternary, ASSIGNMENT),        // TOKEN_QUESTION
-    RULE(unary, binary, TERM),            // TOKEN_MINUS
-    OPERATOR(binary, TERM),               // TOKEN_PLUS
-    OPERATOR(binary, FACTOR),             // TOKEN_SLASH
-    OPERATOR(binary, FACTOR),             // TOKEN_STAR
-    UNUSED,                               // TOKEN_PLUS_PLUS
-    UNUSED,                               // TOKEN_MINUS_MINUS
-    UNUSED,                               // TOKEN_PLUS_EQUAL
-    UNUSED,                               // TOKEN_MINUS_EQUAL
-    UNUSED,                               // TOKEN_STAR_EQUAL
-    UNUSED,                               // TOKEN_SLASH_EQUAL
-    PREFIX(unary),                        // TOKEN_BANG
-    OPERATOR(binary, EQUALITY),           // TOKEN_BANG_EQUAL
-    UNUSED,                               // TOKEN_EQUAL
-    OPERATOR(binary, EQUALITY),           // TOKEN_EQUAL_EQUAL
-    OPERATOR(binary, COMPARISON),         // TOKEN_GREATER
-    OPERATOR(binary, COMPARISON),         // TOKEN_GREATER_EQUAL
-    OPERATOR(binary, COMPARISON),         // TOKEN_LESS
-    OPERATOR(binary, COMPARISON),         // TOKEN_LESS_EQUAL
-    OPERATOR(binary, FACTOR),             // TOKEN_PERCENT
-    UNUSED,                               // TOKEN_PERCENT_EQUAL
-    OPERATOR(range, RANGE),               // TOKEN_DOT_DOT
-    OPERATOR(range, RANGE),               // TOKEN_DOT_DOT_DOT
-    OPERATOR(binary, BAND),               // TOKEN_AMPERSAND, 
-    UNUSED,                               // TOKEN_AMPERSAND_EQUAL,
-    OPERATOR(binary, BOR),                // TOKEN_PIPE, 
-    UNUSED,                               // TOKEN_PIPE_EQUAL,
-    OPERATOR(binary, BXOR),               // TOKEN_CARET, 
-    UNUSED,                               // TOKEN_CARET_EQUAL,
-    PREFIX(unary),                        // TOKEN_TILDE
-    OPERATOR(binary, SHIFT),              // TOKEN_GREATER_GREATER,
-    OPERATOR(binary, SHIFT),              // TOKEN_LESS_LESS,
-    PREFIX(variable),                     // TOKEN_NAME
-    PREFIX(literal),                      // TOKEN_STRING
-    PREFIX(literal),                      // TOKEN_NUMBER
-    OPERATOR(and_, AND),                  // TOKEN_AND
-    UNUSED,                               // TOKEN_CLASS
-    UNUSED,                               // TOKEN_ELSE
-    PREFIX(boolean),                      // TOKEN_FALSE
-    UNUSED,                               // TOKEN_FOR
-    PREFIX(anonymous),                    // TOKEN_FUNCTION
-    UNUSED,                               // TOKEN_CASE
-    UNUSED,                               // TOKEN_SWITCH
-    UNUSED,                               // TOKEN_DEFAULT
-    UNUSED,                               // TOKEN_IF
-    PREFIX(null),                         // TOKEN_NULL
-    OPERATOR(or_, OR),                    // TOKEN_OR
-    UNUSED,                               // TOKEN_WITH
-    UNUSED,                               // TOKEN_IMPORT
-    UNUSED,                               // TOKEN_FROM
-    UNUSED,                               // TOKEN_AS
-    UNUSED,                               // TOKEN_RETURN
-    PREFIX(super_),                       // TOKEN_SUPER
-    PREFIX(this_),                        // TOKEN_THIS
-    UNUSED,                               // TOKEN_CONTINUE
-    UNUSED,                               // TOKEN_BREAK
-    UNUSED,                               // TOKEN_IN
-    PREFIX(boolean),                      // TOKEN_TRUE
-    UNUSED,                               // TOKEN_VAR
-    UNUSED,                               // TOKEN_WHILE
-    UNUSED,                               // TOKEN_DO
-    UNUSED,                               // TOKEN_ERROR
-    UNUSED,                               // TOKEN_EOF
+    RULE(grouping, call, CALL),             // TOKEN_LEFT_PAREN
+    NONE,                                   // TOKEN_RIGHT_PAREN
+    RULE(list, subscript, SUBSCRIPT),       // TOKEN_LEFT_BRACKET
+    NONE,                                   // TOKEN_RIGHT_BRACKET
+    PREFIX(map),                            // TOKEN_LEFT_BRACE
+    NONE,                                   // TOKEN_RIGHT_BRACE
+    NONE,                                   // TOKEN_COMMA
+    OPERATOR(dot, CALL),                    // TOKEN_DOT
+    NONE,                                   // TOKEN_COLON
+    OPERATOR(ternary, ASSIGNMENT),          // TOKEN_QUESTION
+    RULE(unary, binary, TERM),              // TOKEN_MINUS
+    OPERATOR(binary, TERM),                 // TOKEN_PLUS
+    OPERATOR(binary, FACTOR),               // TOKEN_SLASH
+    OPERATOR(binary, FACTOR),               // TOKEN_STAR
+    NONE,                                   // TOKEN_PLUS_PLUS
+    NONE,                                   // TOKEN_MINUS_MINUS
+    NONE,                                   // TOKEN_PLUS_EQUAL
+    NONE,                                   // TOKEN_MINUS_EQUAL
+    NONE,                                   // TOKEN_STAR_EQUAL
+    NONE,                                   // TOKEN_SLASH_EQUAL
+    PREFIX(unary),                          // TOKEN_BANG
+    OPERATOR(binary, EQUALITY),             // TOKEN_BANG_EQUAL
+    NONE,                                   // TOKEN_EQUAL
+    OPERATOR(binary, EQUALITY),             // TOKEN_EQUAL_EQUAL
+    OPERATOR(binary, COMPARISON),           // TOKEN_GREATER
+    OPERATOR(binary, COMPARISON),           // TOKEN_GREATER_EQUAL
+    OPERATOR(binary, COMPARISON),           // TOKEN_LESS
+    OPERATOR(binary, COMPARISON),           // TOKEN_LESS_EQUAL
+    OPERATOR(binary, FACTOR),               // TOKEN_PERCENT
+    NONE,                                   // TOKEN_PERCENT_EQUAL
+    OPERATOR(range, RANGE),                 // TOKEN_DOT_DOT
+    OPERATOR(range, RANGE),                 // TOKEN_DOT_DOT_DOT
+    OPERATOR(binary, BAND),                 // TOKEN_AMPERSAND, 
+    NONE,                                   // TOKEN_AMPERSAND_EQUAL,
+    OPERATOR(binary, BOR),                  // TOKEN_PIPE, 
+    NONE,                                   // TOKEN_PIPE_EQUAL,
+    OPERATOR(binary, BXOR),                 // TOKEN_CARET, 
+    NONE,                                   // TOKEN_CARET_EQUAL,
+    PREFIX(unary),                          // TOKEN_TILDE
+    OPERATOR(binary, SHIFT),                // TOKEN_GREATER_GREATER,
+    OPERATOR(binary, SHIFT),                // TOKEN_LESS_LESS,
+    PREFIX(variable),                       // TOKEN_NAME
+    PREFIX(literal),                        // TOKEN_STRING
+    PREFIX(literal),                        // TOKEN_NUMBER
+    OPERATOR(and_, AND),                    // TOKEN_AND
+    NONE,                                   // TOKEN_CLASS
+    NONE,                                   // TOKEN_ELSE
+    PREFIX(boolean),                        // TOKEN_FALSE
+    NONE,                                   // TOKEN_FOR
+    PREFIX(anonymous),                      // TOKEN_FUNCTION
+    NONE,                                   // TOKEN_CASE
+    NONE,                                   // TOKEN_SWITCH
+    NONE,                                   // TOKEN_DEFAULT
+    NONE,                                   // TOKEN_IF
+    PREFIX(null),                           // TOKEN_NULL
+    OPERATOR(or_, OR),                      // TOKEN_OR
+    NONE,                                   // TOKEN_WITH
+    NONE,                                   // TOKEN_IMPORT
+    NONE,                                   // TOKEN_FROM
+    NONE,                                   // TOKEN_AS
+    NONE,                                   // TOKEN_RETURN
+    PREFIX(super_),                         // TOKEN_SUPER
+    PREFIX(this_),                          // TOKEN_THIS
+    NONE,                                   // TOKEN_CONTINUE
+    NONE,                                   // TOKEN_BREAK
+    NONE,                                   // TOKEN_IN
+    PREFIX(boolean),                        // TOKEN_TRUE
+    NONE,                                   // TOKEN_VAR
+    NONE,                                   // TOKEN_WHILE
+    NONE,                                   // TOKEN_DO
+    NONE,                                   // TOKEN_ERROR
+    NONE,                                   // TOKEN_EOF
 };
 
-#undef UNUSED
+#undef NONE
 #undef RULE
 #undef INFIX
 #undef PREFIX
@@ -1211,6 +1220,12 @@ static void function(TeaCompiler* compiler, TeaFunctionType type)
 
     begin_function(compiler, &fn_compiler, type);
 
+    if(!check(compiler, TOKEN_LEFT_BRACE))
+    {
+        end_compiler(&fn_compiler);
+        return;
+    }
+    
     consume(&fn_compiler, TOKEN_LEFT_BRACE, "Expect '{' before function body.");
     block(&fn_compiler);
 
@@ -1273,6 +1288,13 @@ static void class_declaration(TeaCompiler* compiler)
     }
 
     named_variable(compiler, class_name, false);
+
+    if(!check(compiler, TOKEN_LEFT_BRACE))
+    {
+        compiler->klass = compiler->klass->enclosing;
+        return;
+    }
+
     consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before class body.");
 
     while(!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF))
@@ -1291,9 +1313,57 @@ static void class_declaration(TeaCompiler* compiler)
     compiler->klass = compiler->klass->enclosing;
 }
 
+static void function_assignment(TeaCompiler* compiler)
+{
+    if(match(compiler, TOKEN_LEFT_BRACKET))
+    {
+        expression(compiler);
+        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
+        if(!check(compiler, TOKEN_LEFT_PAREN))
+        {
+            emit_byte(compiler, OP_SUBSCRIPT);
+            function_assignment(compiler);
+        }
+        else
+        {
+            function(compiler, TYPE_FUNCTION);
+            emit_byte(compiler, OP_SUBSCRIPT_STORE);
+            emit_byte(compiler, OP_POP);
+            return;
+        }
+    }
+    else if(match(compiler, TOKEN_DOT))
+    {
+        consume(compiler, TOKEN_NAME, "Expect property name.");
+        uint8_t dot = identifier_constant(compiler, &compiler->parser->previous);
+        if(!check(compiler, TOKEN_LEFT_PAREN))
+        {
+            emit_bytes(compiler, OP_GET_PROPERTY, dot);
+            function_assignment(compiler);
+        }
+        else
+        {
+            function(compiler, TYPE_FUNCTION);
+            emit_bytes(compiler, OP_SET_PROPERTY, dot);
+            emit_byte(compiler, OP_POP);
+            return;
+        }
+    }
+}
+
 static void function_declaration(TeaCompiler* compiler)
 {
-    uint8_t global = parse_variable(compiler, "Expect function name.");
+    consume(compiler, TOKEN_NAME, "Expect function name.");
+    
+    if(check(compiler, TOKEN_LEFT_BRACKET) || check(compiler, TOKEN_DOT))
+    {
+        TeaToken name = compiler->parser->previous;
+        named_variable(compiler, name, false);
+        function_assignment(compiler);
+        return;
+    }
+
+    uint8_t global = parse_variable_at(compiler, compiler->parser->previous);
     mark_initialized(compiler);
     function(compiler, TYPE_FUNCTION);
     define_variable(compiler, global);
@@ -1301,22 +1371,19 @@ static void function_declaration(TeaCompiler* compiler)
 
 static void var_declaration(TeaCompiler* compiler)
 {
-    do
+    uint8_t global = parse_variable(compiler, "Expect variable name.");
+    mark_initialized(compiler);
+
+    if(match(compiler, TOKEN_EQUAL))
     {
-        uint8_t global = parse_variable(compiler, "Expect variable name.");
-
-        if(match(compiler, TOKEN_EQUAL))
-        {
-            expression(compiler);
-        }
-        else
-        {
-            emit_byte(compiler, OP_NULL);
-        }
-
-        define_variable(compiler, global);
+        expression(compiler);
     }
-    while(match(compiler, TOKEN_COMMA));
+    else
+    {
+        emit_byte(compiler, OP_NULL);
+    }
+
+    define_variable(compiler, global);
 }
 
 static void expression_statement(TeaCompiler* compiler)
@@ -1324,7 +1391,7 @@ static void expression_statement(TeaCompiler* compiler)
     expression(compiler);
     emit_byte(compiler, OP_POP);
 }
- 
+
 static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
 {
     switch(code[ip]) 
@@ -1358,9 +1425,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_BOR:
         case OP_LSHIFT:
         case OP_RSHIFT:
-        {
             return 0;
-        }
         case OP_CONSTANT:
         case OP_GET_LOCAL:
         case OP_SET_LOCAL:
@@ -1381,9 +1446,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_LIST:
         case OP_MAP:
         case OP_CLOSE_FILE:
-        {
             return 1;
-        }
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
         case OP_LOOP:
@@ -1391,9 +1454,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_SUPER:
         case OP_CLASS:
         case OP_IMPORT_NATIVE:
-        {
             return 2;
-        }
         case OP_IMPORT_NATIVE_VARIABLE: 
         {
             int arg_count = code[ip + 2];
@@ -1747,6 +1808,11 @@ static void import_statement(TeaCompiler* compiler)
         }
 
         emit_byte(compiler, OP_IMPORT_END);
+
+        if(match(compiler, TOKEN_COMMA))
+        {
+            import_statement(compiler);
+        }
     }
     else
     {
@@ -1775,6 +1841,11 @@ static void import_statement(TeaCompiler* compiler)
         emit_byte(compiler, import_name);
 
         define_variable(compiler, import_name);
+
+        if(match(compiler, TOKEN_COMMA))
+        {
+            import_statement(compiler);
+        }
     }
 }
 

@@ -15,6 +15,7 @@ typedef struct TeaScanner
 } TeaScanner;
 
 void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source);
+void tea_back_track(TeaScanner* scanner);
 TeaToken tea_scan_token(TeaScanner* scanner);
 
 #endif

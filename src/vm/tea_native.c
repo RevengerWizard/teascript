@@ -131,7 +131,11 @@ static TeaValue number_native(TeaVM* vm, int arg_count, TeaValue* args, bool* er
 {
     VALIDATE_ARG_COUNT(number, 1);
 
-    if(IS_BOOL(args[0]))
+    if(IS_NUMBER(args[0]))
+    {
+        return args[0];
+    }
+    else if(IS_BOOL(args[0]))
     {
         return AS_BOOL(args[0]) ? NUMBER_VAL(1) : NUMBER_VAL(0);
     }

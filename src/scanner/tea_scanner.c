@@ -22,7 +22,7 @@ static bool is_alpha(char c)
 
 static bool is_digit(char c)
 {
-    return c >= '0' && c <= '9';
+    return (c >= '0' && c <= '9');
 }
 
 static bool is_hex_digit(char c)
@@ -244,7 +244,18 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
             }
             break;
         }
-        case 'n': return check_keyword(scanner, 1, 3, "ull", TOKEN_NULL);
+        case 'n':
+        {
+            if(scanner->current - scanner->start > 1)
+            {
+                switch(scanner->start[1])
+                {
+                    case 'o': return check_keyword(scanner, 2, 1, "t", TOKEN_BANG);
+                    case 'u': return check_keyword(scanner, 2, 2, "ll", TOKEN_NULL);
+                }
+            }
+            break;
+        }
         case 'o': return check_keyword(scanner, 1, 1, "r", TOKEN_OR);
         case 'r': return check_keyword(scanner, 1, 5, "eturn", TOKEN_RETURN);
         case 's':
@@ -368,9 +379,6 @@ static TeaToken exponent_number(TeaScanner* scanner)
 
 static TeaToken number(TeaScanner* scanner)
 {
-    if(is_digit(peek_next(scanner)))
-        return error_token(scanner, "Not a valid number.");
-
     if(scanner->start[0] == '0')
     {
         if(match(scanner, 'x') || match(scanner, 'X'))
@@ -422,6 +430,11 @@ static TeaToken string(TeaScanner* scanner, char string_token)
     token.value = OBJECT_VAL(tea_copy_string(scanner->state, scanner->start + 1, (int)(scanner->current - scanner->start - 2)));
 
     return token;
+}
+
+void tea_back_track(TeaScanner* scanner)
+{
+    scanner->current--;
 }
 
 TeaToken tea_scan_token(TeaScanner* scanner)
