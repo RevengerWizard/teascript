@@ -12,18 +12,20 @@
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
-#define IS_RANGE(value) is_object_type(value, OBJ_RANGE)
-#define IS_FILE(value) is_object_type(value, OBJ_FILE)
-#define IS_MODULE(value) is_object_type(value, OBJ_MODULE)
-#define IS_LIST(value) is_object_type(value, OBJ_LIST)
-#define IS_MAP(value) is_object_type(value, OBJ_MAP)
-#define IS_BOUND_METHOD(value) is_object_type(value, OBJ_BOUND_METHOD)
-#define IS_CLASS(value) is_object_type(value, OBJ_CLASS)
-#define IS_CLOSURE(value) is_object_type(value, OBJ_CLOSURE)
-#define IS_FUNCTION(value) is_object_type(value, OBJ_FUNCTION)
-#define IS_INSTANCE(value) is_object_type(value, OBJ_INSTANCE)
-#define IS_NATIVE(value) is_object_type(value, OBJ_NATIVE)
-#define IS_STRING(value) is_object_type(value, OBJ_STRING)
+#define IS_RANGE(value) tea_is_object_type(value, OBJ_RANGE)
+#define IS_FILE(value) tea_is_object_type(value, OBJ_FILE)
+#define IS_MODULE(value) tea_is_object_type(value, OBJ_MODULE)
+#define IS_LIST(value) tea_is_object_type(value, OBJ_LIST)
+#define IS_MAP(value) tea_is_object_type(value, OBJ_MAP)
+#define IS_BOUND_METHOD(value) tea_is_object_type(value, OBJ_BOUND_METHOD)
+#define IS_CLASS(value) tea_is_object_type(value, OBJ_CLASS)
+#define IS_CLOSURE(value) tea_is_object_type(value, OBJ_CLOSURE)
+#define IS_FUNCTION(value) tea_is_object_type(value, OBJ_FUNCTION)
+#define IS_INSTANCE(value) tea_is_object_type(value, OBJ_INSTANCE)
+#define IS_NATIVE(value) tea_is_object_type(value, OBJ_NATIVE)
+#define IS_STRING(value) tea_is_object_type(value, OBJ_STRING)
+
+#define IS_CALLABLE_FUNCTION(value) tea_is_callable_function(value)
 
 #define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
 #define AS_FILE(value) ((TeaObjectFile*)AS_OBJECT(value))
@@ -197,12 +199,12 @@ void tea_print_object(TeaValue value);
 bool tea_objects_equal(TeaValue a, TeaValue b);
 const char* tea_object_type(TeaValue a);
 
-static inline bool is_object_type(TeaValue value, TeaObjectType type)
+static inline bool tea_is_object_type(TeaValue value, TeaObjectType type)
 {
     return IS_OBJECT(value) && AS_OBJECT(value)->type == type;
 }
 
-static inline bool is_falsey(TeaValue value)
+static inline bool tea_is_falsey(TeaValue value)
 {
     return  IS_NULL(value) || 
             (IS_BOOL(value) && !AS_BOOL(value)) || 
@@ -210,6 +212,14 @@ static inline bool is_falsey(TeaValue value)
             (IS_STRING(value) && AS_CSTRING(value)[0] == '\0') || 
             (IS_LIST(value) && AS_LIST(value)->items.count == 0) ||
             (IS_MAP(value) && AS_MAP(value)->items.count == 0);
+}
+
+static inline bool tea_is_callable_function(TeaValue value)
+{
+    return  IS_CLOSURE(value) ||
+            IS_FUNCTION(value) ||
+            IS_NATIVE(value) ||
+            IS_BOUND_METHOD(value);
 }
 
 #endif

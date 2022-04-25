@@ -152,7 +152,7 @@ static TeaValue average_native(TeaVM* vm, int arg_count, TeaValue* args, bool* e
 
 static TeaValue floor_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
-    VALIDATE_ARG_COUNT("floor", 1);
+    VALIDATE_ARG_COUNT(floor, 1);
 
     if(!IS_NUMBER(args[0])) 
     {
@@ -164,7 +164,7 @@ static TeaValue floor_native(TeaVM* vm, int arg_count, TeaValue* args, bool* err
 
 static TeaValue ceil_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
-    VALIDATE_ARG_COUNT("ceil", 1);
+    VALIDATE_ARG_COUNT(ceil, 1);
 
     if(!IS_NUMBER(args[0])) 
     {
@@ -176,7 +176,7 @@ static TeaValue ceil_native(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
 
 static TeaValue round_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
-    VALIDATE_ARG_COUNT("round", 1);
+    VALIDATE_ARG_COUNT(round, 1);
 
     if(!IS_NUMBER(args[0])) 
     {
@@ -188,7 +188,7 @@ static TeaValue round_native(TeaVM* vm, int arg_count, TeaValue* args, bool* err
 
 static TeaValue cos_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
-    VALIDATE_ARG_COUNT("cos", 1);
+    VALIDATE_ARG_COUNT(cos, 1);
 
     if(!IS_NUMBER(args[0])) 
     {
@@ -200,7 +200,7 @@ static TeaValue cos_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
 
 static TeaValue sin_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
-    VALIDATE_ARG_COUNT("sin", 1);
+    VALIDATE_ARG_COUNT(sin, 1);
 
     if(!IS_NUMBER(args[0])) 
     {
@@ -212,7 +212,7 @@ static TeaValue sin_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
 
 static TeaValue tan_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
-    VALIDATE_ARG_COUNT("tan", 1);
+    VALIDATE_ARG_COUNT(tan, 1);
 
     if(!IS_NUMBER(args[0])) 
     {

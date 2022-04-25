@@ -101,7 +101,7 @@ static TeaValue assert_native(TeaVM* vm, int arg_count, TeaValue* args, bool* er
 {
     VALIDATE_ARG_COUNT(assert, 2);
 
-    if(is_falsey(args[0]))
+    if(tea_is_falsey(args[0]))
     {
         NATIVE_ERROR("%s", AS_CSTRING(args[1]));
     }

@@ -7,11 +7,23 @@
 #include "tea_debug.h"
 #include "tea_state.h"
 
+static void clear()
+{
+    #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+        system("clear");
+    #endif
+
+    #if defined(_WIN32) || defined(_WIN64)
+        system("cls");
+    #endif
+}
+
 static void repl(TeaState* state)
 {
     char line[1024];
     while(true)
     {
+        line:
         printf("> ");
 
         if(!fgets(line, sizeof(line), stdin))
@@ -23,6 +35,12 @@ static void repl(TeaState* state)
         if(strcmp(line, "exit\n") == 0)
         {
             break;
+        }
+        
+        if(strcmp(line, "clear\n") == 0)
+        {
+            clear();
+            goto line;
         }
 
         tea_interpret(state, "repl", line);

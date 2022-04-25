@@ -1167,7 +1167,18 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(GREATER):
         {
-            BINARY_OP(BOOL_VAL, >, double);
+            if(IS_STRING(PEEK(0)) && IS_STRING(PEEK(1)))
+            {
+                PUSH(BOOL_VAL(strcmp(AS_STRING(POP())->chars, AS_STRING(POP())->chars) > 0));
+            }
+            else if(IS_LIST(PEEK(0)) && IS_LIST(PEEK(1)))
+            {
+                PUSH(BOOL_VAL(AS_LIST(POP())->items.count < AS_LIST(POP())->items.count));
+            }
+            else
+            {
+                BINARY_OP(BOOL_VAL, >, double);
+            }
             DISPATCH();
         }
         CASE_CODE(GREATER_EQUAL):
@@ -1296,7 +1307,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(NOT):
         {
-            PUSH(BOOL_VAL(is_falsey(POP())));
+            PUSH(BOOL_VAL(tea_is_falsey(POP())));
             DISPATCH();
         }
         CASE_CODE(NEGATE):
@@ -1317,7 +1328,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         CASE_CODE(JUMP_IF_FALSE):
         {
             uint16_t offset = READ_SHORT();
-            if(is_falsey(PEEK(0)))
+            if(tea_is_falsey(PEEK(0)))
             {
                 ip += offset;
             }
