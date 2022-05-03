@@ -5,11 +5,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(teascript)
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-
-set(CMAKE_C_FLAGS_RELEASE "-O3 ${CMAKE_C_FLAGS_RELEASE}")
+set(CMAKE_BUILD_TYPE Release)
 
 file(GLOB_RECURSE SOURCE_FILES src/*.c)
 include_directories(src/)

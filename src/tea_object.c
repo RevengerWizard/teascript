@@ -36,7 +36,10 @@ TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool incl
 
 TeaObjectFile* tea_new_file(TeaState* state)
 {
-    return ALLOCATE_OBJECT(state, TeaObjectFile, OBJ_FILE);
+    TeaObjectFile* file = ALLOCATE_OBJECT(state, TeaObjectFile, OBJ_FILE);
+    file->is_open = false;
+
+    return file;
 }
 
 TeaObjectModule* tea_new_module(TeaState* state, TeaObjectString* name)

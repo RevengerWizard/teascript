@@ -64,7 +64,7 @@ typedef enum
 typedef enum
 {
     TYPE_FUNCTION,
-    TYPE_INITIALIZER,
+    TYPE_CONSTRUCTOR,
     TYPE_METHOD,
     TYPE_SCRIPT
 } TeaFunctionType;
@@ -90,6 +90,7 @@ struct TeaObjectFile
     FILE* file;
     char* path;
     char* type;
+    bool is_open;
 };
 
 typedef struct
@@ -117,6 +118,14 @@ typedef struct
     TeaObject obj;
     TeaNativeFunction function;
 } TeaObjectNative;
+
+typedef TeaValue (*TeaNativeImport)(TeaVM* vm);
+
+typedef struct
+{
+    char* name;
+    TeaNativeImport module;
+} TeaNativeModule;
 
 struct TeaObjectString
 {

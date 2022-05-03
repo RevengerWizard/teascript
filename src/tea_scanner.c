@@ -182,7 +182,18 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
                 {
                     case 'a': return check_keyword(scanner, 2, 2, "se", TOKEN_CASE);
                     case 'l': return check_keyword(scanner, 2, 3, "ass", TOKEN_CLASS);
-                    case 'o': return check_keyword(scanner, 2, 6, "ntinue", TOKEN_CONTINUE);
+                    case 'o': 
+                    {
+                        if(scanner->current - scanner->start > 3)
+                        {
+                            switch(scanner->start[3])
+                            {
+                                case 's': return check_keyword(scanner, 2, 3, "nst", TOKEN_CONST);
+                                case 't': return check_keyword(scanner, 2, 6, "ntinue", TOKEN_CONTINUE);
+                            }
+                        }
+                    }
+                    
                 }
             }
             break;
@@ -223,6 +234,7 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
                     case 'f': return check_keyword(scanner, 2, 0, "", TOKEN_IF);
                     case 'm': return check_keyword(scanner, 2, 4, "port", TOKEN_IMPORT);
                     case 'n': return check_keyword(scanner, 2, 0, "", TOKEN_IN);
+                    case 's': return check_keyword(scanner, 2, 0, "", TOKEN_IS);
                 }
             }
             break;

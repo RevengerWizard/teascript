@@ -10,7 +10,7 @@
 #include "tea_module.h"
 
 #ifdef DEBUG_PRINT_CODE
-#include "debug/tea_debug.h"
+#include "tea_debug.h"
 #endif
 
 static TeaChunk* current_chunk(TeaCompiler* compiler)
@@ -124,7 +124,7 @@ static int emit_jump(TeaCompiler* compiler, uint8_t instruction)
 
 static void emit_return(TeaCompiler* compiler)
 {
-    if(compiler->type == TYPE_INITIALIZER)
+    if(compiler->type == TYPE_CONSTRUCTOR)
     {
         emit_bytes(compiler, OP_GET_LOCAL, 0);
     }
@@ -416,7 +416,6 @@ static void define_variable(TeaCompiler* compiler, uint8_t global)
         return;
     }
 
-    //emit_bytes(OP_DEFINE_GLOBAL, global);
     emit_bytes(compiler, OP_DEFINE_MODULE, global);
 }
 
@@ -443,12 +442,9 @@ static uint8_t argument_list(TeaCompiler* compiler)
 
 static void and_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
 {
-    int end_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-
-    emit_byte(compiler, OP_POP);
+    int jump = emit_jump(compiler, OP_AND);
     parse_precendence(compiler, PREC_AND);
-
-    patch_jump(compiler, end_jump);
+    patch_jump(compiler, jump);
 }
 
 static void binary(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
@@ -837,14 +833,9 @@ static void number(TeaCompiler* compiler, bool can_assign)
 
 static void or_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
 {
-    int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    int end_jump = emit_jump(compiler, OP_JUMP);
-
-    patch_jump(compiler, else_jump);
-    emit_byte(compiler, OP_POP);
-
+    int jump = emit_jump(compiler, OP_OR);
     parse_precendence(compiler, PREC_OR);
-    patch_jump(compiler, end_jump);
+    patch_jump(compiler, jump);
 }
 
 static void string(TeaCompiler* compiler, bool can_assign)
@@ -1068,7 +1059,7 @@ static void range(TeaCompiler* compiler, TeaToken previous_token, bool can_assig
 #define PREFIX(pr)              { pr, NULL, PREC_NONE }
 #define OPERATOR(in, prec)      { NULL, in, PREC_##prec }
 
-TeaParseRule rules[] = {
+static TeaParseRule rules[] = {
     RULE(grouping, call, CALL),             // TOKEN_LEFT_PAREN
     NONE,                                   // TOKEN_RIGHT_PAREN
     RULE(list, subscript, SUBSCRIPT),       // TOKEN_LEFT_BRACKET
@@ -1127,6 +1118,7 @@ TeaParseRule rules[] = {
     PREFIX(null),                           // TOKEN_NULL
     OPERATOR(or_, OR),                      // TOKEN_OR
     NONE,                                   // TOKEN_WITH
+    NONE,                                   // TOKEN_IS
     NONE,                                   // TOKEN_IMPORT
     NONE,                                   // TOKEN_FROM
     NONE,                                   // TOKEN_AS
@@ -1138,6 +1130,7 @@ TeaParseRule rules[] = {
     NONE,                                   // TOKEN_IN
     PREFIX(boolean),                        // TOKEN_TRUE
     NONE,                                   // TOKEN_VAR
+    NONE,                                   // TOKEN_CONST
     NONE,                                   // TOKEN_WHILE
     NONE,                                   // TOKEN_DO
     NONE,                                   // TOKEN_ERROR
@@ -1252,13 +1245,32 @@ static void method(TeaCompiler* compiler)
 
     TeaFunctionType type = TYPE_METHOD;
 
-    if(compiler->parser->previous.length == 4 && memcmp(compiler->parser->previous.start, "init", 4) == 0)
+    if(compiler->parser->previous.length == 11 && memcmp(compiler->parser->previous.start, "constructor", 11) == 0)
     {
-        type = TYPE_INITIALIZER;
+        type = TYPE_CONSTRUCTOR;
     }
 
     function(compiler, type);
     emit_bytes(compiler, OP_METHOD, constant);
+}
+
+static void class_body(TeaCompiler* compiler)
+{
+    while(!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF))
+    {
+        if(match(compiler, TOKEN_VAR))
+        {
+
+        }
+        else if(match(compiler, TOKEN_CONST))
+        {
+            
+        }
+        else
+        {
+            method(compiler);
+        }
+    }
 }
 
 static void class_declaration(TeaCompiler* compiler)
@@ -1305,10 +1317,7 @@ static void class_declaration(TeaCompiler* compiler)
 
     consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before class body.");
 
-    while(!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF))
-    {
-        method(compiler);
-    }
+    class_body(compiler);
 
     consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
     emit_byte(compiler, OP_POP);
@@ -1426,7 +1435,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_RETURN:
         case OP_IMPORT_VARIABLE:
         case OP_IMPORT_END:
-        case OP_OPEN_FILE:
+        case OP_OPEN_CONTEXT:
         case OP_END:
         case OP_BAND:
         case OP_BXOR:
@@ -1453,7 +1462,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_IMPORT:
         case OP_LIST:
         case OP_MAP:
-        case OP_CLOSE_FILE:
+        case OP_CLOSE_CONTEXT:
             return 1;
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
@@ -1751,9 +1760,9 @@ static void with_statement(TeaCompiler* compiler)
     consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after with statement.");
     consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before with body.");
 
-    emit_byte(compiler, OP_OPEN_FILE);
+    emit_byte(compiler, OP_OPEN_CONTEXT);
     block(compiler);
-    emit_bytes(compiler, OP_CLOSE_FILE, file_index);
+    emit_bytes(compiler, OP_CLOSE_CONTEXT, file_index);
     end_scope(compiler);
     compiler->with_block = false;
 }
@@ -1767,7 +1776,7 @@ static void check_close_handle(TeaCompiler* compiler)
 
         if(local != -1)
         {
-            emit_bytes(compiler, OP_CLOSE_FILE, local);
+            emit_bytes(compiler, OP_CLOSE_CONTEXT, local);
         }
         compiler->with_block = false;
     }
@@ -1787,9 +1796,9 @@ static void return_statement(TeaCompiler* compiler)
     }
     else
     {
-        if(compiler->type == TYPE_INITIALIZER)
+        if(compiler->type == TYPE_CONSTRUCTOR)
         {
-            error(compiler, "Can't return a value from an initializer.");
+            error(compiler, "Can't return a value from a constructor.");
         }
 
         expression(compiler);
@@ -2043,6 +2052,7 @@ static void synchronize(TeaCompiler* compiler)
             case TOKEN_CLASS:
             case TOKEN_FUNCTION:
             case TOKEN_VAR:
+            case TOKEN_CONST:
             case TOKEN_FOR:
             case TOKEN_IF:
             case TOKEN_DO:

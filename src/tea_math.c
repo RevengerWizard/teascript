@@ -2,10 +2,9 @@
 #include <math.h>
 
 #include "tea_module.h"
-#include "tea_vm.h"
 #include "tea_native.h"
 
-static TeaValue min_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue min_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0) 
     {
@@ -39,7 +38,7 @@ static TeaValue min_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return NUMBER_VAL(minimum);
 }
 
-static TeaValue max_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue max_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0) 
     {
@@ -73,7 +72,7 @@ static TeaValue max_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return NUMBER_VAL(maximum);
 }
 
-static TeaValue mid_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue mid_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -121,7 +120,7 @@ static TeaValue mid_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     }
 }
 
-static TeaValue average_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue average_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     double average = 0;
 
@@ -150,7 +149,7 @@ static TeaValue average_native(TeaVM* vm, int arg_count, TeaValue* args, bool* e
     return NUMBER_VAL(average);
 }
 
-static TeaValue floor_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue floor_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(floor, 1);
 
@@ -162,7 +161,7 @@ static TeaValue floor_native(TeaVM* vm, int arg_count, TeaValue* args, bool* err
     return NUMBER_VAL(round(AS_NUMBER(args[0])));
 }
 
-static TeaValue ceil_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue ceil_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(ceil, 1);
 
@@ -174,7 +173,7 @@ static TeaValue ceil_native(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
     return NUMBER_VAL(ceil(AS_NUMBER(args[0])));
 }
 
-static TeaValue round_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue round_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(round, 1);
 
@@ -186,7 +185,7 @@ static TeaValue round_native(TeaVM* vm, int arg_count, TeaValue* args, bool* err
     return NUMBER_VAL(round(AS_NUMBER(args[0])));
 }
 
-static TeaValue cos_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue cos_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(cos, 1);
 
@@ -198,7 +197,7 @@ static TeaValue cos_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return NUMBER_VAL(cos(AS_NUMBER(args[0])));
 }
 
-static TeaValue sin_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue sin_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(sin, 1);
 
@@ -210,7 +209,7 @@ static TeaValue sin_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return NUMBER_VAL(sin(AS_NUMBER(args[0])));
 }
 
-static TeaValue tan_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue tan_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(tan, 1);
 
@@ -222,7 +221,7 @@ static TeaValue tan_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return NUMBER_VAL(tan(AS_NUMBER(args[0])));
 }
 
-static TeaValue sign_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue sign_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     if(arg_count == 0)
     {
@@ -244,17 +243,17 @@ TeaValue tea_import_math(TeaVM* vm)
     TeaObjectString* name = tea_copy_string(vm->state, TEA_MATH_MODULE, 4);
     TeaObjectModule* module = tea_new_module(vm->state, name);
 
-    tea_native_function(vm, &module->values, "min", min_native);
-    tea_native_function(vm, &module->values, "max", max_native);
-    tea_native_function(vm, &module->values, "mid", mid_native);
-    tea_native_function(vm, &module->values, "average", average_native);
-    tea_native_function(vm, &module->values, "floor", floor_native);
-    tea_native_function(vm, &module->values, "ceil", ceil_native);
-    tea_native_function(vm, &module->values, "round", round_native);
-    tea_native_function(vm, &module->values, "cos", cos_native);
-    tea_native_function(vm, &module->values, "sin", sin_native);
-    tea_native_function(vm, &module->values, "tan", tan_native);
-    tea_native_function(vm, &module->values, "sign", sign_native);
+    tea_native_function(vm, &module->values, "min", min_math);
+    tea_native_function(vm, &module->values, "max", max_math);
+    tea_native_function(vm, &module->values, "mid", mid_math);
+    tea_native_function(vm, &module->values, "average", average_math);
+    tea_native_function(vm, &module->values, "floor", floor_math);
+    tea_native_function(vm, &module->values, "ceil", ceil_math);
+    tea_native_function(vm, &module->values, "round", round_math);
+    tea_native_function(vm, &module->values, "cos", cos_math);
+    tea_native_function(vm, &module->values, "sin", sin_math);
+    tea_native_function(vm, &module->values, "tan", tan_math);
+    tea_native_function(vm, &module->values, "sign", sign_math);
 
     tea_native_property(vm, &module->values, "pi", NUMBER_VAL(M_PI));
     tea_native_property(vm, &module->values, "e", NUMBER_VAL(M_E));

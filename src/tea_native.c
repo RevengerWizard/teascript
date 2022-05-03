@@ -93,6 +93,7 @@ static TeaValue open_native(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
     TeaObjectFile* file = tea_new_file(vm->state);
     file->path = AS_STRING(args[0])->chars;
     file->type = AS_STRING(args[1])->chars;
+    file->is_open = true;
 
     return OBJECT_VAL(file);
 }

@@ -16,6 +16,10 @@ typedef struct TeaScanner
     bool is_raw;
 } TeaScanner;
 
+void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source);
+void tea_back_track(TeaScanner* scanner);
+TeaToken tea_scan_token(TeaScanner* scanner);
+
 static inline bool is_alpha(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_');
@@ -35,9 +39,5 @@ static inline bool is_binary_digit(char c)
 {
     return (c >= '0' && c <= '1');
 }
-
-void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source);
-void tea_back_track(TeaScanner* scanner);
-TeaToken tea_scan_token(TeaScanner* scanner);
 
 #endif

@@ -649,6 +649,21 @@ static bool get_property(TeaVM* vm, TeaValue receiver, TeaObjectString* name, bo
                 tea_runtime_error(vm, "Map has no property");
                 return false;
             }
+            case OBJ_FILE:
+            {
+                TeaObjectFile* file = AS_FILE(receiver);
+
+                if(strncmp(name->chars, "closed", 6) == 0)
+                {
+                    tea_pop(vm);    // file
+                    tea_push(vm, BOOL_VAL(file->is_open));
+
+                    return true;
+                }
+
+                tea_runtime_error(vm, "File has no property");
+                return false;
+            }
             default:
                 break;
         }
@@ -745,9 +760,9 @@ static void define_method(TeaVM* vm, TeaObjectString* name)
 {
     TeaValue method = tea_peek(vm, 0);
     TeaObjectClass* klass = AS_CLASS(tea_peek(vm, 1));
-    TeaObjectString* init_string = tea_copy_string(vm->state, "init", 4);
+    TeaObjectString* constructor_string = tea_copy_string(vm->state, "constructor", 11);
     tea_table_set(vm->state, &klass->methods, name, method);
-    if(name == init_string) klass->initializer = method;
+    if(name == constructor_string) klass->initializer = method;
     tea_pop(vm);
 }
 
@@ -1158,6 +1173,10 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             }
             DISPATCH();
         }
+        CASE_CODE(IS):
+        {
+            DISPATCH();
+        }
         CASE_CODE(EQUAL):
         {
             TeaValue b = POP();
@@ -1305,6 +1324,36 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             BINARY_OP(NUMBER_VAL, >>, int);
             DISPATCH();
         }
+        CASE_CODE(AND):
+        {
+            uint16_t offset = READ_SHORT();
+            
+            if(tea_is_falsey(PEEK(0)))
+            {
+                ip += offset;
+            }
+            else
+            {
+                DROP();
+            }
+
+            DISPATCH();
+        }
+        CASE_CODE(OR):
+        {
+            uint16_t offset = READ_SHORT();
+            
+            if(tea_is_falsey(PEEK(0)))
+            {
+                DROP();
+            }
+            else
+            {
+                ip += offset;
+            }
+
+            DISPATCH();
+        }
         CASE_CODE(NOT):
         {
             PUSH(BOOL_VAL(tea_is_falsey(POP())));
@@ -1426,6 +1475,10 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         CASE_CODE(CLASS):
         {
             PUSH(OBJECT_VAL(tea_new_class(state, READ_STRING())));
+            DISPATCH();
+        }
+        CASE_CODE(SET_CLASS_VAR):
+        {
             DISPATCH();
         }
         CASE_CODE(INHERIT):
@@ -1580,23 +1633,23 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 
             DISPATCH();
         }
-        CASE_CODE(OPEN_FILE):
+        CASE_CODE(OPEN_CONTEXT):
         {
-            TeaValue file_obj = PEEK(0);
+            TeaValue obj = PEEK(0);
 
-            if(!IS_FILE(file_obj))
+            if(!IS_FILE(obj))
             {
                 RUNTIME_ERROR("Expect a file object.");
             }
 
-            TeaObjectFile* file = AS_FILE(file_obj);
+            TeaObjectFile* file = AS_FILE(obj);
 
             POP();
             PUSH(OBJECT_VAL(file));
 
             DISPATCH();
         }
-        CASE_CODE(CLOSE_FILE):
+        CASE_CODE(CLOSE_CONTEXT):
         {
             uint8_t slot = READ_BYTE();
             TeaValue file = frame->slots[slot];

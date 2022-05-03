@@ -1,22 +1,20 @@
 #include "tea_module.h"
 
-TeaNativeModules modules[] = {
-    { "math", tea_import_math },
-    { "time", tea_import_time },
-    //{ "date", tea_import_date },
-    //{ "json", tea_import_json },
-    //{ "csv", tea_import_csv },
-    //{ "log", tea_import_log },
-    //{ "palette", tea_import_palette },
-    //{ "http", tea_import_http },
-    //{ "socket", tea_import_socket },
-    //{ "process", tea_import_process },
-    //{ "hash", tea_import_hash },
-    //{ "web", tea_import_web },
-    //{ "os", tea_import_os },
-    //{ "sys", tea_import_sys },
-    //{ "path", tea_import_path },
-    //{ "random", tea_import_random },
+TeaNativeModule modules[] = {
+    { TEA_MATH_MODULE, tea_import_math },
+    { TEA_TIME_MODULE, tea_import_time },
+    //{ TEA_DATE_MODULE, tea_import_date },
+    //{ TEA_JSON_MODULE, tea_import_json },
+    //{ TEA_CSV_MODULE, tea_import_csv },
+    //{ TEA_LOG_MODULE, tea_import_log },
+    //{ TEA_HTTP_MODULE, tea_import_http },
+    //{ TEA_SOCKET_MODULE, tea_import_socket },
+    //{ TEA_HASH_MODULE, tea_import_hash },
+    //{ TEA_WEB_MODULE, tea_import_web },
+    //{ TEA_OS_MODULE, tea_import_os },
+    { TEA_SYS_MODULE, tea_import_sys },
+    //{ TEA_PATH_MODULE, tea_import_path },
+    { TEA_RANDOM_MODULE, tea_import_random },
     { NULL, NULL }
 };
 

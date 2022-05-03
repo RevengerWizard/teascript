@@ -3,14 +3,6 @@
 
 #include "tea_vm.h"
 
-typedef TeaValue (*TeaNativeModule)(TeaVM* vm);
-
-typedef struct
-{
-    char* name;
-    TeaNativeModule module;
-} TeaNativeModules;
-
 #define TEA_MATH_MODULE "math"
 TeaValue tea_import_math(TeaVM* vm);
 
@@ -29,17 +21,11 @@ TeaValue tea_import_date(TeaVM* vm);
 #define TEA_LOG_MODULE "log"
 //TeaValue tea_import_log(TeaVM* vm);
 
-#define TEA_PALETTE_MODULE "palette"
-//TeaValue tea_import_palette(TeaVM* vm);
-
 #define TEA_HTTP_MODULE "http"
 //TeaValue tea_import_http(TeaVM* vm);
 
 #define TEA_SOCKET_MODULE "socket"
-//TeaValue tea_import_socket(TeaVM* vm);
-
-#define TEA_PROCESS_MODULE "process"
-//TeaValue tea_import_process(TeaVM* vm);
+TeaValue tea_import_socket(TeaVM* vm);
 
 #define TEA_HASH_MODULE "hash"
 //TeaValue tea_import_hash(TeaVM* vm);
