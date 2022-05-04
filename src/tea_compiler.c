@@ -9,7 +9,7 @@
 #include "tea_scanner.h"
 #include "tea_module.h"
 
-#ifdef TEA_DEBUG_PRINT_CODE
+#ifdef DEBUG_PRINT_CODE
 #include "tea_debug.h"
 #endif
 
@@ -213,7 +213,7 @@ static TeaObjectFunction* end_compiler(TeaCompiler* compiler)
     emit_return(compiler);
     TeaObjectFunction* function = compiler->function;
 
-#ifdef TEA_DEBUG_PRINT_CODE
+#ifdef DEBUG_PRINT_CODE
     if(!compiler->parser->had_error)
     {
         tea_disassemble_chunk(current_chunk(compiler), function->name != NULL ? function->name->chars : "<script>");

@@ -33,7 +33,7 @@ const char* tea_value_type(TeaValue a)
 
 bool tea_values_equal(TeaValue a, TeaValue b)
 {
-#ifdef TEA_NAN_TAGGING
+#ifdef NAN_TAGGING
     if(IS_NUMBER(a) && IS_NUMBER(b))
     {
         return AS_NUMBER(a) == AS_NUMBER(b);
@@ -64,7 +64,7 @@ bool tea_values_equal(TeaValue a, TeaValue b)
 
 char* tea_value_tostring(TeaState* state, TeaValue value)
 {
-#ifdef TEA_NAN_TAGGING
+#ifdef NAN_TAGGING
     if(IS_BOOL(value))
     {
         return AS_BOOL(value) ? "true" : "false";
@@ -108,7 +108,7 @@ char* tea_value_tostring(TeaState* state, TeaValue value)
 
 void tea_print_value(TeaValue value)
 {
-#ifdef TEA_NAN_TAGGING
+#ifdef NAN_TAGGING
     if(IS_BOOL(value))
     {
         printf(AS_BOOL(value) ? "true" : "false");
