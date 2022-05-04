@@ -83,7 +83,7 @@ void tea_free_vm(TeaVM* vm)
     tea_free_table(vm->state, &vm->list_methods);
     tea_free_table(vm->state, &vm->file_methods);
 
-#ifdef DEBUG_TRACE_MEMORY
+#ifdef TEA_DEBUG_TRACE_MEMORY
     printf("total bytes lost: %zu\n", vm->state->bytes_allocated);
 #endif
 }
@@ -837,7 +837,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
     } \
     while(false)
 
-#ifdef DEBUG_TRACE_EXECUTION
+#ifdef TEA_DEBUG_TRACE_EXECUTION
     #define DEBUG() \
         do \
         { \
@@ -856,7 +856,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
     #define DEBUG() do { } while (false)
 #endif
 
-#ifdef COMPUTED_GOTO
+#ifdef TEA_COMPUTED_GOTO
 
     static void* dispatch_table[] = {
         #define OPCODE(name) &&OP_##name

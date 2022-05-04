@@ -7,7 +7,7 @@
 #include "tea_predefines.h"
 #include "tea_array.h"
 
-#ifdef NAN_TAGGING
+#ifdef TEA_NAN_TAGGING
 
 #define SIGN_BIT ((uint64_t)0x8000000000000000)
 #define QNAN ((uint64_t)0x7ffc000000000000)

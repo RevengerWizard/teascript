@@ -5,7 +5,7 @@
 #include "tea_vm.h"
 #include "tea_array.h"
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
 #include <stdio.h>
 #include "debug/tea_debug.h"
 #endif
@@ -16,13 +16,13 @@ void* tea_reallocate(TeaState* state, void* pointer, size_t old_size, size_t new
 {
     state->bytes_allocated += new_size - old_size;
 
-#ifdef DEBUG_TRACE_MEMORY
+#ifdef TEA_DEBUG_TRACE_MEMORY
     printf("total bytes allocated: %zu\nnew allocation: %zu\nold allocation: %zu\n\n", state->bytes_allocated, new_size, old_size);
 #endif
 
     if(new_size > old_size)
     {
-#ifdef DEBUG_STRESS_GC
+#ifdef TEA_DEBUG_STRESS_GC
         tea_collect_garbage(state->vm);
 #endif
 
@@ -53,7 +53,7 @@ void tea_mark_object(TeaVM* vm, TeaObject* object)
     if(object->is_marked)
         return;
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p mark ", (void*)object);
     tea_print_value(OBJECT_VAL(object));
     printf("\n");
@@ -89,7 +89,7 @@ static void mark_array(TeaVM* vm, TeaValueArray* array)
 
 static void blacken_object(TeaVM* vm, TeaObject* object)
 {
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p blacken ", (void*)object);
     tea_print_value(OBJECT_VAL(object));
     printf("\n");
@@ -168,7 +168,7 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
 
 static void free_object(TeaState* state, TeaObject* object)
 {
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p free type %d\n", (void*)object, object->type);
 #endif
 
@@ -319,7 +319,7 @@ static void sweep(TeaVM* vm)
 
 void tea_collect_garbage(TeaVM* vm)
 {
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("-- gc begin\n");
     size_t before = vm->state->bytes_allocated;
 #endif
@@ -331,7 +331,7 @@ void tea_collect_garbage(TeaVM* vm)
 
     vm->state->next_gc = vm->state->bytes_allocated * GC_HEAP_GROW_FACTOR;
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("-- gc end\n");
     printf("   collected %zu bytes (from %zu to %zu) next at %zu\n", before - state->vm->bytes_allocated, before, state->vm->bytes_allocated, vm.next_GC);
 #endif

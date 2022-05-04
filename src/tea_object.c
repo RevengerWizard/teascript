@@ -16,7 +16,7 @@ TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type)
     object->next = state->vm->objects;
     state->vm->objects = object;
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p allocate %zu for %d\n", (void*)object, size, type);
 #endif
 
