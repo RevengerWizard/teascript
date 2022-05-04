@@ -2,7 +2,7 @@
 #include <time.h>
 
 #include "tea_module.h"
-#include "tea_native.h"
+#include "tea_core.h"
 
 static TeaValue random_random(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {

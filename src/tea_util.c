@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tea_fs.h"
+#include "tea_util.h"
 #include "tea_vm.h"
 #include "tea_memory.h"
 

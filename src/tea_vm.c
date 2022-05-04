@@ -9,10 +9,9 @@
 #include "tea_object.h"
 #include "tea_memory.h"
 #include "tea_vm.h"
-#include "tea_native.h"
-#include "tea_fs.h"
+#include "tea_util.h"
 
-#include "tea_type.h"
+#include "tea_core.h"
 #include "tea_module.h"
 
 static void reset_stack(TeaVM* vm)
@@ -65,15 +64,11 @@ void tea_init_vm(TeaState* state, TeaVM* vm)
     tea_init_table(&vm->globals);
     tea_init_table(&vm->strings);
 
-    tea_define_natives(vm);
-
     tea_init_table(&vm->string_methods);
     tea_init_table(&vm->list_methods);
     tea_init_table(&vm->file_methods);
 
-    tea_define_string_methods(vm);
-    tea_define_list_methods(vm);
-    tea_define_file_methods(vm);
+    tea_open_core(vm);
 }
 
 void tea_free_vm(TeaVM* vm)

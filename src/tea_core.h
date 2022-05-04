@@ -1,10 +1,8 @@
-#ifndef TEA_NATIVE_H
-#define TEA_NATIVE_H
+#ifndef TEA_CORE_H
+#define TEA_CORE_H
 
 #include <stdarg.h>
 
-#include "tea_value.h"
-#include "tea_object.h"
 #include "tea_vm.h"
 
 #define NATIVE_ERROR(...) \
@@ -36,11 +34,10 @@
     } \
     while(false)
 
-#define NATIVE_FUNCTION(name) static TeaValue name##_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 
 void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value);
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function);
 
-void tea_define_natives(TeaVM* vm);
+void tea_open_core(TeaVM* vm);
 
 #endif

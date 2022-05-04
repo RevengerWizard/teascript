@@ -2,8 +2,7 @@
 #include <time.h>
 
 #include "tea_module.h"
-#include "tea_vm.h"
-#include "tea_native.h"
+#include "tea_core.h"
 
 static TeaValue clock_time(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {

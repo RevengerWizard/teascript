@@ -11,7 +11,7 @@ TeaNativeModule modules[] = {
     //{ TEA_SOCKET_MODULE, tea_import_socket },
     //{ TEA_HASH_MODULE, tea_import_hash },
     //{ TEA_WEB_MODULE, tea_import_web },
-    //{ TEA_OS_MODULE, tea_import_os },
+    { TEA_OS_MODULE, tea_import_os },
     { TEA_SYS_MODULE, tea_import_sys },
     //{ TEA_PATH_MODULE, tea_import_path },
     { TEA_RANDOM_MODULE, tea_import_random },
