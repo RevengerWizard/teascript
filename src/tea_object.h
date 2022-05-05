@@ -12,6 +12,7 @@
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
+#define IS_USERDATA(value) tea_is_object_type(value, OBJ_USERDATA)
 #define IS_RANGE(value) tea_is_object_type(value, OBJ_RANGE)
 #define IS_FILE(value) tea_is_object_type(value, OBJ_FILE)
 #define IS_MODULE(value) tea_is_object_type(value, OBJ_MODULE)
@@ -27,6 +28,7 @@
 
 #define IS_CALLABLE_FUNCTION(value) tea_is_callable_function(value)
 
+#define AS_USERDATA(value) ((TeaObjectUserdata*)AS_OBJECT(value))
 #define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
 #define AS_FILE(value) ((TeaObjectFile*)AS_OBJECT(value))
 #define AS_MODULE(value) ((TeaObjectModule*)AS_OBJECT(value))
@@ -37,8 +39,7 @@
 #define AS_CLOSURE(value) ((TeaObjectClosure*)AS_OBJECT(value))
 #define AS_FUNCTION(value) ((TeaObjectFunction*)AS_OBJECT(value))
 #define AS_INSTANCE(value) ((TeaObjectInstance*)AS_OBJECT(value))
-#define AS_NATIVE(value) \
-    (((TeaObjectNative*)AS_OBJECT(value))->function)
+#define AS_NATIVE(value) (((TeaObjectNative*)AS_OBJECT(value))->function)
 #define AS_STRING(value) ((TeaObjectString*)AS_OBJECT(value))
 #define AS_CSTRING(value) (((TeaObjectString*)AS_OBJECT(value))->chars)
 
@@ -58,7 +59,8 @@ typedef enum
     OBJ_INSTANCE,
     OBJ_NATIVE,
     OBJ_STRING,
-    OBJ_UPVALUE
+    OBJ_UPVALUE,
+    OBJ_USERDATA
 } TeaObjectType;
 
 typedef enum
@@ -185,8 +187,21 @@ typedef struct
     TeaObjectClosure* method;
 } TeaObjectBoundMethod;
 
+typedef void (*TeaFreeFunction)(TeaState* state, TeaObjectUserdata* data, bool mark);
+
+typedef struct TeaObjectUserdata
+{
+    TeaObject obj;
+
+    void* data;
+    size_t size;
+
+    TeaFreeFunction fn;
+} TeaObjectUserdata;
+
 TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type);
 
+TeaObjectUserdata* tea_new_userdata(TeaState* state, size_t size);
 TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool inclusive);
 TeaObjectFile* tea_new_file(TeaState* state);
 TeaObjectModule* tea_new_module(TeaState* state, TeaObjectString* name);

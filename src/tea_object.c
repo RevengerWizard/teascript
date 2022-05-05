@@ -23,6 +23,25 @@ TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type)
     return object;
 }
 
+TeaObjectUserdata* tea_new_userdata(TeaState* state, size_t size)
+{
+    TeaObjectUserdata* userdata = ALLOCATE_OBJECT(state, TeaObjectUserdata, OBJ_USERDATA);
+
+    if(size > 0)
+    {
+        userdata->data = tea_reallocate(state, NULL, 0, size);
+    }
+    else
+    {
+        userdata->data = NULL;
+    }
+
+    userdata->size = size;
+    userdata->fn = NULL;
+
+    return userdata;
+}
+
 TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool inclusive)
 {
     TeaObjectRange* range = ALLOCATE_OBJECT(state, TeaObjectRange, OBJ_RANGE);

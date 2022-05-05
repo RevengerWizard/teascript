@@ -97,6 +97,16 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
 
     switch(object->type)
     {
+        case OBJ_USERDATA:
+        {
+            TeaObjectUserdata* userdata = (TeaObjectUserdata*)object;
+
+            if(userdata->fn != NULL)
+            {
+                userdata->fn(vm->state, userdata, true);
+            }
+            break;
+        }
         case OBJ_MODULE:
         {
             TeaObjectModule* module = (TeaObjectModule*)object;
@@ -251,6 +261,23 @@ static void free_object(TeaState* state, TeaObject* object)
         case OBJ_UPVALUE:
         {
             FREE(state, TeaObjectUpvalue, object);
+            break;
+        }
+        case OBJ_USERDATA:
+        {
+            TeaObjectUserdata* userdata = (TeaObjectUserdata*)object;
+
+            if(userdata->fn != NULL)
+            {
+                userdata->fn(state, userdata, false);
+            }
+
+            if(userdata->size > 0)
+            {
+                tea_reallocate(state, userdata->data, userdata->size, 0);
+            }
+
+            FREE(state, TeaObjectUserdata, object);
             break;
         }
     }
