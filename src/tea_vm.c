@@ -924,8 +924,11 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         CASE_CODE(POP_REPL):
         {
             TeaValue value = PEEK(0);
-            tea_print_value(value);
-            printf("\n");
+            if(!IS_EMPTY(value))
+            {
+                tea_print_value(value);
+                printf("\n");
+            }
             POP();
             DISPATCH();
         }
