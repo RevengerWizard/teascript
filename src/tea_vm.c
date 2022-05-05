@@ -921,6 +921,14 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             POP();
             DISPATCH();
         }
+        CASE_CODE(POP_REPL):
+        {
+            TeaValue value = PEEK(0);
+            tea_print_value(value);
+            printf("\n");
+            POP();
+            DISPATCH();
+        }
         CASE_CODE(GET_LOCAL):
         {
             uint8_t slot = READ_BYTE();

@@ -16,6 +16,15 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
+static TeaValue exit_sys(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+{
+    VALIDATE_ARG_COUNT(exit, 0);
+
+    exit(0);
+
+    return EMPTY_VAL;
+}
+
 static TeaValue sleep_sys(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(sleep, 1);
@@ -51,6 +60,7 @@ TeaValue tea_import_sys(TeaVM* vm)
     TeaObjectModule* module = tea_new_module(vm->state, name);
 
     tea_native_function(vm, &module->values, "sleep", sleep_sys);
+    tea_native_function(vm, &module->values, "exit", exit_sys);
 
     return OBJECT_VAL(module);
 }

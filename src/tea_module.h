@@ -18,9 +18,6 @@ TeaValue tea_import_date(TeaVM* vm);
 #define TEA_CSV_MODULE "csv"
 //TeaValue tea_import_csv(TeaVM* vm);
 
-#define TEA_LOG_MODULE "log"
-//TeaValue tea_import_log(TeaVM* vm);
-
 #define TEA_HTTP_MODULE "http"
 //TeaValue tea_import_http(TeaVM* vm);
 

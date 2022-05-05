@@ -10,6 +10,8 @@ typedef struct TeaState
     size_t bytes_allocated;
     size_t next_gc;
 
+    bool repl;
+
     struct TeaScanner* scanner;
     struct TeaCompiler* compiler;
     struct TeaVM* vm;

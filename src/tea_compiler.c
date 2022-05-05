@@ -1405,8 +1405,26 @@ static void var_declaration(TeaCompiler* compiler)
 
 static void expression_statement(TeaCompiler* compiler)
 {
+    TeaToken previous = compiler->parser->previous;
+    advance(compiler);
+    TeaTokenType t = compiler->parser->current.type;
+
+    for(int i = 0; i < compiler->parser->current.length; i++) 
+    {
+        tea_back_track(compiler->state->scanner);
+    }
+    compiler->parser->current = compiler->parser->previous;
+    compiler->parser->previous = previous;
+
     expression(compiler);
-    emit_byte(compiler, OP_POP);
+    if(compiler->state->repl && t != TOKEN_EQUAL) 
+    {
+        emit_byte(compiler, OP_POP_REPL);
+    }
+    else
+    {
+        emit_byte(compiler, OP_POP);
+    }
 }
 
 static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
