@@ -301,7 +301,7 @@ static void print_function(TeaObjectFunction* function)
         printf("<script>");
         return;
     }
-    //printf("<function %s>", function->name->chars);
+
     printf("<function>");
 }
 
@@ -337,7 +337,7 @@ void tea_print_object(TeaValue value)
             printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
             break;
         case OBJ_NATIVE:
-            printf("<native function>");
+            printf("<function>");
             break;
         case OBJ_STRING:
             printf("%s", AS_CSTRING(value));
@@ -470,9 +470,8 @@ const char* tea_object_type(TeaValue a)
             return "map";
         case OBJ_CLOSURE:
         case OBJ_FUNCTION:
-            return "function";
         case OBJ_NATIVE:
-            return "native";
+            return "function";
         default:
             return "unknown";
     }
