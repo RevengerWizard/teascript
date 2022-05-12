@@ -926,6 +926,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             TeaValue value = PEEK(0);
             if(!IS_EMPTY(value))
             {
+                tea_table_set(state, &vm->globals, tea_copy_string(state, "_", 1), value);
                 tea_print_value(value);
                 printf("\n");
             }

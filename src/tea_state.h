@@ -15,6 +15,9 @@ typedef struct TeaState
     struct TeaScanner* scanner;
     struct TeaCompiler* compiler;
     struct TeaVM* vm;
+
+    int argc;
+    const char** argv;
 } TeaState;
 
 typedef enum TeaInterpretResult

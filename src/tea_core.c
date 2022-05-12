@@ -512,19 +512,6 @@ static TeaValue interpret_native(TeaVM* vm, int arg_count, TeaValue* args, bool*
     return EMPTY_VAL;
 }
 
-void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
-{
-    TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
-    tea_table_set(vm->state, table, property, value);
-}
-
-void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
-{
-    TeaObjectNative* native = tea_new_native(vm->state, function);
-    TeaObjectString* method = tea_copy_string(vm->state, name, strlen(name));
-    tea_table_set(vm->state, table, method, OBJECT_VAL(native));
-}
-
 void tea_open_core(TeaVM* vm)
 {
     // File

@@ -97,6 +97,8 @@ static void run_file(TeaState* state, const char* path)
 int main(int argc, const char* argv[])
 {
     TeaState* state = tea_init_state();
+    state->argc = argc;
+    state->argv = argv;
 
     if(argc == 1)
     {

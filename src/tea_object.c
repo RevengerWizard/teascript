@@ -221,6 +221,19 @@ TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot)
     return upvalue;
 }
 
+void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
+{
+    TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
+    tea_table_set(vm->state, table, property, value);
+}
+
+void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
+{
+    TeaObjectNative* native = tea_new_native(vm->state, function);
+    TeaObjectString* method = tea_copy_string(vm->state, name, strlen(name));
+    tea_table_set(vm->state, table, method, OBJECT_VAL(native));
+}
+
 static char* list_tostring(TeaObjectList* list)
 {
     return "";
@@ -309,6 +322,9 @@ void tea_print_object(TeaValue value)
 {
     switch(OBJECT_TYPE(value))
     {
+        case OBJ_USERDATA:
+            printf("userdata");
+            break;
         case OBJ_RANGE:
             print_range(AS_RANGE(value));
             break;
