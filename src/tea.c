@@ -6,6 +6,7 @@
 #include "tea_chunk.h"
 #include "tea_debug.h"
 #include "tea_state.h"
+#include "tea_config.h"
 
 static void clear()
 {
@@ -103,9 +104,10 @@ int main(int argc, const char* argv[])
     if(argc == 1)
     {
         state->repl = true;
+        printf("%s\n", TEA_RELEASE);
         repl(state);
     }
-    else if(argc == 2)
+    else if(argc >= 2)
     {
         state->repl = false;
         run_file(state, argv[1]);

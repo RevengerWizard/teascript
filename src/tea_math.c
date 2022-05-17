@@ -255,8 +255,8 @@ TeaValue tea_import_math(TeaVM* vm)
     tea_native_function(vm, &module->values, "tan", tan_math);
     tea_native_function(vm, &module->values, "sign", sign_math);
 
-    tea_native_property(vm, &module->values, "pi", NUMBER_VAL(M_PI));
-    tea_native_property(vm, &module->values, "e", NUMBER_VAL(M_E));
+    tea_native_value(vm, &module->values, "pi", NUMBER_VAL(M_PI));
+    tea_native_value(vm, &module->values, "e", NUMBER_VAL(M_E));
 
     return OBJECT_VAL(module);
 }

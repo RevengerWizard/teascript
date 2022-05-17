@@ -34,10 +34,6 @@
     } \
     while(false)
 
-
-void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value);
-void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function);
-
 void tea_open_core(TeaVM* vm);
 
 #endif

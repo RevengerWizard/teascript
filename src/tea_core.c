@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "tea_core.h"
+#include "tea_utf.h"
 
 // File
 static TeaValue write_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
@@ -464,18 +466,6 @@ static TeaValue number_native(TeaVM* vm, int arg_count, TeaValue* args, bool* er
     }
 }
 
-static TeaValue int_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
-{
-    VALIDATE_ARG_COUNT(int, 1);
-
-    if(!IS_NUMBER(args[0]))
-    {
-        NATIVE_ERROR("int() takes a number as parameter.");
-    }
-
-    return NUMBER_VAL((int)(AS_NUMBER(args[0])));
-}
-
 static TeaValue string_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 {
     VALIDATE_ARG_COUNT(string, 1);
@@ -483,6 +473,25 @@ static TeaValue string_native(TeaVM* vm, int arg_count, TeaValue* args, bool* er
     const char* string = tea_value_tostring(vm->state, args[0]);
 
     return OBJECT_VAL(tea_copy_string(vm->state, string, strlen(string)));
+}
+
+static TeaValue char_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+{
+    VALIDATE_ARG_COUNT(char, 1);
+
+    TeaObjectString* string = tea_ustring_from_code_point(vm->state, AS_NUMBER(args[0]));
+
+    return OBJECT_VAL(string);
+}
+
+static TeaValue ord_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+{
+    VALIDATE_ARG_COUNT(ord, 1);
+
+    TeaObjectString* string = AS_STRING(args[0]);
+    int index = tea_ustring_decode((uint8_t*)string->chars, 1);
+
+    return NUMBER_VAL(index);
 }
 
 static TeaValue gc_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
@@ -541,9 +550,9 @@ void tea_open_core(TeaVM* vm)
     tea_native_function(vm, &vm->globals, "gc", gc_native);
     tea_native_function(vm, &vm->globals, "interpret", interpret_native);
     tea_native_function(vm, &vm->globals, "number", number_native);
-    tea_native_function(vm, &vm->globals, "int", int_native);
     //tea_native_function(vm, &vm->globals, "bool", bool_native);
     tea_native_function(vm, &vm->globals, "string", string_native);
+    tea_native_function(vm, &vm->globals, "char", char_native);
+    tea_native_function(vm, &vm->globals, "ord", ord_native);
     //tea_native_function(vm, &vm->globals, "list", list_native);
-    //tea_native_function(vm, &vm->globals, "len", len_native);
 }

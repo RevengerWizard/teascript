@@ -420,9 +420,9 @@ static bool call_value(TeaVM* vm, TeaValue callee, int arg_count)
                 TeaObjectClass* klass = AS_CLASS(callee);
                 
                 vm->stack_top[-arg_count - 1] = OBJECT_VAL(tea_new_instance(vm->state, klass));
-                if(!IS_NULL(klass->initializer)) 
+                if(!IS_NULL(klass->constructor)) 
                 {
-                    return call(vm, AS_CLOSURE(klass->initializer), arg_count);
+                    return call(vm, AS_CLOSURE(klass->constructor), arg_count);
                 }
                 else if(arg_count != 0)
                 {
@@ -433,9 +433,9 @@ static bool call_value(TeaVM* vm, TeaValue callee, int arg_count)
             }
             case OBJ_CLOSURE:
                 return call(vm, AS_CLOSURE(callee), arg_count);
-            case OBJ_NATIVE:
+            case OBJ_NATIVE_FUNCTION:
             {
-                TeaNativeFunction native = AS_NATIVE(callee);
+                TeaNativeFunction native = AS_NATIVE_FUNCTION(callee);
                 bool error = false;
                 TeaValue result = native(vm, arg_count, vm->stack_top - arg_count, &error);
 
@@ -459,7 +459,7 @@ static bool call_value(TeaVM* vm, TeaValue callee, int arg_count)
 
 static bool call_native_method(TeaVM* vm, TeaValue method, int arg_count)
 {
-    TeaNativeFunction native = AS_NATIVE(method);
+    TeaNativeFunction native = AS_NATIVE_FUNCTION(method);
     bool error = false;
     TeaValue result = native(vm, arg_count, vm->stack_top - arg_count - 1, &error);
 
@@ -540,7 +540,7 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int arg_
                 TeaValue value;
                 if(tea_table_get(&vm->list_methods, name, &value)) 
                 {
-                    if(IS_NATIVE(value)) 
+                    if(IS_NATIVE_FUNCTION(value)) 
                     {
                         return call_native_method(vm, value, arg_count);
                     }
@@ -757,7 +757,7 @@ static void define_method(TeaVM* vm, TeaObjectString* name)
     TeaObjectClass* klass = AS_CLASS(tea_peek(vm, 1));
     TeaObjectString* constructor_string = tea_copy_string(vm->state, "constructor", 11);
     tea_table_set(vm->state, &klass->methods, name, method);
-    if(name == constructor_string) klass->initializer = method;
+    if(name == constructor_string) klass->constructor = method;
     tea_pop(vm);
 }
 

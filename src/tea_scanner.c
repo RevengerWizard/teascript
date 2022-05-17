@@ -426,6 +426,7 @@ static TeaToken string(TeaScanner* scanner, char string_token)
 
         if(c == string_token) break;
         if(c == '\r') continue;
+        if(c == '\t') continue;
 
         switch(c)
         {

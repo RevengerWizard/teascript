@@ -1220,12 +1220,6 @@ static void function(TeaCompiler* compiler, TeaFunctionType type)
     TeaCompiler fn_compiler;
 
     begin_function(compiler, &fn_compiler, type);
-
-    if(!check(compiler, TOKEN_LEFT_BRACE))
-    {
-        end_compiler(&fn_compiler);
-        return;
-    }
     
     consume(&fn_compiler, TOKEN_LEFT_BRACE, "Expect '{' before function body.");
     block(&fn_compiler);

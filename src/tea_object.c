@@ -108,7 +108,7 @@ TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name)
 {
     TeaObjectClass* klass = ALLOCATE_OBJECT(state, TeaObjectClass, OBJ_CLASS);
     klass->name = name;
-    klass->initializer = NULL_VAL;
+    klass->constructor = NULL_VAL;
     tea_init_table(&klass->methods);
 
     return klass;
@@ -151,9 +151,9 @@ TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass)
     return instance;
 }
 
-TeaObjectNative* tea_new_native(TeaState* state, TeaNativeFunction function)
+TeaObjectNativeFunction* tea_new_native_function(TeaState* state, TeaNativeFunction function)
 {
-    TeaObjectNative* native = ALLOCATE_OBJECT(state, TeaObjectNative, OBJ_NATIVE);
+    TeaObjectNativeFunction* native = ALLOCATE_OBJECT(state, TeaObjectNativeFunction, OBJ_NATIVE_FUNCTION);
     native->function = function;
 
     return native;
@@ -221,7 +221,7 @@ TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot)
     return upvalue;
 }
 
-void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
+void tea_native_value(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
 {
     TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
     tea_table_set(vm->state, table, property, value);
@@ -229,7 +229,7 @@ void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaValue 
 
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
 {
-    TeaObjectNative* native = tea_new_native(vm->state, function);
+    TeaObjectNativeFunction* native = tea_new_native_function(vm->state, function);
     TeaObjectString* method = tea_copy_string(vm->state, name, strlen(name));
     tea_table_set(vm->state, table, method, OBJECT_VAL(native));
 }
@@ -352,7 +352,7 @@ void tea_print_object(TeaValue value)
         case OBJ_INSTANCE:
             printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
             break;
-        case OBJ_NATIVE:
+        case OBJ_NATIVE_FUNCTION:
             printf("<function>");
             break;
         case OBJ_STRING:
@@ -486,7 +486,7 @@ const char* tea_object_type(TeaValue a)
             return "map";
         case OBJ_CLOSURE:
         case OBJ_FUNCTION:
-        case OBJ_NATIVE:
+        case OBJ_NATIVE_FUNCTION:
             return "function";
         default:
             return "unknown";
