@@ -4,16 +4,24 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
-static TeaValue clock_time(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue clock_time(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(clock, 0);
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "clock() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
-static TeaValue time_time(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue time_time(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(time, 0);
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "time() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     return NUMBER_VAL((double)time(NULL));
 }

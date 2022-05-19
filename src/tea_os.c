@@ -5,19 +5,25 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
-static TeaValue system_os(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue system_os(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(system, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "system() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[0]))
     {
-        NATIVE_ERROR("system() argument takes a string.");
+        tea_runtime_error(vm, "system() argument takes a string");
+        return EMPTY_VAL;
     }
 
     const char* s = AS_CSTRING(args[0]);
     if(system(s) == -1)
     {
-        NATIVE_ERROR("Unable to execute the command.");
+        tea_runtime_error(vm, "Unable to execute the command");
+        return EMPTY_VAL;
     }
 
     return EMPTY_VAL;

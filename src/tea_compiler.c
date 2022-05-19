@@ -107,7 +107,7 @@ static void emit_loop(TeaCompiler* compiler, int loop_start)
 
     int offset = current_chunk(compiler)->count - loop_start + 2;
     if(offset > UINT16_MAX)
-        error(compiler, "Loop body too large.");
+        error(compiler, "Loop body too large");
 
     emit_byte(compiler, (offset >> 8) & 0xff);
     emit_byte(compiler, offset & 0xff);
@@ -141,7 +141,7 @@ static uint8_t make_constant(TeaCompiler* compiler, TeaValue value)
     int constant = tea_add_constant(compiler->state, current_chunk(compiler), value);
     if(constant > UINT8_MAX)
     {
-        error(compiler, "Too many constants in one chunk.");
+        error(compiler, "Too many constants in one chunk");
         return 0;
     }
 
@@ -160,7 +160,7 @@ static void patch_jump(TeaCompiler* compiler, int offset)
 
     if(jump > UINT16_MAX)
     {
-        error(compiler, "Too much code to jump over.");
+        error(compiler, "Too much code to jump over");
     }
 
     current_chunk(compiler)->code[offset] = (jump >> 8) & 0xff;
@@ -289,7 +289,7 @@ static int resolve_local(TeaCompiler* compiler, TeaToken* name)
         {
             if(local->depth == -1)
             {
-                error(compiler, "Can't read local variable in its own initializer.");
+                error(compiler, "Can't read local variable in its own initializer");
             }
             return i;
         }
@@ -313,7 +313,7 @@ static int add_upvalue(TeaCompiler* compiler, uint8_t index, bool is_local)
 
     if(upvalue_count == UINT8_COUNT)
     {
-        error(compiler, "Too many closure variables in function.");
+        error(compiler, "Too many closure variables in function");
         return 0;
     }
 
@@ -348,7 +348,7 @@ static void add_local(TeaCompiler* compiler, TeaToken name)
 {
     if(compiler->local_count == UINT8_COUNT)
     {
-        error(compiler, "Too many local variables in function.");
+        error(compiler, "Too many local variables in function");
         return;
     }
 
@@ -373,7 +373,7 @@ static void declare_variable(TeaCompiler* compiler, TeaToken* name)
 
         /*if(identifiers_equal(name, &local->name))
         {
-            error(compiler, "Already a variable with this name in this scope.");
+            error(compiler, "Already a variable with this name in this scope");
         }*/
     }
 
@@ -429,13 +429,13 @@ static uint8_t argument_list(TeaCompiler* compiler)
             expression(compiler);
             if(arg_count == 255)
             {
-                error(compiler, "Can't have more than 255 arguments.");
+                error(compiler, "Can't have more than 255 arguments");
             }
             arg_count++;
         } 
         while(match(compiler, TOKEN_COMMA));
     }
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after arguments");
 
     return arg_count;
 }
@@ -510,6 +510,11 @@ static void binary(TeaCompiler* compiler, TeaToken previous_token, bool can_assi
             emit_byte(compiler, OP_MOD);
             break;
         }
+        case TOKEN_STAR_STAR:
+        {
+            emit_byte(compiler, OP_POW);
+            break;
+        }
         case TOKEN_AMPERSAND:
         {
             emit_byte(compiler, OP_BAND);
@@ -553,7 +558,7 @@ static void ternary(TeaCompiler* compiler, TeaToken previous_token, bool can_ass
     patch_jump(compiler, else_jump);
     emit_byte(compiler, OP_POP);
 
-    consume(compiler, TOKEN_COLON, "Expected colon after ternary expression.");
+    consume(compiler, TOKEN_COLON, "Expected colon after ternary expression");
     expression(compiler);
 
     patch_jump(compiler, end_jump);
@@ -615,6 +620,10 @@ static void dot(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
     {
         SHORT_HAND_ASSIGNMENT(OP_MOD);
     }
+    else if(can_assign && match(compiler, TOKEN_STAR_STAR_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_POW);
+    }
     else if(can_assign && match(compiler, TOKEN_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BAND);
@@ -659,7 +668,7 @@ static void null(TeaCompiler* compiler, bool can_assign)
 static void grouping(TeaCompiler* compiler, bool can_assign)
 {
     expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after expression");
 }
 
 static void list(TeaCompiler* compiler, bool can_assign)
@@ -679,14 +688,14 @@ static void list(TeaCompiler* compiler, bool can_assign)
 
             if(item_count == UINT8_COUNT)
             {
-                error(compiler, "Cannot have more than 256 items in a list literal.");
+                error(compiler, "Cannot have more than 256 items in a list literal");
             }
             item_count++;
         }
         while(match(compiler, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after list literal.");
+    consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after list literal");
 
     emit_bytes(compiler, OP_LIST, item_count);
 
@@ -708,18 +717,18 @@ static void map(TeaCompiler* compiler, bool can_assign)
 
             consume(compiler, TOKEN_NAME, "Expected key name");
             emit_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, compiler->parser->previous.start, compiler->parser->previous.length)));
-            consume(compiler, TOKEN_EQUAL, "Expected '=' after key name.");
+            consume(compiler, TOKEN_EQUAL, "Expected '=' after key name");
             expression(compiler);
             if(item_count == UINT8_COUNT)
             {
-                error(compiler, "Cannot have more than 256 items in a map literal.");
+                error(compiler, "Cannot have more than 256 items in a map literal");
             }
             item_count++;
         }
         while(match(compiler, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '} after map literal.'");
+    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '} after map literal'");
 
     emit_bytes(compiler, OP_MAP, item_count);
 
@@ -743,7 +752,7 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
         emit_byte(compiler, OP_NULL);
         expression(compiler);
         emit_byte(compiler, OP_SLICE);
-        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
+        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
         return;
     }
 
@@ -760,11 +769,11 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
             expression(compiler);
         }
         emit_byte(compiler, OP_SLICE);
-        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
+        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
         return;
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
+    consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
 
     if(can_assign && match(compiler, TOKEN_EQUAL))
     {
@@ -790,6 +799,10 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
     else if(can_assign && match(compiler, TOKEN_PERCENT_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_MOD);
+    }
+    else if(can_assign && match(compiler, TOKEN_STAR_STAR_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_POW);
     }
     else if(can_assign && match(compiler, TOKEN_AMPERSAND_EQUAL))
     {
@@ -851,7 +864,7 @@ static void rstring(TeaCompiler* compiler, bool can_assign)
         return;
     }
 
-    consume(compiler, TOKEN_STRING, "Expected string after r keyword.");
+    consume(compiler, TOKEN_STRING, "Expected string after r keyword");
 }
 
 static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign)
@@ -924,6 +937,10 @@ static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign
     {
         SHORT_HAND_ASSIGNMENT(OP_MOD);
     }
+    else if(can_assign && match(compiler, TOKEN_STAR_STAR_EQUAL))
+    {
+        SHORT_HAND_ASSIGNMENT(OP_POW);
+    }
     else if(can_assign && match(compiler, TOKEN_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BAND);
@@ -973,15 +990,30 @@ static void super_(TeaCompiler* compiler, bool can_assign)
 {
     if(compiler->klass == NULL)
     {
-        error(compiler, "Can't use 'super' outside of a class.");
+        error(compiler, "Can't use 'super' outside of a class");
     }
     else if(!compiler->klass->has_superclass)
     {
-        error(compiler, "Can't use 'super' in a class with no superclass.");
+        error(compiler, "Can't use 'super' in a class with no superclass");
     }
 
-    consume(compiler, TOKEN_DOT, "Expect '.' after 'super'.");
-    consume(compiler, TOKEN_NAME, "Expect superclass method name.");
+    // constructor super
+    if(match(compiler, TOKEN_LEFT_PAREN))
+    {
+        TeaToken token;
+        token.start = "constructor";
+        token.length = (int)strlen("constructor");
+
+        uint8_t name = identifier_constant(compiler, &token);
+        uint8_t arg_count = argument_list(compiler);
+        named_variable(compiler, synthetic_token("super"), false);
+        emit_bytes(compiler, OP_SUPER, name);
+        emit_byte(compiler, arg_count);
+        return;
+    }
+
+    consume(compiler, TOKEN_DOT, "Expect '.' after 'super'");
+    consume(compiler, TOKEN_NAME, "Expect superclass method name");
     uint8_t name = identifier_constant(compiler, &compiler->parser->previous);
 
     named_variable(compiler, synthetic_token("this"), false);
@@ -1004,7 +1036,7 @@ static void this_(TeaCompiler* compiler, bool can_assign)
 {
     if(compiler->klass == NULL)
     {
-        error(compiler, "Can't use 'this' outside of a class.");
+        error(compiler, "Can't use 'this' outside of a class");
         return;
     }
 
@@ -1091,6 +1123,8 @@ static TeaParseRule rules[] = {
     OPERATOR(binary, COMPARISON),           // TOKEN_LESS_EQUAL
     OPERATOR(binary, FACTOR),               // TOKEN_PERCENT
     NONE,                                   // TOKEN_PERCENT_EQUAL
+    OPERATOR(binary, INDICES),              // TOKEN_STAR_STAR
+    NONE,                                   // TOKEN_STAR_STAR_EQUAL
     OPERATOR(range, RANGE),                 // TOKEN_DOT_DOT
     OPERATOR(range, RANGE),                 // TOKEN_DOT_DOT_DOT
     OPERATOR(binary, BAND),                 // TOKEN_AMPERSAND, 
@@ -1149,7 +1183,7 @@ static void parse_precendence(TeaCompiler* compiler, TeaPrecedence precedence)
     TeaParsePrefixFn prefix_rule = get_rule(compiler->parser->previous.type)->prefix;
     if(prefix_rule == NULL)
     {
-        error(compiler, "Expect expression.");
+        error(compiler, "Expect expression");
         return;
     }
 
@@ -1166,7 +1200,7 @@ static void parse_precendence(TeaCompiler* compiler, TeaPrecedence precedence)
 
     if(can_assign && match(compiler, TOKEN_EQUAL))
     {
-        error(compiler, "Invalid assignment target.");
+        error(compiler, "Invalid assignment target");
     }
 }
 
@@ -1187,7 +1221,7 @@ static void block(TeaCompiler* compiler)
         declaration(compiler);
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after block");
 }
 
 static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaFunctionType type)
@@ -1195,7 +1229,7 @@ static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaF
     init_compiler(compiler->state, compiler->parser, fn_compiler, compiler, type);
     begin_scope(fn_compiler);
 
-    consume(fn_compiler, TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+    consume(fn_compiler, TOKEN_LEFT_PAREN, "Expect '(' after function name");
 
     if(!check(fn_compiler, TOKEN_RIGHT_PAREN))
     {
@@ -1204,15 +1238,15 @@ static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaF
             fn_compiler->function->arity++;
             if(fn_compiler->function->arity > 255)
             {
-                error_at_current(fn_compiler, "Can't have more than 255 parameters.");
+                error_at_current(fn_compiler, "Can't have more than 255 parameters");
             }
-            uint8_t constant = parse_variable(fn_compiler, "Expect parameter name.");
+            uint8_t constant = parse_variable(fn_compiler, "Expect parameter name");
             define_variable(fn_compiler, constant);
         } 
         while(match(fn_compiler, TOKEN_COMMA));
     }
 
-    consume(fn_compiler, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+    consume(fn_compiler, TOKEN_RIGHT_PAREN, "Expect ')' after parameters");
 }
 
 static void function(TeaCompiler* compiler, TeaFunctionType type)
@@ -1221,7 +1255,7 @@ static void function(TeaCompiler* compiler, TeaFunctionType type)
 
     begin_function(compiler, &fn_compiler, type);
     
-    consume(&fn_compiler, TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+    consume(&fn_compiler, TOKEN_LEFT_BRACE, "Expect '{' before function body");
     block(&fn_compiler);
 
     end_compiler(&fn_compiler);
@@ -1234,7 +1268,7 @@ static void anonymous(TeaCompiler* compiler, bool can_assign)
 
 static void method(TeaCompiler* compiler)
 {
-    consume(compiler, TOKEN_NAME, "Expect method name.");
+    consume(compiler, TOKEN_NAME, "Expect method name");
     uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
 
     TeaFunctionType type = TYPE_METHOD;
@@ -1269,7 +1303,7 @@ static void class_body(TeaCompiler* compiler)
 
 static void class_declaration(TeaCompiler* compiler)
 {
-    consume(compiler, TOKEN_NAME, "Expect class name.");
+    consume(compiler, TOKEN_NAME, "Expect class name");
     TeaToken class_name = compiler->parser->previous;
     uint8_t name_constant = identifier_constant(compiler, &compiler->parser->previous);
     declare_variable(compiler, &compiler->parser->previous);
@@ -1284,12 +1318,12 @@ static void class_declaration(TeaCompiler* compiler)
 
     if(match(compiler, TOKEN_COLON))
     {
-        consume(compiler, TOKEN_NAME, "Expect superclass name.");
+        consume(compiler, TOKEN_NAME, "Expect superclass name");
         variable(compiler, false);
 
         if(identifiers_equal(&class_name, &compiler->parser->previous))
         {
-            error(compiler, "A class can't inherit from itself.");
+            error(compiler, "A class can't inherit from itself");
         }
 
         begin_scope(compiler);
@@ -1309,11 +1343,11 @@ static void class_declaration(TeaCompiler* compiler)
         return;
     }
 
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before class body.");
+    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before class body");
 
     class_body(compiler);
 
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after class body.");
+    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
     emit_byte(compiler, OP_POP);
 
     if(class_compiler.has_superclass)
@@ -1329,7 +1363,7 @@ static void function_assignment(TeaCompiler* compiler)
     if(match(compiler, TOKEN_LEFT_BRACKET))
     {
         expression(compiler);
-        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing.");
+        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
         if(!check(compiler, TOKEN_LEFT_PAREN))
         {
             emit_byte(compiler, OP_SUBSCRIPT);
@@ -1345,7 +1379,7 @@ static void function_assignment(TeaCompiler* compiler)
     }
     else if(match(compiler, TOKEN_DOT))
     {
-        consume(compiler, TOKEN_NAME, "Expect property name.");
+        consume(compiler, TOKEN_NAME, "Expect property name");
         uint8_t dot = identifier_constant(compiler, &compiler->parser->previous);
         if(!check(compiler, TOKEN_LEFT_PAREN))
         {
@@ -1382,7 +1416,7 @@ static void function_declaration(TeaCompiler* compiler)
 
 static void var_declaration(TeaCompiler* compiler)
 {
-    uint8_t global = parse_variable(compiler, "Expect variable name.");
+    uint8_t global = parse_variable(compiler, "Expect variable name");
     mark_initialized(compiler);
 
     if(match(compiler, TOKEN_EQUAL))
@@ -1545,11 +1579,11 @@ static void end_loop(TeaCompiler* compiler)
 static void for_statement(TeaCompiler* compiler)
 {
     begin_scope(compiler);
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'for'");
 
     if(match(compiler, TOKEN_VAR))
     {
-        uint8_t global = parse_variable(compiler, "Expect variable name.");
+        uint8_t global = parse_variable(compiler, "Expect variable name");
 
         if(match(compiler, TOKEN_EQUAL))
         {
@@ -1561,7 +1595,7 @@ static void for_statement(TeaCompiler* compiler)
         }
 
         define_variable(compiler, global);
-        consume(compiler, TOKEN_COMMA, "Expect ',' after loop variable.");
+        consume(compiler, TOKEN_COMMA, "Expect ',' after loop variable");
     }
     else if(match(compiler, TOKEN_COMMA))
     {
@@ -1570,7 +1604,7 @@ static void for_statement(TeaCompiler* compiler)
     else
     {
         expression_statement(compiler);
-        consume(compiler, TOKEN_COMMA, "Expect ',' after loop expression.");
+        consume(compiler, TOKEN_COMMA, "Expect ',' after loop expression");
     }
 
     TeaLoop loop;
@@ -1581,7 +1615,7 @@ static void for_statement(TeaCompiler* compiler)
     if(!match(compiler, TOKEN_COMMA))
     {
         expression(compiler);
-        consume(compiler, TOKEN_COMMA, "Expect ',' after loop condition.");
+        consume(compiler, TOKEN_COMMA, "Expect ',' after loop condition");
 
         compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
         emit_byte(compiler, OP_POP); // Condition.
@@ -1594,7 +1628,7 @@ static void for_statement(TeaCompiler* compiler)
         int increment_start = current_chunk(compiler)->count;
         expression(compiler);
         emit_byte(compiler, OP_POP);
-        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses");
 
         emit_loop(compiler, compiler->loop->start);
         compiler->loop->start = increment_start;
@@ -1615,7 +1649,7 @@ static void break_statement(TeaCompiler* compiler)
 {
     if(compiler->loop == NULL)
     {
-        error(compiler, "Cannot use 'break' outside of a loop.");
+        error(compiler, "Cannot use 'break' outside of a loop");
         return;
     }
 
@@ -1632,7 +1666,7 @@ static void continue_statement(TeaCompiler* compiler)
 {
     if(compiler->loop == NULL)
     {
-        error(compiler, "Cannot use 'continue' outside of a loop.");
+        error(compiler, "Cannot use 'continue' outside of a loop");
         return;
     }
 
@@ -1648,9 +1682,9 @@ static void continue_statement(TeaCompiler* compiler)
 
 static void if_statement(TeaCompiler* compiler)
 {
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'if'");
     expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
 
     int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
@@ -1670,10 +1704,10 @@ static void if_statement(TeaCompiler* compiler)
 
 static void switch_statement(TeaCompiler* compiler)
 {
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'switch'");
     expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after value.");
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before switch cases.");
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after value");
+    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before switch cases");
 
     int state = 0; // 0: before all cases, 1: before default, 2: after default.
     int case_ends[256];
@@ -1688,7 +1722,7 @@ static void switch_statement(TeaCompiler* compiler)
 
             if(state == 2) 
             {
-                error(compiler, "Can't have another case or default after the default case.");
+                error(compiler, "Can't have another case or default after the default case");
             }
 
             if(state == 1) 
@@ -1709,7 +1743,7 @@ static void switch_statement(TeaCompiler* compiler)
                 emit_byte(compiler, OP_DUP);
                 expression(compiler);
 
-                consume(compiler, TOKEN_COLON, "Expect ':' after case value.");
+                consume(compiler, TOKEN_COLON, "Expect ':' after case value");
 
                 emit_byte(compiler, OP_EQUAL);
                 previous_case_skip = emit_jump(compiler, OP_JUMP_IF_FALSE);
@@ -1720,7 +1754,7 @@ static void switch_statement(TeaCompiler* compiler)
             else 
             {
                 state = 2;
-                consume(compiler, TOKEN_COLON, "Expect ':' after default.");
+                consume(compiler, TOKEN_COLON, "Expect ':' after default");
                 previous_case_skip = -1;
             }
         } 
@@ -1729,7 +1763,7 @@ static void switch_statement(TeaCompiler* compiler)
             // Otherwise, it's a statement inside the current case.
             if(state == 0) 
             {
-                error(compiler, "Can't have statements before any case.");
+                error(compiler, "Can't have statements before any case");
             }
             emit_byte(compiler, OP_POP);
             statement(compiler);
@@ -1755,7 +1789,7 @@ static void switch_statement(TeaCompiler* compiler)
 static void with_statement(TeaCompiler* compiler)
 {
     compiler->with_block = true;
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after with statement.");
+    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after with statement");
     expression(compiler);
     begin_scope(compiler);
     
@@ -1764,13 +1798,13 @@ static void with_statement(TeaCompiler* compiler)
     local->depth = compiler->scope_depth;
     local->is_captured = false;
 
-    consume(compiler, TOKEN_AS, "Expect alias.");
-    consume(compiler, TOKEN_NAME, "Expect file alias.");
+    consume(compiler, TOKEN_AS, "Expect alias");
+    consume(compiler, TOKEN_NAME, "Expect file alias");
     local->name = compiler->parser->previous;
     compiler->with_file = local->name;
 
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after with statement.");
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before with body.");
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after with statement");
+    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before with body");
 
     emit_byte(compiler, OP_OPEN_CONTEXT);
     block(compiler);
@@ -1798,7 +1832,7 @@ static void return_statement(TeaCompiler* compiler)
 {
     if(compiler->type == TYPE_SCRIPT)
     {
-        error(compiler, "Can't return from top-level code.");
+        error(compiler, "Can't return from top-level code");
     }
 
     if(check(compiler, TOKEN_RIGHT_BRACE))
@@ -1810,7 +1844,7 @@ static void return_statement(TeaCompiler* compiler)
     {
         if(compiler->type == TYPE_CONSTRUCTOR)
         {
-            error(compiler, "Can't return a value from a constructor.");
+            error(compiler, "Can't return a value from a constructor");
         }
 
         expression(compiler);
@@ -1831,7 +1865,7 @@ static void import_statement(TeaCompiler* compiler)
 
         if(match(compiler, TOKEN_AS)) 
         {
-            uint8_t import_name = parse_variable(compiler, "Expect import alias.");
+            uint8_t import_name = parse_variable(compiler, "Expect import alias");
             emit_byte(compiler, OP_IMPORT_VARIABLE);
             define_variable(compiler, import_name);
         }
@@ -1845,7 +1879,7 @@ static void import_statement(TeaCompiler* compiler)
     }
     else
     {
-        consume(compiler, TOKEN_NAME, "Expect import identifier.");
+        consume(compiler, TOKEN_NAME, "Expect import identifier");
         uint8_t import_name = identifier_constant(compiler, &compiler->parser->previous);
         declare_variable(compiler, &compiler->parser->previous);
 
@@ -1858,7 +1892,7 @@ static void import_statement(TeaCompiler* compiler)
 
         if(match(compiler, TOKEN_AS)) 
         {
-            uint8_t import_alias = parse_variable(compiler, "Expect import alias.");
+            uint8_t import_alias = parse_variable(compiler, "Expect import alias");
             emit_bytes(compiler, OP_IMPORT_NATIVE, index);
             emit_byte(compiler, import_alias);
             define_variable(compiler, import_alias);
@@ -1884,7 +1918,7 @@ static void from_import_statement(TeaCompiler* compiler)
     {
         int import_constant = make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
 
-        consume(compiler, TOKEN_IMPORT, "Expect 'import' after import path.");
+        consume(compiler, TOKEN_IMPORT, "Expect 'import' after import path");
         emit_bytes(compiler, OP_IMPORT, import_constant);
         emit_byte(compiler, OP_POP);
 
@@ -1894,14 +1928,14 @@ static void from_import_statement(TeaCompiler* compiler)
 
         do 
         {
-            consume(compiler, TOKEN_NAME, "Expect variable name.");
+            consume(compiler, TOKEN_NAME, "Expect variable name");
             tokens[var_count] = compiler->parser->previous;
             variables[var_count] = identifier_constant(compiler, &compiler->parser->previous);
             var_count++;
 
             if(var_count > 255) 
             {
-                error(compiler, "Cannot have more than 255 variables.");
+                error(compiler, "Cannot have more than 255 variables");
             }
         } 
         while(match(compiler, TOKEN_COMMA));
@@ -1935,7 +1969,7 @@ static void from_import_statement(TeaCompiler* compiler)
     }
     else
     {
-        consume(compiler, TOKEN_NAME, "Expect import identifier.");
+        consume(compiler, TOKEN_NAME, "Expect import identifier");
         uint8_t import_name = identifier_constant(compiler, &compiler->parser->previous);
 
         int index = tea_find_native_module((char*)compiler->parser->previous.start, compiler->parser->previous.length);
@@ -1953,14 +1987,14 @@ static void from_import_statement(TeaCompiler* compiler)
 
         do 
         {
-            consume(compiler, TOKEN_NAME, "Expect variable name.");
+            consume(compiler, TOKEN_NAME, "Expect variable name");
             tokens[var_count] = compiler->parser->previous;
             variables[var_count] = identifier_constant(compiler, &compiler->parser->previous);
             var_count++;
 
             if(var_count > 255) 
             {
-                error(compiler, "Cannot have more than 255 variables.");
+                error(compiler, "Cannot have more than 255 variables");
             }
         } 
         while(match(compiler, TOKEN_COMMA));
@@ -2006,9 +2040,9 @@ static void while_statement(TeaCompiler* compiler)
     }
     else
     {
-        consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+        consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'while'");
         expression(compiler);
-        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
     }
 
     // Jump ot of the loop if the condition is false
@@ -2032,7 +2066,7 @@ static void do_statement(TeaCompiler* compiler)
     compiler->loop->body = compiler->function->chunk.count;
     statement(compiler);
 
-    consume(compiler, TOKEN_WHILE, "Expect while after do statement.");
+    consume(compiler, TOKEN_WHILE, "Expect while after do statement");
 
     if(!check(compiler, TOKEN_LEFT_PAREN))
     {
@@ -2040,9 +2074,9 @@ static void do_statement(TeaCompiler* compiler)
     }
     else
     {
-        consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
+        consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'while'");
         expression(compiler);
-        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
     }
 
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);

@@ -151,14 +151,6 @@ TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass)
     return instance;
 }
 
-TeaObjectNativeFunction* tea_new_native_function(TeaState* state, TeaNativeFunction function)
-{
-    TeaObjectNativeFunction* native = ALLOCATE_OBJECT(state, TeaObjectNativeFunction, OBJ_NATIVE_FUNCTION);
-    native->function = function;
-
-    return native;
-}
-
 static TeaObjectString* allocate_string(TeaState* state, char* chars, int length, uint32_t hash)
 {
     TeaObjectString* string = ALLOCATE_OBJECT(state, TeaObjectString, OBJ_STRING);
@@ -221,6 +213,30 @@ TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot)
     return upvalue;
 }
 
+TeaObjectNativeFunction* tea_new_native_function(TeaState* state, TeaNativeFunction function)
+{
+    TeaObjectNativeFunction* native = ALLOCATE_OBJECT(state, TeaObjectNativeFunction, OBJ_NATIVE_FUNCTION);
+    native->function = function;
+
+    return native;
+}
+
+TeaObjectNativeMethod* tea_new_native_method(TeaState* state, TeaNativeMethod method)
+{
+    TeaObjectNativeMethod* native = ALLOCATE_OBJECT(state, TeaObjectNativeMethod, OBJ_NATIVE_METHOD);
+    native->method = method;
+
+    return native;
+}
+
+TeaObjectNativeProperty* tea_new_native_property(TeaState* state, TeaNativeProperty property)
+{
+    TeaObjectNativeProperty* native = ALLOCATE_OBJECT(state, TeaObjectNativeProperty, OBJ_NATIVE_PROPERTY);
+    native->property = property;
+
+    return native;
+}
+
 void tea_native_value(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
 {
     TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
@@ -230,8 +246,22 @@ void tea_native_value(TeaVM* vm, TeaTable* table, const char* name, TeaValue val
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
 {
     TeaObjectNativeFunction* native = tea_new_native_function(vm->state, function);
-    TeaObjectString* method = tea_copy_string(vm->state, name, strlen(name));
-    tea_table_set(vm->state, table, method, OBJECT_VAL(native));
+    TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
+    tea_table_set(vm->state, table, string, OBJECT_VAL(native));
+}
+
+void tea_native_method(TeaVM* vm, TeaTable* table, const char* name, TeaNativeMethod method)
+{
+    TeaObjectNativeMethod* native = tea_new_native_method(vm->state, method);
+    TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
+    tea_table_set(vm->state, table, string, OBJECT_VAL(native));
+}
+
+void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNativeProperty property)
+{
+    TeaObjectNativeProperty* native = tea_new_native_property(vm->state, property);
+    TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
+    tea_table_set(vm->state, table, string, OBJECT_VAL(native));
 }
 
 static char* list_tostring(TeaObjectList* list)

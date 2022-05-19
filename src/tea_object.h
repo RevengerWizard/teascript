@@ -23,8 +23,10 @@
 #define IS_CLOSURE(value) tea_is_object_type(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value) tea_is_object_type(value, OBJ_FUNCTION)
 #define IS_INSTANCE(value) tea_is_object_type(value, OBJ_INSTANCE)
-#define IS_NATIVE_FUNCTION(value) tea_is_object_type(value, OBJ_NATIVE_FUNCTION)
 #define IS_STRING(value) tea_is_object_type(value, OBJ_STRING)
+#define IS_NATIVE_FUNCTION(value) tea_is_object_type(value, OBJ_NATIVE_FUNCTION)
+#define IS_NATIVE_METHOD(value) tea_is_object_type(value, OBJ_NATIVE_METHOD)
+#define IS_NATIVE_PROPERTY(value) tea_is_object_type(value, OBJ_NATIVE_PROPERTY)
 
 #define IS_CALLABLE_FUNCTION(value) tea_is_callable_function(value)
 
@@ -39,9 +41,11 @@
 #define AS_CLOSURE(value) ((TeaObjectClosure*)AS_OBJECT(value))
 #define AS_FUNCTION(value) ((TeaObjectFunction*)AS_OBJECT(value))
 #define AS_INSTANCE(value) ((TeaObjectInstance*)AS_OBJECT(value))
-#define AS_NATIVE_FUNCTION(value) (((TeaObjectNativeFunction*)AS_OBJECT(value))->function)
 #define AS_STRING(value) ((TeaObjectString*)AS_OBJECT(value))
 #define AS_CSTRING(value) (((TeaObjectString*)AS_OBJECT(value))->chars)
+#define AS_NATIVE_FUNCTION(value) (((TeaObjectNativeFunction*)AS_OBJECT(value))->function)
+#define AS_NATIVE_METHOD(value) (((TeaObjectNativeMethod*)AS_OBJECT(value))->method)
+#define AS_NATIVE_PROPERTY(value) (((TeaObjectNativeProperty*)AS_OBJECT(value))->property)
 
 #define ALLOCATE_OBJECT(state, type, object_type) (type*)tea_allocate_object(state, sizeof(type), object_type)
 
@@ -115,7 +119,7 @@ typedef struct
     TeaObjectModule* module;
 } TeaObjectFunction;
 
-typedef TeaValue (*TeaNativeFunction)(TeaVM* vm, int count, TeaValue* args, bool* error);
+typedef TeaValue (*TeaNativeFunction)(TeaVM* vm, int count, TeaValue* args);
 
 typedef struct
 {
@@ -123,7 +127,7 @@ typedef struct
     TeaNativeFunction function;
 } TeaObjectNativeFunction;
 
-typedef TeaValue (*TeaNativeMethod)(TeaVM* vm, TeaValue instance, int count, TeaValue* args, bool* error);
+typedef TeaValue (*TeaNativeMethod)(TeaVM* vm, TeaValue instance, int count, TeaValue* args);
 
 typedef struct
 {
@@ -230,11 +234,16 @@ TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name);
 TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function);
 TeaObjectFunction* tea_new_function(TeaState* state, TeaObjectModule* module);
 TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass);
-TeaObjectNativeFunction* tea_new_native_function(TeaState* state, TeaNativeFunction function);
 TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot);
+
+TeaObjectNativeFunction* tea_new_native_function(TeaState* state, TeaNativeFunction function);
+TeaObjectNativeMethod* tea_new_native_method(TeaState* state, TeaNativeMethod method);
+TeaObjectNativeProperty* tea_new_native_property(TeaState* state, TeaNativeProperty property);
 
 void tea_native_value(TeaVM* vm, TeaTable* table, const char* name, TeaValue value);
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function);
+void tea_native_method(TeaVM* vm, TeaTable* table, const char* name, TeaNativeMethod method);
+void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNativeProperty property);
 
 TeaObjectString* tea_take_string(TeaState* state, char* chars, int length);
 TeaObjectString* tea_copy_string(TeaState* state, const char* chars, int length);

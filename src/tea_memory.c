@@ -169,6 +169,8 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
             tea_mark_value(vm, ((TeaObjectUpvalue*)object)->closed);
             break;
         case OBJ_NATIVE_FUNCTION:
+        case OBJ_NATIVE_METHOD:
+        case OBJ_NATIVE_PROPERTY:
         case OBJ_STRING:
         case OBJ_RANGE:
         case OBJ_FILE:
@@ -249,6 +251,16 @@ static void free_object(TeaState* state, TeaObject* object)
         case OBJ_NATIVE_FUNCTION:
         {
             FREE(state, TeaObjectNativeFunction, object);
+            break;
+        }
+        case OBJ_NATIVE_METHOD:
+        {
+            FREE(state, TeaObjectNativeMethod, object);
+            break;
+        }
+        case OBJ_NATIVE_PROPERTY:
+        {
+            FREE(state, TeaObjectNativeProperty, object);
             break;
         }
         case OBJ_STRING:

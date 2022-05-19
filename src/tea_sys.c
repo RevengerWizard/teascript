@@ -17,13 +17,14 @@
 #include "tea_core.h"
 #include "tea_config.h"
 
-static TeaValue exit_sys(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue exit_sys(TeaVM* vm, int count, TeaValue* args)
 {
-    if(arg_count == 0) exit(0);
+    if(count == 0) exit(0);
     
     if(!IS_NUMBER(args[0]))
     {
-        NATIVE_ERROR("exit() takes a number value as argument.");
+        tea_runtime_error(vm, "exit() takes a number value as argument");
+        return EMPTY_VAL;
     }
 
     exit(NUMBER_VAL(args[0]));
@@ -31,13 +32,18 @@ static TeaValue exit_sys(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
     return EMPTY_VAL;
 }
 
-static TeaValue sleep_sys(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue sleep_sys(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(sleep, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "sleep() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[0]))
     {
-        NATIVE_ERROR("sleep() argument must be a number.");
+        tea_runtime_error(vm, "sleep() argument must be a number");
+        return EMPTY_VAL;
     }
 
     double stop_time = AS_NUMBER(args[0]);

@@ -4,16 +4,24 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
-static TeaValue random_random(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue random_random(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(random, 0);
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "random() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     return NUMBER_VAL(((double)rand() * (1 - 0)) / (double)RAND_MAX + 0);
 }
 
-static TeaValue range_random(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue range_random(TeaVM* vm, int count, TeaValue* args)
 {
-    RANGE_ARG_COUNT(range, 2, "1 or 2");
+    if(count < 1 || count > 2)
+    {
+        tea_runtime_error(vm, "range() expected either 1 or 2 arguments (got %d)", count);
+        return EMPTY_VAL;
+    }
 
     if(IS_NUMBER(args[0]) && IS_NUMBER(args[1]))
     {
@@ -22,7 +30,7 @@ static TeaValue range_random(TeaVM* vm, int arg_count, TeaValue* args, bool* err
 
         return NUMBER_VAL((rand() % (upper - lower + 1)) + lower);
     }
-    else if(IS_RANGE(args[0]) && arg_count == 1)
+    else if(IS_RANGE(args[0]) && count == 1)
     {
         TeaObjectRange* range = AS_RANGE(args[0]);
         int upper = range->to;
@@ -33,24 +41,30 @@ static TeaValue range_random(TeaVM* vm, int arg_count, TeaValue* args, bool* err
     }
     else
     {
-        NATIVE_ERROR("range() takes two numbers or a range.");
+        tea_runtime_error(vm, "range() takes two numbers or a range");
+        return EMPTY_VAL;
     }
 }
 
-static TeaValue choice_random(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue choice_random(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(choice, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "choice() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_LIST(args[0]))
     {
-        NATIVE_ERROR("choice() argument must be a list.");
+        tea_runtime_error(vm, "choice() argument must be a list");
+        return EMPTY_VAL;
     }
 
     TeaObjectList* list = AS_LIST(args[0]);
-    arg_count = list->items.count;
+    count = list->items.count;
     args = list->items.values;
 
-    int index = rand() % arg_count;
+    int index = rand() % count;
 
     return args[index];
 }

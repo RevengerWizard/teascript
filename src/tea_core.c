@@ -2,18 +2,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "tea_core.h"
 #include "tea_utf.h"
 
 // File
-static TeaValue write_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue write_file(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(write, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "write() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[1]))
     {
-        NATIVE_ERROR("write() argument must be a string.");
+        tea_runtime_error(vm, "write() argument must be a string");
+        return EMPTY_VAL;
     }
 
     TeaObjectFile* file = AS_FILE(args[0]);
@@ -21,7 +27,8 @@ static TeaValue write_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error
 
     if(strcmp(file->type, "r") == 0)
     {
-        NATIVE_ERROR("File is not readable.");
+        tea_runtime_error(vm, "File is not readable");
+        return EMPTY_VAL;
     }
 
     int chars_wrote = fprintf(file->file, "%s", string->chars);
@@ -30,13 +37,18 @@ static TeaValue write_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return NUMBER_VAL(chars_wrote);
 }
 
-static TeaValue writeline_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue writeline_file(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(writeline, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "floor() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[1]))
     {
-        NATIVE_ERROR("writeline() argument must be a string.");
+        tea_runtime_error(vm, "writeline() argument must be a string");
+        return EMPTY_VAL;
     }
 
     TeaObjectFile* file = AS_FILE(args[0]);
@@ -44,7 +56,8 @@ static TeaValue writeline_file(TeaVM* vm, int arg_count, TeaValue* args, bool* e
 
     if(strcmp(file->type, "r") == 0)
     {
-        NATIVE_ERROR("File is not readable.");
+        tea_runtime_error(vm, "File is not readable");
+        return EMPTY_VAL;
     }
 
     int chars_wrote = fprintf(file->file, "%s\n", string->chars);
@@ -53,10 +66,14 @@ static TeaValue writeline_file(TeaVM* vm, int arg_count, TeaValue* args, bool* e
     return NUMBER_VAL(chars_wrote);
 }
 
-static TeaValue read_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue read_file(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(read, 0);
-
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "read() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+    
     TeaObjectFile* file = AS_FILE(args[0]);
 
     size_t current_position = ftell(file->file);
@@ -69,14 +86,16 @@ static TeaValue read_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
     char* buffer = ALLOCATE(vm->state, char, file_size + 1);
     if (buffer == NULL) 
     {
-        NATIVE_ERROR("Not enough memory to read \"%s\".\n", file->path);
+        tea_runtime_error(vm, "Not enough memory to read \"%s\".\n", file->path);
+        return EMPTY_VAL;
     }
 
     size_t bytes_read = fread(buffer, sizeof(char), file_size, file->file);
     if(bytes_read < file_size && !feof(file->file)) 
     {
         FREE_ARRAY(vm->state, char, buffer, file_size + 1);
-        NATIVE_ERROR("Could not read file \"%s\".\n", file->path);
+        tea_runtime_error(vm, "Could not read file \"%s\".\n", file->path);
+        return EMPTY_VAL;
     }
 
     if(bytes_read != file_size)
@@ -88,9 +107,13 @@ static TeaValue read_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
     return OBJECT_VAL(tea_take_string(vm->state, buffer, bytes_read));
 }
 
-static TeaValue readline_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue readline_file(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(readline, 0);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "readline() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     char line[4096];
 
@@ -110,17 +133,22 @@ static TeaValue readline_file(TeaVM* vm, int arg_count, TeaValue* args, bool* er
     return NULL_VAL;
 }
 
-static TeaValue seek_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue seek_file(TeaVM* vm, int count, TeaValue* args)
 {
-    RANGE_ARG_COUNT(seek, 2, "1 or 2");
+    if(count < 1 || count > 2)
+    {
+        tea_runtime_error(vm, "seek() expected either 1 or 2 arguments (got %d)", count);
+        return EMPTY_VAL;
+    }
 
     int seek_type = SEEK_SET;
 
-    if(arg_count == 2) 
+    if(count == 2) 
     {
         if(!IS_NUMBER(args[1]) || !IS_NUMBER(args[2])) 
         {
-            NATIVE_ERROR("seek() arguments must be numbers");
+            tea_runtime_error(vm, "seek() arguments must be numbers");
+            return EMPTY_VAL;
         }
 
         int seek_type_num = AS_NUMBER(args[2]);
@@ -144,7 +172,7 @@ static TeaValue seek_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 
     if(!IS_NUMBER(args[1])) 
     {
-        NATIVE_ERROR("seek() argument must be a number");
+        tea_runtime_error(vm, "seek() argument must be a number");
         return EMPTY_VAL;
     }
 
@@ -153,7 +181,8 @@ static TeaValue seek_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 
     if(offset != 0 && !strstr(file->type, "b")) 
     {
-        NATIVE_ERROR("seek() may not have non-zero offset if file is opened in text mode.");
+        tea_runtime_error(vm, "seek() may not have non-zero offset if file is opened in text mode");
+        return EMPTY_VAL;
     }
 
     fseek(file->file, offset, seek_type);
@@ -162,7 +191,7 @@ static TeaValue seek_file(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
 }
 
 // String
-static TeaValue reverse_string(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue reverse_string(TeaVM* vm, int count, TeaValue* args)
 {
     const char* string = AS_CSTRING(args[0]);
 
@@ -184,14 +213,19 @@ static TeaValue reverse_string(TeaVM* vm, int arg_count, TeaValue* args, bool* e
 }
 
 // List
-static TeaValue add_list(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue add_list(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(add, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "add() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     TeaObjectList* list = AS_LIST(args[0]);
     if(IS_LIST(args[1]) && AS_LIST(args[1]) == list)
     {
-        NATIVE_ERROR("Cannot add list into itself.");
+        tea_runtime_error(vm, "Cannot add list into itself");
+        return EMPTY_VAL;
     }
     
     tea_write_value_array(vm->state, &list->items, args[1]);
@@ -199,9 +233,13 @@ static TeaValue add_list(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
     return EMPTY_VAL;
 }
 
-static TeaValue remove_list(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue remove_list(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(remove, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "remove() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     TeaObjectList* list = AS_LIST(args[0]);
     TeaValue remove = args[1];
@@ -248,26 +286,36 @@ static TeaValue remove_list(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
         return EMPTY_VAL;
     }
 
-    NATIVE_ERROR("Value does not exist within the list");
+    tea_runtime_error(vm, "Value does not exist within the list");
+    return EMPTY_VAL;
 }
 
-static TeaValue clear_list(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue clear_list(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(clear, 0);
-
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "clear() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+    
     TeaObjectList* list = AS_LIST(args[0]);
     tea_init_value_array(&list->items);
 
     return EMPTY_VAL;
 }
 
-static TeaValue insert_list(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue insert_list(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(insert, 2);
+    if(count != 2)
+    {
+        tea_runtime_error(vm, "insert() takes 2 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[2]))
     {
-        NATIVE_ERROR("insert() second argument must be a number.");
+        tea_runtime_error(vm, "insert() second argument must be a number");
+        return EMPTY_VAL;
     }
 
     TeaObjectList* list = AS_LIST(args[0]);
@@ -276,7 +324,8 @@ static TeaValue insert_list(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
 
     if(index < 0 || index > list->items.count) 
     {
-        NATIVE_ERROR("Index out of bounds for the list given");
+        tea_runtime_error(vm, "Index out of bounds for the list given");
+        return EMPTY_VAL;
     }
 
     if(list->items.capacity < list->items.count + 1) 
@@ -298,9 +347,13 @@ static TeaValue insert_list(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
     return EMPTY_VAL;
 }
 
-static TeaValue reverse_list(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue reverse_list(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(reverse, 0);
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "reverse() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     TeaObjectList* list = AS_LIST(args[0]);
     int length = list->items.count;
@@ -316,16 +369,16 @@ static TeaValue reverse_list(TeaVM* vm, int arg_count, TeaValue* args, bool* err
 }
 
 // Globals
-static TeaValue print_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue print_native(TeaVM* vm, int count, TeaValue* args)
 {
-    if(arg_count == 0)
+    if(count == 0)
     {
         printf("\n");
 
         return EMPTY_VAL;
     }
 
-    for(int i = 0; i < arg_count; i++)
+    for(int i = 0; i < count; i++)
     {
         tea_print_value(args[i]);
         printf("\t");
@@ -336,16 +389,21 @@ static TeaValue print_native(TeaVM* vm, int arg_count, TeaValue* args, bool* err
     return EMPTY_VAL;
 }
 
-static TeaValue input_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue input_native(TeaVM* vm, int count, TeaValue* args)
 {
-    RANGE_ARG_COUNT(input, 1, "0 or 1");
+    if(count < 0 || count > 1)
+    {
+        tea_runtime_error(vm, "input() expected either 0 or 1 arguments (got %d)", count);
+        return EMPTY_VAL;
+    }
 
-    if(arg_count != 0) 
+    if(count != 0) 
     {
         TeaValue prompt = args[0];
         if(!IS_STRING(prompt)) 
         {
-            NATIVE_ERROR("input() only takes a string argument");
+            tea_runtime_error(vm, "input() only takes a string argument");
+            return EMPTY_VAL;
         }
 
         printf("%s", AS_CSTRING(prompt));
@@ -356,7 +414,8 @@ static TeaValue input_native(TeaVM* vm, int arg_count, TeaValue* args, bool* err
 
     if(line == NULL) 
     {
-        NATIVE_ERROR("Memory error on input()!");
+        tea_runtime_error(vm, "Memory error on input()!");
+        return EMPTY_VAL;
     }
 
     int c = EOF;
@@ -390,13 +449,18 @@ static TeaValue input_native(TeaVM* vm, int arg_count, TeaValue* args, bool* err
     return OBJECT_VAL(tea_take_string(vm->state, line, length));
 }
 
-static TeaValue open_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue open_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(open, 2);
+    if(count != 2)
+    {
+        tea_runtime_error(vm, "open() takes 2 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[0]) || !IS_STRING(args[1]))
     {
-        NATIVE_ERROR("open() expects two strings.");
+        tea_runtime_error(vm, "open() expects two strings");
+        return EMPTY_VAL;
     }
 
     TeaObjectFile* file = tea_new_file(vm->state);
@@ -407,40 +471,57 @@ static TeaValue open_native(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
     return OBJECT_VAL(file);
 }
 
-static TeaValue assert_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue assert_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(assert, 2);
+    if(count != 2)
+    {
+        tea_runtime_error(vm, "assert() takes 2 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(tea_is_falsey(args[0]))
     {
-        NATIVE_ERROR("%s", AS_CSTRING(args[1]));
+        tea_runtime_error(vm, "%s", AS_CSTRING(args[1]));
+        return EMPTY_VAL;
     }
 
     return EMPTY_VAL;
 }
 
-static TeaValue error_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue error_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(error, 1);
-    
-    NATIVE_ERROR("%s", AS_CSTRING(args[0]));
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "error() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    tea_runtime_error(vm, "%s", AS_CSTRING(args[0]));
 
     return EMPTY_VAL;
 }
 
-static TeaValue type_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue type_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(type, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "type() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     const char* type = tea_value_type(args[0]);
 
     return OBJECT_VAL(tea_copy_string(vm->state, type, (int)strlen(type)));
 }
 
-static TeaValue number_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue number_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(number, 1);
-
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "number() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+    
     if(IS_NUMBER(args[0]))
     {
         return args[0];
@@ -459,34 +540,47 @@ static TeaValue number_native(TeaVM* vm, int arg_count, TeaValue* args, bool* er
 
         if(errno != 0 || *end != '\0')
         {
-            NATIVE_ERROR("Failed conversion.");
+            tea_runtime_error(vm, "Failed conversion");
+            return EMPTY_VAL;
         }
 
         return NUMBER_VAL(number);
     }
 }
 
-static TeaValue string_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue string_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(string, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "string() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     const char* string = tea_value_tostring(vm->state, args[0]);
 
     return OBJECT_VAL(tea_copy_string(vm->state, string, strlen(string)));
 }
 
-static TeaValue char_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue char_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(char, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "char() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     TeaObjectString* string = tea_ustring_from_code_point(vm->state, AS_NUMBER(args[0]));
 
     return OBJECT_VAL(string);
 }
 
-static TeaValue ord_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue ord_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(ord, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "ord() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     TeaObjectString* string = AS_STRING(args[0]);
     int index = tea_ustring_decode((uint8_t*)string->chars, 1);
@@ -494,28 +588,35 @@ static TeaValue ord_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return NUMBER_VAL(index);
 }
 
-static TeaValue gc_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue gc_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(gc, 0);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "gc() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     tea_collect_garbage(vm);
 
     return EMPTY_VAL;
 }
 
-static TeaValue interpret_native(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue interpret_native(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(interpret, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "interpret() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[0]))
     {
-        NATIVE_ERROR("interpret() argument must be a string.");
+        tea_runtime_error(vm, "interpret() argument must be a string");
+        return EMPTY_VAL;
     }
 
     TeaState* state = tea_init_state();
-
     tea_interpret(state, "interpret", AS_CSTRING(args[0]));
-
     tea_free_state(state);
 
     return EMPTY_VAL;

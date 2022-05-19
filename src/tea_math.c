@@ -4,27 +4,28 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
-static TeaValue min_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue min_math(TeaVM* vm, int count, TeaValue* args)
 {
-    if(arg_count == 0) 
+    if(count == 0) 
     {
         return NUMBER_VAL(0);
     } 
-    else if(arg_count == 1 && IS_LIST(args[0])) 
+    else if(count == 1 && IS_LIST(args[0])) 
     {
         TeaObjectList* list = AS_LIST(args[0]);
-        arg_count = list->items.count;
+        count = list->items.count;
         args = list->items.values;
     }
 
     double minimum = AS_NUMBER(args[0]);
 
-    for(int i = 1; i < arg_count; i++) 
+    for(int i = 1; i < count; i++) 
     {
         TeaValue value = args[i];
         if(!IS_NUMBER(value)) 
         {
-            NATIVE_ERROR("A non-number value passed to min()");
+            tea_runtime_error(vm, "A non-number value passed to min()");
+            return EMPTY_VAL;
         }
 
         double current = AS_NUMBER(value);
@@ -38,27 +39,28 @@ static TeaValue min_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
     return NUMBER_VAL(minimum);
 }
 
-static TeaValue max_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue max_math(TeaVM* vm, int count, TeaValue* args)
 {
-    if(arg_count == 0) 
+    if(count == 0) 
     {
         return NUMBER_VAL(0);
     } 
-    else if(arg_count == 1 && IS_LIST(args[0])) 
+    else if(count == 1 && IS_LIST(args[0])) 
     {
         TeaObjectList* list = AS_LIST(args[0]);
-        arg_count = list->items.count;
+        count = list->items.count;
         args = list->items.values;
     }
 
     double maximum = AS_NUMBER(args[0]);
 
-    for(int i = 1; i < arg_count; i++) 
+    for(int i = 1; i < count; i++) 
     {
         TeaValue value = args[i];
         if(!IS_NUMBER(value)) 
         {
-            NATIVE_ERROR("A non-number value passed to min()");
+            tea_runtime_error(vm, "A non-number value passed to min()");
+            return EMPTY_VAL;
         }
 
         double current = AS_NUMBER(value);
@@ -72,20 +74,20 @@ static TeaValue max_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
     return NUMBER_VAL(maximum);
 }
 
-static TeaValue mid_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue mid_math(TeaVM* vm, int count, TeaValue* args)
 {
-    if(arg_count == 0)
+    if(count == 0)
     {
         return NUMBER_VAL(0);
     }
-    else if(arg_count == 1 && IS_LIST(args[0]))
+    else if(count == 1 && IS_LIST(args[0]))
     {
         TeaObjectList* list = AS_LIST(args[0]);
-        arg_count = list->items.count;
+        count = list->items.count;
         args = list->items.values;
     }
 
-    if(arg_count == 3 && IS_NUMBER(args[0]) && IS_NUMBER(args[1]) && IS_NUMBER(args[2]))
+    if(count == 3 && IS_NUMBER(args[0]) && IS_NUMBER(args[1]) && IS_NUMBER(args[2]))
     {
         double x = AS_NUMBER(args[0]);
         double y = AS_NUMBER(args[1]);
@@ -116,31 +118,33 @@ static TeaValue mid_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
     }
     else
     {
-        NATIVE_ERROR("mid() takes three numbers");
+        tea_runtime_error(vm, "mid() takes three numbers");
+        return EMPTY_VAL;
     }
 }
 
-static TeaValue average_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue average_math(TeaVM* vm, int count, TeaValue* args)
 {
     double average = 0;
 
-    if(arg_count == 0)
+    if(count == 0)
     {
         return NUMBER_VAL(0);
     }
-    else if(arg_count == 1 && IS_LIST(args[0]))
+    else if(count == 1 && IS_LIST(args[0]))
     {
         TeaObjectList* list = AS_LIST(args[0]);
-        arg_count = list->items.count;
+        count = list->items.count;
         args = list->items.values;
     }
 
-    for(int i = 1; i < arg_count; i++) 
+    for(int i = 1; i < count; i++) 
     {
         TeaValue value = args[i];
         if(!IS_NUMBER(value)) 
         {
-            NATIVE_ERROR("A non-number value passed to min()");
+            tea_runtime_error(vm, "A non-number value passed to min()");
+            return EMPTY_VAL;
         }
 
         average = average + AS_NUMBER(value);
@@ -149,93 +153,161 @@ static TeaValue average_math(TeaVM* vm, int arg_count, TeaValue* args, bool* err
     return NUMBER_VAL(average);
 }
 
-static TeaValue floor_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue floor_math(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(floor, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "floor() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[0])) 
     {
-        NATIVE_ERROR("A non-number value passed to floor()");
+        tea_runtime_error(vm, "A non-number value passed to floor()");
+        return EMPTY_VAL;
     }
 
     return NUMBER_VAL(round(AS_NUMBER(args[0])));
 }
 
-static TeaValue ceil_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue ceil_math(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(ceil, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "ceil() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[0])) 
     {
-        NATIVE_ERROR("A non-number value passed to ceil()");
+        tea_runtime_error(vm, "A non-number value passed to ceil()");
+        return EMPTY_VAL;
     }
 
     return NUMBER_VAL(ceil(AS_NUMBER(args[0])));
 }
 
-static TeaValue round_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue round_math(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(round, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "round() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[0])) 
     {
-        NATIVE_ERROR("A non-number value passed to round()");
+        tea_runtime_error(vm, "A non-number value passed to round()");
+        return EMPTY_VAL;
     }
 
     return NUMBER_VAL(round(AS_NUMBER(args[0])));
 }
 
-static TeaValue cos_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue cos_math(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(cos, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "cos() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[0])) 
     {
-        NATIVE_ERROR("A non-number value passed to cos()");
+        tea_runtime_error(vm, "A non-number value passed to cos()");
+        return EMPTY_VAL;
     }
 
     return NUMBER_VAL(cos(AS_NUMBER(args[0])));
 }
 
-static TeaValue sin_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue sin_math(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(sin, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "sin() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[0])) 
     {
-        NATIVE_ERROR("A non-number value passed to sin()");
+        tea_runtime_error(vm, "A non-number value passed to sin()");
+        return EMPTY_VAL;
     }
 
     return NUMBER_VAL(sin(AS_NUMBER(args[0])));
 }
 
-static TeaValue tan_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue tan_math(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(tan, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "tan() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_NUMBER(args[0])) 
     {
-        NATIVE_ERROR("A non-number value passed to tan()");
+        tea_runtime_error(vm, "A non-number value passed to tan()");
+        return EMPTY_VAL;
     }
 
     return NUMBER_VAL(tan(AS_NUMBER(args[0])));
 }
 
-static TeaValue sign_math(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue sign_math(TeaVM* vm, int count, TeaValue* args)
 {
-    if(arg_count == 0)
+    if(count != 1)
     {
-        return NUMBER_VAL(0);
+        tea_runtime_error(vm, "sign() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
     }
 
     if(!IS_NUMBER(args[0]))
     {
-        NATIVE_ERROR("sign() takes a number");
+        tea_runtime_error(vm, "sign() takes a number");
+        return EMPTY_VAL;
     }
 
     double n = AS_NUMBER(args[0]);
 
     return (n > 0) ? NUMBER_VAL(1) : ((n < 0) ? NUMBER_VAL(-1) : NUMBER_VAL(0));
+}
+
+static TeaValue abs_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "abs() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0]))
+    {
+        tea_runtime_error(vm, "A non-number value passed to abs()");
+        return EMPTY_VAL;
+    }
+
+    double n = AS_NUMBER(args[0]);
+
+    return (n < 0) ? NUMBER_VAL(n * -1) : NUMBER_VAL(n);
+}
+
+static TeaValue sqrt_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "sqrt() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0])) 
+    {
+        tea_runtime_error(vm, "A non-number value passed to sqrt()");
+        return EMPTY_VAL;
+    }
+
+    return NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
 }
 
 TeaValue tea_import_math(TeaVM* vm)
@@ -254,9 +326,18 @@ TeaValue tea_import_math(TeaVM* vm)
     tea_native_function(vm, &module->values, "sin", sin_math);
     tea_native_function(vm, &module->values, "tan", tan_math);
     tea_native_function(vm, &module->values, "sign", sign_math);
+    tea_native_function(vm, &module->values, "abs", abs_math);
+    tea_native_function(vm, &module->values, "sqrt", sqrt_math);
 
-    tea_native_value(vm, &module->values, "pi", NUMBER_VAL(M_PI));
-    tea_native_value(vm, &module->values, "e", NUMBER_VAL(M_E));
+    tea_native_value(vm, &module->values, "pi", NUMBER_VAL(3.14159265358979323846));
+    tea_native_value(vm, &module->values, "e", NUMBER_VAL(2.71828182845904523536));
+    tea_native_value(vm, &module->values, "phi", NUMBER_VAL(1.61803398874989484820));
+    tea_native_value(vm, &module->values, "sqrt2", NUMBER_VAL(1.41421356237309504880));
+    tea_native_value(vm, &module->values, "sqrte", NUMBER_VAL(0));
+    tea_native_value(vm, &module->values, "sqrtpi", NUMBER_VAL(0));
+    tea_native_value(vm, &module->values, "sqrtphi", NUMBER_VAL(0));
+    tea_native_value(vm, &module->values, "ln2", NUMBER_VAL(0));
+    tea_native_value(vm, &module->values, "ln10", NUMBER_VAL(0));
 
     return OBJECT_VAL(module);
 }

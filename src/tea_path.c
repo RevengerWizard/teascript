@@ -17,34 +17,44 @@
 #endif
 
 #ifdef HAS_REALPATH
-static TeaValue realpath_path(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue realpath_path(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(realpath, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "realpath() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[0]))
     {
-        NATIVE_ERROR("realpath() takes a string as argument.");
+        tea_runtime_error(vm, "realpath() argument must be a string");
+        return EMPTY_VAL
     }
 
     char* path = AS_CSTRING(args[0]);
 
-    char temp[PATH_MAX + 1]
+    char temp[PATH_MAX + 1];
     if(NULL == realpath(path, temp))
     {
-        return NULL_VAL
+        return NULL_VAL;
     }
 
     return OBJECT_VAL(tea_copy_string(vm->state, temp, strlen(temp)));
 }
 #endif
 
-static TeaValue isabs_path(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue isabs_path(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(isabs, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "isabs() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[0]))
     {
-        NATIVE_ERROR("isabs() takes a string as argument.");
+        tea_runtime_error(vm, "isabs() argument must be a string");
+        return EMPTY_VAL;
     }
 
     char* path = AS_CSTRING(args[0]);
@@ -52,13 +62,18 @@ static TeaValue isabs_path(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return (IS_DIR_SEPARATOR(path[0]) ? TRUE_VAL : FALSE_VAL);
 }
 
-static TeaValue isdir_path(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue isdir_path(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(isdir, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "isdir() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[0]))
     {
-        NATIVE_ERROR("isdir() takes a string as argument.");
+        tea_runtime_error(vm, "isdir() argument must be a string");
+        return EMPTY_VAL;
     }
 
     char* path = AS_CSTRING(args[0]);
@@ -68,13 +83,18 @@ static TeaValue isdir_path(TeaVM* vm, int arg_count, TeaValue* args, bool* error
     return BOOL_VAL(S_ISDIR(path_stat.st_mode));
 }
 
-static TeaValue isfile_path(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue isfile_path(TeaVM* vm, int count, TeaValue* args)
 {
-    VALIDATE_ARG_COUNT(isfile, 1);
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "isfile() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
     if(!IS_STRING(args[0]))
     {
-        NATIVE_ERROR("isfile() takes a string as argument.");
+        tea_runtime_error(vm, "isfile() argument must be a string");
+        return EMPTY_VAL;
     }
 
     char* path = AS_CSTRING(args[0]);

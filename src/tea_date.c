@@ -3,11 +3,15 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
-static TeaValue isleap_date(TeaVM* vm, int arg_count, TeaValue* args, bool* error)
+static TeaValue isleap_date(TeaVM* vm, int count, TeaValue* args)
 {
-    RANGE_ARG_COUNT(isleap, 1, "0 or 1");
+    if(count < 0 || count > 1)
+    {
+        tea_runtime_error(vm, "isleap() expected either 0 or 1 arguments (got %d)", count);
+        return EMPTY_VAL;
+    }
 
-    if(arg_count == 0)
+    if(count == 0)
     {
         time_t t = time(NULL);
         struct tm tm = *localtime(&t);
@@ -15,7 +19,7 @@ static TeaValue isleap_date(TeaVM* vm, int arg_count, TeaValue* args, bool* erro
 
         return BOOL_VAL(year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
     }
-    else if(arg_count == 1 && IS_NUMBER(args[0]))
+    else if(count == 1 && IS_NUMBER(args[0]))
     {
         int year = AS_NUMBER(args[0]);
 

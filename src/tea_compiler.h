@@ -19,6 +19,7 @@ typedef enum
     PREC_RANGE,      // .. ...
     PREC_TERM,       // + -
     PREC_FACTOR,     // * /
+    PREC_INDICES,    // **
     PREC_UNARY,      // ! - ~
     PREC_CALL,       // . ()
     PREC_SUBSCRIPT,  // []

@@ -39,6 +39,8 @@ typedef struct TeaVM
     TeaObjectUpvalue* open_upvalues;
 
     TeaObject* objects;
+    
+    bool error;
 
     int gray_count;
     int gray_capacity;

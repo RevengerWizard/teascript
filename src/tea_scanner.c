@@ -342,7 +342,7 @@ static TeaToken make_number_token(TeaScanner* scanner, bool is_hex, bool is_bin)
 	if(errno == ERANGE) 
     {
 		errno = 0;
-		return error_token(scanner, "Number too big.");
+		return error_token(scanner, "Number too big");
 	}
 
 	TeaToken token = make_token(scanner, TOKEN_NUMBER);
@@ -355,7 +355,7 @@ static TeaToken hex_number(TeaScanner* scanner)
 {
     if(!is_hex_digit(peek(scanner)))
     {
-        return error_token(scanner, "Invalid hex literal.");
+        return error_token(scanner, "Invalid hex literal");
     }
     while(is_hex_digit(peek(scanner))) advance(scanner);
 
@@ -366,7 +366,7 @@ static TeaToken binary_number(TeaScanner* scanner)
 {
     if(!is_binary_digit(peek(scanner)))
     {
-        return error_token(scanner, "Invalid binary literal.");
+        return error_token(scanner, "Invalid binary literal");
     }
     while(is_binary_digit(peek(scanner))) advance(scanner);
 
@@ -382,7 +382,7 @@ static TeaToken exponent_number(TeaScanner* scanner)
 
     if(!is_digit(peek(scanner)))
     {
-        return error_token(scanner, "Unterminated scientific notation.");
+        return error_token(scanner, "Unterminated scientific notation");
     }
 
     while(is_digit(peek(scanner))) advance(scanner);
@@ -432,7 +432,7 @@ static TeaToken string(TeaScanner* scanner, char string_token)
         {
             case '\0':
             {
-                return error_token(scanner, "Unterminated string.");
+                return error_token(scanner, "Unterminated string");
             }
             case '\n':
             {
@@ -463,7 +463,7 @@ static TeaToken string(TeaScanner* scanner, char string_token)
                     case 'v': tea_write_bytes(state, &bytes, '\v'); break;
                     default: 
                     {
-                        return error_token(scanner, "Invalid escape character.");
+                        return error_token(scanner, "Invalid escape character");
                     }
                 }
                 break;
@@ -544,7 +544,28 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         }
         case '-': return match_tokens(scanner, '=', '-', TOKEN_MINUS_EQUAL, TOKEN_MINUS_MINUS, TOKEN_MINUS);
         case '+': return match_tokens(scanner, '=', '+', TOKEN_PLUS_EQUAL, TOKEN_PLUS_PLUS, TOKEN_PLUS);
-        case '*': return make_token(scanner, match(scanner, '=') ? TOKEN_STAR_EQUAL : TOKEN_STAR);
+        case '*':
+        {
+            if(match(scanner, '='))
+            {
+                return make_token(scanner, TOKEN_STAR_EQUAL);
+            }
+            else if(match(scanner, '*'))
+            {
+                if(match(scanner, '='))
+                {
+                    return make_token(scanner, TOKEN_STAR_STAR_EQUAL);
+                }
+                else
+                {
+                    return make_token(scanner, TOKEN_STAR_STAR);
+                }
+            }
+            else
+            {
+                return make_token(scanner, TOKEN_STAR);
+            }
+        }
         case '/': return make_token(scanner, match(scanner, '=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
         case '%': return make_token(scanner, match(scanner, '=') ? TOKEN_PERCENT_EQUAL : TOKEN_PERCENT);
         case '&': return make_token(scanner, match(scanner, '=') ? TOKEN_AMPERSAND_EQUAL : TOKEN_AMPERSAND);
@@ -559,5 +580,5 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         case '\'': return string(scanner, '\'');
     }
 
-    return error_token(scanner, "Unexpected character.");
+    return error_token(scanner, "Unexpected character");
 }
