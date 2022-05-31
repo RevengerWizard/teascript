@@ -81,9 +81,6 @@ typedef struct TeaCompiler
     TeaUpvalue upvalues[UINT8_COUNT];
 
     int scope_depth;
-
-    bool with_block;
-    TeaToken with_file;
 } TeaCompiler;
 
 typedef void (*TeaParsePrefixFn)(TeaCompiler* compiler, bool can_assign);

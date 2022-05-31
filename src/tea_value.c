@@ -75,35 +75,39 @@ char* tea_value_tostring(TeaState* state, TeaValue value)
     }
     else if(IS_NUMBER(value))
     {
-        double number = AS_NUMBER(value);
-        if(isnan(number)) return "nan";
-        if(isinf(number))
-        {
-            if(number > 0.0)
-            {
-                return "infinity";
-            }
-            else
-            {
-                return "-infinity";
-            }
-        }
-
-        int length = snprintf(NULL, 0, "%.15g", number) + 1;
-        char* string = ALLOCATE(state, char, length);
-        snprintf(string, length, "%.15g", number);
-
-        return string;
+        return tea_number_tostring(state, AS_NUMBER(value));
     }
     else if(IS_OBJECT(value))
     {
-        return tea_object_tostring(value);
+        return tea_object_tostring(state, value);
     }
 
     return "unknown";
 #else
     // Support
 #endif
+}
+
+char* tea_number_tostring(TeaState* state, double number)
+{
+    if(isnan(number)) return "nan";
+    if(isinf(number))
+    {
+        if(number > 0.0)
+        {
+            return "infinity";
+        }
+        else
+        {
+            return "-infinity";
+        }
+    }
+
+    int length = snprintf(NULL, 0, "%.15g", number) + 1;
+    char* string = ALLOCATE(state, char, length);
+    snprintf(string, length, "%.15g", number);
+
+    return string;
 }
 
 void tea_print_value(TeaValue value)

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 
 #include "tea_module.h"
 #include "tea_core.h"
@@ -12,7 +13,7 @@ static TeaValue random_random(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
-    return NUMBER_VAL(((double)rand() * (1 - 0)) / (double)RAND_MAX + 0);
+    return NUMBER_VAL(((double)rand()) / (double)RAND_MAX);
 }
 
 static TeaValue range_random(TeaVM* vm, int count, TeaValue* args)
@@ -69,6 +70,36 @@ static TeaValue choice_random(TeaVM* vm, int count, TeaValue* args)
     return args[index];
 }
 
+static TeaValue shuffle_random(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "shuffle() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_LIST(args[0]))
+    {
+        tea_runtime_error(vm, "shuffle() argument must be a list");
+        return EMPTY_VAL;
+    }
+
+    TeaObjectList* list = AS_LIST(args[0]);
+
+    if(list->items.count <= 1) return args[0];
+
+    srand(time(NULL));
+    for(int i = list->items.count - 1; i > 0; i--)
+    {
+        int j = floor(i + rand() / (RAND_MAX / (list->items.count - i) + 1));
+        TeaValue value = list->items.values[i];
+        list->items.values[i] = list->items.values[j];
+        list->items.values[j] = value;
+    }
+
+    return OBJECT_VAL(list);
+}
+
 TeaValue tea_import_random(TeaVM* vm)
 {
     TeaObjectString* name = tea_copy_string(vm->state, TEA_RANDOM_MODULE, 6);
@@ -77,6 +108,7 @@ TeaValue tea_import_random(TeaVM* vm)
     tea_native_function(vm, &module->values, "random", random_random);
     tea_native_function(vm, &module->values, "range", range_random);
     tea_native_function(vm, &module->values, "choice", choice_random);
+    tea_native_function(vm, &module->values, "shuffle", shuffle_random);
 
     return OBJECT_VAL(module);
 }

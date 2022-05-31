@@ -1,7 +1,10 @@
+#include <stdlib.h>
+#include <math.h>
 #include <time.h>
 
 #ifdef _WIN32
 #include <direct.h>
+#include <winsock2.h>
 #include <ws2tcpip.h>
 #define REMOVE remove
 #define MKDIR(d, m) ((void)m, _mkdir(d))

@@ -11,6 +11,7 @@
 #include "tea_vm.h"
 #include "tea_util.h"
 
+#include "tea_utf.h"
 #include "tea_core.h"
 #include "tea_module.h"
 
@@ -92,6 +93,79 @@ void tea_free_vm(TeaVM* vm)
 #endif
 }
 
+static bool in_(TeaVM* vm, TeaValue object, TeaValue value)
+{
+    if(IS_OBJECT(object))
+    {
+        switch(OBJECT_TYPE(object))
+        {
+            case OBJ_STRING:
+            {
+                if(!IS_STRING(value))
+                {
+                    tea_push(vm, FALSE_VAL);
+                    return true;
+                }
+
+                TeaObjectString* string = AS_STRING(object);
+                TeaObjectString* sub = AS_STRING(value);
+
+                if(sub == string)
+                {
+                    tea_push(vm, TRUE_VAL);
+                    return true;
+                }
+
+                tea_push(vm, BOOL_VAL(strstr(string->chars, sub->chars) != NULL));
+                return true;
+            }
+            case OBJ_RANGE:
+            {
+                if(!IS_NUMBER(value))
+                {
+                    tea_push(vm, FALSE_VAL);
+                    return true;
+                }
+
+                double number = AS_NUMBER(value);
+                TeaObjectRange* range = AS_RANGE(object);
+                int from = range->from;
+                int to = !range->inclusive ? range->to - 1 : range->to;
+
+                if(number < from || number > to)
+                {
+                    tea_push(vm, FALSE_VAL);
+                    return true;
+                }
+
+                tea_push(vm, TRUE_VAL);
+                return true;
+            }
+            case OBJ_LIST:
+            {
+                TeaObjectList* list = AS_LIST(object);
+
+                for(int i = 0; i < list->items.count; ++i) 
+                {
+                    if(tea_values_equal(list->items.values[i], value)) 
+                    {
+                        tea_push(vm, TRUE_VAL);
+                        return true;
+                    }
+                }
+
+                tea_push(vm, FALSE_VAL);
+                return true;
+            }
+            default:
+                break;
+        }
+    }
+
+    tea_runtime_error(vm, "%s is not an iterable", tea_value_type(object));
+    return false;
+}
+
 static bool subscript(TeaVM* vm, TeaValue index_value, TeaValue subscript_value)
 {
     if(IS_OBJECT(subscript_value))
@@ -158,18 +232,20 @@ static bool subscript(TeaVM* vm, TeaValue index_value, TeaValue subscript_value)
 
                 TeaObjectString* string = AS_STRING(subscript_value);
                 int index = AS_NUMBER(index_value);
+                int real_length = tea_ustring_length(string);
 
                 // Allow negative indexes
                 if(index < 0)
                 {
-                    index = string->length + index;
+                    index = real_length + index;
                 }
 
                 if(index >= 0 && index < string->length)
                 {
                     tea_pop(vm);
                     tea_pop(vm);
-                    tea_push(vm, OBJECT_VAL(tea_copy_string(vm->state, &string->chars[index], 1)));
+                    TeaObjectString* c = tea_ustring_code_point_at(vm->state, string, tea_uchar_offset(string->chars, index));
+                    tea_push(vm, c == NULL ? NULL_VAL : OBJECT_VAL(c));
                     return true;
                 }
 
@@ -265,7 +341,7 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
         }
     }
 
-    tea_runtime_error(vm, "does not support item assignment");
+    tea_runtime_error(vm, "%s does not support item assignment", tea_value_type(subscript_value));
     return false;
 }
 
@@ -340,22 +416,23 @@ static bool slice(TeaVM* vm, TeaValue object, TeaValue start, TeaValue end)
         case OBJ_STRING:
         {
             TeaObjectString* string = AS_STRING(object);
+            int length = tea_ustring_length(string);
 
             if(IS_NULL(end)) 
             {
-                index_end = string->length;
+                index_end = length;
             } 
             else 
             {
                 index_end = AS_NUMBER(end);
 
-                if(index_end > string->length) 
+                if(index_end > length) 
                 {
-                    index_end = string->length;
+                    index_end = length;
                 }
                 else if(index_end < 0) 
                 {
-                    index_end = string->length + index_end;
+                    index_end = length + index_end;
                 }
             }
 
@@ -366,13 +443,15 @@ static bool slice(TeaVM* vm, TeaValue object, TeaValue start, TeaValue end)
             } 
             else 
             {
-                return_value = OBJECT_VAL(tea_copy_string(vm->state, string->chars + index_start, index_end - index_start));
+                index_start = tea_uchar_offset(string->chars, index_start);
+	            index_end = tea_uchar_offset(string->chars, index_end);
+                return_value = OBJECT_VAL(tea_ustring_from_range(vm->state, string, index_start, index_end - index_start));
             }
             break;
         }
         default:
         {
-            tea_runtime_error(vm, "Can only slice lists and strings!");
+            tea_runtime_error(vm, "Can only slice lists and strings");
             return false;
         }
     }
@@ -494,6 +573,17 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
     {
         switch(OBJECT_TYPE(receiver))
         {
+            case OBJ_FILE:
+            {
+                TeaValue value;
+                if(tea_table_get(&vm->file_methods, name, &value)) 
+                {
+                    return call_value(vm, value, count);
+                }
+
+                tea_runtime_error(vm, "file has no method %s()", name->chars);
+                return false;
+            }
             case OBJ_MODULE:
             {
                 TeaObjectModule* module = AS_MODULE(receiver);
@@ -546,7 +636,7 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
                 TeaValue value;
                 if(tea_table_get(&vm->list_methods, name, &value)) 
                 {
-                    if(IS_NATIVE_FUNCTION(value)) 
+                    if(IS_NATIVE_FUNCTION(value) || IS_NATIVE_METHOD(value)) 
                     {
                         return call_value(vm, value, count);
                     }
@@ -569,7 +659,7 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
         }
     }
     
-    tea_runtime_error(vm, "Only objects have methods");
+    tea_runtime_error(vm, "Only objects have methods, %s given", tea_value_type(receiver));
     return false;
 }
 
@@ -594,6 +684,46 @@ static bool get_property(TeaVM* vm, TeaValue receiver, TeaObjectString* name, bo
     {
         switch(OBJECT_TYPE(receiver))
         {
+            case OBJ_LIST:
+            {
+                TeaObjectList* list = AS_LIST(receiver);
+                TeaValue value;
+
+                if(tea_table_get(&vm->list_methods, name, &value)) 
+                {
+                    if(IS_NATIVE_PROPERTY(value))
+                    {
+                        TeaNativeProperty property = AS_NATIVE_PROPERTY(value);
+                        TeaValue result = property(vm, OBJECT_VAL(list));
+                        tea_pop(vm);
+                        tea_push(vm, result);
+                        return true;
+                    }
+                }
+
+                tea_runtime_error(vm, "list has no property: '%s'", name->chars);
+                return false;
+            }
+            case OBJ_STRING:
+            {
+                TeaObjectString* string = AS_STRING(receiver);
+                TeaValue value;
+
+                if(tea_table_get(&vm->string_methods, name, &value)) 
+                {
+                    if(IS_NATIVE_PROPERTY(value))
+                    {
+                        TeaNativeProperty property = AS_NATIVE_PROPERTY(value);
+                        TeaValue result = property(vm, OBJECT_VAL(string));
+                        tea_pop(vm);
+                        tea_push(vm, result);
+                        return true;
+                    }
+                }
+
+                tea_runtime_error(vm, "string has no property: '%s'", name->chars);
+                return false;
+            }
             case OBJ_INSTANCE:
             {
                 TeaObjectInstance* instance = AS_INSTANCE(receiver);
@@ -662,13 +792,18 @@ static bool get_property(TeaVM* vm, TeaValue receiver, TeaObjectString* name, bo
             case OBJ_FILE:
             {
                 TeaObjectFile* file = AS_FILE(receiver);
+                TeaValue value;
 
-                if(strncmp(name->chars, "closed", 6) == 0)
+                if(tea_table_get(&vm->file_methods, name, &value)) 
                 {
-                    tea_pop(vm);    // file
-                    tea_push(vm, BOOL_VAL(file->is_open));
-
-                    return true;
+                    if(IS_NATIVE_PROPERTY(value))
+                    {
+                        TeaNativeProperty property = AS_NATIVE_PROPERTY(value);
+                        TeaValue result = property(vm, OBJECT_VAL(file));
+                        tea_pop(vm);
+                        tea_push(vm, result);
+                        return true;
+                    }
                 }
 
                 tea_runtime_error(vm, "File has no property");
@@ -848,6 +983,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
     { \
         STORE_FRAME; \
         tea_runtime_error(vm, __VA_ARGS__); \
+        vm->error = false; \
         return INTERPRET_RUNTIME_ERROR; \
     } \
     while(false)
@@ -1197,6 +1333,17 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(IS):
         {
+            DISPATCH();
+        }
+        CASE_CODE(IN):
+        {
+            TeaValue object = POP();
+            TeaValue value = POP();
+            STORE_FRAME;
+            if(!in_(vm, object, value))
+            {
+                return INTERPRET_RUNTIME_ERROR;
+            }
             DISPATCH();
         }
         CASE_CODE(EQUAL):
@@ -1658,30 +1805,6 @@ static TeaInterpretResult run_interpreter(TeaState* state)
                 PUSH(module_variable);
             }
 
-            DISPATCH();
-        }
-        CASE_CODE(OPEN_CONTEXT):
-        {
-            TeaValue obj = PEEK(0);
-
-            if(!IS_FILE(obj))
-            {
-                RUNTIME_ERROR("Expect a file object");
-            }
-
-            TeaObjectFile* file = AS_FILE(obj);
-
-            POP();
-            PUSH(OBJECT_VAL(file));
-
-            DISPATCH();
-        }
-        CASE_CODE(CLOSE_CONTEXT):
-        {
-            uint8_t slot = READ_BYTE();
-            TeaValue file = frame->slots[slot];
-            TeaObjectFile* file_object = AS_FILE(file);
-            //fclose(file_object->file);
             DISPATCH();
         }
         CASE_CODE(END):

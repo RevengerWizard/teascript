@@ -5,6 +5,7 @@
 #endif
 
 #ifdef _WIN32
+#include <winsock2.h>
 #include <ws2tcpip.h>
 #include <io.h>
 #define setsockopt(S, LEVEL, OPTNAME, OPTVAL, OPTLEN) setsockopt(S, LEVEL, OPTNAME, (char*)(OPTVAL), OPTLEN)
@@ -78,6 +79,24 @@ static TeaValue protocol_socket(TeaVM* vm, TeaValue instance)
 
 static TeaValue bind_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count != 2)
+    {
+        tea_runtime_error(vm, "bind() takes 2 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_STRING(args[0]))
+    {
+        tea_runtime_error(vm, "host passed to bind() must be a string");
+        return EMPTY_VAL;
+    }
+
+    if(!IS_STRING(args[1]))
+    {
+        tea_runtime_error(vm, "port passed to bind() must be a number");
+        return EMPTY_VAL;
+    }
+
     TeaValue data;
     tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
     TeaSocketData* socket = (TeaSocketData*)AS_USERDATA(data)->data;
@@ -101,7 +120,24 @@ static TeaValue bind_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* a
 
 static TeaValue listen_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count < 0 || count > 1)
+    {
+        tea_runtime_error(vm, "listen() expected either 0 or 1 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+
     int backlog = SOMAXCONN;
+
+    if(count == 1)
+    {
+        if(!IS_NUMBER(args[0]))
+        {
+            tea_runtime_error(vm, "listen() argument must be a string");
+            return EMPTY_VAL;
+        }
+
+        backlog = AS_NUMBER(args[0]);
+    }
 
     TeaValue data;
     tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
@@ -117,6 +153,12 @@ static TeaValue listen_socket(TeaVM* vm, TeaValue instance, int count, TeaValue*
 
 static TeaValue accept_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "accept() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+
     TeaValue data;
     tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
     TeaSocketData* socket = (TeaSocketData*)AS_USERDATA(data)->data;
@@ -147,6 +189,18 @@ static TeaValue accept_socket(TeaVM* vm, TeaValue instance, int count, TeaValue*
 
 static TeaValue write_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "write() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_STRING(args[0]))
+    {
+        tea_runtime_error(vm, "write() argument must be a string");
+        return EMPTY_VAL;
+    }
+
     TeaValue data;
     tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
     TeaSocketData* socket = (TeaSocketData*)AS_USERDATA(data)->data;
@@ -165,22 +219,131 @@ static TeaValue write_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* 
 
 static TeaValue recv_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "recv() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
 
+    if(!IS_NUMBER(args[0]))
+    {
+        tea_runtime_error(vm, "recv() argument must be a number");
+        return EMPTY_VAL;
+    }
+
+    TeaValue data;
+    tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
+    TeaSocketData* socket = (TeaSocketData*)AS_USERDATA(data)->data;
+
+    int buffer_size = AS_NUMBER(args[0]) + 1;
+
+    if(buffer_size < 1)
+    {
+        tea_runtime_error(vm, "recv() argument must be greater than 1");
+        return EMPTY_VAL;
+    }
+
+    char* buffer = ALLOCATE(vm->state, char, buffer_size);
+    int read_size = recv(socket->socket, buffer, buffer_size - 1, 0);
+
+    if(read_size == -1)
+    {
+        FREE_ARRAY(vm->state, char, buffer, buffer_size);
+        return EMPTY_VAL;
+    }
+
+    // Resize string
+    if(read_size != buffer_size)
+    {
+        buffer = GROW_ARRAY(vm->state, char, buffer, buffer_size, read_size + 1);
+    }
+
+    buffer[read_size] = '\0';
+    
+    return OBJECT_VAL(tea_take_string(vm->state, buffer, read_size));
 }
 
 static TeaValue connect_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count != 2)
+    {
+        tea_runtime_error(vm, "recv() takes 2 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
+    if(!IS_STRING(args[0]))
+    {
+        tea_runtime_error(vm, "host passed to connect() must be a string");
+        return EMPTY_VAL;
+    }
+
+    if(!IS_STRING(args[1]))
+    {
+        tea_runtime_error(vm, "port passed to connect() must be a number");
+        return EMPTY_VAL;
+    }
+
+    TeaValue data;
+    tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
+    TeaSocketData* socket = (TeaSocketData*)AS_USERDATA(data)->data;
+
+    struct sockaddr_in server;
+
+    server.sin_family = socket->family;
+    server.sin_addr.s_addr = inet_addr(AS_CSTRING(args[0]));
+    server.sin_port = htons(AS_NUMBER(args[1]));
+
+    if(connect(socket->socket, (struct sockaddr*)&server, sizeof(server)) < 0)
+    {
+        return NULL_VAL;
+    }
+
+    return EMPTY_VAL;
 }
 
 static TeaValue close_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "close() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
+    TeaValue data;
+    tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
+    TeaSocketData* socket = (TeaSocketData*)AS_USERDATA(data)->data;
+
+    close(socket->socket);
+    return EMPTY_VAL;
 }
 
 static TeaValue setsockopt_socket(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
+    if(count != 2)
+    {
+        tea_runtime_error(vm, "setsockopt() takes 2 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
 
+    if(!IS_NUMBER(args[0]) && !IS_NUMBER(args[1]))
+    {
+        tea_runtime_error(vm, "setsockopt() arguments must be numbers");
+        return EMPTY_VAL;
+    }
+
+    TeaValue data;
+    tea_table_get(&AS_INSTANCE(instance)->fields, tea_copy_string(vm->state, "_data", 5), &data);
+    TeaSocketData* socket = (TeaSocketData*)AS_USERDATA(data)->data;
+
+    int level = AS_NUMBER(args[1]);
+    int option = AS_NUMBER(args[2]);
+
+    if(setsockopt(socket->socket, level, option, &(int){1}, sizeof(int)) == -1)
+    {
+        return NULL_VAL;
+    }
+
+    return EMPTY_VAL;
 }
 
 static TeaObjectInstance* new_socket(TeaState* state, int sock, int family, int type, int protocol) 
@@ -188,7 +351,7 @@ static TeaObjectInstance* new_socket(TeaState* state, int sock, int family, int 
     TeaObjectClass* klass = tea_new_class(state, tea_copy_string(state, "Socket", 6));
     TeaObjectInstance* instance = tea_new_instance(state, klass);
 
-    TeaObjectUserdata* data = tea_new_userdata(state, sizeof(TeaSocketData));
+    TeaObjectData* data = tea_new_data(state, sizeof(TeaSocketData));
     tea_table_set(state, &instance->fields, tea_copy_string(state, "_data", 5), OBJECT_VAL(data));
 
     TeaSocketData* socket = (TeaSocketData*)data->data;
@@ -197,14 +360,14 @@ static TeaObjectInstance* new_socket(TeaState* state, int sock, int family, int 
     socket->type = type;
     socket->protocol = protocol;
 
-    //tea_native_method(state->vm, &instance->fields, "bind", bind_socket);
-    //tea_native_method(state->vm, &instance->fields, "listen", listen_socket);
-    //tea_native_method(state->vm, &instance->fields, "accept", accept_socket);
-    //tea_native_method(state->vm, &instance->fields, "write", write_socket);
-    //tea_native_method(state->vm, &instance->fields, "recv", recv_socket);
-    //tea_native_method(state->vm, &instance->fields, "connect", connect_socket);
-    //tea_native_method(state->vm, &instance->fields, "close", close_socket);
-    //tea_native_method(state->vm, &instance->fields, "setsockopt", setsockopt_socket);
+    tea_native_method(state->vm, &instance->fields, "bind", bind_socket);
+    tea_native_method(state->vm, &instance->fields, "listen", listen_socket);
+    tea_native_method(state->vm, &instance->fields, "accept", accept_socket);
+    tea_native_method(state->vm, &instance->fields, "write", write_socket);
+    tea_native_method(state->vm, &instance->fields, "recv", recv_socket);
+    tea_native_method(state->vm, &instance->fields, "connect", connect_socket);
+    tea_native_method(state->vm, &instance->fields, "close", close_socket);
+    tea_native_method(state->vm, &instance->fields, "setsockopt", setsockopt_socket);
 
     tea_native_property(state->vm, &instance->fields, "socket", socket_socket);
     tea_native_property(state->vm, &instance->fields, "family", family_socket);
@@ -216,13 +379,52 @@ static TeaObjectInstance* new_socket(TeaState* state, int sock, int family, int 
 
 static TeaValue create_socket(TeaVM* vm, int count, TeaValue* args)
 {
-    TeaObjectInstance* socket = new_socket(vm->state, 123, 454, 1212, 0);
+    if(count != 2)
+    {
+        tea_runtime_error(vm, "create() takes 2 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0]) || !IS_NUMBER(args[1]))
+    {
+        tea_runtime_error(vm, "create() arguments must be numbers");
+        return EMPTY_VAL;
+    }
+
+    int socket_family = AS_NUMBER(args[0]);
+    int socket_type = AS_NUMBER(args[1]);
+
+    int sock = socket(socket_family, socket_type, 0);
+    if(sock == -1)
+    {
+        return NULL_VAL;
+    }
+
+    TeaObjectInstance* socket = new_socket(vm->state, sock, socket_family, socket_type, 0);
 
     return OBJECT_VAL(socket);
 }
 
+#ifdef _WIN32
+void cleanup_sockets(void) 
+{
+    // Calls WSACleanup until an error occurs.
+    // Avoids issues if WSAStartup is called multiple times.
+    while(!WSACleanup());
+}
+#endif
+
 TeaValue tea_import_socket(TeaVM* vm)
 {
+    #ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    atexit(cleanup_sockets);
+    WORD version_wanted = MAKEWORD(2, 2);
+    WSADATA wsa_data;
+    WSAStartup(version_wanted, &wsa_data);
+    #endif
+
     TeaObjectString* name = tea_copy_string(vm->state, TEA_SOCKET_MODULE, 6);
     TeaObjectModule* module = tea_new_module(vm->state, name);
 
