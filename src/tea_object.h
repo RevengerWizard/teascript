@@ -12,7 +12,7 @@
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
-#define IS_USERDATA(value) tea_is_object_type(value, OBJ_USERDATA)
+#define IS_USERDATA(value) tea_is_object_type(value, OBJ_DATA)
 #define IS_RANGE(value) tea_is_object_type(value, OBJ_RANGE)
 #define IS_FILE(value) tea_is_object_type(value, OBJ_FILE)
 #define IS_MODULE(value) tea_is_object_type(value, OBJ_MODULE)
@@ -30,7 +30,7 @@
 
 #define IS_CALLABLE_FUNCTION(value) tea_is_callable_function(value)
 
-#define AS_USERDATA(value) ((TeaObjectUserdata*)AS_OBJECT(value))
+#define AS_USERDATA(value) ((TeaObjectData*)AS_OBJECT(value))
 #define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
 #define AS_FILE(value) ((TeaObjectFile*)AS_OBJECT(value))
 #define AS_MODULE(value) ((TeaObjectModule*)AS_OBJECT(value))
@@ -66,7 +66,7 @@ typedef enum
     OBJ_NATIVE_PROPERTY,
     OBJ_STRING,
     OBJ_UPVALUE,
-    OBJ_USERDATA
+    OBJ_DATA
 } TeaObjectType;
 
 typedef enum
@@ -118,6 +118,23 @@ typedef struct
     TeaObjectString* name;
     TeaObjectModule* module;
 } TeaObjectFunction;
+
+/*typedef enum
+{
+    NATIVE_FUNCTION,
+    NATIVE_METHOD,
+    NATIVE_PROPERTY
+} TeaNativeType;
+
+typedef struct
+{
+    TeaNativeType type;
+
+    union
+    {
+        
+    } as;
+} TeaObjectNative;*/
 
 typedef TeaValue (*TeaNativeFunction)(TeaVM* vm, int count, TeaValue* args);
 
@@ -209,9 +226,9 @@ typedef struct
     TeaObjectClosure* method;
 } TeaObjectBoundMethod;
 
-typedef void (*TeaFreeFunction)(TeaState* state, TeaObjectUserdata* data, bool mark);
+typedef void (*TeaFreeFunction)(TeaState* state, TeaObjectData* data, bool mark);
 
-typedef struct TeaObjectUserdata
+typedef struct TeaObjectData
 {
     TeaObject obj;
 
@@ -219,11 +236,11 @@ typedef struct TeaObjectUserdata
     size_t size;
 
     TeaFreeFunction fn;
-} TeaObjectUserdata;
+} TeaObjectData;
 
 TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type);
 
-TeaObjectUserdata* tea_new_userdata(TeaState* state, size_t size);
+TeaObjectData* tea_new_data(TeaState* state, size_t size);
 TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool inclusive);
 TeaObjectFile* tea_new_file(TeaState* state);
 TeaObjectModule* tea_new_module(TeaState* state, TeaObjectString* name);
@@ -248,7 +265,7 @@ void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNative
 TeaObjectString* tea_take_string(TeaState* state, char* chars, int length);
 TeaObjectString* tea_copy_string(TeaState* state, const char* chars, int length);
 
-char* tea_object_tostring(TeaValue value);
+char* tea_object_tostring(TeaState* state, TeaValue value);
 void tea_print_object(TeaValue value);
 bool tea_objects_equal(TeaValue a, TeaValue b);
 const char* tea_object_type(TeaValue a);

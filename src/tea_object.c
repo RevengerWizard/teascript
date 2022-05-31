@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -23,9 +24,9 @@ TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type)
     return object;
 }
 
-TeaObjectUserdata* tea_new_userdata(TeaState* state, size_t size)
+TeaObjectData* tea_new_data(TeaState* state, size_t size)
 {
-    TeaObjectUserdata* userdata = ALLOCATE_OBJECT(state, TeaObjectUserdata, OBJ_USERDATA);
+    TeaObjectData* userdata = ALLOCATE_OBJECT(state, TeaObjectData, OBJ_DATA);
 
     if(size > 0)
     {
@@ -264,28 +265,226 @@ void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNative
     tea_table_set(vm->state, table, string, OBJECT_VAL(native));
 }
 
-static char* list_tostring(TeaObjectList* list)
+static char* list_tostring(TeaState* state, TeaObjectList* list)
 {
-    return "";
-} 
+    int size = 50;
 
-char* tea_object_tostring(TeaValue value)
+    if(list->items.count == 0)
+        return "[]";
+
+    char* string = ALLOCATE(state, char, size);
+    memcpy(string, "[", 1);
+    int length = 1;
+
+    for(int i = 0; i < list->items.count; i++) 
+    {
+        TeaValue value = list->items.values[i];
+
+        char* element;
+        int element_size;
+
+        if(IS_STRING(value))
+        {
+            TeaObjectString* s = AS_STRING(value);
+            element = s->chars;
+            element_size = s->length;
+        }
+        else 
+        {
+            element = tea_value_tostring(state, value);
+            element_size = strlen(element);
+        }
+
+        if(element_size > (size - length - 6)) 
+        {
+            if(element_size > size) 
+            {
+                size = size + element_size * 2 + 6;
+            } 
+            else
+            {
+                size = size * 2 + 6;
+            }
+
+            char* new = GROW_ARRAY(state, char, string, element_size, size);
+
+            if(new == NULL) 
+            {
+                printf("Unable to allocate memory\n");
+                exit(71);
+            }
+
+            string = new;
+        }
+
+        memcpy(string + length, element, element_size);
+        length += element_size;
+
+        if(i != list->items.count - 1) 
+        {
+            memcpy(string + length, ", ", 2);
+            length += 2;
+        }
+    }
+
+    memcpy(string + length, "]", 1);
+    string[length + 1] = '\0';
+
+    return string;
+}
+
+static char* map_tostring(TeaState* state, TeaObjectMap* map)
+{
+    int count = 0;
+    int size = 50;
+
+    if(map->items.count == 0)
+        return "{}";
+
+    char* string = ALLOCATE(state, char, size);
+    memcpy(string, "{", 1);
+    int length = 1;
+
+    for(int i = 0; i <= map->items.capacity; i++) 
+    {
+        TeaEntry* item = &map->items.entries[i];
+        if(item->key == NULL) 
+        {
+            continue;
+        }
+
+        count++;
+
+        char* key;
+        int key_size;
+
+        TeaObjectString* s = item->key;
+        key = s->chars;
+        key_size = s->length;
+
+        if(key_size > (size - length - key_size - 4)) 
+        {
+            if(key_size > size) 
+            {
+                size += key_size * 2 + 4;
+            } 
+            else 
+            {
+                size *= 2 + 4;
+            }
+
+            char* new = GROW_ARRAY(state, char, string, key_size, size);
+
+            if(new == NULL)
+            {
+                printf("Unable to allocate memory\n");
+                exit(71);
+            }
+
+            string = new;
+        }
+
+        memcpy(string + length, key, key_size);
+        memcpy(string + length + key_size, " = ", 3);
+        length += 3 + key_size;
+
+        char* element;
+        int element_size;
+
+        if(IS_STRING(item->value)) 
+        {
+            TeaObjectString* s = AS_STRING(item->value);
+            element = s->chars;
+            element_size = s->length;
+        } 
+        else 
+        {
+            element = tea_value_tostring(state, item->value);
+            element_size = strlen(element);
+        }
+
+        if(element_size > (size - length - element_size - 6)) 
+        {
+            if(element_size > size) 
+            {
+                size += element_size * 2 + 6;
+            }
+            else
+            {
+                size = size * 2 + 6;
+            }
+
+            char* new = GROW_ARRAY(state, char, string, element_size, size);
+
+            if(new == NULL)
+            {
+                printf("Unable to allocate memory\n");
+                exit(71);
+            }
+
+            string = new;
+        }
+
+        memcpy(string + length, element, element_size);
+        length += element_size;
+
+        if(count != map->items.count)
+        {
+            memcpy(string + length, ", ", 2);
+            length += 2;
+        }
+    }
+
+    memcpy(string + length, "}", 1);
+    string[length + 1] = '\0';
+
+    return string;
+}
+
+static char* range_tostring(TeaState* state, TeaObjectRange* range)
+{
+    char* a = tea_number_tostring(state, range->from);
+    char* b = tea_number_tostring(state, range->to);
+    char* c = range->inclusive ? "..." : "..";
+
+    int length = strlen(a) + strlen(c) + strlen(b) + 1;
+    char* string = ALLOCATE(state, char, length);
+    snprintf(string, length, "%s%s%s", a, c, b);
+
+    return string;
+}
+
+char* tea_object_tostring(TeaState* state, TeaValue value)
 {
     switch(OBJECT_TYPE(value))
     {
+        case OBJ_FILE:
+            return "<file>";
+        case OBJ_DATA:
+            return "<userdata>";
+        case OBJ_FUNCTION:
+        case OBJ_CLOSURE:
+        case OBJ_BOUND_METHOD:
+        case OBJ_NATIVE_FUNCTION:
+        case OBJ_NATIVE_METHOD:
+            return "<function>";
         case OBJ_LIST:
         {
-            return "";
+            return list_tostring(state, AS_LIST(value));
         }
         case OBJ_MAP:
         {
-            return "";
+            return map_tostring(state, AS_MAP(value));
+        }
+        case OBJ_RANGE:
+        {
+            return range_tostring(state, AS_RANGE(value));
         }
         case OBJ_STRING:
-        {
             return AS_STRING(value)->chars;
-        }
     }
+
+    return "unknown";
 }
 
 static void print_list(TeaObjectList* list)
@@ -352,8 +551,11 @@ void tea_print_object(TeaValue value)
 {
     switch(OBJECT_TYPE(value))
     {
-        case OBJ_USERDATA:
-            printf("userdata");
+        case OBJ_FILE:
+            printf("<file>");
+            break;
+        case OBJ_DATA:
+            printf("<userdata>");
             break;
         case OBJ_RANGE:
             print_range(AS_RANGE(value));
@@ -382,6 +584,7 @@ void tea_print_object(TeaValue value)
         case OBJ_INSTANCE:
             printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
             break;
+        case OBJ_NATIVE_METHOD:
         case OBJ_NATIVE_FUNCTION:
             printf("<function>");
             break;
@@ -399,12 +602,7 @@ static bool range_equals(TeaValue a, TeaValue b)
     TeaObjectRange* r1 = AS_RANGE(a);
     TeaObjectRange* r2 = AS_RANGE(b);
 
-    if(r1->from == r2->from && r1->to == r2->to && r1->inclusive == r2->inclusive)
-    {
-        return true;
-    }
-
-    return false;
+    return r1->from == r2->from && r1->to == r2->to && r1->inclusive == r2->inclusive;
 }
 
 static bool list_equals(TeaValue a, TeaValue b)
@@ -496,6 +694,8 @@ const char* tea_object_type(TeaValue a)
 {
     switch(OBJECT_TYPE(a))
     {
+        case OBJ_DATA:
+            return "data";
         case OBJ_FILE:
             return "file";
         case OBJ_RANGE:
@@ -517,6 +717,7 @@ const char* tea_object_type(TeaValue a)
         case OBJ_CLOSURE:
         case OBJ_FUNCTION:
         case OBJ_NATIVE_FUNCTION:
+        case OBJ_NATIVE_METHOD:
             return "function";
         default:
             return "unknown";

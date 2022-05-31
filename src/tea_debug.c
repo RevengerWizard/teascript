@@ -251,10 +251,6 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return native_import_instruction("OP_IMPORT_NATIVE", chunk, offset);
         case OP_IMPORT_NATIVE_VARIABLE:
             return native_from_import_instruction("OP_IMPORT_NATIVE_VARIABLE", chunk, offset);
-        case OP_OPEN_CONTEXT:
-            return simple_instruction("OP_OPEN_FILE", offset);
-        case OP_CLOSE_CONTEXT:
-            return constant_instruction("OP_CLOSE_FILE", chunk, offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

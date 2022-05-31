@@ -1,0 +1,8 @@
+- for in loops
+- package manager
+- tests
+- string methods
+- map methods
+- teascript notebooks
+- ffi module
+- C API

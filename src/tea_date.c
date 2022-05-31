@@ -11,20 +11,19 @@ static TeaValue isleap_date(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
+    int year;
     if(count == 0)
     {
         time_t t = time(NULL);
         struct tm tm = *localtime(&t);
-        int year = tm.tm_year + 1900;
-
-        return BOOL_VAL(year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+        year = tm.tm_year + 1900;
     }
     else if(count == 1 && IS_NUMBER(args[0]))
     {
-        int year = AS_NUMBER(args[0]);
-
-        return BOOL_VAL(year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+        year = AS_NUMBER(args[0]);
     }
+
+    return BOOL_VAL(year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
 }
 
 TeaValue tea_import_date(TeaVM* vm)

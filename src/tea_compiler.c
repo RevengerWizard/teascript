@@ -472,7 +472,7 @@ static void binary(TeaCompiler* compiler, TeaToken previous_token, bool can_assi
         }
         case TOKEN_GREATER_EQUAL:
         {
-            emit_byte(compiler, OP_LESS_EQUAL);
+            emit_byte(compiler, OP_GREATER_EQUAL);
             break;
         }
         case TOKEN_LESS:
@@ -1072,6 +1072,15 @@ static void unary(TeaCompiler* compiler, bool can_assign)
     }
 }
 
+static void in_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+{
+    TeaTokenType operator_type = compiler->parser->previous.type;
+    TeaParseRule* rule = get_rule(operator_type);
+    parse_precendence(compiler, (TeaPrecedence)(rule->precedence + 1));
+
+    emit_byte(compiler, OP_IN);
+}
+
 static void range(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
 {
     bool inclusive = compiler->parser->previous.type == TOKEN_DOT_DOT ? false : true;
@@ -1099,6 +1108,7 @@ static TeaParseRule rules[] = {
     PREFIX(map),                            // TOKEN_LEFT_BRACE
     NONE,                                   // TOKEN_RIGHT_BRACE
     NONE,                                   // TOKEN_COMMA
+    NONE,                                   // TOKEN_SEMICOLON
     OPERATOR(dot, CALL),                    // TOKEN_DOT
     NONE,                                   // TOKEN_COLON
     OPERATOR(ternary, ASSIGNMENT),          // TOKEN_QUESTION
@@ -1151,7 +1161,6 @@ static TeaParseRule rules[] = {
     NONE,                                   // TOKEN_IF
     PREFIX(null),                           // TOKEN_NULL
     OPERATOR(or_, OR),                      // TOKEN_OR
-    NONE,                                   // TOKEN_WITH
     NONE,                                   // TOKEN_IS
     NONE,                                   // TOKEN_IMPORT
     NONE,                                   // TOKEN_FROM
@@ -1161,7 +1170,7 @@ static TeaParseRule rules[] = {
     PREFIX(this_),                          // TOKEN_THIS
     NONE,                                   // TOKEN_CONTINUE
     NONE,                                   // TOKEN_BREAK
-    NONE,                                   // TOKEN_IN
+    OPERATOR(in_, COMPARISON),              // TOKEN_IN
     PREFIX(boolean),                        // TOKEN_TRUE
     NONE,                                   // TOKEN_VAR
     NONE,                                   // TOKEN_CONST
@@ -1254,10 +1263,7 @@ static void function(TeaCompiler* compiler, TeaFunctionType type)
     TeaCompiler fn_compiler;
 
     begin_function(compiler, &fn_compiler, type);
-    
-    consume(&fn_compiler, TOKEN_LEFT_BRACE, "Expect '{' before function body");
-    block(&fn_compiler);
-
+    statement(&fn_compiler);
     end_compiler(&fn_compiler);
 }
 
@@ -1481,7 +1487,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_RETURN:
         case OP_IMPORT_VARIABLE:
         case OP_IMPORT_END:
-        case OP_OPEN_CONTEXT:
+        //case OP_OPEN_CONTEXT:
         case OP_END:
         case OP_BAND:
         case OP_BXOR:
@@ -1508,7 +1514,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_IMPORT:
         case OP_LIST:
         case OP_MAP:
-        case OP_CLOSE_CONTEXT:
+        //case OP_CLOSE_CONTEXT:
             return 1;
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
@@ -1786,48 +1792,6 @@ static void switch_statement(TeaCompiler* compiler)
     emit_byte(compiler, OP_POP); // The switch value.
 }
 
-static void with_statement(TeaCompiler* compiler)
-{
-    compiler->with_block = true;
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after with statement");
-    expression(compiler);
-    begin_scope(compiler);
-    
-    int file_index = compiler->local_count;
-    TeaLocal* local = &compiler->locals[compiler->local_count++];
-    local->depth = compiler->scope_depth;
-    local->is_captured = false;
-
-    consume(compiler, TOKEN_AS, "Expect alias");
-    consume(compiler, TOKEN_NAME, "Expect file alias");
-    local->name = compiler->parser->previous;
-    compiler->with_file = local->name;
-
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after with statement");
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before with body");
-
-    emit_byte(compiler, OP_OPEN_CONTEXT);
-    block(compiler);
-    emit_bytes(compiler, OP_CLOSE_CONTEXT, file_index);
-    end_scope(compiler);
-    compiler->with_block = false;
-}
-
-static void check_close_handle(TeaCompiler* compiler)
-{
-    if(compiler->with_block)
-    {
-        TeaToken token = compiler->with_file;
-        int local = resolve_local(compiler, &token);
-
-        if(local != -1)
-        {
-            emit_bytes(compiler, OP_CLOSE_CONTEXT, local);
-        }
-        compiler->with_block = false;
-    }
-}
-
 static void return_statement(TeaCompiler* compiler)
 {
     if(compiler->type == TYPE_SCRIPT)
@@ -1837,7 +1801,6 @@ static void return_statement(TeaCompiler* compiler)
 
     if(check(compiler, TOKEN_RIGHT_BRACE))
     {
-        check_close_handle(compiler);
         emit_return(compiler);
     }
     else
@@ -1849,7 +1812,6 @@ static void return_statement(TeaCompiler* compiler)
 
         expression(compiler);
 
-        check_close_handle(compiler);
         emit_byte(compiler, OP_RETURN);
     }
 }
@@ -2094,7 +2056,7 @@ static void synchronize(TeaCompiler* compiler)
     while(compiler->parser->current.type != TOKEN_EOF)
     {
         switch(compiler->parser->current.type)
-        {
+        {            
             case TOKEN_CLASS:
             case TOKEN_FUNCTION:
             case TOKEN_VAR:
@@ -2107,7 +2069,6 @@ static void synchronize(TeaCompiler* compiler)
             case TOKEN_RETURN:
             case TOKEN_IMPORT:
             case TOKEN_FROM:
-            case TOKEN_WITH:
                 return;
 
             default:; // Do nothing.
@@ -2157,10 +2118,6 @@ static void statement(TeaCompiler* compiler)
     else if(match(compiler, TOKEN_RETURN))
     {
         return_statement(compiler);
-    }
-    else if(match(compiler, TOKEN_WITH))
-    {
-        with_statement(compiler);
     }
     else if(match(compiler, TOKEN_WHILE))
     {

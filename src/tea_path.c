@@ -28,7 +28,7 @@ static TeaValue realpath_path(TeaVM* vm, int count, TeaValue* args)
     if(!IS_STRING(args[0]))
     {
         tea_runtime_error(vm, "realpath() argument must be a string");
-        return EMPTY_VAL
+        return EMPTY_VAL;
     }
 
     char* path = AS_CSTRING(args[0]);

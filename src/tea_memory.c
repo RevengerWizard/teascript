@@ -7,7 +7,7 @@
 
 #ifdef DEBUG_LOG_GC
 #include <stdio.h>
-#include "debug/tea_debug.h"
+#include "tea_debug.h"
 #endif
 
 #define GC_HEAP_GROW_FACTOR 2
@@ -97,9 +97,9 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
 
     switch(object->type)
     {
-        case OBJ_USERDATA:
+        case OBJ_DATA:
         {
-            TeaObjectUserdata* userdata = (TeaObjectUserdata*)object;
+            TeaObjectData* userdata = (TeaObjectData*)object;
 
             if(userdata->fn != NULL)
             {
@@ -181,7 +181,7 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
 static void free_object(TeaState* state, TeaObject* object)
 {
 #ifdef DEBUG_LOG_GC
-    printf("%p free type %d\n", (void*)object, object->type);
+    printf("%p free type %s\n", (void*)object, tea_object_type(OBJECT_VAL(object)));
 #endif
 
     switch(object->type)
@@ -275,9 +275,9 @@ static void free_object(TeaState* state, TeaObject* object)
             FREE(state, TeaObjectUpvalue, object);
             break;
         }
-        case OBJ_USERDATA:
+        case OBJ_DATA:
         {
-            TeaObjectUserdata* userdata = (TeaObjectUserdata*)object;
+            TeaObjectData* userdata = (TeaObjectData*)object;
 
             if(userdata->fn != NULL)
             {
@@ -289,7 +289,7 @@ static void free_object(TeaState* state, TeaObject* object)
                 tea_reallocate(state, userdata->data, userdata->size, 0);
             }
 
-            FREE(state, TeaObjectUserdata, object);
+            FREE(state, TeaObjectData, object);
             break;
         }
     }
@@ -313,6 +313,9 @@ static void mark_roots(TeaVM* vm)
     }
 
     tea_mark_table(vm, &vm->globals);
+    tea_mark_table(vm, &vm->file_methods);
+    tea_mark_table(vm, &vm->list_methods);
+    tea_mark_table(vm, &vm->string_methods);
     tea_mark_compiler_roots(vm->state);
 }
 
@@ -372,7 +375,7 @@ void tea_collect_garbage(TeaVM* vm)
 
 #ifdef DEBUG_LOG_GC
     printf("-- gc end\n");
-    printf("   collected %zu bytes (from %zu to %zu) next at %zu\n", before - state->vm->bytes_allocated, before, state->vm->bytes_allocated, vm.next_GC);
+    printf("   collected %zu bytes (from %zu to %zu) next at %zu\n", before - vm->state->bytes_allocated, before, vm->state->bytes_allocated, vm->state->next_gc);
 #endif
 }
 

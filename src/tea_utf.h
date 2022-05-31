@@ -15,6 +15,6 @@ TeaObjectString* tea_ustring_code_point_at(TeaState* state, TeaObjectString* str
 TeaObjectString* tea_ustring_from_code_point(TeaState* state, int value);
 TeaObjectString* tea_ustring_from_range(TeaState* state, TeaObjectString* source, int start, uint32_t count);
 
-int lit_uchar_offset(char *str, int index);
+int tea_uchar_offset(char *str, int index);
 
 #endif
