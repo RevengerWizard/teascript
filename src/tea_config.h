@@ -12,14 +12,4 @@
 
 #define TEA_BYTECODE_VERSION 0
 
-#if defined(TEA_BUILD_DLL)
-#if defined(TEA_CORE) || defined(TEA_LIB)
-#define TEA_API __declspec(dllexport)
-#else
-#define TEA_API __declspec(dllimport)
-#endif
-#else
-#define TEA_API		extern
-#endif
-
 #endif

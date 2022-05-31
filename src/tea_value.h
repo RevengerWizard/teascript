@@ -97,7 +97,6 @@ DECLARE_ARRAY(TeaBytes, uint8_t, bytes)
 const char* tea_value_type(TeaValue a);
 bool tea_values_equal(TeaValue a, TeaValue b);
 char* tea_value_tostring(TeaState* state, TeaValue value);
-char* tea_number_tostring(TeaState* state, double number);
 void tea_print_value(TeaValue value);
 
 #endif

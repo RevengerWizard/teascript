@@ -42,9 +42,6 @@ TeaValue tea_import_path(TeaVM* vm);
 #define TEA_RANDOM_MODULE "random"
 TeaValue tea_import_random(TeaVM* vm);
 
-//#define TEA_FFI_MODULE "ffi"
-//TeaValue tea_import_ffi(TeaVM* vm);
-
 TeaValue tea_import_native_module(TeaVM* vm, int index);
 int tea_find_native_module(char* name, int length);
 

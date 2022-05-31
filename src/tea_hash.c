@@ -1,8 +1,3 @@
-#include "hashlib/utils.h"
-#include "hashlib/sha256.h"
-#include "hashlib/hmac.h"
-#include "hashlib/bcrypt/bcrypt.h"
-
 #include "tea_module.h"
 
 TeaValue tea_import_hash(TeaVM* vm)

@@ -3,31 +3,12 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
-#include <math.h>
 
-#include "tea_memory.h"
 #include "tea_core.h"
 #include "tea_utf.h"
 
 // File
-static TeaValue closed_file(TeaVM* vm, TeaValue instance)
-{
-    return BOOL_VAL(!AS_FILE(instance)->is_open);
-}
-
-static TeaValue path_file(TeaVM* vm, TeaValue instance)
-{
-    TeaObjectFile* file = AS_FILE(instance);
-    return OBJECT_VAL(tea_take_string(vm->state, file->path, strlen(file->path)));
-}
-
-static TeaValue type_file(TeaVM* vm, TeaValue instance)
-{
-    TeaObjectFile* file = AS_FILE(instance);
-    return OBJECT_VAL(tea_take_string(vm->state, file->type, strlen(file->type)));
-}
-
-static TeaValue write_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue write_file(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 1)
     {
@@ -35,14 +16,14 @@ static TeaValue write_file(TeaVM* vm, TeaValue instance, int count, TeaValue* ar
         return EMPTY_VAL;
     }
 
-    if(!IS_STRING(args[0]))
+    if(!IS_STRING(args[1]))
     {
         tea_runtime_error(vm, "write() argument must be a string");
         return EMPTY_VAL;
     }
 
-    TeaObjectFile* file = AS_FILE(instance);
-    TeaObjectString* string = AS_STRING(args[0]);
+    TeaObjectFile* file = AS_FILE(args[0]);
+    TeaObjectString* string = AS_STRING(args[1]);
 
     if(strcmp(file->type, "r") == 0)
     {
@@ -56,7 +37,7 @@ static TeaValue write_file(TeaVM* vm, TeaValue instance, int count, TeaValue* ar
     return NUMBER_VAL(chars_wrote);
 }
 
-static TeaValue writeline_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue writeline_file(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 1)
     {
@@ -64,14 +45,14 @@ static TeaValue writeline_file(TeaVM* vm, TeaValue instance, int count, TeaValue
         return EMPTY_VAL;
     }
 
-    if(!IS_STRING(args[0]))
+    if(!IS_STRING(args[1]))
     {
         tea_runtime_error(vm, "writeline() argument must be a string");
         return EMPTY_VAL;
     }
 
-    TeaObjectFile* file = AS_FILE(instance);
-    TeaObjectString* string = AS_STRING(args[0]);
+    TeaObjectFile* file = AS_FILE(args[0]);
+    TeaObjectString* string = AS_STRING(args[1]);
 
     if(strcmp(file->type, "r") == 0)
     {
@@ -85,7 +66,7 @@ static TeaValue writeline_file(TeaVM* vm, TeaValue instance, int count, TeaValue
     return NUMBER_VAL(chars_wrote);
 }
 
-static TeaValue read_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue read_file(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 0)
     {
@@ -93,7 +74,7 @@ static TeaValue read_file(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
         return EMPTY_VAL;
     }
     
-    TeaObjectFile* file = AS_FILE(instance);
+    TeaObjectFile* file = AS_FILE(args[0]);
 
     size_t current_position = ftell(file->file);
 
@@ -126,17 +107,17 @@ static TeaValue read_file(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
     return OBJECT_VAL(tea_take_string(vm->state, buffer, bytes_read));
 }
 
-static TeaValue readline_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue readline_file(TeaVM* vm, int count, TeaValue* args)
 {
-    if(count != 0)
+    if(count != 1)
     {
-        tea_runtime_error(vm, "readline() takes 0 argument (%d given)", count);
+        tea_runtime_error(vm, "readline() takes 1 argument (%d given)", count);
         return EMPTY_VAL;
     }
 
     char line[4096];
 
-    TeaObjectFile* file = AS_FILE(instance);
+    TeaObjectFile* file = AS_FILE(args[0]);
     if(fgets(line, 4096, file->file) != NULL) 
     {
         int line_length = strlen(line);
@@ -152,7 +133,7 @@ static TeaValue readline_file(TeaVM* vm, TeaValue instance, int count, TeaValue*
     return NULL_VAL;
 }
 
-static TeaValue seek_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue seek_file(TeaVM* vm, int count, TeaValue* args)
 {
     if(count < 1 || count > 2)
     {
@@ -164,13 +145,13 @@ static TeaValue seek_file(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
 
     if(count == 2) 
     {
-        if(!IS_NUMBER(args[0]) || !IS_NUMBER(args[1])) 
+        if(!IS_NUMBER(args[1]) || !IS_NUMBER(args[2])) 
         {
             tea_runtime_error(vm, "seek() arguments must be numbers");
             return EMPTY_VAL;
         }
 
-        int seek_type_num = AS_NUMBER(args[1]);
+        int seek_type_num = AS_NUMBER(args[2]);
 
         switch(seek_type_num) 
         {
@@ -189,14 +170,14 @@ static TeaValue seek_file(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
         }
     }
 
-    if(!IS_NUMBER(args[0])) 
+    if(!IS_NUMBER(args[1])) 
     {
         tea_runtime_error(vm, "seek() argument must be a number");
         return EMPTY_VAL;
     }
 
-    int offset = AS_NUMBER(args[0]);
-    TeaObjectFile* file = AS_FILE(instance);
+    int offset = AS_NUMBER(args[1]);
+    TeaObjectFile* file = AS_FILE(args[0]);
 
     if(offset != 0 && !strstr(file->type, "b")) 
     {
@@ -209,34 +190,30 @@ static TeaValue seek_file(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
     return NULL_VAL;
 }
 
-static TeaValue close_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+// String
+static TeaValue reverse_string(TeaVM* vm, int count, TeaValue* args)
 {
-    if(count != 0)
+    const char* string = AS_CSTRING(args[0]);
+
+    int l = strlen(string);
+
+    if(l == 0 || l == 1)
     {
-        tea_runtime_error(vm, "close() takes 0 argument (%d given)", count);
-        return EMPTY_VAL;
+        return OBJECT_VAL(AS_STRING(args[0]));
     }
 
-    TeaObjectFile* file = AS_FILE(instance);
-    if(!file->is_open)
+    char* res = ALLOCATE(vm->state, char, l + 1);
+    for(int i = 0; i < l; i++)
     {
-        tea_runtime_error(vm, "File is already closed");
-        return EMPTY_VAL;
+        res[i] = string[l - i - 1];
     }
+    res[l] = '\0';
 
-    fclose(file->file);
-    file->is_open = false;
-
-    return EMPTY_VAL;
+    return OBJECT_VAL(tea_take_string(vm->state, res, l));
 }
 
 // List
-static TeaValue len_list(TeaVM* vm, TeaValue instance)
-{
-    return NUMBER_VAL(AS_LIST(instance)->items.count);
-}
-
-static TeaValue add_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue add_list(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 1)
     {
@@ -244,19 +221,19 @@ static TeaValue add_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args
         return EMPTY_VAL;
     }
 
-    TeaObjectList* list = AS_LIST(instance);
-    if(IS_LIST(args[0]) && AS_LIST(args[0]) == list)
+    TeaObjectList* list = AS_LIST(args[0]);
+    if(IS_LIST(args[1]) && AS_LIST(args[1]) == list)
     {
         tea_runtime_error(vm, "Cannot add list into itself");
         return EMPTY_VAL;
     }
     
-    tea_write_value_array(vm->state, &list->items, args[0]);
+    tea_write_value_array(vm->state, &list->items, args[1]);
 
     return EMPTY_VAL;
 }
 
-static TeaValue remove_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue remove_list(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 1)
     {
@@ -264,8 +241,8 @@ static TeaValue remove_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
         return EMPTY_VAL;
     }
 
-    TeaObjectList* list = AS_LIST(instance);
-    TeaValue remove = args[0];
+    TeaObjectList* list = AS_LIST(args[0]);
+    TeaValue remove = args[1];
     bool found = false;
 
     if(list->items.count == 0) 
@@ -313,57 +290,7 @@ static TeaValue remove_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
     return EMPTY_VAL;
 }
 
-static TeaValue delete_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0 && count != 1)
-    {
-        tea_runtime_error(vm, "delete() takes 0 or 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-
-    if(list->items.count == 0) 
-    {
-        return EMPTY_VAL;
-    }
-
-    TeaValue element;
-
-    if(count == 1)
-    {
-        if(!IS_NUMBER(args[0]))
-        {
-            tea_runtime_error(vm, "delete() argument must be a number");
-            return EMPTY_VAL;
-        }
-
-        int index = AS_NUMBER(args[0]);
-
-        if(index < 0 || index > list->items.count)
-        {
-            tea_runtime_error(vm, "Index out of bounds");
-            return EMPTY_VAL;
-        }
-
-        element = list->items.values[index];
-
-        for(int i = index; i < list->items.count - 1; ++i)
-        {
-            list->items.values[i] = list->items.values[i + 1];
-        }
-    }
-    else
-    {
-        element = list->items.values[list->items.count - 1];
-    }
-
-    list->items.count--;
-
-    return element;
-}
-
-static TeaValue clear_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue clear_list(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 0)
     {
@@ -371,13 +298,13 @@ static TeaValue clear_list(TeaVM* vm, TeaValue instance, int count, TeaValue* ar
         return EMPTY_VAL;
     }
     
-    TeaObjectList* list = AS_LIST(instance);
+    TeaObjectList* list = AS_LIST(args[0]);
     tea_init_value_array(&list->items);
 
     return EMPTY_VAL;
 }
 
-static TeaValue insert_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue insert_list(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 2)
     {
@@ -391,9 +318,9 @@ static TeaValue insert_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
         return EMPTY_VAL;
     }
 
-    TeaObjectList* list = AS_LIST(instance);
-    TeaValue insert_value = args[0];
-    int index = AS_NUMBER(args[1]);
+    TeaObjectList* list = AS_LIST(args[0]);
+    TeaValue insertValue = args[1];
+    int index = AS_NUMBER(args[2]);
 
     if(index < 0 || index > list->items.count) 
     {
@@ -415,131 +342,12 @@ static TeaValue insert_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
         list->items.values[i] = list->items.values[i - 1];
     }
 
-    list->items.values[index] = insert_value;
+    list->items.values[index] = insertValue;
 
     return EMPTY_VAL;
 }
 
-static TeaValue extend_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "extend() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_LIST(args[0]))
-    {
-        tea_runtime_error(vm, "extend() argument must be a list");
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-    TeaObjectList* argument = AS_LIST(args[0]);
-
-    for(int i = 0; i < argument->items.count; i++) 
-    {
-        tea_write_value_array(vm->state, &list->items, argument->items.values[i]);
-    }
-
-    return EMPTY_VAL;
-}
-
-static TeaValue contains_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "insert() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-    TeaValue search = args[0];
-
-    for(int i = 0; i < list->items.count; i++) 
-    {
-        if(tea_values_equal(list->items.values[i], search)) 
-        {
-            return TRUE_VAL;
-        }
-    }
-
-    return FALSE_VAL;
-}
-
-static TeaValue count_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "count() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-    TeaValue value = args[0];
-    int n = 0;
-
-    for(int i = 0; i < list->items.count; i++) 
-    {
-        if(tea_values_equal(list->items.values[i], value)) 
-        {
-            n++;
-        }
-    }
-
-    return NUMBER_VAL(n);
-}
-
-static TeaValue swap_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 2)
-    {
-        tea_runtime_error(vm, "swap() takes 2 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0]) || !IS_NUMBER(args[1]))
-    {
-        tea_runtime_error(vm, "swap() takes two numbers as arguments");
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-    int index_a = AS_NUMBER(args[0]);
-    int index_b = AS_NUMBER(args[1]);
-    if(index_a < 0 || index_a > list->items.count || index_b < 0 || index_b > list->items.count)
-    {
-        tea_runtime_error(vm, "Index out of bounds");
-        return EMPTY_VAL;
-    }
-
-    TeaValue value = list->items.values[index_a];
-    list->items.values[index_a] = list->items.values[index_b];
-    list->items.values[index_b] = value;
-
-    return EMPTY_VAL;
-}
-
-static TeaValue fill_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "fill() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-    TeaValue value = args[0];
-
-    for(int i = 0; i < list->items.count; i++) 
-    {
-        list->items.values[i] = value;
-    }
-
-    return EMPTY_VAL;
-}
-
-static TeaValue reverse_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+static TeaValue reverse_list(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 0)
     {
@@ -547,7 +355,7 @@ static TeaValue reverse_list(TeaVM* vm, TeaValue instance, int count, TeaValue* 
         return EMPTY_VAL;
     }
 
-    TeaObjectList* list = AS_LIST(instance);
+    TeaObjectList* list = AS_LIST(args[0]);
     int length = list->items.count;
 
     for(int i = 0; i < length / 2; i++) 
@@ -558,704 +366,6 @@ static TeaValue reverse_list(TeaVM* vm, TeaValue instance, int count, TeaValue* 
     }
 
     return OBJECT_VAL(list);
-}
-
-static int partition(TeaObjectList* arr, int start, int end) 
-{
-    int pivot_index = (int)floor(start + end) / 2;
-
-    double pivot =  AS_NUMBER(arr->items.values[pivot_index]);
-
-    int i = start - 1;
-    int j = end + 1;
-
-    while(true)
-    {
-        do 
-        {
-            i = i + 1;
-        } 
-        while(AS_NUMBER(arr->items.values[i]) < pivot);
-
-        do 
-        {
-            j = j - 1;
-        } 
-        while(AS_NUMBER(arr->items.values[j]) > pivot);
-
-        if (i >= j) 
-        {
-            return j;
-        }
-
-        // Swap arr[i] with arr[j]
-        TeaValue temp = arr->items.values[i];
-        
-        arr->items.values[i] = arr->items.values[j];
-        arr->items.values[j] = temp;
-    }
-}
-
-// Implementation of Quick Sort using the Hoare
-// Partition scheme
-// Best Case O(n log n)
-// Worst Case O(n^2) (If the list is already sorted) 
-static void quicksort(TeaObjectList* arr, int start, int end) 
-{
-    while(start < end) 
-    {
-        int part = partition(arr, start, end);
-
-        // Recurse for the smaller halve.
-        if(part - start < end - part) 
-        {
-            quicksort(arr, start, part);
-            
-            start = start + 1;
-        } 
-        else 
-        {
-            quicksort(arr, part + 1, end);
-
-            end = end - 1;
-        }
-    }
-}
-
-static TeaValue sort_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "sort() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-
-    // Check if all the list elements are indeed numbers.
-    for(int i = 0; i < list->items.count; i++) 
-    {
-        if(!IS_NUMBER(list->items.values[i])) {
-            tea_runtime_error(vm, "sort() takes lists with numbers (index %d was not a number)", i);
-            return EMPTY_VAL;
-        }
-    }
-
-    quicksort(list, 0, list->items.count - 1);
-
-    return EMPTY_VAL;
-}
-
-static TeaValue index_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "index() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-    TeaValue value = args[0];
-
-    count = list->items.count;
-    for(int i = 0; i < count; i++)
-    {
-        TeaValue item = list->items.values[i];
-        if(tea_values_equal(item, value)) 
-        {
-            return NUMBER_VAL(i);
-        }
-    }
-    return NULL_VAL;
-}
-
-static TeaValue join_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count < 0 || count > 1)
-    {
-        tea_runtime_error(vm, "join() expected either 0 or 1 arguments (got %d)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectList* list = AS_LIST(instance);
-    if(list->items.count == 0) return OBJECT_VAL(tea_copy_string(vm->state, "", 0));
-
-    char* delimiter = "";
-    if(count == 1)
-    {
-        if(!IS_STRING(args[0]))
-        {
-            tea_runtime_error(vm, "join() takes a string as argument", count);
-            return EMPTY_VAL;
-        }
-
-        delimiter = AS_CSTRING(args[0]);
-    }
-
-    char* output;
-    char* string = NULL;
-    int length = 0;
-    int delimiterLength = strlen(delimiter);
-
-    for(int i = 0; i < list->items.count - 1; i++)
-    {
-        if(IS_STRING(list->items.values[i]))
-        {
-            output = AS_CSTRING(list->items.values[i]);
-        } 
-        else 
-        {
-            output = tea_value_tostring(vm->state, list->items.values[i]);
-        }
-        int elementLength = strlen(output);
-
-        string = GROW_ARRAY(vm->state, char, string, length, length + elementLength + delimiterLength);
-
-        memcpy(string + length, output, elementLength);
-        if(!IS_STRING(list->items.values[i])) 
-        {
-            free(output);
-        }
-        length += elementLength;
-        memcpy(string + length, delimiter, delimiterLength);
-        length += delimiterLength;
-    }
-
-    // Outside the loop as we do not want the append the delimiter on the last element
-    if(IS_STRING(list->items.values[list->items.count - 1])) 
-    {
-        output = AS_CSTRING(list->items.values[list->items.count - 1]);
-    } 
-    else 
-    {
-        output = tea_value_tostring(vm->state, list->items.values[list->items.count - 1]);
-    }
-
-    int elementLength = strlen(output);
-    string = GROW_ARRAY(vm->state, char, string, length, length + elementLength + 1);
-    memcpy(string + length, output, elementLength);
-    length += elementLength;
-
-    string[length] = '\0';
-
-    if(!IS_STRING(list->items.values[list->items.count - 1]))
-    {
-        FREE(vm->state, char, output);
-    }
-
-    return OBJECT_VAL(tea_take_string(vm->state, string, length));
-}
-
-// String
-static TeaValue len_string(TeaVM* vm, TeaValue instance)
-{
-    return NUMBER_VAL(tea_ustring_length(AS_STRING(instance)));
-}
-
-static TeaValue upper_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "upper() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-    char* temp = ALLOCATE(vm->state, char, string->length + 1);
-
-    for(int i = 0; string->chars[i]; i++) 
-    {
-        temp[i] = toupper(string->chars[i]);
-    }
-    temp[string->length] = '\0';
-
-    return OBJECT_VAL(tea_take_string(vm->state, temp, string->length));
-}
-
-static TeaValue lower_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "lower() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-    char* temp = ALLOCATE(vm->state, char, string->length + 1);
-
-    for(int i = 0; string->chars[i]; i++) 
-    {
-        temp[i] = tolower(string->chars[i]);
-    }
-    temp[string->length] = '\0';
-
-    return OBJECT_VAL(tea_take_string(vm->state, temp, string->length));
-}
-
-static TeaValue reverse_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "reverse() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    const char* string = AS_CSTRING(instance);
-
-    int l = strlen(string);
-
-    if(l == 0 || l == 1)
-    {
-        return OBJECT_VAL(AS_STRING(instance));
-    }
-
-    char* res = ALLOCATE(vm->state, char, l + 1);
-    for(int i = 0; i < l; i++)
-    {
-        res[i] = string[l - i - 1];
-    }
-    res[l] = '\0';
-
-    return OBJECT_VAL(tea_take_string(vm->state, res, l));
-}
-
-static TeaValue split_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count < 0 || count > 2)
-    {
-        tea_runtime_error(vm, "split() expected either 0 to 2 arguments (got %d)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-    char* delimiter;
-    int max_split = string->length + 1;
-
-    if(count == 0)
-    {
-        delimiter = " ";
-    }
-    else if(count > 0)
-    {
-        if(!IS_STRING(args[0]))
-        {
-            tea_runtime_error(vm, "split() argument must be a string");
-            return EMPTY_VAL;
-        }
-
-        delimiter = AS_CSTRING(args[0]);
-
-        if(count == 2)
-        {
-            if(!IS_NUMBER(args[1]))
-            {
-                tea_runtime_error(vm, "split() argument must be a number");
-                return EMPTY_VAL;
-            }
-
-            if(AS_NUMBER(args[1]) >= 0)
-            {
-                max_split = AS_NUMBER(args[1]);
-            }
-        }
-    }
-
-    char* temp = ALLOCATE(vm->state, char, string->length + 1);
-    char* temp_free = temp;
-    memcpy(temp, string->chars, string->length);
-    temp[string->length] = '\0';
-    int delimeter_length = strlen(delimiter);
-    char *token;
-
-    TeaObjectList* list = tea_new_list(vm->state);
-    count = 0;
-
-    if(delimeter_length == 0) 
-    {
-        int tokenIndex = 0;
-        for(; tokenIndex < string->length && count < max_split; tokenIndex++) 
-        {
-            count++;
-            *(temp) = string->chars[tokenIndex];
-            *(temp + 1) = '\0';
-            TeaValue str = OBJECT_VAL(tea_copy_string(vm->state, temp, 1));
-            tea_write_value_array(vm->state, &list->items, str);
-        }
-
-        if(tokenIndex != string->length && count >= max_split)
-        {
-            temp = (string->chars) + tokenIndex;
-        } 
-        else 
-        {
-            temp = NULL;
-        }
-    } 
-    else if(max_split > 0) 
-    {
-        do 
-        {
-            count++;
-            token = strstr(temp, delimiter);
-            if(token)
-            {
-                *token = '\0';
-            }
-
-            TeaValue str = OBJECT_VAL(tea_copy_string(vm->state, temp, strlen(temp)));
-            tea_write_value_array(vm->state, &list->items, str);
-            temp = token + delimeter_length;
-        } 
-        while (token != NULL && count < max_split);
-
-        if(token == NULL) 
-        {
-            temp = NULL;
-        }
-    }
-
-    if(temp != NULL && count >= max_split)
-    {
-        TeaValue rest = OBJECT_VAL(tea_copy_string(vm->state, temp, strlen(temp)));
-        tea_write_value_array(vm->state, &list->items, rest);
-    }
-
-    FREE_ARRAY(vm->state, char, temp_free, string->length + 1);
-    return OBJECT_VAL(list);
-}
-
-static TeaValue title_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "title() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-    char* temp = ALLOCATE(vm->state, char, string->length + 1);
-
-    bool convertNext = true;
-
-    for(int i = 0; string->chars[i]; i++) 
-    {
-        if(string->chars[i]==' ')
-        {
-            convertNext=true;
-        }
-        else if(convertNext)
-        {
-            temp[i] = toupper(string->chars[i]);
-            convertNext=false;
-            continue;
-        }
-        temp[i] = tolower(string->chars[i]);
-    }
-
-    temp[string->length] = '\0';
-
-    return OBJECT_VAL(tea_take_string(vm->state, temp, string->length));
-}
-
-static TeaValue contains_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "contains() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "contains() argument must be a string");
-        return EMPTY_VAL;
-    }
-
-    char* string = AS_CSTRING(instance);
-    char* delimiter = AS_CSTRING(args[0]);
-
-    return !strstr(string, delimiter) ? FALSE_VAL : TRUE_VAL;
-}
-
-static TeaValue startswith_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "startswith() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "startswith() argument must be a string");
-        return EMPTY_VAL;
-    }
-
-    char* string = AS_CSTRING(instance);
-    TeaObjectString* start = AS_STRING(args[0]);
-
-    return BOOL_VAL(strncmp(string, start->chars, start->length) == 0);
-}
-
-static TeaValue endswith_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "endswith() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "endswith() argument must be a string");
-        return EMPTY_VAL;
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-    TeaObjectString* end = AS_STRING(args[0]);
-
-    return BOOL_VAL(strcmp(string->chars + (string->length - end->length), end->chars) == 0);
-}
-
-static TeaValue leftstrip_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "leftstrip() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-    int i = 0;
-    count = 0;
-    char* temp = ALLOCATE(vm->state, char, string->length + 1);
-
-    for(i = 0; i < string->length; i++) 
-    {
-        if(!isspace(string->chars[i]))
-        {
-            break;
-        }
-        count++;
-    }
-
-    if(count != 0) 
-    {
-        temp = GROW_ARRAY(vm->state, char, temp, string->length + 1, (string->length - count) + 1);
-    }
-
-    memcpy(temp, string->chars + count, string->length - count);
-    temp[string->length - count] = '\0';
-
-    return OBJECT_VAL(tea_take_string(vm->state, temp, string->length - count));
-}
-
-static TeaValue rightstrip_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "rightstrip() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-    int length;
-    char* temp = ALLOCATE(vm->state, char, string->length + 1);
-
-    for(length = string->length - 1; length > 0; length--) 
-    {
-        if(!isspace(string->chars[length]))
-        {
-            break;
-        }
-    }
-
-    // If characters were stripped resize the buffer
-    if(length + 1 != string->length) 
-    {
-        temp = GROW_ARRAY(vm->state, char, temp, string->length + 1, length + 2);
-    }
-
-    memcpy(temp, string->chars, length + 1);
-    temp[length + 1] = '\0';
-
-    return OBJECT_VAL(tea_take_string(vm->state, temp, length + 1));
-}
-
-static TeaValue strip_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 0)
-    {
-        tea_runtime_error(vm, "strip() takes 0 arguments (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    TeaValue string = leftstrip_string(vm, instance, 0, args);
-    string = rightstrip_string(vm, string, 0, &string);
-
-    return string;
-}
-
-static TeaValue count_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "count() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "count() argument must be a string");
-        return EMPTY_VAL;
-    }
-
-    char* string = AS_CSTRING(instance);
-    char* needle = AS_CSTRING(args[0]);
-
-    count = 0;
-    while((string = strstr(string, needle))) 
-    {
-        count++;
-        string++;
-    }
-
-    return NUMBER_VAL(count);
-}
-
-static TeaValue find_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count < 1 || count > 2)
-    {
-        tea_runtime_error(vm, "find() expected either 1 or 2 arguments (got %d)", count);
-        return EMPTY_VAL;
-    }
-
-    int index = 1;
-
-    if(count == 2)
-    {
-        if(!IS_NUMBER(args[1]))
-        {
-            tea_runtime_error(vm, "count() argument must be a string");
-            return EMPTY_VAL;
-        }
-
-        index = AS_NUMBER(args[1]);
-    }
-
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "count() substring must be a string");
-        return EMPTY_VAL;
-    }
-
-    char* substr = AS_CSTRING(args[0]);
-    char* string = AS_CSTRING(instance);
-
-    int position = 0;
-
-    for(int i = 0; i < index; i++) 
-    {
-        char *result = strstr(string, substr);
-        if(!result) 
-        {
-            position = -1;
-            break;
-        }
-
-        position += (result - string) + (i * strlen(substr));
-        string = result + strlen(substr);
-    }
-
-    return NUMBER_VAL(position);
-}
-
-static TeaValue format_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
-{
-    if(count == 0)
-    {
-        tea_runtime_error(vm, "format() takes at least 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    int length = 0;
-    char** replaceStrings = ALLOCATE(vm->state, char*, count);
-
-    for(int j = 0; j < count + 1; j++) 
-    {
-        TeaValue value = args[j];
-        if(!IS_STRING(value))
-        {
-            replaceStrings[j] = tea_value_tostring(vm->state, value);
-        }
-        else 
-        {
-            TeaObjectString* strObj = AS_STRING(value);
-            char* str = malloc(strObj->length + 1);
-            memcpy(str, strObj->chars, strObj->length + 1);
-            replaceStrings[j] = str;
-        }
-
-        length += strlen(replaceStrings[j]);
-    }
-
-    TeaObjectString* string = AS_STRING(instance);
-
-    int stringLen = string->length + 1;
-    char* tmp = ALLOCATE(vm->state, char, stringLen);
-    char* tmpFree = tmp;
-    memcpy(tmp, string->chars, stringLen);
-
-    int n = 0;
-    while((tmp = strstr(tmp, "{}")))
-    {
-        n++;
-        tmp++;
-    }
-
-    tmp = tmpFree;
-
-    if(n != count) 
-    {
-        tea_runtime_error(vm, "format() placeholders do not match arguments");
-
-        for(int i = 0; i < count; i++)
-        {
-            free(replaceStrings[i]);
-        }
-
-        FREE_ARRAY(vm->state, char, tmp , stringLen);
-        FREE_ARRAY(vm->state, char*, replaceStrings, count);
-        return EMPTY_VAL;
-    }
-
-    int fullLength = string->length - n * 2 + length + 1;
-    char* pos;
-    char* newStr = ALLOCATE(vm->state, char, fullLength);
-    int stringLength = 0;
-
-    for(int i = 0; i < count; i++) 
-    {
-        pos = strstr(tmp, "{}");
-        if(pos != NULL)
-            *pos = '\0';
-
-        int tmpLength = strlen(tmp);
-        int replaceLength = strlen(replaceStrings[i]);
-        memcpy(newStr + stringLength, tmp, tmpLength);
-        memcpy(newStr + stringLength + tmpLength, replaceStrings[i], replaceLength);
-        stringLength += tmpLength + replaceLength;
-        tmp = pos + 2;
-        free(replaceStrings[i]);
-    }
-
-    FREE_ARRAY(vm->state, char*, replaceStrings, count);
-    memcpy(newStr + stringLength, tmp, strlen(tmp));
-    newStr[fullLength - 1] = '\0';
-    FREE_ARRAY(vm->state, char, tmpFree, stringLen);
-
-    return OBJECT_VAL(tea_take_string(vm->state, newStr, fullLength - 1));
 }
 
 // Globals
@@ -1353,20 +463,10 @@ static TeaValue open_native(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
-    char* path = AS_CSTRING(args[0]);
-    char* type = AS_CSTRING(args[1]);
-
     TeaObjectFile* file = tea_new_file(vm->state);
-    file->file = fopen(path, type);
-    file->path = path;
-    file->type = type;
+    file->path = AS_STRING(args[0])->chars;
+    file->type = AS_STRING(args[1])->chars;
     file->is_open = true;
-
-    if (file->file == NULL) 
-    {
-        tea_runtime_error(vm, "Unable to open file '%s'", file->path);
-        return EMPTY_VAL;
-    }
 
     return OBJECT_VAL(file);
 }
@@ -1456,9 +556,9 @@ static TeaValue string_native(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
-    char* string = tea_value_tostring(vm->state, args[0]);
+    const char* string = tea_value_tostring(vm->state, args[0]);
 
-    return OBJECT_VAL(tea_take_string(vm->state, string, strlen(string)));
+    return OBJECT_VAL(tea_copy_string(vm->state, string, strlen(string)));
 }
 
 static TeaValue char_native(TeaVM* vm, int count, TeaValue* args)
@@ -1466,12 +566,6 @@ static TeaValue char_native(TeaVM* vm, int count, TeaValue* args)
     if(count != 1)
     {
         tea_runtime_error(vm, "char() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0]))
-    {
-        tea_runtime_error(vm, "char() argument must be a number");
         return EMPTY_VAL;
     }
 
@@ -1488,12 +582,6 @@ static TeaValue ord_native(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "ord() argument must be a string");
-        return EMPTY_VAL;
-    }
-
     TeaObjectString* string = AS_STRING(args[0]);
     int index = tea_ustring_decode((uint8_t*)string->chars, 1);
 
@@ -1502,7 +590,7 @@ static TeaValue ord_native(TeaVM* vm, int count, TeaValue* args)
 
 static TeaValue gc_native(TeaVM* vm, int count, TeaValue* args)
 {
-    if(count != 0)
+    if(count != 1)
     {
         tea_runtime_error(vm, "gc() takes 0 arguments (%d given)", count);
         return EMPTY_VAL;
@@ -1537,50 +625,21 @@ static TeaValue interpret_native(TeaVM* vm, int count, TeaValue* args)
 void tea_open_core(TeaVM* vm)
 {
     // File
-    tea_native_property(vm, &vm->file_methods, "closed", closed_file);
-    tea_native_property(vm, &vm->file_methods, "path", path_file);
-    tea_native_property(vm, &vm->file_methods, "type", type_file);
-    tea_native_method(vm, &vm->file_methods, "write", write_file);
-    tea_native_method(vm, &vm->file_methods, "writeline", writeline_file);
-    tea_native_method(vm, &vm->file_methods, "read", read_file);
-    tea_native_method(vm, &vm->file_methods, "readline", readline_file);
-    tea_native_method(vm, &vm->file_methods, "seek", seek_file);
-    tea_native_method(vm, &vm->file_methods, "close", close_file);
-
-    // List
-    tea_native_property(vm, &vm->list_methods, "len", len_list);
-    tea_native_method(vm, &vm->list_methods, "add", add_list);
-    tea_native_method(vm, &vm->list_methods, "remove", remove_list);
-    tea_native_method(vm, &vm->list_methods, "delete", delete_list);
-    tea_native_method(vm, &vm->list_methods, "clear", clear_list);
-    tea_native_method(vm, &vm->list_methods, "insert", insert_list);
-    tea_native_method(vm, &vm->list_methods, "extend", extend_list);
-    tea_native_method(vm, &vm->list_methods, "reverse", reverse_list);
-    tea_native_method(vm, &vm->list_methods, "contains", contains_list);
-    tea_native_method(vm, &vm->list_methods, "count", count_list);
-    tea_native_method(vm, &vm->list_methods, "swap", swap_list);
-    tea_native_method(vm, &vm->list_methods, "fill", fill_list);
-    tea_native_method(vm, &vm->list_methods, "sort", sort_list);
-    tea_native_method(vm, &vm->list_methods, "index", index_list);
-    tea_native_method(vm, &vm->list_methods, "join", join_list);
-    //tea_native_method(vm, &vm->list_methods, "copy", copy_list);
+    tea_native_function(vm, &vm->file_methods, "write", write_file);
+    tea_native_function(vm, &vm->file_methods, "writeline", writeline_file);
+    tea_native_function(vm, &vm->file_methods, "read", read_file);
+    tea_native_function(vm, &vm->file_methods, "readline", readline_file);
+    tea_native_function(vm, &vm->file_methods, "seek", seek_file);
 
     // String
-    tea_native_property(vm, &vm->string_methods, "len", len_string);
-    tea_native_method(vm, &vm->string_methods, "upper", upper_string);
-    tea_native_method(vm, &vm->string_methods, "lower", lower_string);
-    tea_native_method(vm, &vm->string_methods, "reverse", reverse_string);
-    tea_native_method(vm, &vm->string_methods, "split", split_string);
-    tea_native_method(vm, &vm->string_methods, "title", title_string);
-    tea_native_method(vm, &vm->string_methods, "contains", contains_string);
-    tea_native_method(vm, &vm->string_methods, "startswith", startswith_string);
-    tea_native_method(vm, &vm->string_methods, "endswith", endswith_string);
-    tea_native_method(vm, &vm->string_methods, "leftstrip", leftstrip_string);
-    tea_native_method(vm, &vm->string_methods, "rightstrip", rightstrip_string);
-    tea_native_method(vm, &vm->string_methods, "strip", strip_string);
-    tea_native_method(vm, &vm->string_methods, "count", count_string);
-    tea_native_method(vm, &vm->string_methods, "find", find_string);
-    tea_native_method(vm, &vm->string_methods, "format", format_string);
+    tea_native_function(vm, &vm->string_methods, "reverse", reverse_string);
+
+    // List
+    tea_native_function(vm, &vm->list_methods, "add", add_list);
+    tea_native_function(vm, &vm->list_methods, "remove", remove_list);
+    tea_native_function(vm, &vm->list_methods, "clear", clear_list);
+    tea_native_function(vm, &vm->list_methods, "insert", insert_list);
+    tea_native_function(vm, &vm->list_methods, "reverse", reverse_list);
 
     // Globals
     tea_native_function(vm, &vm->globals, "print", print_native);
@@ -1591,10 +650,10 @@ void tea_open_core(TeaVM* vm)
     tea_native_function(vm, &vm->globals, "type", type_native);
     tea_native_function(vm, &vm->globals, "gc", gc_native);
     tea_native_function(vm, &vm->globals, "interpret", interpret_native);
-    tea_native_function(vm, &vm->globals, "char", char_native);
-    tea_native_function(vm, &vm->globals, "ord", ord_native);
     tea_native_function(vm, &vm->globals, "number", number_native);
     //tea_native_function(vm, &vm->globals, "bool", bool_native);
     tea_native_function(vm, &vm->globals, "string", string_native);
+    tea_native_function(vm, &vm->globals, "char", char_native);
+    tea_native_function(vm, &vm->globals, "ord", ord_native);
     //tea_native_function(vm, &vm->globals, "list", list_native);
 }

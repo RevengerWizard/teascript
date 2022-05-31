@@ -303,6 +303,7 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
                 switch(scanner->start[1])
                 {
                     case 'h': return check_keyword(scanner, 2, 3, "ile", TOKEN_WHILE);
+                    case 'i': return check_keyword(scanner, 2, 2, "th", TOKEN_WITH);
                 }
             }
             break;
@@ -527,7 +528,6 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         case '{': return make_token(scanner, TOKEN_LEFT_BRACE);
         case '}': return make_token(scanner, TOKEN_RIGHT_BRACE);
         case ',': return make_token(scanner, TOKEN_COMMA);
-        case ';': return make_token(scanner, TOKEN_SEMICOLON);
         case ':': return make_token(scanner, TOKEN_COLON);
         case '?': return make_token(scanner, TOKEN_QUESTION);
         case '.':

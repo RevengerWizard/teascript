@@ -12,7 +12,7 @@ typedef enum TeaInterpretResult TeaInterpretResult;
 typedef struct TeaObject TeaObject;
 typedef struct TeaObjectString TeaObjectString;
 typedef struct TeaObjectFile TeaObjectFile;
-typedef struct TeaObjectData TeaObjectData;
+typedef struct TeaObjectUserdata TeaObjectUserdata;
 
 typedef uint64_t TeaValue;
 
