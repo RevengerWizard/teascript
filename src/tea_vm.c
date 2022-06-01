@@ -226,7 +226,7 @@ static bool subscript(TeaVM* vm, TeaValue index_value, TeaValue subscript_value)
             {
                 if(!IS_NUMBER(index_value)) 
                 {
-                    tea_runtime_error(vm, "List index must be a number");
+                    tea_runtime_error(vm, "String index must be a number (got %s)", tea_value_type(index_value));
                     return false;
                 }
 
@@ -257,7 +257,7 @@ static bool subscript(TeaVM* vm, TeaValue index_value, TeaValue subscript_value)
         }
     }
     
-    tea_runtime_error(vm, "not subscriptable");
+    tea_runtime_error(vm, "%s not subscriptable", tea_value_type(subscript_value));
     return false;
 }
 
@@ -271,7 +271,7 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
             {
                 if(!IS_NUMBER(index_value)) 
                 {
-                    tea_runtime_error(vm, "List index must be a number");
+                    tea_runtime_error(vm, "List index must be a number (got %s)", tea_value_type(index_value));
                     return false;
                 }
 

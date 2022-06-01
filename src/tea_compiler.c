@@ -896,8 +896,6 @@ static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign
     else
     {
         arg = identifier_constant(compiler, &name);
-        //get_op = OP_GET_GLOBAL;
-        //set_op = OP_SET_GLOBAL;
         TeaObjectString* string = tea_copy_string(compiler->state, name.start, name.length);
         TeaValue value;
         if(tea_table_get(&compiler->state->vm->globals, string, &value)) 
@@ -1439,26 +1437,33 @@ static void var_declaration(TeaCompiler* compiler)
 
 static void expression_statement(TeaCompiler* compiler)
 {
-    TeaToken previous = compiler->parser->previous;
-    advance(compiler);
-    TeaTokenType t = compiler->parser->current.type;
-
-    for(int i = 0; i < compiler->parser->current.length; i++) 
+    if(compiler->state->repl)
     {
-        tea_back_track(compiler->state->scanner);
-    }
-    compiler->parser->current = compiler->parser->previous;
-    compiler->parser->previous = previous;
+        TeaToken previous = compiler->parser->previous;
+        advance(compiler);
+        TeaTokenType t = compiler->parser->current.type;
 
+        for(int i = 0; i < compiler->parser->current.length; i++) 
+        {
+            tea_back_track(compiler->state->scanner);
+        }
+        compiler->parser->current = compiler->parser->previous;
+        compiler->parser->previous = previous;
+
+        expression(compiler);
+        if(t != TOKEN_EQUAL) 
+        {
+            emit_byte(compiler, OP_POP_REPL);
+        }
+        else
+        {
+            emit_byte(compiler, OP_POP);
+        }
+        return;
+    }
+    
     expression(compiler);
-    if(compiler->state->repl && t != TOKEN_EQUAL) 
-    {
-        emit_byte(compiler, OP_POP_REPL);
-    }
-    else
-    {
-        emit_byte(compiler, OP_POP);
-    }
+    emit_byte(compiler, OP_POP);
 }
 
 static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
@@ -1487,7 +1492,6 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_RETURN:
         case OP_IMPORT_VARIABLE:
         case OP_IMPORT_END:
-        //case OP_OPEN_CONTEXT:
         case OP_END:
         case OP_BAND:
         case OP_BXOR:
@@ -1514,7 +1518,6 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_IMPORT:
         case OP_LIST:
         case OP_MAP:
-        //case OP_CLOSE_CONTEXT:
             return 1;
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:

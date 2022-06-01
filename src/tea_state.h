@@ -5,9 +5,6 @@
 #include "tea_common.h"
 #include "tea_object.h"
 
-//typedef void (*TeaError)(TeaState* state, const char* message);
-//typedef void (*TeaPrint)(TeaState* state, const char* message);
-
 typedef struct TeaState
 {
     size_t bytes_allocated;
@@ -18,6 +15,8 @@ typedef struct TeaState
     struct TeaScanner* scanner;
     struct TeaCompiler* compiler;
     struct TeaVM* vm;
+
+    bool allow_gc;
 
     int argc;
     const char** argv;

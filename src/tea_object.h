@@ -119,23 +119,6 @@ typedef struct
     TeaObjectModule* module;
 } TeaObjectFunction;
 
-/*typedef enum
-{
-    NATIVE_FUNCTION,
-    NATIVE_METHOD,
-    NATIVE_PROPERTY
-} TeaNativeType;
-
-typedef struct
-{
-    TeaNativeType type;
-
-    union
-    {
-        
-    } as;
-} TeaObjectNative;*/
-
 typedef TeaValue (*TeaNativeFunction)(TeaVM* vm, int count, TeaValue* args);
 
 typedef struct
