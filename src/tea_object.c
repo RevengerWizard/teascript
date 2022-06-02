@@ -573,7 +573,7 @@ void tea_print_object(TeaValue value)
             print_function(AS_BOUND_METHOD(value)->method->function);
             break;
         case OBJ_CLASS:
-            printf("%s", AS_CLASS(value)->name->chars);
+            printf("<%s>", AS_CLASS(value)->name->chars);
             break;
         case OBJ_CLOSURE:
             print_function(AS_CLOSURE(value)->function);
@@ -582,7 +582,7 @@ void tea_print_object(TeaValue value)
             print_function(AS_FUNCTION(value));
             break;
         case OBJ_INSTANCE:
-            printf("%s instance", AS_INSTANCE(value)->klass->name->chars);
+            printf("<%s instance>", AS_INSTANCE(value)->klass->name->chars);
             break;
         case OBJ_NATIVE_METHOD:
         case OBJ_NATIVE_FUNCTION:
@@ -592,7 +592,7 @@ void tea_print_object(TeaValue value)
             printf("%s", AS_CSTRING(value));
             break;
         case OBJ_UPVALUE:
-            printf("upvalue");
+            printf("<upvalue>");
             break;
     }
 }

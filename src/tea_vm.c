@@ -1542,6 +1542,42 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             PUSH(NUMBER_VAL(-AS_NUMBER(POP())));
             DISPATCH();
         }
+        CASE_CODE(MULTI_CASE):
+        {
+            int count = READ_BYTE();
+            TeaValue switch_value = PEEK(count + 1);
+            TeaValue case_value = POP();
+            for(int i = 0; i < count; i++)
+            {
+                if(tea_values_equal(switch_value, case_value))
+                {
+                    i++;
+                    while(i <= count)
+                    {
+                        POP();
+                        i++;   
+                    }
+                    break;
+                }
+                case_value = POP();
+            }
+            PUSH(case_value);
+            DISPATCH();
+        }
+        CASE_CODE(COMPARE_JUMP):
+        {
+            uint16_t offset = READ_SHORT();
+            TeaValue a = POP();
+            if(!tea_values_equal(PEEK(0), a))
+            {
+                ip += offset;
+            }
+            else
+            {
+                POP();
+            }
+            DISPATCH();
+        }
         CASE_CODE(JUMP):
         {
             uint16_t offset = READ_SHORT();

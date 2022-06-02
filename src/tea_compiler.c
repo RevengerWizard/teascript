@@ -1713,86 +1713,62 @@ static void if_statement(TeaCompiler* compiler)
 
 static void switch_statement(TeaCompiler* compiler)
 {
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'switch'");
-    expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after value");
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before switch cases");
-
-    int state = 0; // 0: before all cases, 1: before default, 2: after default.
     int case_ends[256];
     int case_count = 0;
-    int previous_case_skip = -1;
 
-    while(!match(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF)) 
+    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after switch");
+    expression(compiler);
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after expression");
+    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before switch body");
+
+    if(match(compiler, TOKEN_CASE))
     {
-        if(match(compiler, TOKEN_CASE) || match(compiler, TOKEN_DEFAULT)) 
+        do
         {
-            TeaTokenType case_type = compiler->parser->previous.type;
-
-            if(state == 2) 
+            expression(compiler);
+            int multiple_cases = 0;
+            if(match(compiler, TOKEN_COMMA)) 
             {
-                error(compiler, "Can't have another case or default after the default case");
+                do
+                {
+                    multiple_cases++;
+                    expression(compiler);
+                } 
+                while(match(compiler, TOKEN_COMMA));
+                emit_bytes(compiler, OP_MULTI_CASE, multiple_cases);
             }
-
-            if(state == 1) 
-            {
-                // At the end of the previous case, jump over the others.
-                case_ends[case_count++] = emit_jump(compiler, OP_JUMP);
-
-                // Patch its condition to jump to the next case (this one).
-                patch_jump(compiler, previous_case_skip);
-                emit_byte(compiler, OP_POP);
-            }
-
-            if(case_type == TOKEN_CASE) 
-            {
-                state = 1;
-
-                // See if the case is equal to the value.
-                emit_byte(compiler, OP_DUP);
-                expression(compiler);
-
-                consume(compiler, TOKEN_COLON, "Expect ':' after case value");
-
-                emit_byte(compiler, OP_EQUAL);
-                previous_case_skip = emit_jump(compiler, OP_JUMP_IF_FALSE);
-
-                // Pop the comparison result.
-                emit_byte(compiler, OP_POP);
-            } 
-            else 
-            {
-                state = 2;
-                consume(compiler, TOKEN_COLON, "Expect ':' after default");
-                previous_case_skip = -1;
-            }
-        } 
-        else 
-        {
-            // Otherwise, it's a statement inside the current case.
-            if(state == 0) 
-            {
-                error(compiler, "Can't have statements before any case");
-            }
-            emit_byte(compiler, OP_POP);
+            int compare_jump = emit_jump(compiler, OP_COMPARE_JUMP);
+            consume(compiler, TOKEN_COLON, "Expect ':' after expression");
             statement(compiler);
-        }
+            case_ends[case_count++] = emit_jump(compiler, OP_JUMP);
+            patch_jump(compiler, compare_jump);
+            if(case_count > 255)
+            {
+                error_at_current(compiler, "Switch statement can not have more than 256 case blocks");
+            }
+
+        } 
+        while(match(compiler, TOKEN_CASE));
     }
 
-    // If we ended without a default case, patch its condition jump.
-    if(state == 1) 
+    if(match(compiler,TOKEN_DEFAULT))
     {
-        patch_jump(compiler, previous_case_skip);
-        emit_byte(compiler, OP_POP);
+        emit_byte(compiler, OP_POP); // expression.
+        consume(compiler, TOKEN_COLON, "Expect ':' after default");
+        statement(compiler);
     }
 
-    // Patch all the case jumps to the end.
+    if(match(compiler,TOKEN_CASE))
+    {
+        error(compiler, "Unexpected case after default");
+    }
+
+    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after switch body");
+
     for(int i = 0; i < case_count; i++) 
     {
-        patch_jump(compiler, case_ends[i]);
-    }
-
-    emit_byte(compiler, OP_POP); // The switch value.
+    	patch_jump(compiler, case_ends[i]);
+    } 
 }
 
 static void return_statement(TeaCompiler* compiler)
