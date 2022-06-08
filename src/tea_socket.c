@@ -348,7 +348,7 @@ static TeaValue setsockopt_socket(TeaVM* vm, TeaValue instance, int count, TeaVa
 
 static TeaObjectInstance* new_socket(TeaState* state, int sock, int family, int type, int protocol) 
 {
-    TeaObjectClass* klass = tea_new_class(state, tea_copy_string(state, "Socket", 6));
+    TeaObjectClass* klass = tea_new_class(state, tea_copy_string(state, "Socket", 6), NULL);
     TeaObjectInstance* instance = tea_new_instance(state, klass);
 
     TeaObjectData* data = tea_new_data(state, sizeof(TeaSocketData));

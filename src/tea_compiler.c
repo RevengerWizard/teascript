@@ -186,7 +186,7 @@ static void init_compiler(TeaState* state, TeaParser* parser, TeaCompiler* compi
     compiler->local_count = 0;
     compiler->scope_depth = 0;
 
-    compiler->function = tea_new_function(state, parser->module);
+    compiler->function = tea_new_function(state, type, parser->module);
 
     if(type != TYPE_SCRIPT)
     {
@@ -989,10 +989,17 @@ static void super_(TeaCompiler* compiler, bool can_assign)
     if(compiler->klass == NULL)
     {
         error(compiler, "Can't use 'super' outside of a class");
+        return;
+    }
+    else if(compiler->klass->is_static)
+    {
+        error(compiler, "Can't use 'this' inside a static method");
+        return;
     }
     else if(!compiler->klass->has_superclass)
     {
         error(compiler, "Can't use 'super' in a class with no superclass");
+        return;
     }
 
     // constructor super
@@ -1037,8 +1044,21 @@ static void this_(TeaCompiler* compiler, bool can_assign)
         error(compiler, "Can't use 'this' outside of a class");
         return;
     }
+    else if(compiler->klass->is_static)
+    {
+        error(compiler, "Can't use 'this' inside a static method");
+        return;
+    }
 
     variable(compiler, false);
+}
+
+static void static_(TeaCompiler* compiler, bool can_assign)
+{
+    if(compiler->klass == NULL)
+    {
+        error(compiler, "Can't use 'static' outside of a class");
+    }
 }
 
 static void unary(TeaCompiler* compiler, bool can_assign)
@@ -1149,6 +1169,7 @@ static TeaParseRule rules[] = {
     PREFIX(number),                         // TOKEN_NUMBER
     OPERATOR(and_, AND),                    // TOKEN_AND
     NONE,                                   // TOKEN_CLASS
+    PREFIX(static_),                        // TOKEN_STATIC
     NONE,                                   // TOKEN_ELSE
     PREFIX(boolean),                        // TOKEN_FALSE
     NONE,                                   // TOKEN_FOR
@@ -1270,12 +1291,10 @@ static void anonymous(TeaCompiler* compiler, bool can_assign)
     function(compiler, TYPE_FUNCTION);
 }
 
-static void method(TeaCompiler* compiler)
+static void method(TeaCompiler* compiler, TeaFunctionType type)
 {
     consume(compiler, TOKEN_NAME, "Expect method name");
     uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
-
-    TeaFunctionType type = TYPE_METHOD;
 
     if(compiler->parser->previous.length == 11 && memcmp(compiler->parser->previous.start, "constructor", 11) == 0)
     {
@@ -1292,15 +1311,27 @@ static void class_body(TeaCompiler* compiler)
     {
         if(match(compiler, TOKEN_VAR))
         {
+            consume(compiler, TOKEN_NAME, "Expect class variable name");
+            uint8_t name = identifier_constant(compiler, &compiler->parser->previous);
 
+            if(match(compiler, TOKEN_EQUAL))
+            {
+                expression(compiler);
+            }
+            else
+            {
+                emit_byte(compiler, OP_NULL);
+            }
+            emit_bytes(compiler, OP_SET_CLASS_VAR, name);
         }
-        else if(match(compiler, TOKEN_CONST))
+        else if(match(compiler, TOKEN_STATIC))
         {
-            
+            compiler->klass->is_static = true;
+            method(compiler, TYPE_STATIC);
         }
         else
         {
-            method(compiler);
+            method(compiler, TYPE_METHOD);
         }
     }
 }
@@ -1316,6 +1347,7 @@ static void class_declaration(TeaCompiler* compiler)
     define_variable(compiler, name_constant);
 
     TeaClassCompiler class_compiler;
+    class_compiler.is_static = false;
     class_compiler.has_superclass = false;
     class_compiler.enclosing = compiler->klass;
     compiler->klass = &class_compiler;
@@ -1333,7 +1365,7 @@ static void class_declaration(TeaCompiler* compiler)
         begin_scope(compiler);
         add_local(compiler, synthetic_token("super"));
         define_variable(compiler, 0);
-
+    
         named_variable(compiler, class_name, false);
         emit_byte(compiler, OP_INHERIT);
         class_compiler.has_superclass = true;
@@ -2037,6 +2069,7 @@ static void synchronize(TeaCompiler* compiler)
         switch(compiler->parser->current.type)
         {            
             case TOKEN_CLASS:
+            case TOKEN_STATIC:
             case TOKEN_FUNCTION:
             case TOKEN_VAR:
             case TOKEN_CONST:

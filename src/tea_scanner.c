@@ -279,6 +279,7 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
                 {
                     case 'u': return check_keyword(scanner, 2, 3, "per", TOKEN_SUPER);
                     case 'w': return check_keyword(scanner, 2, 4, "itch", TOKEN_SWITCH);
+                    case 't': return check_keyword(scanner, 2, 4, "atic", TOKEN_STATIC);
                 }
             }
             break;

@@ -620,6 +620,24 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
                 tea_runtime_error(vm, "Undefined property '%s'", name->chars);
                 return false;
             }
+            case OBJ_CLASS:
+            {
+                TeaObjectClass* klass = AS_CLASS(receiver);
+                TeaValue method;
+                if(tea_table_get(&klass->methods, name, &method)) 
+                {
+                    if(AS_CLOSURE(method)->function->type != TYPE_STATIC) 
+                    {
+                        tea_runtime_error(vm, "'%s' is not static. Only static methods can be invoked directly from a class", name->chars);
+                        return false;
+                    }
+
+                    return call_value(vm, method, count);
+                }
+
+                tea_runtime_error(vm, "Undefined property '%s'.", name->chars);
+                return false;
+            }
             case OBJ_STRING:
             {
                 TeaValue value;
@@ -727,8 +745,8 @@ static bool get_property(TeaVM* vm, TeaValue receiver, TeaObjectString* name, bo
             case OBJ_INSTANCE:
             {
                 TeaObjectInstance* instance = AS_INSTANCE(receiver);
+                
                 TeaValue value;
-
                 if(tea_table_get(&instance->fields, name, &value))
                 {
                     if(IS_NATIVE_PROPERTY(value))
@@ -748,12 +766,52 @@ static bool get_property(TeaVM* vm, TeaValue receiver, TeaObjectString* name, bo
                     return true;
                 }
 
+                TeaObjectClass* klass = instance->klass;
+                while(klass != NULL) 
+                {
+                    if(tea_table_get(&klass->statics, name, &value))
+                    {
+                        if(pop)
+                        {
+                            tea_pop(vm); // Instance.
+                        }
+                        tea_push(vm, value);
+                        return true;
+                    }
+
+                    klass = klass->super;
+                }
+
                 if(!bind_method(vm, instance->klass, name))
                 {
                     return false;
                 }
 
                 tea_runtime_error(vm, "'%s' instance has no property: '%s'", instance->klass->name->chars, name->chars);
+                return false;
+            }
+            case OBJ_CLASS:
+            {
+                TeaObjectClass* klass = AS_CLASS(receiver);
+                TeaObjectClass* klass_store = klass;
+
+                while(klass != NULL) 
+                {
+                    TeaValue value;
+                    if(tea_table_get(&klass->statics, name, &value))
+                    {
+                        if(pop)
+                        {
+                            tea_pop(vm); // Class.
+                        }
+                        tea_push(vm, value);
+                        return true;
+                    }
+
+                    klass = klass->super;
+                }
+
+                tea_runtime_error(vm, "'%s' class has no property: '%s'.", klass_store->name->chars, name->chars);
                 return false;
             }
             case OBJ_MODULE:
@@ -828,6 +886,15 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
             {
                 TeaObjectInstance* instance = AS_INSTANCE(receiver);
                 tea_table_set(vm->state, &instance->fields, name, tea_peek(vm, 0));
+                tea_pop(vm);
+                tea_pop(vm);
+                tea_push(vm, EMPTY_VAL);
+                return true;
+            }
+            case OBJ_CLASS:
+            {
+                TeaObjectClass* klass = AS_CLASS(receiver);
+                tea_table_set(vm->state, &klass->statics, name, tea_peek(vm, 0));
                 tea_pop(vm);
                 tea_pop(vm);
                 tea_push(vm, EMPTY_VAL);
@@ -1684,11 +1751,16 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(CLASS):
         {
-            PUSH(OBJECT_VAL(tea_new_class(state, READ_STRING())));
+            PUSH(OBJECT_VAL(tea_new_class(state, READ_STRING(), NULL)));
             DISPATCH();
         }
         CASE_CODE(SET_CLASS_VAR):
         {
+            TeaObjectClass* klass = AS_CLASS(PEEK(1));
+            TeaObjectString* key = READ_STRING();
+
+            tea_table_set(state, &klass->statics, key, PEEK(0));
+            POP();
             DISPATCH();
         }
         CASE_CODE(INHERIT):
@@ -1699,9 +1771,10 @@ static TeaInterpretResult run_interpreter(TeaState* state)
                 RUNTIME_ERROR("Superclass must be a class");
             }
 
-            TeaObjectClass* subclass = AS_CLASS(PEEK(0));
+            TeaObjectClass* subclass = AS_CLASS(POP());
+            subclass->super = AS_CLASS(superclass);
             tea_table_add_all(state, &AS_CLASS(superclass)->methods, &subclass->methods);
-            POP(); // Subclass
+            POP();   // Subclass
             DISPATCH();
         }
         CASE_CODE(METHOD):

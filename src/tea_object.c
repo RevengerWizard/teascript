@@ -105,11 +105,13 @@ TeaObjectBoundMethod* tea_new_bound_method(TeaState* state, TeaValue receiver, T
     return bound;
 }
 
-TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name)
+TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name, TeaObjectClass* superclass)
 {
     TeaObjectClass* klass = ALLOCATE_OBJECT(state, TeaObjectClass, OBJ_CLASS);
     klass->name = name;
+    klass->super = superclass;
     klass->constructor = NULL_VAL;
+    tea_init_table(&klass->statics);
     tea_init_table(&klass->methods);
 
     return klass;
@@ -131,11 +133,12 @@ TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* tea_new_function(TeaState* state, TeaObjectModule* module)
+TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaObjectModule* module)
 {
     TeaObjectFunction* function = ALLOCATE_OBJECT(state, TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->upvalue_count = 0;
+    function->type = type;
     function->name = NULL;
     function->module = module;
     tea_init_chunk(&function->chunk);
@@ -241,28 +244,42 @@ TeaObjectNativeProperty* tea_new_native_property(TeaState* state, TeaNativePrope
 void tea_native_value(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
 {
     TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
+    tea_push(vm, OBJECT_VAL(property));
     tea_table_set(vm->state, table, property, value);
+    tea_pop(vm);
 }
 
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
 {
     TeaObjectNativeFunction* native = tea_new_native_function(vm->state, function);
+    tea_push(vm, OBJECT_VAL(native));
     TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
+    tea_push(vm, OBJECT_VAL(string));
     tea_table_set(vm->state, table, string, OBJECT_VAL(native));
+    tea_pop(vm);
+    tea_pop(vm);
 }
 
 void tea_native_method(TeaVM* vm, TeaTable* table, const char* name, TeaNativeMethod method)
 {
     TeaObjectNativeMethod* native = tea_new_native_method(vm->state, method);
+    tea_push(vm, OBJECT_VAL(native));
     TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
+    tea_push(vm, OBJECT_VAL(string));
     tea_table_set(vm->state, table, string, OBJECT_VAL(native));
+    tea_pop(vm);
+    tea_pop(vm);
 }
 
 void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNativeProperty property)
 {
     TeaObjectNativeProperty* native = tea_new_native_property(vm->state, property);
+    tea_push(vm, OBJECT_VAL(native));
     TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
+    tea_push(vm, OBJECT_VAL(string));
     tea_table_set(vm->state, table, string, OBJECT_VAL(native));
+    tea_pop(vm);
+    tea_pop(vm);
 }
 
 static char* list_tostring(TeaState* state, TeaObjectList* list)

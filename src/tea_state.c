@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "tea_config.h"
 #include "tea_state.h"
 #include "tea_scanner.h"
 #include "tea_compiler.h"

@@ -138,6 +138,8 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
         {
             TeaObjectClass* klass = (TeaObjectClass*)object;
             tea_mark_object(vm, (TeaObject*)klass->name);
+            tea_mark_object(vm, (TeaObject*)klass->super);
+            tea_mark_table(vm, &klass->statics);
             tea_mark_table(vm, &klass->methods);
             break;
         }
@@ -166,8 +168,10 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
             break;
         }
         case OBJ_UPVALUE:
+        {
             tea_mark_value(vm, ((TeaObjectUpvalue*)object)->closed);
             break;
+        }
         case OBJ_NATIVE_FUNCTION:
         case OBJ_NATIVE_METHOD:
         case OBJ_NATIVE_PROPERTY:
@@ -218,12 +222,15 @@ static void free_object(TeaState* state, TeaObject* object)
             break;
         }
         case OBJ_BOUND_METHOD:
+        {
             FREE(state, TeaObjectBoundMethod, object);
             break;
+        }
         case OBJ_CLASS:
         {
             TeaObjectClass* klass = (TeaObjectClass*)object;
             tea_free_table(state, &klass->methods);
+            tea_free_table(state, &klass->statics);
             FREE(state, TeaObjectClass, object);
             break;
         }
@@ -277,16 +284,16 @@ static void free_object(TeaState* state, TeaObject* object)
         }
         case OBJ_DATA:
         {
-            TeaObjectData* userdata = (TeaObjectData*)object;
+            TeaObjectData* data = (TeaObjectData*)object;
 
-            if(userdata->fn != NULL)
+            if(data->fn != NULL)
             {
-                userdata->fn(state, userdata, false);
+                data->fn(state, data, false);
             }
 
-            if(userdata->size > 0)
+            if(data->size > 0)
             {
-                tea_reallocate(state, userdata->data, userdata->size, 0);
+                tea_reallocate(state, data->data, data->size, 0);
             }
 
             FREE(state, TeaObjectData, object);

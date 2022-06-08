@@ -73,6 +73,7 @@ typedef enum
 {
     TYPE_FUNCTION,
     TYPE_CONSTRUCTOR,
+    TYPE_STATIC,
     TYPE_METHOD,
     TYPE_SCRIPT
 } TeaFunctionType;
@@ -115,10 +116,27 @@ typedef struct
     int arity;
     int upvalue_count;
     TeaChunk chunk;
+    TeaFunctionType type;
     TeaObjectString* name;
     TeaObjectModule* module;
 } TeaObjectFunction;
+/*
+typedef enum
+{
+    NATIVE_FUNCTION,
+    NATIVE_METHOD,
+    NATIVE_PROPERTY
+} TeaNativeType;
 
+typedef struct
+{
+    TeaObject obj;
+    union
+    {
+        TeaNativeFunction function;
+    } as;
+} TeaObjectNative;
+*/
 typedef TeaValue (*TeaNativeFunction)(TeaVM* vm, int count, TeaValue* args);
 
 typedef struct
@@ -191,7 +209,9 @@ typedef struct TeaObjectClass
 {
     TeaObject obj;
     TeaObjectString* name;
+    struct TeaObjectClass* super;
     TeaValue constructor;
+    TeaTable statics;
     TeaTable methods;
 } TeaObjectClass;
 
@@ -230,9 +250,9 @@ TeaObjectModule* tea_new_module(TeaState* state, TeaObjectString* name);
 TeaObjectList* tea_new_list(TeaState* state);
 TeaObjectMap* tea_new_map(TeaState* state);
 TeaObjectBoundMethod* tea_new_bound_method(TeaState* state, TeaValue receiver, TeaObjectClosure* method);
-TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name);
+TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name, TeaObjectClass* superclass);
 TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function);
-TeaObjectFunction* tea_new_function(TeaState* state, TeaObjectModule* module);
+TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaObjectModule* module);
 TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass);
 TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot);
 

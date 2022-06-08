@@ -1,14 +1,35 @@
 #ifndef TEA_STATE_H
 #define TEA_STATE_H
 
+#include "tea.h"
 #include "tea_predefines.h"
 #include "tea_common.h"
 #include "tea_object.h"
 
+//#define TEA_MAX_TEMP_ROOTS 8
+
+/*struct TeaHandle
+{
+    TeaValue value;
+    TeaHandle* prev;
+    TeaHandle* next;
+};*/
+
 typedef struct TeaState
 {
+    //TeaHandle* handles;
+    //TeaValue* slots;
+    //TeaObject* roots[TEA_MAX_TEMP_ROOTS];
+    //int num_roots;
+
     size_t bytes_allocated;
     size_t next_gc;
+
+    //TeaObject* objects;
+    
+    //int gray_count;
+    //int gray_capacity;
+    //TeaObject** gray_stack;
 
     bool repl;
 

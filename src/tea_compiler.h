@@ -51,6 +51,7 @@ typedef struct
 typedef struct TeaClassCompiler
 {
     struct TeaClassCompiler* enclosing;
+    bool is_static;
     bool has_superclass;
 } TeaClassCompiler;
 
