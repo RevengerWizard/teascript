@@ -11,6 +11,7 @@ typedef enum
     PREC_OR,         // or
     PREC_AND,        // and
     PREC_EQUALITY,   // == !=
+    PREC_IS,         // is
     PREC_COMPARISON, // < > <= >=
     PREC_BOR,        // |
     PREC_BXOR,       // ^

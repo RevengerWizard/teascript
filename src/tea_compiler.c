@@ -465,6 +465,11 @@ static void binary(TeaCompiler* compiler, TeaToken previous_token, bool can_assi
             emit_byte(compiler, OP_EQUAL);
             break;
         }
+        case TOKEN_IS:
+        {
+            emit_byte(compiler, OP_IS);
+            break;
+        }
         case TOKEN_GREATER:
         {
             emit_byte(compiler, OP_GREATER);
@@ -1180,7 +1185,7 @@ static TeaParseRule rules[] = {
     NONE,                                   // TOKEN_IF
     PREFIX(null),                           // TOKEN_NULL
     OPERATOR(or_, OR),                      // TOKEN_OR
-    NONE,                                   // TOKEN_IS
+    OPERATOR(binary, IS),                   // TOKEN_IS
     NONE,                                   // TOKEN_IMPORT
     NONE,                                   // TOKEN_FROM
     NONE,                                   // TOKEN_AS

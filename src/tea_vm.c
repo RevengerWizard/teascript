@@ -1400,6 +1400,32 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(IS):
         {
+            TeaValue instance = PEEK(1);
+			TeaValue klass = PEEK(0);
+
+            if(!IS_INSTANCE(instance) || !IS_CLASS(klass))
+            {
+				RUNTIME_ERROR("Operands must be an instance and a class");
+			}
+
+            TeaObjectClass* instance_klass = AS_INSTANCE(instance)->klass;
+            TeaObjectClass* type = AS_CLASS(klass);
+			bool found = false;
+
+			while(instance_klass != NULL)
+            {
+				if(instance_klass == type)
+                {
+					found = true;
+					break;
+				}
+
+				instance_klass = instance_klass->super;
+			}
+
+			DROP_MULTIPLE(2); // Drop the instance and class
+			PUSH(BOOL_VAL(found));
+
             DISPATCH();
         }
         CASE_CODE(IN):
@@ -1765,15 +1791,19 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(INHERIT):
         {
-            TeaValue superclass = PEEK(1);
-            if(!IS_CLASS(superclass))
+            TeaValue super = PEEK(1);
+
+            if(!IS_CLASS(super))
             {
                 RUNTIME_ERROR("Superclass must be a class");
             }
 
-            TeaObjectClass* subclass = AS_CLASS(POP());
-            subclass->super = AS_CLASS(superclass);
-            tea_table_add_all(state, &AS_CLASS(superclass)->methods, &subclass->methods);
+            TeaObjectClass* superclass = AS_CLASS(super);
+            TeaObjectClass* klass = AS_CLASS(POP());
+            klass->super = superclass;
+            
+            tea_table_add_all(state, &superclass->methods, &klass->methods);
+            tea_table_add_all(state, &superclass->statics, &klass->statics);
             POP();   // Subclass
             DISPATCH();
         }
