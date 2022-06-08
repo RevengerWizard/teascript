@@ -1373,18 +1373,11 @@ static void class_declaration(TeaCompiler* compiler)
 
     named_variable(compiler, class_name, false);
 
-    if(!check(compiler, TOKEN_LEFT_BRACE))
-    {
-        compiler->klass = compiler->klass->enclosing;
-        return;
-    }
-
     consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before class body");
 
     class_body(compiler);
 
     consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
-    emit_byte(compiler, OP_POP);
 
     if(class_compiler.has_superclass)
     {
