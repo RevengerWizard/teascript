@@ -574,7 +574,21 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         case '^': return make_token(scanner, match(scanner, '=') ? TOKEN_CARET_EQUAL : TOKEN_CARET);
         case '~': return make_token(scanner, TOKEN_TILDE);
         case '!': return make_token(scanner, match(scanner, '=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
-        case '=': return make_token(scanner, match(scanner, '=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+        case '=':
+        {
+            if(match(scanner, '='))
+            {
+                return make_token(scanner, TOKEN_EQUAL_EQUAL);
+            }
+            else if(match(scanner, '>'))
+            {
+                return make_token(scanner, TOKEN_ARROW);
+            }
+            else
+            {
+                return make_token(scanner, TOKEN_EQUAL);
+            }
+        }
         case '<': return match_tokens(scanner, '=', '<', TOKEN_LESS_EQUAL, TOKEN_LESS_LESS, TOKEN_LESS);
         case '>': return match_tokens(scanner, '=', '>', TOKEN_GREATER_EQUAL, TOKEN_GREATER_GREATER, TOKEN_GREATER);
         case '"': return string(scanner, '"');

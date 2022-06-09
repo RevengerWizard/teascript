@@ -266,6 +266,8 @@ static void declaration(TeaCompiler* compiler);
 static TeaParseRule* get_rule(TeaTokenType type);
 static void parse_precendence(TeaCompiler* compiler, TeaPrecedence precedence);
 static void anonymous(TeaCompiler* compiler, bool can_assign);
+static void arrow(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaToken name);
+static void grouping(TeaCompiler* compiler, bool can_assign);
 
 static uint8_t identifier_constant(TeaCompiler* compiler, TeaToken* name)
 {
@@ -668,12 +670,6 @@ static void boolean(TeaCompiler* compiler, bool can_assign)
 static void null(TeaCompiler* compiler, bool can_assign)
 {
     emit_byte(compiler, OP_NULL);
-}
-
-static void grouping(TeaCompiler* compiler, bool can_assign)
-{
-    expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after expression");
 }
 
 static void list(TeaCompiler* compiler, bool can_assign)
@@ -1167,6 +1163,7 @@ static TeaParseRule rules[] = {
     OPERATOR(binary, BXOR),                 // TOKEN_CARET, 
     NONE,                                   // TOKEN_CARET_EQUAL,
     PREFIX(unary),                          // TOKEN_TILDE
+    NONE,                                   // TOKEN_ARROW
     OPERATOR(binary, SHIFT),                // TOKEN_GREATER_GREATER,
     OPERATOR(binary, SHIFT),                // TOKEN_LESS_LESS,
     PREFIX(variable),                       // TOKEN_NAME
@@ -1289,6 +1286,120 @@ static void function(TeaCompiler* compiler, TeaFunctionType type)
     begin_function(compiler, &fn_compiler, type);
     statement(&fn_compiler);
     end_compiler(&fn_compiler);
+}
+
+static void grouping(TeaCompiler* compiler, bool can_assign)
+{
+    if(match(compiler, TOKEN_RIGHT_PAREN))
+    {
+        TeaCompiler fn_compiler;
+        init_compiler(compiler->state, compiler->parser, &fn_compiler, compiler, TYPE_FUNCTION);
+        begin_scope(&fn_compiler);
+        consume(compiler, TOKEN_ARROW, "Expected arrow function");
+        if(match(&fn_compiler, TOKEN_LEFT_BRACE))
+        {
+            block(&fn_compiler);
+        }
+        else
+        {
+            begin_scope(&fn_compiler);
+            expression(&fn_compiler);
+            emit_byte(&fn_compiler, OP_RETURN);
+            end_scope(&fn_compiler);
+        }
+        end_compiler(&fn_compiler);
+        return;
+    }
+
+    const char* start = compiler->parser->previous.start;
+	int line = compiler->parser->previous.line;
+    
+    if(match(compiler, TOKEN_NAME))
+    {
+        TeaToken name = compiler->parser->previous;
+        if(match(compiler, TOKEN_COMMA))
+        {
+            TeaCompiler fn_compiler;
+            arrow(compiler, &fn_compiler, name);
+            end_compiler(&fn_compiler);
+            return;
+        }
+        else if(match(compiler, TOKEN_RIGHT_PAREN) && match(compiler, TOKEN_ARROW))
+        {
+            TeaCompiler fn_compiler;
+            init_compiler(compiler->state, compiler->parser, &fn_compiler, compiler, TYPE_FUNCTION);
+            begin_scope(&fn_compiler);
+            fn_compiler.function->arity = 1;
+            uint8_t constant = parse_variable_at(&fn_compiler, name);
+            define_variable(&fn_compiler, constant);
+            if(match(&fn_compiler, TOKEN_LEFT_BRACE))
+            {
+                block(&fn_compiler);
+            }
+            else
+            {
+                begin_scope(&fn_compiler);
+                expression(&fn_compiler);
+                emit_byte(&fn_compiler, OP_RETURN);
+                end_scope(&fn_compiler);
+            }
+            end_compiler(&fn_compiler);
+            return;
+        }
+        else
+        {
+            TeaScanner* scanner = compiler->state->scanner;
+
+			scanner->current = start;
+			scanner->line = line;
+
+			compiler->parser->current = tea_scan_token(scanner);
+			advance(compiler);
+        }
+    }
+
+    expression(compiler);
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after grouping expression");
+}
+
+static void arrow(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaToken name)
+{
+    init_compiler(compiler->state, compiler->parser, fn_compiler, compiler, TYPE_FUNCTION);
+    begin_scope(fn_compiler);
+
+    fn_compiler->function->arity = 1;
+    uint8_t constant = parse_variable_at(fn_compiler, name);
+    define_variable(fn_compiler, constant);
+    if(!check(fn_compiler, TOKEN_RIGHT_PAREN))
+    {
+        do
+        {
+            fn_compiler->function->arity++;
+            if(fn_compiler->function->arity > 255)
+            {
+                error_at_current(fn_compiler, "Can't have more than 255 parameters");
+            }
+            uint8_t constant = parse_variable(fn_compiler, "Expect parameter name");
+            define_variable(fn_compiler, constant);
+        } 
+        while(match(fn_compiler, TOKEN_COMMA));
+    }
+
+    consume(fn_compiler, TOKEN_RIGHT_PAREN, "Expect ')' after parameters");
+    consume(fn_compiler, TOKEN_ARROW, "Expect '=>' after function arguments");
+    if(match(fn_compiler, TOKEN_LEFT_BRACE))
+    {
+        // Brace so expend function body
+        block(fn_compiler);
+    }
+    else
+    {
+        // No brace so expect single expression
+        begin_scope(fn_compiler);
+        expression(fn_compiler);
+        emit_byte(fn_compiler, OP_RETURN);
+        end_scope(fn_compiler);
+    }
 }
 
 static void anonymous(TeaCompiler* compiler, bool can_assign)
