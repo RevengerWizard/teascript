@@ -1,3 +1,8 @@
+/* 
+** tea_vm.c
+** Teascript virtual machine
+*/ 
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -72,6 +77,7 @@ void tea_init_vm(TeaState* state, TeaVM* vm)
     tea_init_table(&vm->string_methods);
     tea_init_table(&vm->list_methods);
     tea_init_table(&vm->file_methods);
+    tea_init_table(&vm->range_methods);
 
     tea_open_core(vm);
 }
@@ -87,6 +93,7 @@ void tea_free_vm(TeaVM* vm)
     tea_free_table(vm->state, &vm->string_methods);
     tea_free_table(vm->state, &vm->list_methods);
     tea_free_table(vm->state, &vm->file_methods);
+    tea_free_table(vm->state, &vm->range_methods);
 
 #ifdef DEBUG_TRACE_MEMORY
     printf("total bytes lost: %zu\n", vm->state->bytes_allocated);
@@ -649,6 +656,17 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
                 tea_runtime_error(vm, "string has no method %s()", name->chars);
                 return false;
             }
+            case OBJ_RANGE:
+            {
+                TeaValue value;
+                if(tea_table_get(&vm->range_methods, name, &value)) 
+                {
+                    return call_value(vm, value, count);
+                }
+
+                tea_runtime_error(vm, "range has no method %s()", name->chars);
+                return false;
+            }
             case OBJ_LIST:
             {
                 TeaValue value;
@@ -675,6 +693,12 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
             default:
                 break;
         }
+    }
+
+    if(strcmp(name->chars, "iterate") == 0)
+    {
+        tea_runtime_error(vm, "%s is not an iterator", tea_value_type(receiver));
+        return false;
     }
     
     tea_runtime_error(vm, "Only objects have methods, %s given", tea_value_type(receiver));
@@ -1681,6 +1705,15 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         {
             uint16_t offset = READ_SHORT();
             if(tea_is_falsey(PEEK(0)))
+            {
+                ip += offset;
+            }
+            DISPATCH();
+        }
+        CASE_CODE(JUMP_IF_NULL):
+        {
+            uint16_t offset = READ_SHORT();
+            if(IS_NULL(PEEK(0)))
             {
                 ip += offset;
             }

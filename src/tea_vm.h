@@ -1,3 +1,8 @@
+/* 
+** tea_vm.h
+** Teascript virtual machine
+*/ 
+
 #ifndef TEA_VM_H
 #define TEA_VM_H
 
@@ -35,6 +40,7 @@ typedef struct TeaVM
     TeaTable string_methods;
     TeaTable list_methods;
     TeaTable file_methods;
+    TeaTable range_methods;
 
     TeaObjectUpvalue* open_upvalues;
 

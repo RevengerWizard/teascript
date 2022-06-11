@@ -1,3 +1,8 @@
+/* 
+** tea_compiler.c
+** Teascript compiler and parser
+*/ 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -365,19 +370,19 @@ static void declare_variable(TeaCompiler* compiler, TeaToken* name)
     if(compiler->scope_depth == 0)
         return;
 
-    for(int i = compiler->local_count - 1; i >= 0; i--)
-    {
-        TeaLocal* local = &compiler->locals[i];
-        if(local->depth != -1 && local->depth < compiler->scope_depth)
-        {
-            break;
-        }
+    //for(int i = compiler->local_count - 1; i >= 0; i--)
+    //{
+    //    TeaLocal* local = &compiler->locals[i];
+    //    if(local->depth != -1 && local->depth < compiler->scope_depth)
+    //    {
+    //        break;
+    //    }
 
         /*if(identifiers_equal(name, &local->name))
         {
             error(compiler, "Already a variable with this name in this scope");
         }*/
-    }
+    //}
 
     add_local(compiler, *name);
 }
@@ -1662,6 +1667,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
             return 1;
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
+        case OP_JUMP_IF_NULL:
         case OP_LOOP:
         case OP_INVOKE:
         case OP_SUPER:
@@ -1726,6 +1732,60 @@ static void end_loop(TeaCompiler* compiler)
     compiler->loop = compiler->loop->enclosing;
 }
 
+static void for_in_statement(TeaCompiler* compiler, TeaToken var)
+{
+    if(compiler->local_count + 2 > 256)
+    {
+        error(compiler, "Cannot declare more than 256 variables in one scope. (Not enough space for for-loops internal variables)");
+        return;
+    }
+
+    expression(compiler);
+    add_local(compiler, synthetic_token("seq "));
+    int seq_slot = compiler->local_count - 1;
+
+    null(compiler, false);
+    add_local(compiler, synthetic_token("iter "));
+    int iter_slot = compiler->local_count - 1;
+
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after loop expression");
+
+    TeaLoop loop;
+    begin_loop(compiler, &loop);
+
+    // Get the iterator index. If it's null, it means the loop is over
+    emit_bytes(compiler, OP_GET_LOCAL, seq_slot);
+    emit_bytes(compiler, OP_GET_LOCAL, iter_slot);
+    emit_bytes(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, "iterate", 7))));
+    emit_byte(compiler, 1);
+    emit_bytes(compiler, OP_SET_LOCAL, iter_slot);
+    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_NULL);
+    emit_byte(compiler, OP_POP);
+
+    // Get the iterator value
+    emit_bytes(compiler, OP_GET_LOCAL, seq_slot);
+    emit_bytes(compiler, OP_GET_LOCAL, iter_slot);
+    emit_bytes(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, "iteratorvalue", 13))));
+    emit_byte(compiler, 1);
+
+    begin_scope(compiler);
+    int name = parse_variable_at(compiler, var);
+    define_variable(compiler, name);
+    int var_slot = compiler->local_count - 1;
+    emit_bytes(compiler, OP_SET_LOCAL, var_slot);
+    compiler->loop->body = compiler->function->chunk.count;
+    statement(compiler);
+
+    // Loop variable
+    end_scope(compiler);
+    
+    emit_loop(compiler, compiler->loop->start);
+    end_loop(compiler);
+
+    // Hidden variables
+    end_scope(compiler);
+}
+
 static void for_statement(TeaCompiler* compiler)
 {
     begin_scope(compiler);
@@ -1733,7 +1793,17 @@ static void for_statement(TeaCompiler* compiler)
 
     if(match(compiler, TOKEN_VAR))
     {
-        uint8_t global = parse_variable(compiler, "Expect variable name");
+        consume(compiler, TOKEN_NAME, "Expect variable name");
+        TeaToken var = compiler->parser->previous;
+
+        if(match(compiler, TOKEN_IN))
+        {
+            // It's a for in statement
+            for_in_statement(compiler, var);
+            return;
+        }
+
+        uint8_t global = parse_variable_at(compiler, var);
 
         if(match(compiler, TOKEN_EQUAL))
         {
@@ -1747,10 +1817,6 @@ static void for_statement(TeaCompiler* compiler)
         define_variable(compiler, global);
         consume(compiler, TOKEN_COMMA, "Expect ',' after loop variable");
     }
-    else if(match(compiler, TOKEN_COMMA))
-    {
-        // No initializer.
-    }
     else
     {
         expression_statement(compiler);
@@ -1762,29 +1828,23 @@ static void for_statement(TeaCompiler* compiler)
 
     compiler->loop->end = -1;
     
-    if(!match(compiler, TOKEN_COMMA))
-    {
-        expression(compiler);
-        consume(compiler, TOKEN_COMMA, "Expect ',' after loop condition");
+    expression(compiler);
+    consume(compiler, TOKEN_COMMA, "Expect ',' after loop condition");
 
-        compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-        emit_byte(compiler, OP_POP); // Condition.
-    }
+    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    emit_byte(compiler, OP_POP); // Condition.
 
-    if(!match(compiler, TOKEN_RIGHT_PAREN))
-    {
-        int body_jump = emit_jump(compiler, OP_JUMP);
+    int body_jump = emit_jump(compiler, OP_JUMP);
 
-        int increment_start = current_chunk(compiler)->count;
-        expression(compiler);
-        emit_byte(compiler, OP_POP);
-        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses");
+    int increment_start = current_chunk(compiler)->count;
+    expression(compiler);
+    emit_byte(compiler, OP_POP);
+    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses");
 
-        emit_loop(compiler, compiler->loop->start);
-        compiler->loop->start = increment_start;
-        
-        patch_jump(compiler, body_jump);
-    }
+    emit_loop(compiler, compiler->loop->start);
+    compiler->loop->start = increment_start;
+    
+    patch_jump(compiler, body_jump);
 
     compiler->loop->body = compiler->function->chunk.count;
     statement(compiler);

@@ -1,3 +1,8 @@
+/* 
+** tea_core.c
+** Teascript core function types
+*/ 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -746,6 +751,39 @@ static TeaValue join_list(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
     return OBJECT_VAL(tea_take_string(vm->state, string, length));
 }
 
+static TeaValue iterate_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    TeaObjectList* list = AS_LIST(instance);
+
+    // If we're starting the iteration, return the first index.
+    if(IS_NULL(args[0]))
+    {
+        if(list->items.count == 0) return NULL_VAL;
+        return NUMBER_VAL(0);
+    }
+
+    if(!IS_NUMBER(args[0]))
+    {
+        tea_runtime_error(vm, "Expected a number to iterate");
+        return EMPTY_VAL;
+    }
+
+    int index = AS_NUMBER(args[0]);
+    // Stop if we're out of bounds.
+    if(index < 0 || index >= list->items.count - 1) return NULL_VAL;
+
+    // Otherwise, move to the next index.
+    return NUMBER_VAL(index + 1);
+}
+
+static TeaValue iteratorvalue_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    TeaObjectList* list = AS_LIST(instance);
+    int index = AS_NUMBER(args[0]);
+
+    return list->items.values[index];
+}
+
 // String
 static TeaValue len_string(TeaVM* vm, TeaValue instance)
 {
@@ -1258,6 +1296,83 @@ static TeaValue format_string(TeaVM* vm, TeaValue instance, int count, TeaValue*
     return OBJECT_VAL(tea_take_string(vm->state, newStr, fullLength - 1));
 }
 
+static TeaValue iterate_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    TeaObjectString* string = AS_STRING(instance);
+
+	if(IS_NULL(args[0]))
+    {
+		if(string->length == 0) return NULL_VAL;
+		return NUMBER_VAL(0);
+	}
+
+	if(!IS_NUMBER(args[0]))
+    {
+        tea_runtime_error(vm, "Expected a number to iterate");
+        return EMPTY_VAL;
+    }
+	if(AS_NUMBER(args[0]) < 0) return NULL_VAL;
+
+    int index = AS_NUMBER(args[0]);
+	do
+    {
+		index++;
+		if(index >= string->length) return NULL_VAL;
+	}
+    while((string->chars[index] & 0xc0) == 0x80);
+
+	return NUMBER_VAL(index);
+}
+
+static TeaValue iteratorvalue_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    TeaObjectString* string = AS_STRING(instance);
+	int index = AS_NUMBER(args[0]);
+
+	return OBJECT_VAL(tea_ustring_code_point_at(vm->state, string, index));
+}
+
+// Range
+static TeaValue iterate_range(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    TeaObjectRange* range = AS_RANGE(instance);
+
+    // Special case: empty range.
+    if(range->from == range->to && !range->inclusive) return NULL_VAL;
+
+    // Start the iteration.
+    if(IS_NULL(args[0])) return NUMBER_VAL(range->from);
+
+    if(!IS_NUMBER(args[0]))
+    {
+        tea_runtime_error(vm, "Expected a number to iterate");
+        return EMPTY_VAL;
+    }
+
+    int iterator = AS_NUMBER(args[0]);
+
+    // Iterate towards [to] from [from].
+    if(range->from < range->to)
+    {
+        iterator++;
+        if(iterator > range->to) return NULL_VAL;
+    }
+    else
+    {
+        iterator--;
+        if(iterator < range->to) return NULL_VAL;
+    }
+
+    if(!range->inclusive && iterator == range->to) return NULL_VAL;
+
+    return NUMBER_VAL(iterator);
+}
+
+static TeaValue iteratorvalue_range(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    return args[0];
+}
+
 // Globals
 static TeaValue print_native(TeaVM* vm, int count, TeaValue* args)
 {
@@ -1563,6 +1678,8 @@ void tea_open_core(TeaVM* vm)
     tea_native_method(vm, &vm->list_methods, "sort", sort_list);
     tea_native_method(vm, &vm->list_methods, "index", index_list);
     tea_native_method(vm, &vm->list_methods, "join", join_list);
+    tea_native_method(vm, &vm->list_methods, "iterate", iterate_list);
+    tea_native_method(vm, &vm->list_methods, "iteratorvalue", iteratorvalue_list);
     //tea_native_method(vm, &vm->list_methods, "copy", copy_list);
 
     // String
@@ -1581,6 +1698,12 @@ void tea_open_core(TeaVM* vm)
     tea_native_method(vm, &vm->string_methods, "count", count_string);
     tea_native_method(vm, &vm->string_methods, "find", find_string);
     tea_native_method(vm, &vm->string_methods, "format", format_string);
+    tea_native_method(vm, &vm->string_methods, "iterate", iterate_string);
+    tea_native_method(vm, &vm->string_methods, "iteratorvalue", iteratorvalue_string);
+
+    // Range
+    tea_native_method(vm, &vm->range_methods, "iterate", iterate_range);
+    tea_native_method(vm, &vm->range_methods, "iteratorvalue", iteratorvalue_range);
 
     // Globals
     tea_native_function(vm, &vm->globals, "print", print_native);

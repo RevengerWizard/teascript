@@ -323,6 +323,7 @@ static void mark_roots(TeaVM* vm)
     tea_mark_table(vm, &vm->file_methods);
     tea_mark_table(vm, &vm->list_methods);
     tea_mark_table(vm, &vm->string_methods);
+    tea_mark_table(vm, &vm->range_methods);
     tea_mark_compiler_roots(vm->state);
 }
 

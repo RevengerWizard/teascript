@@ -1,5 +1,10 @@
-#ifndef TEA_PARSER_H
-#define TEA_PARSER_H
+/* 
+** tea_compiler.h
+** Teascript compiler and parser
+*/ 
+
+#ifndef TEA_COMPILER_H
+#define TEA_COMPILER_H
 
 #include "tea_scanner.h"
 #include "tea_object.h"

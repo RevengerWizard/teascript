@@ -203,6 +203,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return jump_instruction("OP_JUMP", 1, chunk, offset);
         case OP_JUMP_IF_FALSE:
             return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
+        case OP_JUMP_IF_NULL:
+            return jump_instruction("OP_JUMP_IF_NULL", 1, chunk, offset);
         case OP_LOOP:
             return jump_instruction("OP_LOOP", -1, chunk, offset);
         case OP_CALL:
