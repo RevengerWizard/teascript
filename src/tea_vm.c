@@ -76,6 +76,7 @@ void tea_init_vm(TeaState* state, TeaVM* vm)
 
     tea_init_table(&vm->string_methods);
     tea_init_table(&vm->list_methods);
+    tea_init_table(&vm->map_methods);
     tea_init_table(&vm->file_methods);
     tea_init_table(&vm->range_methods);
 
@@ -92,6 +93,7 @@ void tea_free_vm(TeaVM* vm)
 
     tea_free_table(vm->state, &vm->string_methods);
     tea_free_table(vm->state, &vm->list_methods);
+    tea_free_table(vm->state, &vm->map_methods);
     tea_free_table(vm->state, &vm->file_methods);
     tea_free_table(vm->state, &vm->range_methods);
 
@@ -210,17 +212,16 @@ static bool subscript(TeaVM* vm, TeaValue index_value, TeaValue subscript_value)
             case OBJ_MAP:
             {
                 TeaObjectMap* map = AS_MAP(subscript_value);
-                if(!IS_STRING(index_value))
+                if(!tea_is_valid_key(index_value))
                 {
-                    tea_runtime_error(vm, "Map key must be a string");
+                    tea_runtime_error(vm, "Map key isn't hashable");
                     return false;
                 }
 
-                TeaObjectString* key = AS_STRING(index_value);
                 TeaValue value;
                 tea_pop(vm);
                 tea_pop(vm);
-                if(tea_table_get(&map->items, key, &value))
+                if(tea_map_get(map, index_value, &value))
                 {
                     tea_push(vm, value);
                     return true;
@@ -314,16 +315,15 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
             case OBJ_MAP:
             {
                 TeaObjectMap* map = AS_MAP(subscript_value);
-                if(!IS_STRING(index_value))
+                if(!tea_is_valid_key(index_value))
                 {
-                    tea_runtime_error(vm, "Map key must be a string");
+                    tea_runtime_error(vm, "Map key isn't hashable");
                     return false;
                 }
 
                 if(assign)
                 {
-                    TeaObjectString* key = AS_STRING(index_value);
-                    tea_table_set(vm->state, &map->items, key, item_value);
+                    tea_map_set(vm->state, map, index_value, item_value);
                     tea_pop(vm);
                     tea_pop(vm);
                     tea_pop(vm);
@@ -332,7 +332,7 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
                 else
                 {
                     TeaValue map_value;
-                    if(!tea_table_get(&map->items, AS_STRING(index_value), &map_value))
+                    if(!tea_map_get(map, index_value, &map_value))
                     {
                         tea_runtime_error(vm, "Key does not exist within the map");
                         return false;
@@ -690,6 +690,29 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
                 tea_runtime_error(vm, "list has no method %s()", name->chars);
                 return false;
             }
+            case OBJ_MAP:
+            {
+                TeaValue value;
+                if(tea_table_get(&vm->map_methods, name, &value))
+                {
+                    if(IS_NATIVE_FUNCTION(value) || IS_NATIVE_METHOD(value))
+                    {
+                        return call_value(vm, value, count);
+                    }
+
+                    tea_push(vm, tea_peek(vm, 0));
+
+                    for (int i = 2; i <= count + 1; i++)
+                    {
+                        vm->stack_top[-i] = tea_peek(vm, i);
+                    }
+
+                    return call(vm, AS_CLOSURE(value), count + 1);
+                }
+
+                tea_runtime_error(vm, "map has no method %s().", name->chars);
+                return false;
+            }
             default:
                 break;
         }
@@ -858,7 +881,19 @@ static bool get_property(TeaVM* vm, TeaValue receiver, TeaObjectString* name, bo
                 TeaObjectMap* map = AS_MAP(receiver);
                 TeaValue value;
 
-                if(tea_table_get(&map->items, name, &value))
+                if(tea_table_get(&vm->map_methods, name, &value)) 
+                {
+                    if(IS_NATIVE_PROPERTY(value))
+                    {
+                        TeaNativeProperty property = AS_NATIVE_PROPERTY(value);
+                        TeaValue result = property(vm, OBJECT_VAL(map));
+                        tea_pop(vm);
+                        tea_push(vm, result);
+                        return true;
+                    }
+                }
+
+                if(tea_map_get(map, OBJECT_VAL(name), &value))
                 {
                     if(pop)
                     {
@@ -927,7 +962,7 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
             case OBJ_MAP:
             {
                 TeaObjectMap* map = AS_MAP(receiver);
-                tea_table_set(vm->state, &map->items, name, tea_peek(vm, 0));
+                tea_map_set(vm->state, map, OBJECT_VAL(name), tea_peek(vm, 0));
                 tea_pop(vm);
                 tea_pop(vm);
                 tea_push(vm, EMPTY_VAL);
@@ -1364,7 +1399,12 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 
             for(int i = item_count * 2; i > 0; i -= 2)
             {
-                tea_table_set(state, &map->items, AS_STRING(PEEK(i)), PEEK(i - 1));
+                if(!tea_is_valid_key(PEEK(i)))
+                {
+                    RUNTIME_ERROR("Map key isn't hashable");
+                }
+
+                tea_map_set(state, map, PEEK(i), PEEK(i - 1));
             }
 
             vm->stack_top -= item_count * 2 + 1;
@@ -1542,7 +1582,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
                 TeaObjectMap* m2 = AS_MAP(PEEK(0));
                 TeaObjectMap* m1 = AS_MAP(PEEK(1));
 
-                tea_table_add_all(state, &m2->items, &m1->items);
+                tea_map_add_all(state, m2, m1);
 
                 POP();
                 POP();

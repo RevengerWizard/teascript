@@ -91,7 +91,9 @@ TeaObjectList* tea_new_list(TeaState* state)
 TeaObjectMap* tea_new_map(TeaState* state)
 {
     TeaObjectMap* map = ALLOCATE_OBJECT(state, TeaObjectMap, OBJ_MAP);
-    tea_init_table(&map->items);
+    map->count = 0;
+    map->capacity = 0;
+    map->items = NULL;
     
     return map;
 }
@@ -282,6 +284,190 @@ void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNative
     tea_pop(vm);
 }
 
+static inline uint32_t hash_bits(uint64_t hash)
+{
+    // From v8's ComputeLongHash() which in turn cites:
+    // Thomas Wang, Integer Hash Functions.
+    // http://www.concentric.net/~Ttwang/tech/inthash.htm
+    hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
+    hash = hash ^ (hash >> 31);
+    hash = hash * 21;  // hash = (hash + (hash << 2)) + (hash << 4);
+    hash = hash ^ (hash >> 11);
+    hash = hash + (hash << 6);
+    hash = hash ^ (hash >> 22);
+    return (uint32_t)(hash & 0x3fffffff);
+}
+
+static inline uint32_t hash_number(double number)
+{
+    return hash_bits(value_to_num(number));
+}
+
+static uint32_t hash_object(TeaObject* object)
+{
+    switch(object->type)
+    {
+        case OBJ_STRING:
+            return ((TeaObjectString*)object)->hash;
+
+        default: return 0;
+    }
+}
+
+static uint32_t hash_value(TeaValue value)
+{
+#ifdef NAN_TAGGING
+    if(IS_OBJECT(value)) return hash_object(AS_OBJECT(value));
+
+    // Hash the raw bits of the unboxed value.
+    return hash_bits(value);
+#else
+    switch(value.type)
+    {
+        case VAL_FALSE: return 0;
+        case VAL_NULL:  return 1;
+        case VAL_NUM:   return hash_number(AS_NUMBER(value));
+        case VAL_TRUE:  return 2;
+        case VAL_OBJ:   return hash_object(AS_OBJECT(value));
+        default:;
+    }
+    return 0;
+#endif
+}
+
+static TeaMapItem* find_entry(TeaMapItem* items, int capacity, TeaValue key)
+{
+    uint32_t hash = hash_value(key);
+    uint32_t index = hash & (capacity - 1);
+    TeaMapItem* tombstone = NULL;
+
+    while(true)
+    {
+        TeaMapItem* item = &items[index];
+        if(item->empty)
+        {
+            if(IS_NULL(item->value))
+            {
+                // Empty item.
+                return tombstone != NULL ? tombstone : item;
+            }
+            else
+            {
+                // We found a tombstone.
+                if(tombstone == NULL)
+                    tombstone = item;
+            }
+        }
+        else if(item->key == key)
+        {
+            // We found the key.
+            return item;
+        }
+
+        index = (index + 1) & (capacity - 1);
+    }
+}
+
+bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
+{
+    if(map->count == 0)
+        return false;
+
+    TeaMapItem* item = find_entry(map->items, map->capacity, key);
+    if(item->empty)
+        return false;
+
+    *value = item->value;
+
+    return true;
+}
+
+bool tea_map_set(TeaState* state, TeaObjectMap* map, TeaValue key, TeaValue value)
+{
+    if(map->count + 1 > map->capacity * TABLE_MAX_LOAD)
+    {
+        int capacity = GROW_CAPACITY(map->capacity);
+        TeaMapItem* items = ALLOCATE(state, TeaMapItem, capacity);
+        for(int i = 0; i < capacity; i++)
+        {
+            items[i].key = NULL_VAL;
+            items[i].value = NULL_VAL;
+            items[i].empty = true;
+        }
+
+        map->count = 0;
+        for(int i = 0; i < map->capacity; i++)
+        {
+            TeaMapItem* item = &map->items[i];
+            if(item->empty)
+                continue;
+
+            TeaMapItem* dest = find_entry(items, capacity, item->key);
+            dest->key = item->key;
+            dest->value = item->value;
+            dest->empty = false;
+            map->count++;
+        }
+
+        FREE_ARRAY(state, TeaMapItem, map->items, map->capacity);
+        map->items = items;
+        map->capacity = capacity;
+    }
+
+    TeaMapItem* item = find_entry(map->items, map->capacity, key);
+    bool is_new_key = item->empty;
+
+    if(is_new_key && IS_NULL(item->value))
+        map->count++;
+
+    item->key = key;
+    item->value = value;
+    item->empty = false;
+    
+    return is_new_key;
+}
+
+bool tea_map_delete(TeaObjectMap* map, TeaValue key)
+{
+    if(map->count == 0)
+        return false;
+
+    // Find the entry.
+    TeaMapItem* item = find_entry(map->items, map->capacity, key);
+    if(item->empty)
+        return false;
+
+    // Place a tombstone in the entry.
+    item->key = NULL_VAL;
+    item->value = BOOL_VAL(true);
+    item->empty = false;
+
+    return true;
+}
+
+void tea_map_add_all(TeaState* state, TeaObjectMap* from, TeaObjectMap* to)
+{
+    for(int i = 0; i < from->capacity; i++)
+    {
+        TeaMapItem* item = &from->items[i];
+        if(item->empty)
+        {
+            tea_map_set(state, to, item->key, item->value);
+        }
+    }
+}
+
+bool tea_is_valid_key(TeaValue value)
+{
+    if(IS_NULL(value) || IS_BOOL(value) || IS_NUMBER(value) ||
+    IS_STRING(value))
+    {
+        return true;
+    }
+
+    return false;
+}
+
 static char* list_tostring(TeaState* state, TeaObjectList* list)
 {
     int size = 50;
@@ -355,17 +541,17 @@ static char* map_tostring(TeaState* state, TeaObjectMap* map)
     int count = 0;
     int size = 50;
 
-    if(map->items.count == 0)
+    if(map->count == 0)
         return "{}";
 
     char* string = ALLOCATE(state, char, size);
     memcpy(string, "{", 1);
     int length = 1;
 
-    for(int i = 0; i <= map->items.capacity; i++) 
+    for(int i = 0; i <= map->capacity; i++) 
     {
-        TeaEntry* item = &map->items.entries[i];
-        if(item->key == NULL) 
+        TeaMapItem* item = &map->items[i];
+        if(item->empty) 
         {
             continue;
         }
@@ -375,9 +561,17 @@ static char* map_tostring(TeaState* state, TeaObjectMap* map)
         char* key;
         int key_size;
 
-        TeaObjectString* s = item->key;
-        key = s->chars;
-        key_size = s->length;
+        if(IS_STRING(item->key))
+        {
+            TeaObjectString* s = AS_STRING(item->key);
+            key = s->chars;
+            key_size = s->length;
+        } 
+        else 
+        {
+            key = tea_value_tostring(state, item->key);
+            key_size = strlen(key);
+        }
 
         if(key_size > (size - length - key_size - 4)) 
         {
@@ -445,7 +639,7 @@ static char* map_tostring(TeaState* state, TeaObjectMap* map)
         memcpy(string + length, element, element_size);
         length += element_size;
 
-        if(count != map->items.count)
+        if(count != map->count)
         {
             memcpy(string + length, ", ", 2);
             length += 2;
@@ -526,18 +720,28 @@ static void print_map(TeaObjectMap* map)
     bool first = true;
     printf("{");
 
-    for(int i = 0; i < map->items.capacity; i++)
+    for(int i = 0; i < map->capacity; i++)
     {
-        if(!(map->items.entries[i].key == NULL))
+        if(!(map->items[i].empty))
         {
             if(!first) 
             {
                 printf(", ");
             }
             first = false;
-            tea_print_value(OBJECT_VAL(map->items.entries[i].key));
+            if(IS_STRING(map->items[i].key))
+            {
+                tea_print_value(map->items[i].key);
+            }
+            else
+            {
+                printf("[");
+                tea_print_value(map->items[i].key);
+                printf("]");
+            }
+
             printf(" = ");
-            tea_print_value(map->items.entries[i].value);
+            tea_print_value(map->items[i].value);
         }
     }
     
@@ -648,27 +852,27 @@ static bool map_equals(TeaValue a, TeaValue b)
     TeaObjectMap* m1 = AS_MAP(a);
     TeaObjectMap* m2 = AS_MAP(b);
 
-    if(m1->items.count != m2->items.count)
+    if(m1->count != m2->count)
     {
         return false;
     }
 
-    if(m1->items.count == 0)
+    if(m1->count == 0)
     {
         return true;
     }
 
-    for(int i = 0; i < m1->items.capacity; i++)
+    for(int i = 0; i < m1->capacity; i++)
     {
-        TeaEntry* item = &m1->items.entries[i];
+        TeaMapItem* item = &m1->items[i];
 
-        if(item->key == NULL)
+        if(item->empty)
         {
             continue;
         }
 
         TeaValue value;
-        if(!tea_table_get(&m2->items, item->key, &value))
+        if(!tea_map_get(m2, item->key, &value))
         {
             return false;
         }

@@ -784,6 +784,101 @@ static TeaValue iteratorvalue_list(TeaVM* vm, TeaValue instance, int count, TeaV
     return list->items.values[index];
 }
 
+// Map
+static TeaValue keys_map(TeaVM* vm, TeaValue instance)
+{
+    TeaObjectMap* map = AS_MAP(instance);
+
+    TeaObjectList* list = tea_new_list(vm->state);
+
+    for(int i = 0; i < map->capacity + 1; ++i)
+    {
+        if(map->items[i].empty)
+        {
+            continue;
+        }
+
+        tea_write_value_array(vm->state, &list->items, map->items[i].key);
+    }
+
+    return OBJECT_VAL(list);
+}
+
+static TeaValue values_map(TeaVM* vm, TeaValue instance)
+{
+    TeaObjectMap* map = AS_MAP(instance);
+
+    TeaObjectList* list = tea_new_list(vm->state);
+
+    for(int i = 0; i < map->capacity + 1; ++i)
+    {
+        if(map->items[i].empty)
+        {
+            continue;
+        }
+
+        tea_write_value_array(vm->state, &list->items, map->items[i].value);
+    }
+
+    return OBJECT_VAL(list);
+}
+
+static TeaValue iterate_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    TeaObjectMap* map = AS_MAP(instance);
+
+    if(map->count == 0) return NULL_VAL;
+
+    // If we're starting the iteration, start at the first used entry.
+    int index = 0;
+
+    // Otherwise, start one past the last entry we stopped at.
+    if(!IS_NULL(args[0]))
+    {
+        if(!IS_NUMBER(args[0]))
+        {
+            tea_runtime_error(vm, "Expected a number to iterate");
+            return EMPTY_VAL;
+        }
+
+        if(AS_NUMBER(args[0]) < 0) return NULL_VAL;
+        index = (uint32_t)AS_NUMBER(args[0]);
+
+        if(index >= map->capacity) return NULL_VAL;
+
+        // Advance the iterator.
+        index++;
+    }
+
+    // Find a used entry, if any.
+    for(; index < map->capacity; index++)
+    {
+        if (!map->items[index].empty) return NUMBER_VAL(index);
+    }
+
+    // If we get here, walked all of the entries.
+    return NULL_VAL;
+}
+
+static TeaValue iteratorvalue_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    TeaObjectMap* map = AS_MAP(instance);
+    int index = AS_NUMBER(args[0]);
+
+    TeaMapItem* item = &map->items[index];
+    if(item->empty)
+    {
+        tea_runtime_error(vm, "Invalid map iterator");
+        return EMPTY_VAL;
+    }
+
+    TeaObjectMap* value = tea_new_map(vm->state);
+    tea_map_set(vm->state, value, OBJECT_VAL(tea_copy_string(vm->state, "key", 3)), item->key);
+    tea_map_set(vm->state, value, OBJECT_VAL(tea_copy_string(vm->state, "value", 5)), item->value);
+
+    return OBJECT_VAL(value);
+}
+
 // String
 static TeaValue len_string(TeaVM* vm, TeaValue instance)
 {
@@ -1681,6 +1776,12 @@ void tea_open_core(TeaVM* vm)
     tea_native_method(vm, &vm->list_methods, "iterate", iterate_list);
     tea_native_method(vm, &vm->list_methods, "iteratorvalue", iteratorvalue_list);
     //tea_native_method(vm, &vm->list_methods, "copy", copy_list);
+
+    // Map
+    tea_native_property(vm, &vm->map_methods, "keys", keys_map);
+    tea_native_property(vm, &vm->map_methods, "values", values_map);
+    tea_native_method(vm, &vm->map_methods, "iterate", iterate_map);
+    tea_native_method(vm, &vm->map_methods, "iteratorvalue", iteratorvalue_map);
 
     // String
     tea_native_property(vm, &vm->string_methods, "len", len_string);

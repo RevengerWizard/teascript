@@ -39,6 +39,7 @@ typedef struct TeaVM
 
     TeaTable string_methods;
     TeaTable list_methods;
+    TeaTable map_methods;
     TeaTable file_methods;
     TeaTable range_methods;
 

@@ -1,0 +1,14 @@
+import time
+
+var list = []
+
+var start = time.clock()
+
+for(var i in 0...1000000) list.add(i)
+
+var sum = 0
+for(var i in list) sum++
+
+print(sum)
+
+print("elapsed: " + string(time.clock() - start))

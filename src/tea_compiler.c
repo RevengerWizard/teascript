@@ -721,10 +721,20 @@ static void map(TeaCompiler* compiler, bool can_assign)
                 break;
             }
 
-            consume(compiler, TOKEN_NAME, "Expected key name");
-            emit_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, compiler->parser->previous.start, compiler->parser->previous.length)));
-            consume(compiler, TOKEN_EQUAL, "Expected '=' after key name");
-            expression(compiler);
+            if(match(compiler, TOKEN_LEFT_BRACKET))
+            {
+                expression(compiler);
+                consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after key expression");
+                consume(compiler, TOKEN_EQUAL, "Expected '=' after key expression");
+                expression(compiler);
+            }
+            else if(match(compiler, TOKEN_NAME))
+            {
+                emit_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, compiler->parser->previous.start, compiler->parser->previous.length)));
+                consume(compiler, TOKEN_EQUAL, "Expected '=' after key name");
+                expression(compiler);
+            }
+
             if(item_count == UINT8_COUNT)
             {
                 error(compiler, "Cannot have more than 256 items in a map literal");

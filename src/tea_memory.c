@@ -124,7 +124,12 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
         case OBJ_MAP:
         {
             TeaObjectMap* map = (TeaObjectMap*)object;
-            tea_mark_table(vm, &map->items);
+            for(int i = 0; i < map->capacity; i++)
+            {
+                TeaMapItem* item = &map->items[i];
+                tea_mark_value(vm, item->key);
+                tea_mark_value(vm, item->value);
+            }
             break;
         }
         case OBJ_BOUND_METHOD:
@@ -217,7 +222,7 @@ static void free_object(TeaState* state, TeaObject* object)
         case OBJ_MAP:
         {
             TeaObjectMap* map = (TeaObjectMap*)object;
-            tea_free_table(state, &map->items);
+            FREE_ARRAY(state, TeaMapItem, map->items, map->capacity);
             FREE(state, TeaObjectMap, object);
             break;
         }
@@ -322,6 +327,7 @@ static void mark_roots(TeaVM* vm)
     tea_mark_table(vm, &vm->globals);
     tea_mark_table(vm, &vm->file_methods);
     tea_mark_table(vm, &vm->list_methods);
+    tea_mark_table(vm, &vm->map_methods);
     tea_mark_table(vm, &vm->string_methods);
     tea_mark_table(vm, &vm->range_methods);
     tea_mark_compiler_roots(vm->state);

@@ -183,10 +183,19 @@ typedef struct
     TeaValueArray items;
 } TeaObjectList;
 
+typedef struct 
+{
+    TeaValue key;
+    TeaValue value;
+    bool empty;
+} TeaMapItem;
+
 typedef struct
 {
     TeaObject obj;
-    TeaTable items;
+    int count;
+    int capacity;
+    TeaMapItem* items;
 } TeaObjectMap;
 
 typedef struct TeaObjectUpvalue
@@ -268,6 +277,12 @@ void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNative
 TeaObjectString* tea_take_string(TeaState* state, char* chars, int length);
 TeaObjectString* tea_copy_string(TeaState* state, const char* chars, int length);
 
+bool tea_map_set(TeaState* state, TeaObjectMap* map, TeaValue key, TeaValue value);
+bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
+bool tea_map_delete(TeaObjectMap* map, TeaValue key);
+void tea_map_add_all(TeaState* state, TeaObjectMap* from, TeaObjectMap* to);
+bool tea_is_valid_key(TeaValue value);
+
 char* tea_object_tostring(TeaState* state, TeaValue value);
 void tea_print_object(TeaValue value);
 bool tea_objects_equal(TeaValue a, TeaValue b);
@@ -285,7 +300,7 @@ static inline bool tea_is_falsey(TeaValue value)
             (IS_NUMBER(value) && AS_NUMBER(value) == 0) || 
             (IS_STRING(value) && AS_CSTRING(value)[0] == '\0') || 
             (IS_LIST(value) && AS_LIST(value)->items.count == 0) ||
-            (IS_MAP(value) && AS_MAP(value)->items.count == 0);
+            (IS_MAP(value) && AS_MAP(value)->count == 0);
 }
 
 static inline bool tea_is_callable_function(TeaValue value)

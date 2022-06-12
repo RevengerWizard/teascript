@@ -21,8 +21,8 @@ static TeaValue parse(TeaState* state, json_value* json)
             for(unsigned int i = 0; i < json->u.object.length; i++)
             {
                 TeaValue value = parse(state, json->u.object.values[i].value);
-                TeaObjectString* key = tea_copy_string(state, json->u.object.values[i].name, json->u.object.values[i].name_length);
-                tea_table_set(state, &map->items, key, value);
+                TeaValue key = OBJECT_VAL(tea_copy_string(state, json->u.object.values[i].name, json->u.object.values[i].name_length));
+                tea_map_set(state, map, key, value);
             }
             return OBJECT_VAL(map);
         }
@@ -125,19 +125,29 @@ static json_value* dump(TeaState* state, TeaValue value)
             case OBJ_MAP:
             {
                 TeaObjectMap* map = AS_MAP(value);
-                json_value* json = json_object_new(map->items.count);
+                json_value* json = json_object_new(map->count);
 
-                for(int i = 0; i < map->items.capacity; i++)
+                for(int i = 0; i < map->capacity; i++)
                 {
-                    TeaEntry* entry = &map->items.entries[i];
-                    if(entry->key == NULL)
+                    TeaMapItem* item = &map->items[i];
+                    if(item->empty)
                     {
                         continue;
                     }
 
-                    char* key = entry->key->chars;
+                    char* key;
 
-                    json_object_push(json, key, dump(state, entry->value));
+                    if(IS_STRING(item->key))
+                    {
+                        TeaObjectString* s = AS_STRING(item->key);
+                        key = s->chars;
+                    } 
+                    else
+                    {
+                        key = tea_value_tostring(state, item->key);
+                    }
+
+                    json_object_push(json, key, dump(state, item->value));
                 }
                 return json;
             }

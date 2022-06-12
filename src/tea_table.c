@@ -6,8 +6,6 @@
 #include "tea_table.h"
 #include "tea_value.h"
 
-#define TABLE_MAX_LOAD 0.75
-
 void tea_init_table(TeaTable* table)
 {
     table->count = 0;

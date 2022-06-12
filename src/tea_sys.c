@@ -93,9 +93,9 @@ static void set_version(TeaState* state, TeaTable* table)
     TeaObjectString* minor = tea_copy_string(state, "minor", 5);
     TeaObjectString* patch = tea_copy_string(state, "patch", 5);
     
-    tea_table_set(state, &version->items, major, NUMBER_VAL(atoi(TEA_VERSION_MAJOR)));
-    tea_table_set(state, &version->items, minor, NUMBER_VAL(atoi(TEA_VERSION_MINOR)));
-    tea_table_set(state, &version->items, patch, NUMBER_VAL(atoi(TEA_VERSION_PATCH)));
+    tea_map_set(state, version, OBJECT_VAL(major), NUMBER_VAL(atoi(TEA_VERSION_MAJOR)));
+    tea_map_set(state, version, OBJECT_VAL(minor), NUMBER_VAL(atoi(TEA_VERSION_MINOR)));
+    tea_map_set(state, version, OBJECT_VAL(patch), NUMBER_VAL(atoi(TEA_VERSION_PATCH)));
 
     tea_native_value(state->vm, table, "version", OBJECT_VAL(version));
 }
