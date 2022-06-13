@@ -558,7 +558,7 @@ static bool call_value(TeaVM* vm, TeaValue callee, uint8_t count)
         }
     }
 
-    tea_runtime_error(vm, "Not callable");
+    tea_runtime_error(vm, "%s is not callable", tea_value_type(callee));
     return false;
 }
 
@@ -982,7 +982,7 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
         }
     }
 
-    tea_runtime_error(vm, "Can not set property on type");
+    tea_runtime_error(vm, "Can not set property on type %s", tea_value_type(receiver));
     return false;
 }
 
@@ -1074,36 +1074,6 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
-#define BINARY_OP(value_type, op, type) \
-    do \
-    { \
-        if(!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) \
-        { \
-            STORE_FRAME; \
-            tea_runtime_error(vm, "Operands must be numbers"); \
-            return INTERPRET_RUNTIME_ERROR; \
-        } \
-        type b = AS_NUMBER(POP()); \
-        type a = AS_NUMBER(PEEK(0)); \
-        vm->stack_top[-1] = value_type(a op b); \
-    } \
-    while(false)
-
-#define BINARY_OP_FUNCTION(value_type, func, type) \
-    do \
-    { \
-        if(!IS_NUMBER(PEEK(0)) || !IS_NUMBER(PEEK(1))) \
-        { \
-            STORE_FRAME; \
-            tea_runtime_error(vm, "Operands must be numbers"); \
-            return INTERPRET_RUNTIME_ERROR; \
-        } \
-        type b = AS_NUMBER(POP()); \
-        type a = AS_NUMBER(PEEK(0)); \
-        vm->stack_top[-1] = value_type(func(a, b)); \
-    } \
-    while(false)
-
 #define RUNTIME_ERROR(...) \
     do \
     { \
@@ -1111,6 +1081,61 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         tea_runtime_error(vm, __VA_ARGS__); \
         vm->error = false; \
         return INTERPRET_RUNTIME_ERROR; \
+    } \
+    while(false)
+
+#define INVOKE_METHOD(a, b, name, arg_count) \
+    do \
+    { \
+        TeaObjectString* method_name = tea_copy_string(state, name, strlen(name)); \
+        TeaValue method; \
+        if(((IS_INSTANCE(a) && IS_INSTANCE(b)) || IS_INSTANCE(a)) && tea_table_get(&AS_INSTANCE(a)->klass->methods, method_name, &method)) \
+        { \
+            STORE_FRAME; \
+            if(!call_value(vm, method, arg_count)) \
+            { \
+                return INTERPRET_RUNTIME_ERROR; \
+            } \
+            frame = &vm->frames[vm->frame_count - 1]; \
+            ip = frame->ip; \
+        } \
+        else if(IS_INSTANCE(b) && tea_table_get(&AS_INSTANCE(b)->klass->methods, method_name, &method)) \
+        { \
+            PUSH(a); \
+            STORE_FRAME; \
+            if(!call_value(vm, method, arg_count)) \
+            { \
+                return INTERPRET_RUNTIME_ERROR; \
+            } \
+            frame = &vm->frames[vm->frame_count - 1]; \
+            ip = frame->ip; \
+        } \
+        else \
+        { \
+            RUNTIME_ERROR("Undefined '%s' overload", name); \
+        } \
+    } \
+    while(false);
+
+#define BINARY_OP(value_type, op, op_string, type) \
+    do \
+    { \
+        if(IS_NUMBER(PEEK(0)) && IS_NUMBER(PEEK(1))) \
+        { \
+            type b = AS_NUMBER(POP()); \
+            type a = AS_NUMBER(PEEK(0)); \
+            vm->stack_top[-1] = value_type(a op b); \
+        } \
+        else if(IS_INSTANCE(PEEK(1)) || IS_INSTANCE(PEEK(0))) \
+        { \
+            TeaValue a = PEEK(1); \
+            TeaValue b = PEEK(0); \
+            INVOKE_METHOD(a, b, op_string, 1); \
+        } \
+        else \
+        { \
+            RUNTIME_ERROR("Can't sum %s with %s", tea_value_type(PEEK(1)), tea_value_type(PEEK(0))); \
+        } \
     } \
     while(false)
 
@@ -1417,6 +1442,14 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             // Stack before: [list, index] and after: [index(list, index)]
             TeaValue index = PEEK(0);
             TeaValue list = PEEK(1);
+            if(IS_INSTANCE(list))
+            {
+                POP();
+                PUSH(index);
+                PUSH(NULL_VAL);             
+                INVOKE_METHOD(list, NULL_VAL, "[]", 2);
+                DISPATCH();
+            }
             STORE_FRAME;
             if(!subscript(vm, index, list))
             {
@@ -1430,6 +1463,15 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             TeaValue item = PEEK(0);
             TeaValue index = PEEK(1);
             TeaValue list = PEEK(2);
+            if(IS_INSTANCE(list))
+            {
+                POP();
+                POP();
+                PUSH(index);
+                PUSH(item);
+                INVOKE_METHOD(list, NULL_VAL, "[]", 2);
+                DISPATCH();
+            }
             STORE_FRAME;
             if(!subscript_store(vm, item, index, list, true))
             {
@@ -1505,6 +1547,14 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(EQUAL):
         {
+            if(IS_INSTANCE(PEEK(1)) || IS_INSTANCE(PEEK(0)))
+            {
+                TeaValue a = PEEK(1);
+                TeaValue b = PEEK(0);
+                INVOKE_METHOD(a, b, "==", 1);
+                DISPATCH();
+            }
+            
             TeaValue b = POP();
             TeaValue a = POP();
             PUSH(BOOL_VAL(tea_values_equal(a, b)));
@@ -1512,33 +1562,22 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(GREATER):
         {
-            if(IS_STRING(PEEK(0)) && IS_STRING(PEEK(1)))
-            {
-                PUSH(BOOL_VAL(strcmp(AS_STRING(POP())->chars, AS_STRING(POP())->chars) > 0));
-            }
-            else if(IS_LIST(PEEK(0)) && IS_LIST(PEEK(1)))
-            {
-                PUSH(BOOL_VAL(AS_LIST(POP())->items.count < AS_LIST(POP())->items.count));
-            }
-            else
-            {
-                BINARY_OP(BOOL_VAL, >, double);
-            }
+            BINARY_OP(BOOL_VAL, >, ">", double);
             DISPATCH();
         }
         CASE_CODE(GREATER_EQUAL):
         {
-            BINARY_OP(BOOL_VAL, >=, double);
+            BINARY_OP(BOOL_VAL, >=, ">=", double);
             DISPATCH();
         }
         CASE_CODE(LESS):
         {
-            BINARY_OP(BOOL_VAL, <, double);
+            BINARY_OP(BOOL_VAL, <, "<", double);
             DISPATCH();
         }
         CASE_CODE(LESS_EQUAL):
         {
-            BINARY_OP(BOOL_VAL, <=, double);
+            BINARY_OP(BOOL_VAL, <=, "<=", double);
             DISPATCH();
         }
         CASE_CODE(ADD):
@@ -1546,12 +1585,6 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             if(IS_STRING(PEEK(0)) && IS_STRING(PEEK(1)))
             {
                 concatenate(vm);
-            }
-            else if(IS_NUMBER(PEEK(0)) && IS_NUMBER(PEEK(1)))
-            {
-                double b = AS_NUMBER(POP());
-                double a = AS_NUMBER(POP());
-                PUSH(NUMBER_VAL(a + b));
             }
             else if(IS_LIST(PEEK(0)) && IS_LIST(PEEK(1)))
             {
@@ -1591,43 +1624,63 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             }
             else
             {
-                RUNTIME_ERROR("Operands must be two numbers or two strings");
+                BINARY_OP(NUMBER_VAL, +, "+", double);
             }
             DISPATCH();
         }
         CASE_CODE(SUBTRACT):
         {
-            BINARY_OP(NUMBER_VAL, -, double);
+            BINARY_OP(NUMBER_VAL, -, "-", double);
             DISPATCH();
         }
         CASE_CODE(MULTIPLY):
         {
-            BINARY_OP(NUMBER_VAL, *, double);
+            BINARY_OP(NUMBER_VAL, *, "*", double);
             DISPATCH();
         }
         CASE_CODE(DIVIDE):
         {
-            BINARY_OP(NUMBER_VAL, /, double);
+            BINARY_OP(NUMBER_VAL, /, "/", double);
             DISPATCH();
         }
         CASE_CODE(MOD):
         {
-            BINARY_OP_FUNCTION(NUMBER_VAL, fmod, double);
+            TeaValue a = PEEK(1);
+			TeaValue b = PEEK(0);
+
+			if(IS_NUMBER(a) && IS_NUMBER(b))
+            {
+                DROP();
+				vm->stack_top[-1] = (NUMBER_VAL(fmod(AS_NUMBER(a), AS_NUMBER(b))));
+				DISPATCH();
+			}
+
+			INVOKE_METHOD(a, b, "%", 1);
             DISPATCH();
         }
         CASE_CODE(POW):
         {
-            BINARY_OP_FUNCTION(NUMBER_VAL, powf, double);
+            TeaValue a = PEEK(1);
+			TeaValue b = PEEK(0);
+
+			if(IS_NUMBER(a) && IS_NUMBER(b))
+            {
+                DROP();
+				vm->stack_top[-1] = (NUMBER_VAL(pow(AS_NUMBER(a), AS_NUMBER(b))));
+				DISPATCH();
+			}
+
+			INVOKE_METHOD(a, b, "**", 1);
             DISPATCH();
         }
         CASE_CODE(BAND):
         {
-            BINARY_OP(NUMBER_VAL, &, int);
+            BINARY_OP(NUMBER_VAL, &, "&", int);
             DISPATCH();
         }
         CASE_CODE(BOR):
         {
-            BINARY_OP(NUMBER_VAL, |, int);
+            BINARY_OP(NUMBER_VAL, |, "|", int);
             DISPATCH();
         }
         CASE_CODE(BNOT):
@@ -1642,17 +1695,17 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(BXOR):
         {
-            BINARY_OP(NUMBER_VAL, ^, int);
+            BINARY_OP(NUMBER_VAL, ^, "^", int);
             DISPATCH();
         }
         CASE_CODE(LSHIFT):
         {
-            BINARY_OP(NUMBER_VAL, <<, int);
+            BINARY_OP(NUMBER_VAL, <<, "<<", int);
             DISPATCH();
         }
         CASE_CODE(RSHIFT):
         {
-            BINARY_OP(NUMBER_VAL, >>, int);
+            BINARY_OP(NUMBER_VAL, >>, ">>", int);
             DISPATCH();
         }
         CASE_CODE(AND):
@@ -1692,6 +1745,14 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(NEGATE):
         {
+            if(IS_INSTANCE(PEEK(0)))
+            {
+                TeaValue a = PEEK(0);
+                PUSH(NULL_VAL);
+                INVOKE_METHOD(a, NULL_VAL, "-", 1);
+                DISPATCH();
+            }
+
             if(!IS_NUMBER(PEEK(0)))
             {
                 RUNTIME_ERROR("Operand must be a number");

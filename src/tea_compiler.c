@@ -1422,9 +1422,66 @@ static void anonymous(TeaCompiler* compiler, bool can_assign)
     function(compiler, TYPE_FUNCTION);
 }
 
+static TeaTokenType operators[] = {
+    TOKEN_PLUS,
+    TOKEN_MINUS,
+    TOKEN_STAR,
+    TOKEN_SLASH,
+    
+    TOKEN_PERCENT,
+    TOKEN_STAR_STAR,
+
+    TOKEN_AMPERSAND,
+    TOKEN_PIPE,
+    //TOKEN_TILDE,
+    TOKEN_CARET,
+    TOKEN_LESS_LESS,
+    TOKEN_GREATER_GREATER,
+
+	TOKEN_LESS,
+	TOKEN_LESS_EQUAL,
+	TOKEN_GREATER,
+	TOKEN_GREATER_EQUAL,
+	TOKEN_EQUAL_EQUAL,
+
+    TOKEN_LEFT_BRACKET,
+
+    TOKEN_EOF
+};
+
+static void operator(TeaCompiler* compiler)
+{
+    int i = 0;
+    while(operators[i] != TOKEN_EOF) 
+    {
+        if(match(compiler, operators[i])) 
+        {
+            break;
+        }
+
+        i++;
+    }
+
+    TeaObjectString* name = NULL;
+
+    if(compiler->parser->previous.type == TOKEN_LEFT_BRACKET)
+    {
+        consume(compiler, TOKEN_RIGHT_BRACKET, "Expected ']' after '[' operator method");
+        name = tea_copy_string(compiler->state, "[]", 2);
+    } 
+    else
+    {
+        name = tea_copy_string(compiler->state, compiler->parser->previous.start, compiler->parser->previous.length);
+    }
+
+    uint8_t constant = make_constant(compiler, OBJECT_VAL(name));
+
+    function(compiler, TYPE_METHOD);
+    emit_bytes(compiler, OP_METHOD, constant);
+}
+
 static void method(TeaCompiler* compiler, TeaFunctionType type)
 {
-    consume(compiler, TOKEN_NAME, "Expect method name");
     uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
 
     if(compiler->parser->previous.length == 11 && memcmp(compiler->parser->previous.start, "constructor", 11) == 0)
@@ -1458,11 +1515,17 @@ static void class_body(TeaCompiler* compiler)
         else if(match(compiler, TOKEN_STATIC))
         {
             compiler->klass->is_static = true;
+            consume(compiler, TOKEN_NAME, "Expect method name after 'static' keyword");
             method(compiler, TYPE_STATIC);
+            compiler->klass->is_static = false;
+        }
+        else if(match(compiler, TOKEN_NAME))
+        {
+            method(compiler, TYPE_METHOD);
         }
         else
         {
-            method(compiler, TYPE_METHOD);
+            operator(compiler);
         }
     }
 }
