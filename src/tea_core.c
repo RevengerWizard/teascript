@@ -823,6 +823,22 @@ static TeaValue values_map(TeaVM* vm, TeaValue instance)
     return OBJECT_VAL(list);
 }
 
+static TeaValue clear_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    if(count != 0)
+    {
+        tea_runtime_error(vm, "clear() takes 0 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    TeaObjectMap* map = AS_MAP(instance);
+    map->items = NULL;
+    map->capacity = 0;
+    map->count = 0;
+
+    return EMPTY_VAL;
+}
+
 static TeaValue iterate_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
     TeaObjectMap* map = AS_MAP(instance);
@@ -1780,6 +1796,7 @@ void tea_open_core(TeaVM* vm)
     // Map
     tea_native_property(vm, &vm->map_methods, "keys", keys_map);
     tea_native_property(vm, &vm->map_methods, "values", values_map);
+    tea_native_method(vm, &vm->map_methods, "clear", clear_map);
     tea_native_method(vm, &vm->map_methods, "iterate", iterate_map);
     tea_native_method(vm, &vm->map_methods, "iteratorvalue", iteratorvalue_map);
 

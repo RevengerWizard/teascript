@@ -1134,7 +1134,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         } \
         else \
         { \
-            RUNTIME_ERROR("Can't sum %s with %s", tea_value_type(PEEK(1)), tea_value_type(PEEK(0))); \
+            RUNTIME_ERROR("Attempt to use %s operator with %s and %s", op_string, tea_value_type(PEEK(1)), tea_value_type(PEEK(0))); \
         } \
     } \
     while(false)
