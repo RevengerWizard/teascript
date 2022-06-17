@@ -8,6 +8,8 @@ end
 
 local start = os.clock()
 
-io.write(fib(35).."\n")
+for i=1, 5 do
+	io.write(fib(28).."\n")
+end
 
 io.write(string.format("elapsed: %g\n", os.clock() - start))

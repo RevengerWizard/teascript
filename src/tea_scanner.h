@@ -13,7 +13,13 @@ typedef struct TeaScanner
     const char* current;
     int line;
 
-    bool is_raw;
+    char string;
+
+    int braces[4];
+    int num_braces;
+
+    bool raw;
+    bool interpolation;
 } TeaScanner;
 
 void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source);

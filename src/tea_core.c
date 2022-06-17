@@ -258,7 +258,7 @@ static TeaValue add_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args
     
     tea_write_value_array(vm->state, &list->items, args[0]);
 
-    return EMPTY_VAL;
+    return instance;
 }
 
 static TeaValue remove_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -719,7 +719,7 @@ static TeaValue join_list(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
         memcpy(string + length, output, elementLength);
         if(!IS_STRING(list->items.values[i])) 
         {
-            free(output);
+            FREE(vm->state, char, output);
         }
         length += elementLength;
         memcpy(string + length, delimiter, delimiterLength);

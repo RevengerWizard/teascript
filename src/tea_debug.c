@@ -127,6 +127,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_FALSE", offset);
         case OP_POP:
             return simple_instruction("OP_POP", offset);
+        case OP_POP_REPL:
+            return simple_instruction("OP_POP_REPL", offset);
         case OP_DUP:
             return simple_instruction("OP_DUP", offset);
         case OP_GET_PROPERTY_NO_POP:

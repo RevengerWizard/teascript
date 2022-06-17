@@ -153,6 +153,12 @@ static uint8_t make_constant(TeaCompiler* compiler, TeaValue value)
     return (uint8_t)constant;
 }
 
+static void invoke_method(TeaCompiler* compiler, int args, const char* name)
+{
+    emit_bytes(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, name, strlen(name)))));
+    emit_byte(compiler, args);
+}
+
 static void emit_constant(TeaCompiler* compiler, TeaValue value)
 {
     emit_bytes(compiler, OP_CONSTANT, make_constant(compiler, value));
@@ -855,8 +861,6 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
 
 static void number(TeaCompiler* compiler, bool can_assign)
 {
-    //double value = strtod(compiler->parser->previous.start, NULL);
-    //emit_constant(compiler, NUMBER_VAL(value));
     emit_constant(compiler, compiler->parser->previous.value);
 }
 
@@ -872,15 +876,26 @@ static void string(TeaCompiler* compiler, bool can_assign)
     emit_constant(compiler, compiler->parser->previous.value);
 }
 
-static void rstring(TeaCompiler* compiler, bool can_assign)
+static void interpolation(TeaCompiler* compiler, bool can_assign)
 {
-    if(match(compiler, TOKEN_STRING))
+    emit_bytes(compiler, OP_LIST, 0);
+
+    do
     {
         string(compiler, false);
-        return;
-    }
+        invoke_method(compiler, 1, "add");
 
-    consume(compiler, TOKEN_STRING, "Expected string after r keyword");
+        expression(compiler);
+
+        invoke_method(compiler, 1, "add");
+    } 
+    while(match(compiler, TOKEN_INTERPOLATION));
+    
+    consume(compiler, TOKEN_STRING, "Expect end of string interpolation");
+    string(compiler, false);
+    invoke_method(compiler, 1, "add");
+
+    invoke_method(compiler, 0, "join");
 }
 
 static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign)
@@ -1150,7 +1165,6 @@ static TeaParseRule rules[] = {
     OPERATOR(binary, TERM),                 // TOKEN_PLUS
     OPERATOR(binary, FACTOR),               // TOKEN_SLASH
     OPERATOR(binary, FACTOR),               // TOKEN_STAR
-    PREFIX(rstring),                        // TOKEN_R
     NONE,                                   // TOKEN_PLUS_PLUS
     NONE,                                   // TOKEN_MINUS_MINUS
     NONE,                                   // TOKEN_PLUS_EQUAL
@@ -1183,6 +1197,7 @@ static TeaParseRule rules[] = {
     OPERATOR(binary, SHIFT),                // TOKEN_LESS_LESS,
     PREFIX(variable),                       // TOKEN_NAME
     PREFIX(string),                         // TOKEN_STRING
+    PREFIX(interpolation),                  // TOKEN_INTERPOLATION
     PREFIX(number),                         // TOKEN_NUMBER
     OPERATOR(and_, AND),                    // TOKEN_AND
     NONE,                                   // TOKEN_CLASS

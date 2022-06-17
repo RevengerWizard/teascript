@@ -15,7 +15,10 @@ void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source)
     scanner->current = source;
     scanner->line = 1;
 
-    scanner->is_raw = false;
+    scanner->num_braces = 0;
+
+    scanner->raw = false;
+    scanner->interpolation = false;
 }
 
 static bool is_at_end(TeaScanner* scanner)
@@ -261,14 +264,6 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
                     case 'e': return check_keyword(scanner, 1, 5, "eturn", TOKEN_RETURN);
                 }
             }
-            else
-            {
-                if(scanner->start[1] == '"' || scanner->start[1] == '\'')
-                {
-                    scanner->is_raw = true;
-                    return TOKEN_R;
-                }
-            }
             break;
         }
         case 's':
@@ -413,9 +408,10 @@ static TeaToken number(TeaScanner* scanner)
     return make_number_token(scanner, false, false);
 }
 
-static TeaToken string(TeaScanner* scanner, char string_token)
+static TeaToken string(TeaScanner* scanner)
 {
     TeaState* state = scanner->state;
+    TeaTokenType type = TOKEN_STRING;
 
     TeaBytes bytes;
     tea_init_bytes(&bytes);
@@ -424,7 +420,23 @@ static TeaToken string(TeaScanner* scanner, char string_token)
     {
         char c = advance(scanner);
 
-        if(c == string_token) break;
+        if(c == scanner->string)
+        {
+            break;
+        }
+        else if(scanner->interpolation && c == '{')
+        {
+            if(scanner->num_braces >= 4)
+            {
+				return error_token(scanner, "String interpolation is too deep");
+			}
+
+			type = TOKEN_INTERPOLATION;
+			scanner->braces[scanner->num_braces++] = 1;
+
+			break;
+        }
+
         if(c == '\r') continue;
         if(c == '\t') continue;
 
@@ -442,7 +454,7 @@ static TeaToken string(TeaScanner* scanner, char string_token)
             }
             case '\\':
             {
-                if(scanner->is_raw)
+                if(scanner->raw)
                 {
                     tea_write_bytes(state, &bytes, c);
                     break;
@@ -476,8 +488,9 @@ static TeaToken string(TeaScanner* scanner, char string_token)
         }
     }
 
-    scanner->is_raw = false;
-    TeaToken token = make_token(scanner, TOKEN_STRING);
+    scanner->raw = false;
+    scanner->interpolation = false;
+    TeaToken token = make_token(scanner, type);
 	token.value = OBJECT_VAL(tea_copy_string(state, (const char*)bytes.values, bytes.count));
 	tea_free_bytes(state, &bytes);
 
@@ -512,6 +525,24 @@ TeaToken tea_scan_token(TeaScanner* scanner)
             return binary_number(scanner);
         }
     }
+    else if(c == 'r')
+    {
+        if(peek(scanner) == '"' || peek(scanner) == '\'')
+        {
+            scanner->raw = true;
+            scanner->string = advance(scanner);
+            return string(scanner);
+        }
+    }
+    else if(c == 'f')
+    {
+        if(peek(scanner) == '"' || peek(scanner) == '\'')
+        {
+            scanner->interpolation = true;
+            scanner->string = advance(scanner);
+            return string(scanner);
+        }
+    }
 
     if(is_alpha(c))
         return identifier(scanner);
@@ -525,8 +556,27 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         case ')': return make_token(scanner, TOKEN_RIGHT_PAREN);
         case '[': return make_token(scanner, TOKEN_LEFT_BRACKET);
         case ']': return make_token(scanner, TOKEN_RIGHT_BRACKET);
-        case '{': return make_token(scanner, TOKEN_LEFT_BRACE);
-        case '}': return make_token(scanner, TOKEN_RIGHT_BRACE);
+        case '{':
+        {
+            if(scanner->num_braces > 0)
+            {
+                scanner->braces[scanner->num_braces - 1]++;
+			}
+
+            return make_token(scanner, TOKEN_LEFT_BRACE);
+        }
+        case '}':
+        {
+            if(scanner->num_braces > 0 && --scanner->braces[scanner->num_braces - 1] == 0)
+            {
+				scanner->num_braces--;
+                scanner->interpolation = true;
+
+				return string(scanner);
+			}
+
+            return make_token(scanner, TOKEN_RIGHT_BRACE);
+        }
         case ',': return make_token(scanner, TOKEN_COMMA);
         case ';': return make_token(scanner, TOKEN_SEMICOLON);
         case ':': return make_token(scanner, TOKEN_COLON);
@@ -591,8 +641,16 @@ TeaToken tea_scan_token(TeaScanner* scanner)
         }
         case '<': return match_tokens(scanner, '=', '<', TOKEN_LESS_EQUAL, TOKEN_LESS_LESS, TOKEN_LESS);
         case '>': return match_tokens(scanner, '=', '>', TOKEN_GREATER_EQUAL, TOKEN_GREATER_GREATER, TOKEN_GREATER);
-        case '"': return string(scanner, '"');
-        case '\'': return string(scanner, '\'');
+        case '"':
+        {
+            scanner->string = '"';
+            return string(scanner);
+        }
+        case '\'':
+        {
+            scanner->string = '\'';
+            return string(scanner);
+        }
     }
 
     return error_token(scanner, "Unexpected character");
