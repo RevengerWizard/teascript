@@ -105,6 +105,8 @@ TeaValue tea_import_random(TeaVM* vm)
     TeaObjectString* name = tea_copy_string(vm->state, TEA_RANDOM_MODULE, 6);
     TeaObjectModule* module = tea_new_module(vm->state, name);
 
+    srand(time(NULL));
+
     tea_native_function(vm, &module->values, "random", random_random);
     tea_native_function(vm, &module->values, "range", range_random);
     tea_native_function(vm, &module->values, "choice", choice_random);

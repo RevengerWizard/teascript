@@ -175,8 +175,105 @@ static bool in_(TeaVM* vm, TeaValue object, TeaValue value)
     return false;
 }
 
+static bool slice(TeaVM* vm, TeaValue object, TeaValue range)
+{
+    if(!IS_OBJECT(object))
+    {
+        tea_runtime_error(vm, "Can only slice on lists and strings");
+        return false;
+    }
+
+    TeaObjectRange* range_object = AS_RANGE(range);
+
+    int index_start;
+    int index_end;
+    TeaValue return_value;
+
+    index_start = range_object->from;
+
+    if(index_start < 0)
+    {
+        index_start = 0;
+    }
+
+    switch(OBJECT_TYPE(object))
+    {
+        case OBJ_LIST:
+        {
+            TeaObjectList* new_list = tea_new_list(vm->state);
+            tea_push(vm, OBJECT_VAL(new_list));
+            TeaObjectList* list = AS_LIST(object);
+
+            index_end = range_object->inclusive ? range_object->to : range_object->to - 1;
+
+            if(index_end > list->items.count)
+            {
+                index_end = list->items.count;
+            }
+            else if(index_end < 0)
+            {
+                index_end = list->items.count + index_end;
+            }
+
+            for(int i = index_start; i < index_end; i++)
+            {
+                tea_write_value_array(vm->state, &new_list->items, list->items.values[i]);
+            }
+
+            tea_pop(vm);
+            return_value = OBJECT_VAL(new_list);
+
+            break;
+        }
+        case OBJ_STRING:
+        {
+            TeaObjectString* string = AS_STRING(object);
+            int length = tea_ustring_length(string);
+
+            index_end = range_object->inclusive ? range_object->to : range_object->to - 1;
+
+            if(index_end > length) 
+            {
+                index_end = length;
+            }
+            else if(index_end < 0) 
+            {
+                index_end = length + index_end;
+            }
+
+            // Ensure the start index is below the end index
+            if(index_start > index_end) 
+            {
+                return_value = OBJECT_VAL(tea_copy_string(vm->state, "", 0));
+            } 
+            else 
+            {
+                index_start = tea_uchar_offset(string->chars, index_start);
+	            index_end = tea_uchar_offset(string->chars, index_end);
+                return_value = OBJECT_VAL(tea_ustring_from_range(vm->state, string, index_start, index_end - index_start));
+            }
+            break;
+        }
+        default:
+        {
+            tea_runtime_error(vm, "Can only slice lists and strings");
+            return false;
+        }
+    }
+
+    tea_pop(vm);
+    tea_pop(vm);
+    tea_push(vm, return_value);
+    return true;
+}
+
 static bool subscript(TeaVM* vm, TeaValue index_value, TeaValue subscript_value)
 {
+    if(IS_RANGE(index_value))
+    {
+        return slice(vm, subscript_value, index_value);
+    }
+
     if(IS_OBJECT(subscript_value))
     {
         switch(OBJECT_TYPE(subscript_value))
@@ -350,124 +447,6 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
 
     tea_runtime_error(vm, "%s does not support item assignment", tea_value_type(subscript_value));
     return false;
-}
-
-static bool slice(TeaVM* vm, TeaValue object, TeaValue start, TeaValue end)
-{
-    if(!IS_OBJECT(object))
-    {
-        tea_runtime_error(vm, "Can only slice on lists and strings");
-        return false;
-    }
-
-    if((!IS_NUMBER(start) && !IS_NULL(start)) || (!IS_NUMBER(end) && !IS_NULL(end)))
-    {
-        tea_runtime_error(vm, "Slice index must be a number");
-        return false;
-    }
-
-    int index_start;
-    int index_end;
-    TeaValue return_value;
-
-    if(IS_NULL(start))
-    {
-        index_start = 0;
-    }
-    else
-    {
-        index_start = AS_NUMBER(start);
-
-        if(index_start < 0)
-        {
-            index_start = 0;
-        }
-    }
-
-    switch(OBJECT_TYPE(object))
-    {
-        case OBJ_LIST:
-        {
-            TeaObjectList* new_list = tea_new_list(vm->state);
-            tea_push(vm, OBJECT_VAL(new_list));
-            TeaObjectList* list = AS_LIST(object);
-
-            if(IS_NULL(end))
-            {
-                index_end = list->items.count;
-            }
-            else
-            {
-                index_end = AS_NUMBER(end);
-
-                if(index_end > list->items.count)
-                {
-                    index_end = list->items.count;
-                }
-                else if(index_end < 0)
-                {
-                    index_end = list->items.count + index_end;
-                }
-            }
-
-            for(int i = index_start; i < index_end; i++)
-            {
-                tea_write_value_array(vm->state, &new_list->items, list->items.values[i]);
-            }
-
-            tea_pop(vm);
-            return_value = OBJECT_VAL(new_list);
-
-            break;
-        }
-        case OBJ_STRING:
-        {
-            TeaObjectString* string = AS_STRING(object);
-            int length = tea_ustring_length(string);
-
-            if(IS_NULL(end)) 
-            {
-                index_end = length;
-            } 
-            else 
-            {
-                index_end = AS_NUMBER(end);
-
-                if(index_end > length) 
-                {
-                    index_end = length;
-                }
-                else if(index_end < 0) 
-                {
-                    index_end = length + index_end;
-                }
-            }
-
-            // Ensure the start index is below the end index
-            if(index_start > index_end) 
-            {
-                return_value = OBJECT_VAL(tea_copy_string(vm->state, "", 0));
-            } 
-            else 
-            {
-                index_start = tea_uchar_offset(string->chars, index_start);
-	            index_end = tea_uchar_offset(string->chars, index_end);
-                return_value = OBJECT_VAL(tea_ustring_from_range(vm->state, string, index_start, index_end - index_start));
-            }
-            break;
-        }
-        default:
-        {
-            tea_runtime_error(vm, "Can only slice lists and strings");
-            return false;
-        }
-    }
-
-    tea_pop(vm);
-    tea_pop(vm);
-    tea_pop(vm);
-    tea_push(vm, return_value);
-    return true;
 }
 
 static bool call(TeaVM* vm, TeaObjectClosure* closure, int count)
@@ -1487,18 +1466,6 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             TeaValue list = PEEK(2);
             STORE_FRAME;
             if(!subscript_store(vm, item, index, list, false))
-            {
-                return INTERPRET_RUNTIME_ERROR;
-            }
-            DISPATCH();
-        }
-        CASE_CODE(SLICE):
-        {
-            TeaValue end_index = PEEK(0);
-            TeaValue start_index = PEEK(1);
-            TeaValue object = PEEK(2);
-            STORE_FRAME;
-            if(!slice(vm, object, start_index, end_index))
             {
                 return INTERPRET_RUNTIME_ERROR;
             }

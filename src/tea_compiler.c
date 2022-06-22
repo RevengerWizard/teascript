@@ -769,31 +769,7 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
     emit_bytes(compiler, OP_SUBSCRIPT_PUSH, op); \
     emit_byte(compiler, OP_SUBSCRIPT_STORE);
 
-    if(match(compiler, TOKEN_COLON))
-    {
-        emit_byte(compiler, OP_NULL);
-        expression(compiler);
-        emit_byte(compiler, OP_SLICE);
-        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
-        return;
-    }
-
     expression(compiler);
-
-    if(match(compiler, TOKEN_COLON))
-    {
-        if(check(compiler, TOKEN_RIGHT_BRACKET))
-        {
-            emit_byte(compiler, OP_NULL);
-        }
-        else
-        {
-            expression(compiler);
-        }
-        emit_byte(compiler, OP_SLICE);
-        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
-        return;
-    }
 
     consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
 
@@ -1710,7 +1686,6 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_SUBSCRIPT:
         case OP_SUBSCRIPT_STORE:
         case OP_SUBSCRIPT_PUSH:
-        case OP_SLICE:
         case OP_POP:
         case OP_EQUAL:
         case OP_GREATER:
@@ -1844,8 +1819,7 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var)
     // Get the iterator index. If it's null, it means the loop is over
     emit_bytes(compiler, OP_GET_LOCAL, seq_slot);
     emit_bytes(compiler, OP_GET_LOCAL, iter_slot);
-    emit_bytes(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, "iterate", 7))));
-    emit_byte(compiler, 1);
+    invoke_method(compiler, 1, "iterate");
     emit_bytes(compiler, OP_SET_LOCAL, iter_slot);
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_NULL);
     emit_byte(compiler, OP_POP);
@@ -1853,8 +1827,7 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var)
     // Get the iterator value
     emit_bytes(compiler, OP_GET_LOCAL, seq_slot);
     emit_bytes(compiler, OP_GET_LOCAL, iter_slot);
-    emit_bytes(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, "iteratorvalue", 13))));
-    emit_byte(compiler, 1);
+    invoke_method(compiler, 1, "iteratorvalue");
 
     begin_scope(compiler);
     int name = parse_variable_at(compiler, var);

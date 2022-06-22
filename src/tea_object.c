@@ -810,7 +810,7 @@ void tea_print_object(TeaValue value)
             printf("<function>");
             break;
         case OBJ_STRING:
-            printf("%s", AS_CSTRING(value));
+            fwrite(AS_CSTRING(value), sizeof(char), strlen(AS_CSTRING(value)), stdout);
             break;
         case OBJ_UPVALUE:
             printf("<upvalue>");
