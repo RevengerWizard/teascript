@@ -750,11 +750,11 @@ static void print_map(TeaObjectMap* map)
 
 static void print_range(TeaObjectRange* range)
 {
-    printf("%.15g", range->from);
+    printf("%.16g", range->from);
     
     range->inclusive ? printf("...") : printf("..");
 
-    printf("%.15g", range->to);
+    printf("%.16g", range->to);
 }
 
 static void print_function(TeaObjectFunction* function)

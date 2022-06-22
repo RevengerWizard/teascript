@@ -103,9 +103,9 @@ char* tea_number_tostring(TeaState* state, double number)
         }
     }
 
-    int length = snprintf(NULL, 0, "%.15g", number) + 1;
+    int length = snprintf(NULL, 0, "%.16g", number) + 1;
     char* string = ALLOCATE(state, char, length);
-    snprintf(string, length, "%.15g", number);
+    snprintf(string, length, "%.16g", number);
 
     return string;
 }
@@ -123,7 +123,7 @@ void tea_print_value(TeaValue value)
     }
     else if(IS_NUMBER(value))
     {
-        printf("%.15g", AS_NUMBER(value));
+        printf("%.16g", AS_NUMBER(value));
     }
     else if(IS_OBJECT(value))
     {
