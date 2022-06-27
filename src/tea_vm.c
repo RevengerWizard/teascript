@@ -1033,6 +1033,47 @@ static void concatenate(TeaVM* vm)
     tea_push(vm, OBJECT_VAL(result));
 }
 
+static void repeat(TeaVM* vm)
+{
+    TeaObjectString* string;
+    int n;
+
+    if(IS_STRING(tea_peek(vm, 0)) && IS_NUMBER(tea_peek(vm, 1)))
+    {
+        string = AS_STRING(tea_peek(vm, 0));
+        n = AS_NUMBER(tea_peek(vm, 1));
+    }
+    else if(IS_NUMBER(tea_peek(vm, 0)) && IS_STRING(tea_peek(vm, 1)))
+    {
+        n = AS_NUMBER(tea_peek(vm, 0));
+        string = AS_STRING(tea_peek(vm, 1));
+    }
+
+    if(n <= 1)
+    {
+        tea_pop(vm);
+        tea_pop(vm);
+        tea_push(vm, OBJECT_VAL(string));
+        return;
+    }
+
+    int length = string->length;
+    char* chars = ALLOCATE(vm->state, char, (n * length) + 1);
+
+    int i; 
+    char* p;
+    for(i = 0, p = chars; i < n; ++i, p += length)
+    {
+        memcpy(p, string->chars, length);
+    }
+    *p = '\0';
+
+    TeaObjectString* result = tea_take_string(vm->state, chars, strlen(chars));
+    tea_pop(vm);
+    tea_pop(vm);
+    tea_push(vm, OBJECT_VAL(result));
+}
+
 static TeaInterpretResult run_interpreter(TeaState* state)
 {
     register TeaVM* vm = state->vm;
@@ -1602,7 +1643,14 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(MULTIPLY):
         {
-            BINARY_OP(NUMBER_VAL, *, "*", double);
+            if(IS_STRING(PEEK(0)) && IS_NUMBER(PEEK(1)) || IS_NUMBER(PEEK(0)) && IS_STRING(PEEK(1)))
+            {
+                repeat(vm);
+            }
+            else
+            {
+                BINARY_OP(NUMBER_VAL, *, "*", double);
+            }
             DISPATCH();
         }
         CASE_CODE(DIVIDE):
