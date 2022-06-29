@@ -440,7 +440,7 @@ bool tea_map_delete(TeaObjectMap* map, TeaValue key)
     // Place a tombstone in the entry.
     item->key = NULL_VAL;
     item->value = BOOL_VAL(true);
-    item->empty = false;
+    item->empty = true;
 
     return true;
 }
@@ -455,17 +455,6 @@ void tea_map_add_all(TeaState* state, TeaObjectMap* from, TeaObjectMap* to)
             tea_map_set(state, to, item->key, item->value);
         }
     }
-}
-
-bool tea_is_valid_key(TeaValue value)
-{
-    if(IS_NULL(value) || IS_BOOL(value) || IS_NUMBER(value) ||
-    IS_STRING(value))
-    {
-        return true;
-    }
-
-    return false;
 }
 
 static char* list_tostring(TeaState* state, TeaObjectList* list)

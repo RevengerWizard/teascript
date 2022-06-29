@@ -651,19 +651,7 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
                 TeaValue value;
                 if(tea_table_get(&vm->list_methods, name, &value)) 
                 {
-                    if(IS_NATIVE_FUNCTION(value) || IS_NATIVE_METHOD(value)) 
-                    {
-                        return call_value(vm, value, count);
-                    }
-
-                    tea_push(vm, tea_peek(vm, 0));
-
-                    for(int i = 2; i <= count + 1; i++) 
-                    {
-                        vm->stack_top[-i] = tea_peek(vm, i);
-                    }
-
-                    return call(vm, AS_CLOSURE(value), count + 1);
+                    return call_value(vm, value, count);
                 }
 
                 tea_runtime_error(vm, "list has no method %s()", name->chars);
@@ -674,19 +662,7 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
                 TeaValue value;
                 if(tea_table_get(&vm->map_methods, name, &value))
                 {
-                    if(IS_NATIVE_FUNCTION(value) || IS_NATIVE_METHOD(value))
-                    {
-                        return call_value(vm, value, count);
-                    }
-
-                    tea_push(vm, tea_peek(vm, 0));
-
-                    for (int i = 2; i <= count + 1; i++)
-                    {
-                        vm->stack_top[-i] = tea_peek(vm, i);
-                    }
-
-                    return call(vm, AS_CLOSURE(value), count + 1);
+                    return call_value(vm, value, count);
                 }
 
                 tea_runtime_error(vm, "map has no method %s().", name->chars);

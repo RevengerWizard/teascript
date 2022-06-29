@@ -135,7 +135,7 @@ static TeaValue readline_file(TeaVM* vm, TeaValue instance, int count, TeaValue*
 {
     if(count != 0)
     {
-        tea_runtime_error(vm, "readline() takes 0 argument (%d given)", count);
+        tea_runtime_error(vm, "readline() takes 0 arguments (%d given)", count);
         return EMPTY_VAL;
     }
 
@@ -233,6 +233,16 @@ static TeaValue close_file(TeaVM* vm, TeaValue instance, int count, TeaValue* ar
     file->is_open = false;
 
     return EMPTY_VAL;
+}
+
+static TeaValue iterate_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    return readline_file(vm, instance, 0, args);
+}
+
+static TeaValue iteratorvalue_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    return args[0];
 }
 
 // List
@@ -784,6 +794,11 @@ static TeaValue iteratorvalue_list(TeaVM* vm, TeaValue instance, int count, TeaV
     return list->items.values[index];
 }
 
+static TeaValue len_map(TeaVM* vm, TeaValue instance)
+{
+    return NUMBER_VAL(AS_MAP(instance)->count);
+}
+
 // Map
 static TeaValue keys_map(TeaVM* vm, TeaValue instance)
 {
@@ -839,6 +854,52 @@ static TeaValue clear_map(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
     return EMPTY_VAL;
 }
 
+static TeaValue contains_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "contains() takes 1 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    TeaObjectMap* map = AS_MAP(instance);
+
+    if(!tea_is_valid_key(args[0]))
+    {
+        tea_runtime_error(vm, "Map key isn't hashable");
+        return EMPTY_VAL;
+    }
+    
+    TeaValue _;
+    return BOOL_VAL(tea_map_get(map, args[0], &_));
+}
+
+static TeaValue remove_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "remove() takes 1 arguments (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    TeaObjectMap* map = AS_MAP(instance);
+    TeaValue _;
+    if(!tea_is_valid_key(args[0]))
+    {
+        tea_runtime_error(vm, "Map key isn't hashable");
+        return EMPTY_VAL;
+    }
+    else if(!tea_map_get(map, args[0], &_))
+    {
+        tea_runtime_error(vm, "No such key in the map");
+        return EMPTY_VAL;
+    }
+
+    tea_map_delete(map, args[0]);
+
+    return args[0];
+}
+
 static TeaValue iterate_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
     TeaObjectMap* map = AS_MAP(instance);
@@ -889,8 +950,10 @@ static TeaValue iteratorvalue_map(TeaVM* vm, TeaValue instance, int count, TeaVa
     }
 
     TeaObjectMap* value = tea_new_map(vm->state);
+    tea_push(vm, OBJECT_VAL(value));
     tea_map_set(vm->state, value, OBJECT_VAL(tea_copy_string(vm->state, "key", 3)), item->key);
     tea_map_set(vm->state, value, OBJECT_VAL(tea_copy_string(vm->state, "value", 5)), item->value);
+    tea_pop(vm);
 
     return OBJECT_VAL(value);
 }
@@ -1611,7 +1674,7 @@ static TeaValue assert_native(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
-    return EMPTY_VAL;
+    return args[0];
 }
 
 static TeaValue error_native(TeaVM* vm, int count, TeaValue* args)
@@ -1772,6 +1835,8 @@ void tea_open_core(TeaVM* vm)
     tea_native_method(vm, &vm->file_methods, "readline", readline_file);
     tea_native_method(vm, &vm->file_methods, "seek", seek_file);
     tea_native_method(vm, &vm->file_methods, "close", close_file);
+    tea_native_method(vm, &vm->file_methods, "iterate", iterate_file);
+    tea_native_method(vm, &vm->file_methods, "iteratorvalue", iteratorvalue_file);
 
     // List
     tea_native_property(vm, &vm->list_methods, "len", len_list);
@@ -1794,9 +1859,12 @@ void tea_open_core(TeaVM* vm)
     //tea_native_method(vm, &vm->list_methods, "copy", copy_list);
 
     // Map
+    tea_native_property(vm, &vm->map_methods, "len", len_map);
     tea_native_property(vm, &vm->map_methods, "keys", keys_map);
     tea_native_property(vm, &vm->map_methods, "values", values_map);
     tea_native_method(vm, &vm->map_methods, "clear", clear_map);
+    tea_native_method(vm, &vm->map_methods, "contains", contains_map);
+    tea_native_method(vm, &vm->map_methods, "remove", remove_map);
     tea_native_method(vm, &vm->map_methods, "iterate", iterate_map);
     tea_native_method(vm, &vm->map_methods, "iteratorvalue", iteratorvalue_map);
 

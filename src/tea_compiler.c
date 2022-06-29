@@ -357,6 +357,15 @@ static int resolve_upvalue(TeaCompiler* compiler, TeaToken* name)
     return -1;
 }
 
+static int new_local(TeaCompiler* compiler, TeaToken name)
+{
+    TeaLocal* local = &compiler->locals[compiler->local_count++];
+    local->name = name;
+    local->depth = compiler->scope_depth;
+    local->is_captured = false;
+    return compiler->local_count - 1;
+}
+
 static void add_local(TeaCompiler* compiler, TeaToken name)
 {
     if(compiler->local_count == UINT8_COUNT)
@@ -375,20 +384,6 @@ static void declare_variable(TeaCompiler* compiler, TeaToken* name)
 {
     if(compiler->scope_depth == 0)
         return;
-
-    //for(int i = compiler->local_count - 1; i >= 0; i--)
-    //{
-    //    TeaLocal* local = &compiler->locals[i];
-    //    if(local->depth != -1 && local->depth < compiler->scope_depth)
-    //    {
-    //        break;
-    //    }
-
-        /*if(identifiers_equal(name, &local->name))
-        {
-            error(compiler, "Already a variable with this name in this scope");
-        }*/
-    //}
 
     add_local(compiler, *name);
 }
@@ -1804,12 +1799,10 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var)
     }
 
     expression(compiler);
-    add_local(compiler, synthetic_token("seq "));
-    int seq_slot = compiler->local_count - 1;
+    int seq_slot = new_local(compiler, synthetic_token("seq "));
 
     null(compiler, false);
-    add_local(compiler, synthetic_token("iter "));
-    int iter_slot = compiler->local_count - 1;
+    int iter_slot = new_local(compiler, synthetic_token("iter "));
 
     consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after loop expression");
 
@@ -1830,10 +1823,9 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var)
     invoke_method(compiler, 1, "iteratorvalue");
 
     begin_scope(compiler);
-    int name = parse_variable_at(compiler, var);
-    define_variable(compiler, name);
-    int var_slot = compiler->local_count - 1;
+    int var_slot = new_local(compiler, var);
     emit_bytes(compiler, OP_SET_LOCAL, var_slot);
+
     compiler->loop->body = compiler->function->chunk.count;
     statement(compiler);
 

@@ -281,7 +281,6 @@ bool tea_map_set(TeaState* state, TeaObjectMap* map, TeaValue key, TeaValue valu
 bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
 bool tea_map_delete(TeaObjectMap* map, TeaValue key);
 void tea_map_add_all(TeaState* state, TeaObjectMap* from, TeaObjectMap* to);
-bool tea_is_valid_key(TeaValue value);
 
 char* tea_object_tostring(TeaState* state, TeaValue value);
 void tea_print_object(TeaValue value);
@@ -291,6 +290,12 @@ const char* tea_object_type(TeaValue a);
 static inline bool tea_is_object_type(TeaValue value, TeaObjectType type)
 {
     return IS_OBJECT(value) && AS_OBJECT(value)->type == type;
+}
+
+static inline bool tea_is_valid_key(TeaValue value)
+{
+    return IS_NULL(value) || IS_BOOL(value) || IS_NUMBER(value) ||
+    IS_STRING(value);
 }
 
 static inline bool tea_is_falsey(TeaValue value)
