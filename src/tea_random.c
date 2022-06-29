@@ -5,6 +5,25 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
+static TeaValue seed_random(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "seed() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0]))
+    {
+        tea_runtime_error(vm, "seed() argument must be a number");
+        return EMPTY_VAL;
+    }
+    
+    srand(AS_NUMBER(args[0]));
+
+    return EMPTY_VAL;
+}
+
 static TeaValue random_random(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 0)
@@ -88,13 +107,12 @@ static TeaValue shuffle_random(TeaVM* vm, int count, TeaValue* args)
 
     if(list->items.count <= 1) return args[0];
 
-    srand(time(NULL));
-    for(int i = list->items.count - 1; i > 0; i--)
+    for(int i = 0; i < list->items.count - 1; i++)
     {
         int j = floor(i + rand() / (RAND_MAX / (list->items.count - i) + 1));
-        TeaValue value = list->items.values[i];
-        list->items.values[i] = list->items.values[j];
-        list->items.values[j] = value;
+        TeaValue value = list->items.values[j];
+        list->items.values[j] = list->items.values[i];
+        list->items.values[i] = value;
     }
 
     return OBJECT_VAL(list);
@@ -107,6 +125,7 @@ TeaValue tea_import_random(TeaVM* vm)
 
     srand(time(NULL));
 
+    tea_native_function(vm, &module->values, "seed", seed_random);
     tea_native_function(vm, &module->values, "random", random_random);
     tea_native_function(vm, &module->values, "range", range_random);
     tea_native_function(vm, &module->values, "choice", choice_random);
