@@ -996,11 +996,10 @@ static void super_(TeaCompiler* compiler, bool can_assign)
     // constructor super
     if(match(compiler, TOKEN_LEFT_PAREN))
     {
-        TeaToken token;
-        token.start = "constructor";
-        token.length = (int)strlen("constructor");
+        TeaToken token = synthetic_token("constructor");
 
         uint8_t name = identifier_constant(compiler, &token);
+        named_variable(compiler, synthetic_token("this"), false);
         uint8_t arg_count = argument_list(compiler);
         named_variable(compiler, synthetic_token("super"), false);
         emit_bytes(compiler, OP_SUPER, name);
