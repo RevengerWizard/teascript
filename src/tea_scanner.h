@@ -19,7 +19,6 @@ typedef struct TeaScanner
     int num_braces;
 
     bool raw;
-    bool interpolation;
 } TeaScanner;
 
 void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source);

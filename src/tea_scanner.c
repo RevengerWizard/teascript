@@ -18,7 +18,6 @@ void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source)
     scanner->num_braces = 0;
 
     scanner->raw = false;
-    scanner->interpolation = false;
 }
 
 static bool is_at_end(TeaScanner* scanner)
@@ -424,7 +423,7 @@ static TeaToken string(TeaScanner* scanner)
         {
             break;
         }
-        else if(scanner->interpolation && c == '{')
+        else if(c == '{')
         {
             if(scanner->num_braces >= 4)
             {
@@ -489,7 +488,6 @@ static TeaToken string(TeaScanner* scanner)
     }
 
     scanner->raw = false;
-    scanner->interpolation = false;
     TeaToken token = make_token(scanner, type);
 	token.value = OBJECT_VAL(tea_copy_string(state, (const char*)bytes.values, bytes.count));
 	tea_free_bytes(state, &bytes);
@@ -534,15 +532,6 @@ TeaToken tea_scan_token(TeaScanner* scanner)
             return string(scanner);
         }
     }
-    else if(c == 'f')
-    {
-        if(peek(scanner) == '"' || peek(scanner) == '\'')
-        {
-            scanner->interpolation = true;
-            scanner->string = advance(scanner);
-            return string(scanner);
-        }
-    }
 
     if(is_alpha(c))
         return identifier(scanner);
@@ -570,7 +559,6 @@ TeaToken tea_scan_token(TeaScanner* scanner)
             if(scanner->num_braces > 0 && --scanner->braces[scanner->num_braces - 1] == 0)
             {
 				scanner->num_braces--;
-                scanner->interpolation = true;
 
 				return string(scanner);
 			}
