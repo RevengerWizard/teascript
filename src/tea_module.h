@@ -24,8 +24,8 @@ TeaValue tea_import_http(TeaVM* vm);
 #define TEA_SOCKET_MODULE "socket"
 TeaValue tea_import_socket(TeaVM* vm);
 
-#define TEA_HASH_MODULE "hash"
-TeaValue tea_import_hash(TeaVM* vm);
+//#define TEA_HASH_MODULE "hash"
+//TeaValue tea_import_hash(TeaVM* vm);
 
 #define TEA_WEB_MODULE "web"
 TeaValue tea_import_web(TeaVM* vm);

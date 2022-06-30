@@ -8,7 +8,7 @@ TeaNativeModule modules[] = {
     { TEA_CSV_MODULE, tea_import_csv },
     { TEA_HTTP_MODULE, tea_import_http },
     { TEA_SOCKET_MODULE, tea_import_socket },
-    { TEA_HASH_MODULE, tea_import_hash },
+    //{ TEA_HASH_MODULE, tea_import_hash },
     { TEA_WEB_MODULE, tea_import_web },
     { TEA_OS_MODULE, tea_import_os },
     { TEA_SYS_MODULE, tea_import_sys },
