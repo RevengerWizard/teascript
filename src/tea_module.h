@@ -12,17 +12,17 @@ TeaValue tea_import_time(TeaVM* vm);
 #define TEA_DATE_MODULE "date"
 TeaValue tea_import_date(TeaVM* vm);
 
-#define TEA_JSON_MODULE "json"
-TeaValue tea_import_json(TeaVM* vm);
+//#define TEA_JSON_MODULE "json"
+//TeaValue tea_import_json(TeaVM* vm);
 
-#define TEA_CSV_MODULE "csv"
-TeaValue tea_import_csv(TeaVM* vm);
+//#define TEA_CSV_MODULE "csv"
+//TeaValue tea_import_csv(TeaVM* vm);
 
-#define TEA_HTTP_MODULE "http"
-TeaValue tea_import_http(TeaVM* vm);
+//#define TEA_HTTP_MODULE "http"
+//TeaValue tea_import_http(TeaVM* vm);
 
-#define TEA_SOCKET_MODULE "socket"
-TeaValue tea_import_socket(TeaVM* vm);
+//#define TEA_SOCKET_MODULE "socket"
+//TeaValue tea_import_socket(TeaVM* vm);
 
 //#define TEA_HASH_MODULE "hash"
 //TeaValue tea_import_hash(TeaVM* vm);

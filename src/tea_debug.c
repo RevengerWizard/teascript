@@ -133,6 +133,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_DUP", offset);
         case OP_GET_PROPERTY_NO_POP:
             return constant_instruction("OP_GET_PROPERTY_NO_POP", chunk, offset);
+        case OP_SET_CLASS_VAR:
+            return constant_instruction("OP_SET_CLASS_VAR", chunk, offset);
         case OP_GET_LOCAL:
             return byte_instruction("OP_GET_LOCAL", chunk, offset);
         case OP_SET_LOCAL:
@@ -161,6 +163,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return constant_instruction("OP_GET_SUPER", chunk, offset);
         case OP_RANGE:
             return simple_instruction("OP_RANGE", offset);
+        case OP_MULTI_CASE:
+            return byte_instruction("OP_MULTI_CASE", chunk, offset);
         case OP_LIST:
             return byte_instruction("OP_LIST", chunk, offset);
         case OP_MAP:
@@ -173,10 +177,18 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_SUBSCRIPT_PUSH", offset);
         case OP_EQUAL:
             return simple_instruction("OP_EQUAL", offset);
+        case OP_IS:
+            return simple_instruction("OP_IS", offset);
+        case OP_IN:
+            return simple_instruction("OP_IN", offset);
         case OP_GREATER:
             return simple_instruction("OP_GREATER", offset);
+        case OP_GREATER_EQUAL:
+            return simple_instruction("OP_GREATER_EQUAL", offset);
         case OP_LESS:
             return simple_instruction("OP_LESS", offset);
+        case OP_LESS_EQUAL:
+            return simple_instruction("OP_LESS_EQUAL", offset);
         case OP_ADD:
             return simple_instruction("OP_ADD", offset);
         case OP_SUBTRACT:
@@ -187,8 +199,12 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_DIVIDE", offset);
         case OP_MOD:
             return simple_instruction("OP_MOD", offset);
+        case OP_POW:
+            return simple_instruction("OP_POW", offset);
         case OP_BAND:
             return simple_instruction("OP_BAND", offset);
+        case OP_BOR:
+            return simple_instruction("OP_BOR", offset);
         case OP_BNOT:
             return simple_instruction("OP_BNOT", offset);
         case OP_BXOR:
@@ -201,6 +217,12 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return simple_instruction("OP_NOT", offset);
         case OP_NEGATE:
             return simple_instruction("OP_NEGATE", offset);
+        case OP_AND:
+            return jump_instruction("OP_AND", 1, chunk, offset);
+        case OP_OR:
+            return jump_instruction("OP_OR", 1, chunk, offset);
+        case OP_COMPARE_JUMP:
+            return jump_instruction("OP_COMPARE_JUMP", 1, chunk, offset);
         case OP_JUMP:
             return jump_instruction("OP_JUMP", 1, chunk, offset);
         case OP_JUMP_IF_FALSE:
@@ -255,6 +277,8 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
             return native_import_instruction("OP_IMPORT_NATIVE", chunk, offset);
         case OP_IMPORT_NATIVE_VARIABLE:
             return native_from_import_instruction("OP_IMPORT_NATIVE_VARIABLE", chunk, offset);
+        case OP_END:
+            return simple_instruction("OP_END", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

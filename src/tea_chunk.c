@@ -1,5 +1,3 @@
-#include <stdlib.h>
-
 #include "tea_chunk.h"
 #include "tea_memory.h"
 #include "tea_vm.h"

@@ -331,6 +331,8 @@ static void mark_roots(TeaVM* vm)
     tea_mark_table(vm, &vm->string_methods);
     tea_mark_table(vm, &vm->range_methods);
     tea_mark_compiler_roots(vm->state);
+    tea_mark_object(vm, (TeaObject*)&vm->constructor_string);
+    tea_mark_object(vm, (TeaObject*)&vm->repl_var);
 }
 
 static void trace_references(TeaVM* vm)

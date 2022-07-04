@@ -12,7 +12,7 @@ static TeaValue clock_time(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
-    return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+    return NUMBER_VAL(((double)clock()) / ((double)CLOCKS_PER_SEC));
 }
 
 static TeaValue time_time(TeaVM* vm, int count, TeaValue* args)

@@ -31,12 +31,15 @@ typedef struct TeaVM
 
     TeaValue stack[STACK_MAX];
     TeaValue* stack_top;
-    
+
     TeaObjectModule* last_module;
     TeaTable modules;
     TeaTable globals;
     TeaTable strings;
 
+    TeaObjectString* constructor_string;
+    TeaObjectString* repl_var;
+    
     TeaTable string_methods;
     TeaTable list_methods;
     TeaTable map_methods;

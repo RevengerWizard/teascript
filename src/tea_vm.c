@@ -70,9 +70,15 @@ void tea_init_vm(TeaState* state, TeaVM* vm)
     vm->error = false;
 
     vm->last_module = NULL;
+
+    vm->constructor_string = NULL;
+    vm->repl_var = NULL;
+
     tea_init_table(&vm->modules);
     tea_init_table(&vm->globals);
     tea_init_table(&vm->strings);
+
+    vm->constructor_string = tea_copy_string(state, "constructor", 11);
 
     tea_init_table(&vm->string_methods);
     tea_init_table(&vm->list_methods);
@@ -81,6 +87,11 @@ void tea_init_vm(TeaState* state, TeaVM* vm)
     tea_init_table(&vm->range_methods);
 
     tea_open_core(vm);
+
+    if(state->repl)
+    {
+        vm->repl_var = tea_copy_string(state, "_", 1);
+    }
 }
 
 void tea_free_vm(TeaVM* vm)
@@ -88,6 +99,9 @@ void tea_free_vm(TeaVM* vm)
     tea_free_table(vm->state, &vm->modules);
     tea_free_table(vm->state, &vm->globals);
     tea_free_table(vm->state, &vm->strings);
+
+    vm->constructor_string = NULL;
+    vm->repl_var = NULL;
 
     tea_free_objects(vm->state, vm->objects);
 
@@ -112,6 +126,8 @@ static bool in_(TeaVM* vm, TeaValue object, TeaValue value)
             {
                 if(!IS_STRING(value))
                 {
+                    tea_pop(vm);
+                    tea_pop(vm);
                     tea_push(vm, FALSE_VAL);
                     return true;
                 }
@@ -121,6 +137,8 @@ static bool in_(TeaVM* vm, TeaValue object, TeaValue value)
 
                 if(sub == string)
                 {
+                    tea_pop(vm);
+                    tea_pop(vm);
                     tea_push(vm, TRUE_VAL);
                     return true;
                 }
@@ -143,10 +161,14 @@ static bool in_(TeaVM* vm, TeaValue object, TeaValue value)
 
                 if(number < from || number > to)
                 {
+                    tea_pop(vm);
+                    tea_pop(vm);
                     tea_push(vm, FALSE_VAL);
                     return true;
                 }
 
+                tea_pop(vm);
+                tea_pop(vm);
                 tea_push(vm, TRUE_VAL);
                 return true;
             }
@@ -154,16 +176,30 @@ static bool in_(TeaVM* vm, TeaValue object, TeaValue value)
             {
                 TeaObjectList* list = AS_LIST(object);
 
-                for(int i = 0; i < list->items.count; ++i) 
+                for(int i = 0; i < list->items.count; i++) 
                 {
                     if(tea_values_equal(list->items.values[i], value)) 
                     {
+                        tea_pop(vm);
+                        tea_pop(vm);
                         tea_push(vm, TRUE_VAL);
                         return true;
                     }
                 }
 
+                tea_pop(vm);
+                tea_pop(vm);
                 tea_push(vm, FALSE_VAL);
+                return true;
+            }
+            case OBJ_MAP:
+            {
+                TeaObjectMap* map = AS_MAP(object);
+                TeaValue _;
+
+                tea_pop(vm);
+                tea_pop(vm);
+                tea_push(vm, BOOL_VAL(tea_map_get(map, value, &_)));
                 return true;
             }
             default:
@@ -986,9 +1022,8 @@ static void define_method(TeaVM* vm, TeaObjectString* name)
 {
     TeaValue method = tea_peek(vm, 0);
     TeaObjectClass* klass = AS_CLASS(tea_peek(vm, 1));
-    TeaObjectString* constructor_string = tea_copy_string(vm->state, "constructor", 11);
     tea_table_set(vm->state, &klass->methods, name, method);
-    if(name == constructor_string) klass->constructor = method;
+    if(name == vm->constructor_string) klass->constructor = method;
     tea_pop(vm);
 }
 
@@ -1224,7 +1259,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             TeaValue value = PEEK(0);
             if(!IS_EMPTY(value))
             {
-                tea_table_set(state, &vm->globals, tea_copy_string(state, "_", 1), value);
+                tea_table_set(state, &vm->globals, vm->repl_var, value);
                 tea_print_value(value);
                 printf("\n");
             }
@@ -1358,18 +1393,15 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         CASE_CODE(RANGE):
         {
             TeaValue b = POP();
-            TeaValue c = POP();
             TeaValue a = POP();
+            uint8_t c = READ_BYTE();
 
             if(!IS_NUMBER(a) || !IS_NUMBER(b)) 
             {
                 RUNTIME_ERROR("Range operands must be numbers");
             }
 
-            bool inclusive = AS_BOOL(c);
-
-            PUSH(OBJECT_VAL(tea_new_range(state, AS_NUMBER(a), AS_NUMBER(b), inclusive)));
-
+            PUSH(OBJECT_VAL(tea_new_range(state, AS_NUMBER(a), AS_NUMBER(b), c)));
             DISPATCH();
         }
         CASE_CODE(LIST):
@@ -1493,10 +1525,16 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             TeaValue instance = PEEK(1);
 			TeaValue klass = PEEK(0);
 
-            if(!IS_INSTANCE(instance) || !IS_CLASS(klass))
+            if(!IS_CLASS(klass))
             {
-				RUNTIME_ERROR("Operands must be an instance and a class");
+				RUNTIME_ERROR("Right operand must be a class");
 			}
+
+            if(!IS_INSTANCE(instance))
+            {
+                PUSH(FALSE_VAL);
+                DISPATCH();
+            }
 
             TeaObjectClass* instance_klass = AS_INSTANCE(instance)->klass;
             TeaObjectClass* type = AS_CLASS(klass);
@@ -1520,8 +1558,8 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(IN):
         {
-            TeaValue object = POP();
-            TeaValue value = POP();
+            TeaValue object = PEEK(0);
+            TeaValue value = PEEK(1);
             STORE_FRAME;
             if(!in_(vm, object, value))
             {
@@ -1575,24 +1613,15 @@ static TeaInterpretResult run_interpreter(TeaState* state)
                 TeaObjectList* l2 = AS_LIST(PEEK(0));
                 TeaObjectList* l1 = AS_LIST(PEEK(1));
 
-                TeaObjectList* l = tea_new_list(state);
-                PUSH(OBJECT_VAL(l));
-
-                for(int i = 0; i < l1->items.count; i++)
-                {
-                    tea_write_value_array(state, &l->items, l1->items.values[i]);
-                }
-
                 for(int i = 0; i < l2->items.count; i++)
                 {
-                    tea_write_value_array(state, &l->items, l2->items.values[i]);
+                    tea_write_value_array(state, &l1->items, l2->items.values[i]);
                 }
 
                 POP();
                 POP();
-                POP();
 
-                PUSH(OBJECT_VAL(l));
+                PUSH(OBJECT_VAL(l1));
             }
             else if(IS_MAP(PEEK(0)) && IS_MAP(PEEK(1)))
             {
@@ -1976,7 +2005,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             TeaObjectClosure* closure = tea_new_closure(state, function);
             PUSH(OBJECT_VAL(closure));
 
-            frame->ip = ip;
+            STORE_FRAME;
             call(vm, closure, 0);
             frame = &vm->frames[vm->frame_count - 1];
             ip = frame->ip;

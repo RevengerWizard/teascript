@@ -450,7 +450,7 @@ void tea_map_add_all(TeaState* state, TeaObjectMap* from, TeaObjectMap* to)
     for(int i = 0; i < from->capacity; i++)
     {
         TeaMapItem* item = &from->items[i];
-        if(item->empty)
+        if(!item->empty)
         {
             tea_map_set(state, to, item->key, item->value);
         }

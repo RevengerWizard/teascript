@@ -313,7 +313,7 @@ static int add_upvalue(TeaCompiler* compiler, uint8_t index, bool is_local)
 
     for(int i = 0; i < upvalue_count; i++)
     {
-        TeaUpvalue *upvalue = &compiler->upvalues[i];
+        TeaUpvalue* upvalue = &compiler->upvalues[i];
         if(upvalue->index == index && upvalue->is_local == is_local)
         {
             return i;
@@ -819,11 +819,6 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
 #undef SHORT_HAND_INCREMENT
 }
 
-static void number(TeaCompiler* compiler, bool can_assign)
-{
-    emit_constant(compiler, compiler->parser->previous.value);
-}
-
 static void or_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
 {
     int jump = emit_jump(compiler, OP_OR);
@@ -831,7 +826,7 @@ static void or_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
     patch_jump(compiler, jump);
 }
 
-static void string(TeaCompiler* compiler, bool can_assign)
+static void literal(TeaCompiler* compiler, bool can_assign)
 {
     emit_constant(compiler, compiler->parser->previous.value);
 }
@@ -842,7 +837,7 @@ static void interpolation(TeaCompiler* compiler, bool can_assign)
 
     do
     {
-        string(compiler, false);
+        literal(compiler, false);
         invoke_method(compiler, 1, "add");
 
         expression(compiler);
@@ -852,7 +847,7 @@ static void interpolation(TeaCompiler* compiler, bool can_assign)
     while(match(compiler, TOKEN_INTERPOLATION));
     
     consume(compiler, TOKEN_STRING, "Expect end of string interpolation");
-    string(compiler, false);
+    literal(compiler, false);
     invoke_method(compiler, 1, "add");
 
     invoke_method(compiler, 0, "join");
@@ -1093,13 +1088,11 @@ static void range(TeaCompiler* compiler, TeaToken previous_token, bool can_assig
 {
     bool inclusive = compiler->parser->previous.type == TOKEN_DOT_DOT ? false : true;
 
-    emit_byte(compiler, inclusive ? OP_TRUE : OP_FALSE);
-    
     TeaTokenType operator_type = compiler->parser->previous.type;
     TeaParseRule* rule = get_rule(operator_type);
     parse_precendence(compiler, (TeaPrecedence)(rule->precedence + 1));
 
-    emit_byte(compiler, OP_RANGE);
+    emit_bytes(compiler, OP_RANGE, inclusive);
 }
 
 #define NONE                    { NULL, NULL, PREC_NONE }
@@ -1155,9 +1148,9 @@ static TeaParseRule rules[] = {
     OPERATOR(binary, SHIFT),                // TOKEN_GREATER_GREATER,
     OPERATOR(binary, SHIFT),                // TOKEN_LESS_LESS,
     PREFIX(variable),                       // TOKEN_NAME
-    PREFIX(string),                         // TOKEN_STRING
+    PREFIX(literal),                        // TOKEN_STRING
     PREFIX(interpolation),                  // TOKEN_INTERPOLATION
-    PREFIX(number),                         // TOKEN_NUMBER
+    PREFIX(literal),                        // TOKEN_NUMBER
     OPERATOR(and_, AND),                    // TOKEN_AND
     NONE,                                   // TOKEN_CLASS
     PREFIX(static_),                        // TOKEN_STATIC
@@ -1670,9 +1663,12 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_SUBSCRIPT_STORE:
         case OP_SUBSCRIPT_PUSH:
         case OP_POP:
+        case OP_POP_REPL:
         case OP_EQUAL:
         case OP_GREATER:
+        case OP_GREATER_EQUAL:
         case OP_LESS:
+        case OP_LESS_EQUAL:
         case OP_ADD:
         case OP_SUBTRACT:
         case OP_MULTIPLY:
@@ -1811,6 +1807,7 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var)
     invoke_method(compiler, 1, "iteratorvalue");
 
     begin_scope(compiler);
+
     int var_slot = add_local(compiler, var);
     emit_bytes(compiler, OP_SET_LOCAL, var_slot);
 
@@ -2230,14 +2227,14 @@ static void while_statement(TeaCompiler* compiler)
 
     // Jump ot of the loop if the condition is false
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    emit_byte(compiler, OP_POP);
 
     // Compile the body
-    emit_byte(compiler, OP_POP);
     compiler->loop->body = compiler->function->chunk.count;
     statement(compiler);
 
     // Loop back to the start
-    emit_loop(compiler, loop.start);
+    emit_loop(compiler, compiler->loop->start);
     end_loop(compiler);
 }
 
@@ -2263,10 +2260,9 @@ static void do_statement(TeaCompiler* compiler)
     }
 
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-
     emit_byte(compiler, OP_POP);
 
-    emit_loop(compiler, loop.start);
+    emit_loop(compiler, compiler->loop->start);
     end_loop(compiler);
 }
 
@@ -2281,6 +2277,7 @@ static void synchronize(TeaCompiler* compiler)
             case TOKEN_CLASS:
             case TOKEN_STATIC:
             case TOKEN_FUNCTION:
+            case TOKEN_SWITCH:
             case TOKEN_VAR:
             case TOKEN_CONST:
             case TOKEN_FOR:

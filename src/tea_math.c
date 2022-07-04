@@ -16,6 +16,11 @@ static TeaValue min_math(TeaVM* vm, int count, TeaValue* args)
         count = list->items.count;
         args = list->items.values;
     }
+    else if(count == 1 && IS_RANGE(args[0]))
+    {
+        TeaObjectRange* range = AS_RANGE(args[0]);
+        return NUMBER_VAL(fmin(range->from, range->to));
+    }
 
     double minimum = AS_NUMBER(args[0]);
 
@@ -50,6 +55,11 @@ static TeaValue max_math(TeaVM* vm, int count, TeaValue* args)
         TeaObjectList* list = AS_LIST(args[0]);
         count = list->items.count;
         args = list->items.values;
+    }
+    else if(count == 1 && IS_RANGE(args[0]))
+    {
+        TeaObjectRange* range = AS_RANGE(args[0]);
+        return NUMBER_VAL(fmax(range->from, range->to));
     }
 
     double maximum = AS_NUMBER(args[0]);
@@ -332,12 +342,6 @@ TeaValue tea_import_math(TeaVM* vm)
     tea_native_value(vm, &module->values, "pi", NUMBER_VAL(3.14159265358979323846));
     tea_native_value(vm, &module->values, "e", NUMBER_VAL(2.71828182845904523536));
     tea_native_value(vm, &module->values, "phi", NUMBER_VAL(1.61803398874989484820));
-    tea_native_value(vm, &module->values, "sqrt2", NUMBER_VAL(1.41421356237309504880));
-    tea_native_value(vm, &module->values, "sqrte", NUMBER_VAL(0));
-    tea_native_value(vm, &module->values, "sqrtpi", NUMBER_VAL(0));
-    tea_native_value(vm, &module->values, "sqrtphi", NUMBER_VAL(0));
-    tea_native_value(vm, &module->values, "ln2", NUMBER_VAL(0));
-    tea_native_value(vm, &module->values, "ln10", NUMBER_VAL(0));
 
     return OBJECT_VAL(module);
 }
