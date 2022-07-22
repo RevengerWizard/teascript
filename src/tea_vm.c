@@ -22,9 +22,10 @@
 
 static void reset_stack(TeaVM* vm)
 {
-    vm->stack_top = vm->stack;
-    vm->frame_count = 0;
-    vm->open_upvalues = NULL;
+    if(vm->fiber != NULL)
+    {
+        vm->fiber->stack_top = vm->fiber->stack;
+    }
 }
 
 void tea_runtime_error(TeaVM* vm, const char* format, ...)
@@ -35,12 +36,12 @@ void tea_runtime_error(TeaVM* vm, const char* format, ...)
     va_end(args);
     fputs("\n", stderr);
 
-    for(int i = vm->frame_count - 1; i >= 0; i--)
+    for(int i = vm->fiber->frame_count - 1; i >= 0; i--)
     {
-        TeaCallFrame* frame = &vm->frames[i];
+        TeaCallFrame* frame = &vm->fiber->frames[i];
         TeaObjectFunction* function = frame->closure->function;
         size_t instruction = frame->ip - function->chunk.code - 1;
-        fprintf(stderr, "[line %d] in ", tea_get_line(&function->chunk, instruction));
+        fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
         if(function->name == NULL)
         {
             fprintf(stderr, "script\n");
@@ -58,10 +59,10 @@ void tea_runtime_error(TeaVM* vm, const char* format, ...)
 
 void tea_init_vm(TeaState* state, TeaVM* vm)
 {
-    reset_stack(vm);
-
     vm->state = state;
     vm->objects = NULL;
+
+    vm->fiber = NULL;
 
     vm->gray_count = 0;
     vm->gray_capacity = 0;
@@ -99,6 +100,8 @@ void tea_free_vm(TeaVM* vm)
     tea_free_table(vm->state, &vm->modules);
     tea_free_table(vm->state, &vm->globals);
     tea_free_table(vm->state, &vm->strings);
+
+    vm->fiber = NULL;
 
     vm->constructor_string = NULL;
     vm->repl_var = NULL;
@@ -436,7 +439,7 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
                     }
                     else
                     {
-                        vm->stack_top[-1] = list->items.values[index];
+                        vm->fiber->stack_top[-1] = list->items.values[index];
                         tea_push(vm, item_value);
                     }
                     return true;
@@ -470,7 +473,7 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
                         tea_runtime_error(vm, "Key does not exist within the map");
                         return false;
                     }
-                    vm->stack_top[-1] = map_value;
+                    vm->fiber->stack_top[-1] = map_value;
                     tea_push(vm, item_value);
                 }
                 
@@ -493,16 +496,27 @@ static bool call(TeaVM* vm, TeaObjectClosure* closure, int count)
         return false;
     }
 
-    if(vm->frame_count == FRAMES_MAX)
+    if(vm->fiber->frame_count == 64)
     {
         tea_runtime_error(vm, "Stack overflow");
         return false;
     }
 
-    TeaCallFrame* frame = &vm->frames[vm->frame_count++];
+    if(vm->fiber->frame_count + 1 > vm->fiber->frame_capacity)
+    {
+        int max = vm->fiber->frame_capacity * 2;
+        vm->fiber->frames = (TeaCallFrame*)tea_reallocate(vm->state, vm->fiber->frames, sizeof(TeaCallFrame) * vm->fiber->frame_capacity, sizeof(TeaCallFrame) * max);
+        vm->fiber->frame_capacity = max;
+    }
+
+    int stack_size = (int)(vm->fiber->stack_top - vm->fiber->stack);
+    int needed = stack_size + closure->function->max_slots;
+	tea_ensure_stack(vm->state, vm->fiber, needed);
+
+    TeaCallFrame* frame = &vm->fiber->frames[vm->fiber->frame_count++];
     frame->closure = closure;
     frame->ip = closure->function->chunk.code;
-    frame->slots = vm->stack_top - count - 1;
+    frame->slots = vm->fiber->stack_top - count - 1;
 
     return true;
 }
@@ -517,14 +531,14 @@ static bool call_value(TeaVM* vm, TeaValue callee, uint8_t count)
             {
                 TeaObjectBoundMethod* bound = AS_BOUND_METHOD(callee);
 
-                vm->stack_top[-count - 1] = bound->receiver;
+                vm->fiber->stack_top[-count - 1] = bound->receiver;
                 return call(vm, bound->method, count);
             }
             case OBJ_CLASS:
             {
                 TeaObjectClass* klass = AS_CLASS(callee);
                 
-                vm->stack_top[-count - 1] = OBJECT_VAL(tea_new_instance(vm->state, klass));
+                vm->fiber->stack_top[-count - 1] = OBJECT_VAL(tea_new_instance(vm->state, klass));
                 if(!IS_NULL(klass->constructor)) 
                 {
                     return call(vm, AS_CLOSURE(klass->constructor), count);
@@ -541,7 +555,7 @@ static bool call_value(TeaVM* vm, TeaValue callee, uint8_t count)
             case OBJ_NATIVE_FUNCTION:
             {
                 TeaNativeFunction native = AS_NATIVE_FUNCTION(callee);
-                TeaValue result = native(vm, count, vm->stack_top - count);
+                TeaValue result = native(vm, count, vm->fiber->stack_top - count);
 
                 if(vm->error)
                 {
@@ -549,14 +563,14 @@ static bool call_value(TeaVM* vm, TeaValue callee, uint8_t count)
                     return false;
                 }
                 
-                vm->stack_top -= count + 1;
+                vm->fiber->stack_top -= count + 1;
                 tea_push(vm, result);
                 return true;
             }
             case OBJ_NATIVE_METHOD:
             {
                 TeaNativeMethod method = AS_NATIVE_METHOD(callee);
-                TeaValue result = method(vm, *(vm->stack_top - count - 1), count, vm->stack_top - count);
+                TeaValue result = method(vm, *(vm->fiber->stack_top - count - 1), count, vm->fiber->stack_top - count);
 
                 if(vm->error)
                 {
@@ -564,7 +578,7 @@ static bool call_value(TeaVM* vm, TeaValue callee, uint8_t count)
                     return false;
                 }
                 
-                vm->stack_top -= count + 1;
+                vm->fiber->stack_top -= count + 1;
                 tea_push(vm, result);
                 return true;
             }
@@ -635,7 +649,7 @@ static bool invoke(TeaVM* vm, TeaValue receiver, TeaObjectString* name, int coun
                     {
                         return call_value(vm, value, count);
                     }
-                    vm->stack_top[-count - 1] = value;
+                    vm->fiber->stack_top[-count - 1] = value;
                     return call_value(vm, value, count);
                 }
 
@@ -980,7 +994,7 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
 static TeaObjectUpvalue* capture_upvalue(TeaVM* vm, TeaValue* local)
 {
     TeaObjectUpvalue* prev_upvalue = NULL;
-    TeaObjectUpvalue* upvalue = vm->open_upvalues;
+    TeaObjectUpvalue* upvalue = vm->fiber->open_upvalues;
     while(upvalue != NULL && upvalue->location > local)
     {
         prev_upvalue = upvalue;
@@ -997,7 +1011,7 @@ static TeaObjectUpvalue* capture_upvalue(TeaVM* vm, TeaValue* local)
 
     if(prev_upvalue == NULL)
     {
-        vm->open_upvalues = created_upvalue;
+        vm->fiber->open_upvalues = created_upvalue;
     }
     else
     {
@@ -1009,12 +1023,12 @@ static TeaObjectUpvalue* capture_upvalue(TeaVM* vm, TeaValue* local)
 
 static void close_upvalues(TeaVM* vm, TeaValue* last)
 {
-    while(vm->open_upvalues != NULL && vm->open_upvalues->location >= last)
+    while(vm->fiber->open_upvalues != NULL && vm->fiber->open_upvalues->location >= last)
     {
-        TeaObjectUpvalue* upvalue = vm->open_upvalues;
+        TeaObjectUpvalue* upvalue = vm->fiber->open_upvalues;
         upvalue->closed = *upvalue->location;
         upvalue->location = &upvalue->closed;
-        vm->open_upvalues = upvalue->next;
+        vm->fiber->open_upvalues = upvalue->next;
     }
 }
 
@@ -1085,24 +1099,40 @@ static void repeat(TeaVM* vm)
     tea_push(vm, OBJECT_VAL(result));
 }
 
-static TeaInterpretResult run_interpreter(TeaState* state)
+static TeaInterpretResult run_interpreter(TeaState* state, register TeaObjectFiber* fiber)
 {
     register TeaVM* vm = state->vm;
 
-    TeaCallFrame* frame = &vm->frames[vm->frame_count - 1];
+    vm->fiber = fiber;
 
-    register uint8_t* ip = frame->ip;
+    register TeaCallFrame* frame;
+    register TeaChunk* current_chunk;
 
-#define PUSH(value) (*vm->stack_top++ = value)
-#define POP() (*(--vm->stack_top))
-#define PEEK(distance) vm->stack_top[-1 - (distance)]
-#define DROP() (vm->stack_top--)
-#define DROP_MULTIPLE(amount) (vm->stack_top -= amount)
-#define STORE_FRAME (frame->ip = ip)
+    register uint8_t* ip;
+    register TeaValue* slots;
+    register TeaObjectUpvalue** upvalues;
+
+#define PUSH(value) (*fiber->stack_top++ = value)
+#define POP() (*(--fiber->stack_top))
+#define PEEK(distance) fiber->stack_top[-1 - (distance)]
+#define DROP() (fiber->stack_top--)
+#define DROP_MULTIPLE(amount) (fiber->stack_top -= amount)
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 
-#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define STORE_FRAME (frame->ip = ip)
+#define READ_FRAME() \
+    do \
+    { \
+        frame = &fiber->frames[fiber->frame_count - 1]; \
+        current_chunk = &frame->closure->function->chunk; \
+	    ip = frame->ip; \
+	    slots = frame->slots; \
+	    upvalues = frame->closure == NULL ? NULL : frame->closure->upvalues; \
+    } \
+    while(false) \
+
+#define READ_CONSTANT() (current_chunk->constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
 #define RUNTIME_ERROR(...) \
@@ -1111,7 +1141,13 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         STORE_FRAME; \
         tea_runtime_error(vm, __VA_ARGS__); \
         vm->error = false; \
-        return INTERPRET_RUNTIME_ERROR; \
+        fiber = vm->fiber; \
+        if(fiber != NULL) \
+        { \
+            return INTERPRET_RUNTIME_ERROR; \
+        } \
+        READ_FRAME(); \
+        DISPATCH(); \
     } \
     while(false)
 
@@ -1127,8 +1163,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             { \
                 return INTERPRET_RUNTIME_ERROR; \
             } \
-            frame = &vm->frames[vm->frame_count - 1]; \
-            ip = frame->ip; \
+            READ_FRAME(); \
         } \
         else if(IS_INSTANCE(b) && tea_table_get(&AS_INSTANCE(b)->klass->methods, method_name, &method)) \
         { \
@@ -1138,8 +1173,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             { \
                 return INTERPRET_RUNTIME_ERROR; \
             } \
-            frame = &vm->frames[vm->frame_count - 1]; \
-            ip = frame->ip; \
+            READ_FRAME(); \
         } \
         else \
         { \
@@ -1155,7 +1189,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         { \
             type b = AS_NUMBER(POP()); \
             type a = AS_NUMBER(PEEK(0)); \
-            vm->stack_top[-1] = value_type(a op b); \
+            fiber->stack_top[-1] = value_type(a op b); \
         } \
         else if(IS_INSTANCE(PEEK(1)) || IS_INSTANCE(PEEK(0))) \
         { \
@@ -1170,29 +1204,9 @@ static TeaInterpretResult run_interpreter(TeaState* state)
     } \
     while(false)
 
-#ifdef DEBUG_TRACE_EXECUTION
-    #define DEBUG() \
-        do \
-        { \
-            printf("          "); \
-            for(TeaValue* slot = vm->stack; slot < vm->stack_top; slot++) \
-            { \
-                printf("[ "); \
-                tea_print_value(*slot); \
-                printf(" ]"); \
-            } \
-            printf("\n"); \
-            tea_disassemble_instruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code)); \
-        } \
-        while(false)
-#else
-    #define DEBUG() do { } while (false)
-#endif
-
 #ifdef COMPUTED_GOTO
-
     static void* dispatch_table[] = {
-        #define OPCODE(name) &&OP_##name
+        #define OPCODE(name, _) &&OP_##name
         #include "tea_opcodes.h"
         #undef OPCODE
     };
@@ -1200,28 +1214,25 @@ static TeaInterpretResult run_interpreter(TeaState* state)
     #define DISPATCH() \
         do \
         { \
-            DEBUG(); \
             goto *dispatch_table[instruction = READ_BYTE()]; \
         } \
         while(false)
 
     #define INTREPRET_LOOP  DISPATCH();
     #define CASE_CODE(name) OP_##name
-
 #else
-
     #define INTREPRET_LOOP \
         loop: \
-            DEBUG(); \
             switch(instruction = READ_BYTE())
 
     #define DISPATCH() goto loop
 
     #define CASE_CODE(name) case OP_##name
-
 #endif
-    uint8_t instruction;
 
+    READ_FRAME();
+
+    uint8_t instruction;
     INTREPRET_LOOP
     {
         CASE_CODE(CONSTANT):
@@ -1268,14 +1279,13 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         }
         CASE_CODE(GET_LOCAL):
         {
-            uint8_t slot = READ_BYTE();
-            PUSH(frame->slots[slot]);
+            PUSH(slots[READ_BYTE()]);
             DISPATCH();
         }
         CASE_CODE(SET_LOCAL):
         {
             uint8_t slot = READ_BYTE();
-            frame->slots[slot] = PEEK(0);
+            slots[slot] = PEEK(0);
             DISPATCH();
         }
         CASE_CODE(GET_GLOBAL):
@@ -1337,13 +1347,13 @@ static TeaInterpretResult run_interpreter(TeaState* state)
         CASE_CODE(GET_UPVALUE):
         {
             uint8_t slot = READ_BYTE();
-            PUSH(*frame->closure->upvalues[slot]->location);
+            PUSH(*upvalues[slot]->location);
             DISPATCH();
         }
         CASE_CODE(SET_UPVALUE):
         {
             uint8_t slot = READ_BYTE();
-            *frame->closure->upvalues[slot]->location = PEEK(0);
+            *upvalues[slot]->location = PEEK(0);
             DISPATCH();
         }
         CASE_CODE(GET_PROPERTY):
@@ -1438,7 +1448,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             }
             
             // Pop items from stack
-            vm->stack_top -= item_count + 1;
+            fiber->stack_top -= item_count + 1;
 
             PUSH(OBJECT_VAL(list));
             DISPATCH();
@@ -1460,7 +1470,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
                 tea_map_set(state, map, PEEK(i), PEEK(i - 1));
             }
 
-            vm->stack_top -= item_count * 2 + 1;
+            fiber->stack_top -= item_count * 2 + 1;
 
             PUSH(OBJECT_VAL(map));
             DISPATCH();
@@ -1532,6 +1542,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 
             if(!IS_INSTANCE(instance))
             {
+                DROP_MULTIPLE(2); // Drop the instance and class
                 PUSH(FALSE_VAL);
                 DISPATCH();
             }
@@ -1671,7 +1682,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 			if(IS_NUMBER(a) && IS_NUMBER(b))
             {
                 DROP();
-				vm->stack_top[-1] = (NUMBER_VAL(fmod(AS_NUMBER(a), AS_NUMBER(b))));
+				fiber->stack_top[-1] = (NUMBER_VAL(fmod(AS_NUMBER(a), AS_NUMBER(b))));
 				DISPATCH();
 			}
 
@@ -1686,7 +1697,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 			if(IS_NUMBER(a) && IS_NUMBER(b))
             {
                 DROP();
-				vm->stack_top[-1] = (NUMBER_VAL(pow(AS_NUMBER(a), AS_NUMBER(b))));
+				fiber->stack_top[-1] = (NUMBER_VAL(pow(AS_NUMBER(a), AS_NUMBER(b))));
 				DISPATCH();
 			}
 
@@ -1854,8 +1865,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             {
                 return INTERPRET_RUNTIME_ERROR;
             }
-            frame = &vm->frames[vm->frame_count - 1];
-            ip = frame->ip;
+            READ_FRAME();
             DISPATCH();
         }
         CASE_CODE(INVOKE):
@@ -1867,8 +1877,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             {
                 return INTERPRET_RUNTIME_ERROR;
             }
-            frame = &vm->frames[vm->frame_count - 1];
-            ip = frame->ip;
+            READ_FRAME();
             DISPATCH();
         }
         CASE_CODE(SUPER):
@@ -1881,8 +1890,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             {
                 return INTERPRET_RUNTIME_ERROR;
             }
-            frame = &vm->frames[vm->frame_count - 1];
-            ip = frame->ip;
+            READ_FRAME();
             DISPATCH();
         }
         CASE_CODE(CLOSURE):
@@ -1893,40 +1901,43 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             
             for(int i = 0; i < closure->upvalue_count; i++)
             {
-                uint8_t isLocal = READ_BYTE();
+                uint8_t is_local = READ_BYTE();
                 uint8_t index = READ_BYTE();
-                if(isLocal)
+                if(is_local)
                 {
                     closure->upvalues[i] = capture_upvalue(vm, frame->slots + index);
                 }
                 else
                 {
-                    closure->upvalues[i] = frame->closure->upvalues[index];
+                    closure->upvalues[i] = upvalues[index];
                 }
             }
             DISPATCH();
         }
         CASE_CODE(CLOSE_UPVALUE):
         {
-            close_upvalues(vm, vm->stack_top - 1);
+            close_upvalues(vm, fiber->stack_top - 1);
             POP();
             DISPATCH();
         }
         CASE_CODE(RETURN):
         {
             TeaValue result = POP();
-            close_upvalues(vm, frame->slots);
-            vm->frame_count--;
-            if(vm->frame_count == 0)
+            close_upvalues(vm, slots);
+            STORE_FRAME;
+            fiber->frame_count--;
+            if(fiber->frame_count == 0)
             {
-                POP();
-                return INTERPRET_OK;
+                if(fiber->parent == NULL)
+                {
+                    POP();
+                    return INTERPRET_OK;
+                }
             }
 
-            vm->stack_top = frame->slots;
+            fiber->stack_top = slots;
             PUSH(result);
-            frame = &vm->frames[vm->frame_count - 1];
-            ip = frame->ip;
+            READ_FRAME();
             DISPATCH();
         }
         CASE_CODE(CLASS):
@@ -2007,8 +2018,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
 
             STORE_FRAME;
             call(vm, closure, 0);
-            frame = &vm->frames[vm->frame_count - 1];
-            ip = frame->ip;
+            READ_FRAME();
 
             DISPATCH();
         }
@@ -2063,8 +2073,7 @@ static TeaInterpretResult run_interpreter(TeaState* state)
             {
                 STORE_FRAME;
                 call(vm, AS_CLOSURE(module), 0);
-                frame = &vm->frames[vm->frame_count - 1];
-                ip = frame->ip;
+                READ_FRAME();
 
                 tea_table_get(&vm->modules, file_name, &module);
                 vm->last_module = AS_MODULE(module);
@@ -2131,14 +2140,13 @@ TeaInterpretResult tea_interpret_module(TeaState* state, const char* module_name
     TeaObjectModule* module = tea_new_module(state, name);
 
     module->path = tea_get_directory(state, (char*)module_name);
-
+    
     TeaObjectFunction* function = tea_compile(state, module, source);
     if(function == NULL)
         return INTERPRET_COMPILE_ERROR;
 
     TeaObjectClosure* closure = tea_new_closure(state, function);
-    tea_push(vm, OBJECT_VAL(closure));
-    call(vm, closure, 0);
+    TeaObjectFiber* fiber = tea_new_fiber(state, closure);
 
-    return run_interpreter(state);
+    return run_interpreter(state, fiber);
 }

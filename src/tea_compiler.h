@@ -26,7 +26,7 @@ typedef enum
     PREC_TERM,       // + -
     PREC_FACTOR,     // * /
     PREC_INDICES,    // **
-    PREC_UNARY,      // ! - ~
+    PREC_UNARY,      // not ! - ~
     PREC_CALL,       // . ()
     PREC_SUBSCRIPT,  // []
     PREC_PRIMARY
@@ -87,16 +87,16 @@ typedef struct TeaCompiler
     int local_count;
     TeaUpvalue upvalues[UINT8_COUNT];
 
+    int slot_count;
     int scope_depth;
 } TeaCompiler;
 
-typedef void (*TeaParsePrefixFn)(TeaCompiler* compiler, bool can_assign);
-typedef void (*TeaParseInfixFn)(TeaCompiler* compiler, TeaToken previous_token, bool can_assign);
+typedef void (*TeaParseFn)(TeaCompiler* compiler, bool can_assign);
 
 typedef struct
 {
-    TeaParsePrefixFn prefix;
-    TeaParseInfixFn infix;
+    TeaParseFn prefix;
+    TeaParseFn infix;
     TeaPrecedence precedence;
 } TeaParseRule;
 

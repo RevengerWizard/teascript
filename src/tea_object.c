@@ -24,6 +24,70 @@ TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type)
     return object;
 }
 
+TeaObjectFiber* tea_new_fiber(TeaState* state, TeaObjectClosure* closure)
+{
+    int stack_capacity = closure == NULL ? 1 : tea_closest_power_of_two(closure->function->max_slots + 1);
+    TeaValue* stack = ALLOCATE(state, TeaValue, stack_capacity);
+
+    TeaCallFrame* frames = ALLOCATE(state, TeaCallFrame, 64);
+    TeaObjectFiber* fiber = ALLOCATE_OBJECT(state, TeaObjectFiber, OBJ_FIBER);
+
+    fiber->stack = stack;
+    fiber->stack_top = fiber->stack;
+    fiber->stack_capacity = stack_capacity;
+
+    fiber->frames = frames;
+    fiber->frame_capacity = 64;
+    fiber->frame_count = 0;
+
+    fiber->parent = NULL;
+
+    fiber->open_upvalues = NULL;
+
+    if(closure != NULL)
+    {
+        TeaCallFrame* frame = &fiber->frames[fiber->frame_count++];
+        frame->closure = closure;
+        frame->slots = fiber->stack;
+        frame->ip = closure->function->chunk.code;
+        
+        fiber->stack_top[0] = OBJECT_VAL(closure);
+        fiber->stack_top++;
+    }
+
+    return fiber;
+}
+
+void tea_ensure_stack(TeaState* state, TeaObjectFiber* fiber, int needed)
+{
+    if(fiber->stack_capacity >= needed)
+    {
+		return;
+	}
+
+	int capacity = (int)tea_closest_power_of_two((int)needed);
+	TeaValue* old_stack = fiber->stack;
+
+	fiber->stack = (TeaValue*)tea_reallocate(state, fiber->stack, sizeof(TeaValue) * fiber->stack_capacity, sizeof(TeaValue) * capacity);
+	fiber->stack_capacity = capacity;
+
+	if(fiber->stack != old_stack)
+    {
+		for(int i = 0; i < fiber->frame_capacity; i++)
+        {
+			TeaCallFrame* frame = &fiber->frames[i];
+			frame->slots = fiber->stack + (frame->slots - old_stack);
+		}
+
+		for(TeaObjectUpvalue* upvalue = fiber->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+        {
+			upvalue->location = fiber->stack + (upvalue->location - old_stack);
+		}
+
+		fiber->stack_top = fiber->stack + (fiber->stack_top - old_stack);
+	}
+}
+
 TeaObjectData* tea_new_data(TeaState* state, size_t size)
 {
     TeaObjectData* userdata = ALLOCATE_OBJECT(state, TeaObjectData, OBJ_DATA);
@@ -135,11 +199,12 @@ TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaObjectModule* module)
+TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaObjectModule* module, int max_slots)
 {
     TeaObjectFunction* function = ALLOCATE_OBJECT(state, TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->upvalue_count = 0;
+    function->max_slots = max_slots;
     function->type = type;
     function->name = NULL;
     function->module = module;
@@ -164,9 +229,9 @@ static TeaObjectString* allocate_string(TeaState* state, char* chars, int length
     string->chars = chars;
     string->hash = hash;
 
-    tea_push(state->vm, OBJECT_VAL(string));
+    tea_push_root(state, OBJECT_VAL(string));
     tea_table_set(state, &state->vm->strings, string, NULL_VAL);
-    tea_pop(state->vm);
+    tea_pop_root(state);
 
     return string;
 }
@@ -246,42 +311,42 @@ TeaObjectNativeProperty* tea_new_native_property(TeaState* state, TeaNativePrope
 void tea_native_value(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
 {
     TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
-    tea_push(vm, OBJECT_VAL(property));
+    tea_push_root(vm->state, OBJECT_VAL(property));
     tea_table_set(vm->state, table, property, value);
-    tea_pop(vm);
+    tea_pop_root(vm->state);
 }
 
 void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
 {
     TeaObjectNativeFunction* native = tea_new_native_function(vm->state, function);
-    tea_push(vm, OBJECT_VAL(native));
+    tea_push_root(vm->state, OBJECT_VAL(native));
     TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
-    tea_push(vm, OBJECT_VAL(string));
+    tea_push_root(vm->state, OBJECT_VAL(string));
     tea_table_set(vm->state, table, string, OBJECT_VAL(native));
-    tea_pop(vm);
-    tea_pop(vm);
+    tea_pop_root(vm->state);
+    tea_pop_root(vm->state);
 }
 
 void tea_native_method(TeaVM* vm, TeaTable* table, const char* name, TeaNativeMethod method)
 {
     TeaObjectNativeMethod* native = tea_new_native_method(vm->state, method);
-    tea_push(vm, OBJECT_VAL(native));
+    tea_push_root(vm->state, OBJECT_VAL(native));
     TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
-    tea_push(vm, OBJECT_VAL(string));
+    tea_push_root(vm->state, OBJECT_VAL(string));
     tea_table_set(vm->state, table, string, OBJECT_VAL(native));
-    tea_pop(vm);
-    tea_pop(vm);
+    tea_pop_root(vm->state);
+    tea_pop_root(vm->state);
 }
 
 void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNativeProperty property)
 {
     TeaObjectNativeProperty* native = tea_new_native_property(vm->state, property);
-    tea_push(vm, OBJECT_VAL(native));
+    tea_push_root(vm->state, OBJECT_VAL(native));
     TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
-    tea_push(vm, OBJECT_VAL(string));
+    tea_push_root(vm->state, OBJECT_VAL(string));
     tea_table_set(vm->state, table, string, OBJECT_VAL(native));
-    tea_pop(vm);
-    tea_pop(vm);
+    tea_pop_root(vm->state);
+    tea_pop_root(vm->state);
 }
 
 static inline uint32_t hash_bits(uint64_t hash)

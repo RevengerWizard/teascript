@@ -177,6 +177,29 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
             tea_mark_value(vm, ((TeaObjectUpvalue*)object)->closed);
             break;
         }
+        case OBJ_FIBER:
+        {
+            TeaObjectFiber* fiber = (TeaObjectFiber*)object;
+
+            for(TeaValue* slot = fiber->stack; slot < fiber->stack_top; slot++) 
+            {
+				tea_mark_value(vm, *slot);
+			}
+
+            for(int i = 0; i < fiber->frame_count; i++)
+            {
+                tea_mark_object(vm, (TeaObject*)fiber->frames[i].closure);
+            }
+
+            for(TeaObjectUpvalue* upvalue = fiber->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+            {
+                tea_mark_object(vm, (TeaObject*)upvalue);
+            }
+
+            tea_mark_value(vm, fiber->error);
+            tea_mark_object(vm, (TeaObject*)fiber->parent);
+            break;
+        }
         case OBJ_NATIVE_FUNCTION:
         case OBJ_NATIVE_METHOD:
         case OBJ_NATIVE_PROPERTY:
@@ -304,33 +327,36 @@ static void free_object(TeaState* state, TeaObject* object)
             FREE(state, TeaObjectData, object);
             break;
         }
+        case OBJ_FIBER:
+        {
+            TeaObjectFiber* fiber = (TeaObjectFiber*)object;
+
+            FREE_ARRAY(state, TeaCallFrame, fiber->frames, fiber->frame_capacity);
+            FREE_ARRAY(state, TeaValue, fiber->stack, fiber->stack_capacity);
+            FREE(state, TeaObjectFiber, object);
+            break;
+        }
     }
 }
 
 static void mark_roots(TeaVM* vm)
 {
-    for(TeaValue* slot = vm->stack; slot < vm->stack_top; slot++)
+    for(int i = 0; i < vm->state->roots_count; i++)
     {
-        tea_mark_value(vm, *slot);
-    }
-
-    for(int i = 0; i < vm->frame_count; i++)
-    {
-        tea_mark_object(vm, (TeaObject*)vm->frames[i].closure);
-    }
-
-    for(TeaObjectUpvalue* upvalue = vm->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
-    {
-        tea_mark_object(vm, (TeaObject*)upvalue);
+        tea_mark_value(vm, vm->state->roots[i]);
     }
 
     tea_mark_table(vm, &vm->globals);
+    tea_mark_table(vm, &vm->modules);
+    
     tea_mark_table(vm, &vm->file_methods);
     tea_mark_table(vm, &vm->list_methods);
     tea_mark_table(vm, &vm->map_methods);
     tea_mark_table(vm, &vm->string_methods);
     tea_mark_table(vm, &vm->range_methods);
+
     tea_mark_compiler_roots(vm->state);
+
     tea_mark_object(vm, (TeaObject*)&vm->constructor_string);
     tea_mark_object(vm, (TeaObject*)&vm->repl_var);
 }
@@ -407,4 +433,18 @@ void tea_free_objects(TeaState* state, TeaObject* objects)
     }
 
     free(state->vm->gray_stack);
+}
+
+// http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2Float
+int tea_closest_power_of_two(int n)
+{
+	n--;
+	n |= n >> 1;
+	n |= n >> 2;
+	n |= n >> 4;
+	n |= n >> 8;
+	n |= n >> 16;
+	n++;
+
+	return n;
 }

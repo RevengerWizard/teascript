@@ -104,14 +104,13 @@ static int jump_instruction(const char* name, int sign, TeaChunk* chunk, int off
 int tea_disassemble_instruction(TeaChunk* chunk, int offset)
 {
     printf("%04d ", offset);
-    int line = tea_get_line(chunk, offset);
-    if(offset > 0 && line == tea_get_line(chunk, offset - 1))
+    if(offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1])
     {
         printf("   | ");
     }
     else
     {
-        printf("%4d ", line);
+        printf("%4d ", chunk->lines[offset]);
     }
 
     uint8_t instruction = chunk->code[offset];
@@ -162,7 +161,7 @@ int tea_disassemble_instruction(TeaChunk* chunk, int offset)
         case OP_GET_SUPER:
             return constant_instruction("OP_GET_SUPER", chunk, offset);
         case OP_RANGE:
-            return simple_instruction("OP_RANGE", offset);
+            return byte_instruction("OP_RANGE", chunk, offset);
         case OP_MULTI_CASE:
             return byte_instruction("OP_MULTI_CASE", chunk, offset);
         case OP_LIST:

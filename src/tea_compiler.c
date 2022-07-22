@@ -106,9 +106,48 @@ static void emit_bytes(TeaCompiler* compiler, uint8_t byte1, uint8_t byte2)
     emit_byte(compiler, byte2);
 }
 
+static const int stack_effects[] = {
+    #define OPCODE(_, effect) effect
+    #include "tea_opcodes.h"
+    #undef OPCODE
+};
+
+static void emit_op(TeaCompiler* compiler, TeaOpCode op)
+{
+    emit_byte(compiler, op);
+
+    compiler->slot_count += stack_effects[op];
+    if(compiler->slot_count > compiler->function->max_slots)
+    {
+        compiler->function->max_slots = compiler->slot_count;
+    }
+}
+
+static void emit_ops(TeaCompiler* compiler, TeaOpCode op1, TeaOpCode op2)
+{
+    emit_bytes(compiler, op1, op2);
+
+    compiler->slot_count += stack_effects[op1] + stack_effects[op2];
+    if(compiler->slot_count > compiler->function->max_slots)
+    {
+        compiler->function->max_slots = compiler->slot_count;
+    }
+}
+
+static void emit_argued(TeaCompiler* compiler, TeaOpCode op, uint8_t byte)
+{
+    emit_bytes(compiler, op, byte);
+
+    compiler->slot_count += stack_effects[op];
+    if(compiler->slot_count > compiler->function->max_slots)
+    {
+        compiler->function->max_slots = compiler->slot_count;
+    }
+}
+
 static void emit_loop(TeaCompiler* compiler, int loop_start)
 {
-    emit_byte(compiler, OP_LOOP);
+    emit_op(compiler, OP_LOOP);
 
     int offset = current_chunk(compiler)->count - loop_start + 2;
     if(offset > UINT16_MAX)
@@ -120,9 +159,8 @@ static void emit_loop(TeaCompiler* compiler, int loop_start)
 
 static int emit_jump(TeaCompiler* compiler, uint8_t instruction)
 {
-    emit_byte(compiler, instruction);
-    emit_byte(compiler, 0xff);
-    emit_byte(compiler, 0xff);
+    emit_op(compiler, instruction);
+    emit_bytes(compiler, 0xff, 0xff);
 
     return current_chunk(compiler)->count - 2;
 }
@@ -131,11 +169,11 @@ static void emit_return(TeaCompiler* compiler)
 {
     if(compiler->type == TYPE_CONSTRUCTOR)
     {
-        emit_bytes(compiler, OP_GET_LOCAL, 0);
+        emit_argued(compiler, OP_GET_LOCAL, 0);
     }
     else
     {
-        emit_byte(compiler, OP_NULL);
+        emit_op(compiler, OP_NULL);
     }
 
     emit_byte(compiler, OP_RETURN);
@@ -155,13 +193,13 @@ static uint8_t make_constant(TeaCompiler* compiler, TeaValue value)
 
 static void invoke_method(TeaCompiler* compiler, int args, const char* name)
 {
-    emit_bytes(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, name, strlen(name)))));
+    emit_argued(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, name, strlen(name)))));
     emit_byte(compiler, args);
 }
 
 static void emit_constant(TeaCompiler* compiler, TeaValue value)
 {
-    emit_bytes(compiler, OP_CONSTANT, make_constant(compiler, value));
+    emit_argued(compiler, OP_CONSTANT, make_constant(compiler, value));
 }
 
 static void patch_jump(TeaCompiler* compiler, int offset)
@@ -194,17 +232,18 @@ static void init_compiler(TeaState* state, TeaParser* parser, TeaCompiler* compi
     }
 
     compiler->type = type;
-    compiler->local_count = 0;
+    compiler->local_count = 1;
+    compiler->slot_count = compiler->local_count;
     compiler->scope_depth = 0;
 
-    compiler->function = tea_new_function(state, type, parser->module);
+    compiler->function = tea_new_function(state, type, parser->module, compiler->slot_count);
 
     if(type != TYPE_SCRIPT)
     {
         compiler->function->name = tea_copy_string(state, parser->previous.start, parser->previous.length);
     }
 
-    TeaLocal* local = &compiler->locals[compiler->local_count++];
+    TeaLocal* local = &compiler->locals[0];
     local->depth = 0;
     local->is_captured = false;
     if(type != TYPE_FUNCTION)
@@ -233,7 +272,7 @@ static TeaObjectFunction* end_compiler(TeaCompiler* compiler)
 
     if(compiler->enclosing != NULL)
     {
-        emit_bytes(compiler->enclosing, OP_CLOSURE, make_constant(compiler->enclosing, OBJECT_VAL(function)));
+        emit_argued(compiler->enclosing, OP_CLOSURE, make_constant(compiler->enclosing, OBJECT_VAL(function)));
 
         for(int i = 0; i < function->upvalue_count; i++)
         {
@@ -413,7 +452,7 @@ static void define_variable(TeaCompiler* compiler, uint8_t global)
         return;
     }
 
-    emit_bytes(compiler, OP_DEFINE_MODULE, global);
+    emit_argued(compiler, OP_DEFINE_MODULE, global);
 }
 
 static uint8_t argument_list(TeaCompiler* compiler)
@@ -437,14 +476,14 @@ static uint8_t argument_list(TeaCompiler* compiler)
     return arg_count;
 }
 
-static void and_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void and_(TeaCompiler* compiler, bool can_assign)
 {
     int jump = emit_jump(compiler, OP_AND);
     parse_precendence(compiler, PREC_AND);
     patch_jump(compiler, jump);
 }
 
-static void binary(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void binary(TeaCompiler* compiler, bool can_assign)
 {
     TeaTokenType operator_type = compiler->parser->previous.type;
     TeaParseRule* rule = get_rule(operator_type);
@@ -454,111 +493,111 @@ static void binary(TeaCompiler* compiler, TeaToken previous_token, bool can_assi
     {
         case TOKEN_BANG_EQUAL:
         {
-            emit_bytes(compiler, OP_EQUAL, OP_NOT);
+            emit_ops(compiler, OP_EQUAL, OP_NOT);
             break;
         }
         case TOKEN_EQUAL_EQUAL:
         {
-            emit_byte(compiler, OP_EQUAL);
+            emit_op(compiler, OP_EQUAL);
             break;
         }
         case TOKEN_IS:
         {
-            emit_byte(compiler, OP_IS);
+            emit_op(compiler, OP_IS);
             break;
         }
         case TOKEN_GREATER:
         {
-            emit_byte(compiler, OP_GREATER);
+            emit_op(compiler, OP_GREATER);
             break;
         }
         case TOKEN_GREATER_EQUAL:
         {
-            emit_byte(compiler, OP_GREATER_EQUAL);
+            emit_op(compiler, OP_GREATER_EQUAL);
             break;
         }
         case TOKEN_LESS:
         {
-            emit_byte(compiler, OP_LESS);
+            emit_op(compiler, OP_LESS);
             break;
         }
         case TOKEN_LESS_EQUAL:
         {
-            emit_byte(compiler, OP_LESS_EQUAL);
+            emit_op(compiler, OP_LESS_EQUAL);
             break;
         }
         case TOKEN_PLUS:
         {
-            emit_byte(compiler, OP_ADD);
+            emit_op(compiler, OP_ADD);
             break;
         }
         case TOKEN_MINUS:
         {
-            emit_byte(compiler, OP_SUBTRACT);
+            emit_op(compiler, OP_SUBTRACT);
             break;
         }
         case TOKEN_STAR:
         {
-            emit_byte(compiler, OP_MULTIPLY);
+            emit_op(compiler, OP_MULTIPLY);
             break;
         }
         case TOKEN_SLASH:
         {
-            emit_byte(compiler, OP_DIVIDE);
+            emit_op(compiler, OP_DIVIDE);
             break;
         }
         case TOKEN_PERCENT:
         {
-            emit_byte(compiler, OP_MOD);
+            emit_op(compiler, OP_MOD);
             break;
         }
         case TOKEN_STAR_STAR:
         {
-            emit_byte(compiler, OP_POW);
+            emit_op(compiler, OP_POW);
             break;
         }
         case TOKEN_AMPERSAND:
         {
-            emit_byte(compiler, OP_BAND);
+            emit_op(compiler, OP_BAND);
             break;
         }
         case TOKEN_PIPE:
         {
-            emit_byte(compiler, OP_BOR);
+            emit_op(compiler, OP_BOR);
             break;
         }
         case TOKEN_CARET:
         {
-            emit_byte(compiler, OP_BXOR);
+            emit_op(compiler, OP_BXOR);
             break;
         }
         case TOKEN_GREATER_GREATER:
         {
-            emit_byte(compiler, OP_RSHIFT);
+            emit_op(compiler, OP_RSHIFT);
             break;
         }
         case TOKEN_LESS_LESS:
         {
-            emit_byte(compiler, OP_LSHIFT);
+            emit_op(compiler, OP_LSHIFT);
             break;
         }
         default: return; // Unreachable.
     }
 }
 
-static void ternary(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void ternary(TeaCompiler* compiler, bool can_assign)
 {
     // Jump to else branch if the condition is false
     int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
     // Pop the condition
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
     expression(compiler);
 
     int end_jump = emit_jump(compiler, OP_JUMP);
 
     patch_jump(compiler, else_jump);
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
 
     consume(compiler, TOKEN_COLON, "Expected colon after ternary expression");
     expression(compiler);
@@ -566,25 +605,25 @@ static void ternary(TeaCompiler* compiler, TeaToken previous_token, bool can_ass
     patch_jump(compiler, end_jump);
 }
 
-static void call(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void call(TeaCompiler* compiler, bool can_assign)
 {
     uint8_t arg_count = argument_list(compiler);
-    emit_bytes(compiler, OP_CALL, arg_count);
+    emit_argued(compiler, OP_CALL, arg_count);
 }
 
-static void dot(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void dot(TeaCompiler* compiler, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    emit_bytes(compiler, OP_GET_PROPERTY_NO_POP, name); \
+    emit_argued(compiler, OP_GET_PROPERTY_NO_POP, name); \
     expression(compiler); \
-    emit_byte(compiler, op); \
-    emit_bytes(compiler, OP_SET_PROPERTY, name);
+    emit_op(compiler, op); \
+    emit_argued(compiler, OP_SET_PROPERTY, name);
 
 #define SHORT_HAND_INCREMENT(op) \
-    emit_bytes(compiler, OP_GET_PROPERTY_NO_POP, name); \
+    emit_argued(compiler, OP_GET_PROPERTY_NO_POP, name); \
     emit_constant(compiler, NUMBER_VAL(1)); \
-    emit_byte(compiler, op); \
-    emit_bytes(compiler, OP_SET_PROPERTY, name);
+    emit_op(compiler, op); \
+    emit_argued(compiler, OP_SET_PROPERTY, name);
 
     consume(compiler, TOKEN_NAME, "Expect property name after '.'");
     uint8_t name = identifier_constant(compiler, &compiler->parser->previous);
@@ -592,7 +631,7 @@ static void dot(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
     if(match(compiler, TOKEN_LEFT_PAREN))
     {
         uint8_t arg_count = argument_list(compiler);
-        emit_bytes(compiler, OP_INVOKE, name);
+        emit_argued(compiler, OP_INVOKE, name);
         emit_byte(compiler, arg_count);
         return;
     }
@@ -600,7 +639,7 @@ static void dot(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
     if(can_assign && match(compiler, TOKEN_EQUAL))
     {
         expression(compiler);
-        emit_bytes(compiler, OP_SET_PROPERTY, name);
+        emit_argued(compiler, OP_SET_PROPERTY, name);
     }
     else if(can_assign && match(compiler, TOKEN_PLUS_EQUAL))
     {
@@ -650,7 +689,7 @@ static void dot(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
         }
         else
         {
-            emit_bytes(compiler, OP_GET_PROPERTY, name);
+            emit_argued(compiler, OP_GET_PROPERTY, name);
         }
     }
 #undef SHORT_HAND_ASSIGNMENT
@@ -659,12 +698,12 @@ static void dot(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
 
 static void boolean(TeaCompiler* compiler, bool can_assign)
 {
-    emit_byte(compiler, compiler->parser->previous.type == TOKEN_FALSE ? OP_FALSE : OP_TRUE);
+    emit_op(compiler, compiler->parser->previous.type == TOKEN_FALSE ? OP_FALSE : OP_TRUE);
 }
 
 static void null(TeaCompiler* compiler, bool can_assign)
 {
-    emit_byte(compiler, OP_NULL);
+    emit_op(compiler, OP_NULL);
 }
 
 static void list(TeaCompiler* compiler, bool can_assign)
@@ -693,7 +732,7 @@ static void list(TeaCompiler* compiler, bool can_assign)
 
     consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after list literal");
 
-    emit_bytes(compiler, OP_LIST, item_count);
+    emit_argued(compiler, OP_LIST, item_count);
 
     return;
 }
@@ -736,22 +775,22 @@ static void map(TeaCompiler* compiler, bool can_assign)
 
     consume(compiler, TOKEN_RIGHT_BRACE, "Expect '} after map literal'");
 
-    emit_bytes(compiler, OP_MAP, item_count);
+    emit_argued(compiler, OP_MAP, item_count);
 
     return;
 }
 
-static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void subscript(TeaCompiler* compiler, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
     expression(compiler); \
-    emit_bytes(compiler, OP_SUBSCRIPT_PUSH, op); \
-    emit_byte(compiler, OP_SUBSCRIPT_STORE);
+    emit_ops(compiler, OP_SUBSCRIPT_PUSH, op); \
+    emit_op(compiler, OP_SUBSCRIPT_STORE);
 
 #define SHORT_HAND_INCREMENT(op) \
     emit_constant(compiler, NUMBER_VAL(1)); \
-    emit_bytes(compiler, OP_SUBSCRIPT_PUSH, op); \
-    emit_byte(compiler, OP_SUBSCRIPT_STORE);
+    emit_ops(compiler, OP_SUBSCRIPT_PUSH, op); \
+    emit_op(compiler, OP_SUBSCRIPT_STORE);
 
     expression(compiler);
 
@@ -760,7 +799,7 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
     if(can_assign && match(compiler, TOKEN_EQUAL))
     {
         expression(compiler);
-        emit_byte(compiler, OP_SUBSCRIPT_STORE);
+        emit_op(compiler, OP_SUBSCRIPT_STORE);
     }
     else if(can_assign && match(compiler, TOKEN_PLUS_EQUAL))
     {
@@ -810,7 +849,7 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
         }
         else
         {
-            emit_byte(compiler, OP_SUBSCRIPT);
+            emit_op(compiler, OP_SUBSCRIPT);
         }
     }
 
@@ -819,7 +858,7 @@ static void subscript(TeaCompiler* compiler, TeaToken previous_token, bool can_a
 #undef SHORT_HAND_INCREMENT
 }
 
-static void or_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void or_(TeaCompiler* compiler, bool can_assign)
 {
     int jump = emit_jump(compiler, OP_OR);
     parse_precendence(compiler, PREC_OR);
@@ -833,7 +872,7 @@ static void literal(TeaCompiler* compiler, bool can_assign)
 
 static void interpolation(TeaCompiler* compiler, bool can_assign)
 {
-    emit_bytes(compiler, OP_LIST, 0);
+    emit_argued(compiler, OP_LIST, 0);
 
     do
     {
@@ -856,16 +895,16 @@ static void interpolation(TeaCompiler* compiler, bool can_assign)
 static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    emit_bytes(compiler, get_op, (uint8_t)arg); \
+    emit_argued(compiler, get_op, (uint8_t)arg); \
     expression(compiler); \
-    emit_byte(compiler, op); \
-    emit_bytes(compiler, set_op, (uint8_t)arg);
+    emit_op(compiler, op); \
+    emit_argued(compiler, set_op, (uint8_t)arg);
 
 #define SHORT_HAND_INCREMENT(op) \
-    emit_bytes(compiler, get_op, (uint8_t)arg); \
+    emit_argued(compiler, get_op, (uint8_t)arg); \
     emit_constant(compiler, NUMBER_VAL(1)); \
-    emit_byte(compiler, op); \
-    emit_bytes(compiler, set_op, (uint8_t)arg);
+    emit_op(compiler, op); \
+    emit_argued(compiler, set_op, (uint8_t)arg);
 
     uint8_t get_op, set_op;
     int arg = resolve_local(compiler, &name);
@@ -899,7 +938,7 @@ static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign
     if(can_assign && match(compiler, TOKEN_EQUAL))
     {
         expression(compiler);
-        emit_bytes(compiler, set_op, (uint8_t)arg);
+        emit_argued(compiler, set_op, (uint8_t)arg);
     }
     else if(can_assign && match(compiler, TOKEN_PLUS_EQUAL))
     {
@@ -949,7 +988,7 @@ static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign
         }
         else
         {
-            emit_bytes(compiler, get_op, (uint8_t)arg);
+            emit_argued(compiler, get_op, (uint8_t)arg);
         }
     }
 #undef SHORT_HAND_ASSIGNMENT
@@ -997,7 +1036,7 @@ static void super_(TeaCompiler* compiler, bool can_assign)
         named_variable(compiler, synthetic_token("this"), false);
         uint8_t arg_count = argument_list(compiler);
         named_variable(compiler, synthetic_token("super"), false);
-        emit_bytes(compiler, OP_SUPER, name);
+        emit_argued(compiler, OP_SUPER, name);
         emit_byte(compiler, arg_count);
         return;
     }
@@ -1012,13 +1051,13 @@ static void super_(TeaCompiler* compiler, bool can_assign)
     {
         uint8_t arg_count = argument_list(compiler);
         named_variable(compiler, synthetic_token("super"), false);
-        emit_bytes(compiler, OP_SUPER, name);
+        emit_argued(compiler, OP_SUPER, name);
         emit_byte(compiler, arg_count);
     }
     else
     {
         named_variable(compiler, synthetic_token("super"), false);
-        emit_bytes(compiler, OP_GET_SUPER, name);
+        emit_argued(compiler, OP_GET_SUPER, name);
     }
 }
 
@@ -1057,17 +1096,17 @@ static void unary(TeaCompiler* compiler, bool can_assign)
     {
         case TOKEN_BANG:
         {
-            emit_byte(compiler, OP_NOT);
+            emit_op(compiler, OP_NOT);
             break;
         }
         case TOKEN_MINUS:
         {
-            emit_byte(compiler, OP_NEGATE);
+            emit_op(compiler, OP_NEGATE);
             break;
         }
         case TOKEN_TILDE:
         {
-            emit_byte(compiler, OP_BNOT);
+            emit_op(compiler, OP_BNOT);
             break;
         }
         default:
@@ -1075,16 +1114,16 @@ static void unary(TeaCompiler* compiler, bool can_assign)
     }
 }
 
-static void in_(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void in_(TeaCompiler* compiler, bool can_assign)
 {
     TeaTokenType operator_type = compiler->parser->previous.type;
     TeaParseRule* rule = get_rule(operator_type);
     parse_precendence(compiler, (TeaPrecedence)(rule->precedence + 1));
 
-    emit_byte(compiler, OP_IN);
+    emit_op(compiler, OP_IN);
 }
 
-static void range(TeaCompiler* compiler, TeaToken previous_token, bool can_assign)
+static void range(TeaCompiler* compiler, bool can_assign)
 {
     bool inclusive = compiler->parser->previous.type == TOKEN_DOT_DOT ? false : true;
 
@@ -1092,7 +1131,7 @@ static void range(TeaCompiler* compiler, TeaToken previous_token, bool can_assig
     TeaParseRule* rule = get_rule(operator_type);
     parse_precendence(compiler, (TeaPrecedence)(rule->precedence + 1));
 
-    emit_bytes(compiler, OP_RANGE, inclusive);
+    emit_argued(compiler, OP_RANGE, inclusive);
 }
 
 #define NONE                    { NULL, NULL, PREC_NONE }
@@ -1192,7 +1231,7 @@ static TeaParseRule rules[] = {
 static void parse_precendence(TeaCompiler* compiler, TeaPrecedence precedence)
 {
     advance(compiler);
-    TeaParsePrefixFn prefix_rule = get_rule(compiler->parser->previous.type)->prefix;
+    TeaParseFn prefix_rule = get_rule(compiler->parser->previous.type)->prefix;
     if(prefix_rule == NULL)
     {
         error(compiler, "Expect expression");
@@ -1206,8 +1245,8 @@ static void parse_precendence(TeaCompiler* compiler, TeaPrecedence precedence)
     {
         TeaToken token = compiler->parser->previous;
         advance(compiler);
-        TeaParseInfixFn infix_rule = get_rule(compiler->parser->previous.type)->infix;
-        infix_rule(compiler, token, can_assign);
+        TeaParseFn infix_rule = get_rule(compiler->parser->previous.type)->infix;
+        infix_rule(compiler, can_assign);
     }
 
     if(can_assign && match(compiler, TOKEN_EQUAL))
@@ -1286,7 +1325,7 @@ static void grouping(TeaCompiler* compiler, bool can_assign)
         {
             begin_scope(&fn_compiler);
             expression(&fn_compiler);
-            emit_byte(&fn_compiler, OP_RETURN);
+            emit_op(&fn_compiler, OP_RETURN);
             end_scope(&fn_compiler);
         }
         end_compiler(&fn_compiler);
@@ -1322,7 +1361,7 @@ static void grouping(TeaCompiler* compiler, bool can_assign)
             {
                 begin_scope(&fn_compiler);
                 expression(&fn_compiler);
-                emit_byte(&fn_compiler, OP_RETURN);
+                emit_op(&fn_compiler, OP_RETURN);
                 end_scope(&fn_compiler);
             }
             end_compiler(&fn_compiler);
@@ -1379,7 +1418,7 @@ static void arrow(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaToken name
         // No brace so expect single expression
         begin_scope(fn_compiler);
         expression(fn_compiler);
-        emit_byte(fn_compiler, OP_RETURN);
+        emit_op(fn_compiler, OP_RETURN);
         end_scope(fn_compiler);
     }
 }
@@ -1444,7 +1483,7 @@ static void operator(TeaCompiler* compiler)
     uint8_t constant = make_constant(compiler, OBJECT_VAL(name));
 
     function(compiler, TYPE_METHOD);
-    emit_bytes(compiler, OP_METHOD, constant);
+    emit_argued(compiler, OP_METHOD, constant);
 }
 
 static void method(TeaCompiler* compiler, TeaFunctionType type)
@@ -1457,7 +1496,7 @@ static void method(TeaCompiler* compiler, TeaFunctionType type)
     }
 
     function(compiler, type);
-    emit_bytes(compiler, OP_METHOD, constant);
+    emit_argued(compiler, OP_METHOD, constant);
 }
 
 static void class_body(TeaCompiler* compiler)
@@ -1475,9 +1514,9 @@ static void class_body(TeaCompiler* compiler)
             }
             else
             {
-                emit_byte(compiler, OP_NULL);
+                emit_op(compiler, OP_NULL);
             }
-            emit_bytes(compiler, OP_SET_CLASS_VAR, name);
+            emit_argued(compiler, OP_SET_CLASS_VAR, name);
         }
         else if(match(compiler, TOKEN_STATIC))
         {
@@ -1504,7 +1543,7 @@ static void class_declaration(TeaCompiler* compiler)
     uint8_t name_constant = identifier_constant(compiler, &compiler->parser->previous);
     declare_variable(compiler, &compiler->parser->previous);
 
-    emit_bytes(compiler, OP_CLASS, name_constant);
+    emit_argued(compiler, OP_CLASS, name_constant);
     define_variable(compiler, name_constant);
 
     TeaClassCompiler class_compiler;
@@ -1528,7 +1567,7 @@ static void class_declaration(TeaCompiler* compiler)
         define_variable(compiler, 0);
     
         named_variable(compiler, class_name, false);
-        emit_byte(compiler, OP_INHERIT);
+        emit_op(compiler, OP_INHERIT);
         class_compiler.has_superclass = true;
     }
 
@@ -1556,14 +1595,14 @@ static void function_assignment(TeaCompiler* compiler)
         consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
         if(!check(compiler, TOKEN_LEFT_PAREN))
         {
-            emit_byte(compiler, OP_SUBSCRIPT);
+            emit_op(compiler, OP_SUBSCRIPT);
             function_assignment(compiler);
         }
         else
         {
             function(compiler, TYPE_FUNCTION);
-            emit_byte(compiler, OP_SUBSCRIPT_STORE);
-            emit_byte(compiler, OP_POP);
+            emit_op(compiler, OP_SUBSCRIPT_STORE);
+            emit_op(compiler, OP_POP);
             return;
         }
     }
@@ -1573,14 +1612,14 @@ static void function_assignment(TeaCompiler* compiler)
         uint8_t dot = identifier_constant(compiler, &compiler->parser->previous);
         if(!check(compiler, TOKEN_LEFT_PAREN))
         {
-            emit_bytes(compiler, OP_GET_PROPERTY, dot);
+            emit_argued(compiler, OP_GET_PROPERTY, dot);
             function_assignment(compiler);
         }
         else
         {
             function(compiler, TYPE_FUNCTION);
-            emit_bytes(compiler, OP_SET_PROPERTY, dot);
-            emit_byte(compiler, OP_POP);
+            emit_argued(compiler, OP_SET_PROPERTY, dot);
+            emit_op(compiler, OP_POP);
             return;
         }
     }
@@ -1615,7 +1654,7 @@ static void var_declaration(TeaCompiler* compiler)
     }
     else
     {
-        emit_byte(compiler, OP_NULL);
+        emit_op(compiler, OP_NULL);
     }
 
     define_variable(compiler, global);
@@ -1639,17 +1678,17 @@ static void expression_statement(TeaCompiler* compiler)
         expression(compiler);
         if(t != TOKEN_EQUAL) 
         {
-            emit_byte(compiler, OP_POP_REPL);
+            emit_op(compiler, OP_POP_REPL);
         }
         else
         {
-            emit_byte(compiler, OP_POP);
+            emit_op(compiler, OP_POP);
         }
         return;
     }
     
     expression(compiler);
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
 }
 
 static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
@@ -1753,7 +1792,7 @@ static void end_loop(TeaCompiler* compiler)
     if(compiler->loop->end != -1)
     {
         patch_jump(compiler, compiler->loop->end);
-        emit_byte(compiler, OP_POP);
+        emit_op(compiler, OP_POP);
     }
 
     int i = compiler->loop->body;
@@ -1794,22 +1833,22 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var)
     begin_loop(compiler, &loop);
 
     // Get the iterator index. If it's null, it means the loop is over
-    emit_bytes(compiler, OP_GET_LOCAL, seq_slot);
-    emit_bytes(compiler, OP_GET_LOCAL, iter_slot);
+    emit_argued(compiler, OP_GET_LOCAL, seq_slot);
+    emit_argued(compiler, OP_GET_LOCAL, iter_slot);
     invoke_method(compiler, 1, "iterate");
-    emit_bytes(compiler, OP_SET_LOCAL, iter_slot);
+    emit_argued(compiler, OP_SET_LOCAL, iter_slot);
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_NULL);
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
 
     // Get the iterator value
-    emit_bytes(compiler, OP_GET_LOCAL, seq_slot);
-    emit_bytes(compiler, OP_GET_LOCAL, iter_slot);
+    emit_argued(compiler, OP_GET_LOCAL, seq_slot);
+    emit_argued(compiler, OP_GET_LOCAL, iter_slot);
     invoke_method(compiler, 1, "iteratorvalue");
 
     begin_scope(compiler);
 
     int var_slot = add_local(compiler, var);
-    emit_bytes(compiler, OP_SET_LOCAL, var_slot);
+    emit_argued(compiler, OP_SET_LOCAL, var_slot);
 
     compiler->loop->body = compiler->function->chunk.count;
     statement(compiler);
@@ -1849,7 +1888,7 @@ static void for_statement(TeaCompiler* compiler)
         }
         else
         {
-            emit_byte(compiler, OP_NULL);
+            emit_op(compiler, OP_NULL);
         }
 
         define_variable(compiler, global);
@@ -1870,13 +1909,13 @@ static void for_statement(TeaCompiler* compiler)
     consume(compiler, TOKEN_COMMA, "Expect ',' after loop condition");
 
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_byte(compiler, OP_POP); // Condition.
+    emit_op(compiler, OP_POP); // Condition.
 
     int body_jump = emit_jump(compiler, OP_JUMP);
 
     int increment_start = current_chunk(compiler)->count;
     expression(compiler);
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
     consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses");
 
     emit_loop(compiler, compiler->loop->start);
@@ -1904,7 +1943,7 @@ static void break_statement(TeaCompiler* compiler)
     // Discard any locals created inside the loop
     for(int i = compiler->local_count - 1; i >= 0 && compiler->locals[i].depth > compiler->loop->scope_depth; i--)
     {
-        emit_byte(compiler, OP_POP);
+        emit_op(compiler, OP_POP);
     }
 
     emit_jump(compiler, OP_END);
@@ -1921,7 +1960,7 @@ static void continue_statement(TeaCompiler* compiler)
     // Discard any locals created inside the loop
     for(int i = compiler->local_count - 1; i >= 0 && compiler->locals[i].depth > compiler->loop->scope_depth; i--)
     {
-        emit_byte(compiler, OP_POP);
+        emit_op(compiler, OP_POP);
     }
 
     // Jump to the top of the innermost loop
@@ -1936,13 +1975,13 @@ static void if_statement(TeaCompiler* compiler)
 
     int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
 
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
     statement(compiler);
 
     int end_jump = emit_jump(compiler, OP_JUMP);
 
     patch_jump(compiler, else_jump);
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
 
     if(match(compiler, TOKEN_ELSE))
         statement(compiler);
@@ -1974,7 +2013,7 @@ static void switch_statement(TeaCompiler* compiler)
                     expression(compiler);
                 } 
                 while(match(compiler, TOKEN_COMMA));
-                emit_bytes(compiler, OP_MULTI_CASE, multiple_cases);
+                emit_argued(compiler, OP_MULTI_CASE, multiple_cases);
             }
             int compare_jump = emit_jump(compiler, OP_COMPARE_JUMP);
             consume(compiler, TOKEN_COLON, "Expect ':' after expression");
@@ -1992,7 +2031,7 @@ static void switch_statement(TeaCompiler* compiler)
 
     if(match(compiler,TOKEN_DEFAULT))
     {
-        emit_byte(compiler, OP_POP); // expression.
+        emit_op(compiler, OP_POP); // expression.
         consume(compiler, TOKEN_COLON, "Expect ':' after default");
         statement(compiler);
     }
@@ -2030,7 +2069,7 @@ static void return_statement(TeaCompiler* compiler)
 
         expression(compiler);
 
-        emit_byte(compiler, OP_RETURN);
+        emit_op(compiler, OP_RETURN);
     }
 }
 
@@ -2040,17 +2079,17 @@ static void import_statement(TeaCompiler* compiler)
     {
         int import_constant = make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
 
-        emit_bytes(compiler, OP_IMPORT, import_constant);
-        emit_byte(compiler, OP_POP);
+        emit_argued(compiler, OP_IMPORT, import_constant);
+        emit_op(compiler, OP_POP);
 
         if(match(compiler, TOKEN_AS)) 
         {
             uint8_t import_name = parse_variable(compiler, "Expect import alias");
-            emit_byte(compiler, OP_IMPORT_VARIABLE);
+            emit_op(compiler, OP_IMPORT_VARIABLE);
             define_variable(compiler, import_name);
         }
 
-        emit_byte(compiler, OP_IMPORT_END);
+        emit_op(compiler, OP_IMPORT_END);
 
         if(match(compiler, TOKEN_COMMA))
         {
@@ -2073,14 +2112,14 @@ static void import_statement(TeaCompiler* compiler)
         if(match(compiler, TOKEN_AS)) 
         {
             uint8_t import_alias = parse_variable(compiler, "Expect import alias");
-            emit_bytes(compiler, OP_IMPORT_NATIVE, index);
-            emit_byte(compiler, import_alias);
+            emit_argued(compiler, OP_IMPORT_NATIVE, index);
+            emit_op(compiler, import_alias);
             define_variable(compiler, import_alias);
         }
         else
         {
-            emit_bytes(compiler, OP_IMPORT_NATIVE, index);
-            emit_byte(compiler, import_name);
+            emit_argued(compiler, OP_IMPORT_NATIVE, index);
+            emit_op(compiler, import_name);
 
             define_variable(compiler, import_name);
         }
@@ -2099,8 +2138,8 @@ static void from_import_statement(TeaCompiler* compiler)
         int import_constant = make_constant(compiler, OBJECT_VAL(tea_copy_string(compiler->state, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
 
         consume(compiler, TOKEN_IMPORT, "Expect 'import' after import path");
-        emit_bytes(compiler, OP_IMPORT, import_constant);
-        emit_byte(compiler, OP_POP);
+        emit_argued(compiler, OP_IMPORT, import_constant);
+        emit_op(compiler, OP_POP);
 
         uint8_t variables[255];
         TeaToken tokens[255];
@@ -2120,7 +2159,7 @@ static void from_import_statement(TeaCompiler* compiler)
         } 
         while(match(compiler, TOKEN_COMMA));
 
-        emit_bytes(compiler, OP_IMPORT_FROM, var_count);
+        emit_argued(compiler, OP_IMPORT_FROM, var_count);
 
         for(int i = 0; i < var_count; i++) 
         {
@@ -2145,7 +2184,7 @@ static void from_import_statement(TeaCompiler* compiler)
             }
         }
 
-        emit_byte(compiler, OP_IMPORT_END);
+        emit_op(compiler, OP_IMPORT_END);
     }
     else
     {
@@ -2179,11 +2218,11 @@ static void from_import_statement(TeaCompiler* compiler)
         } 
         while(match(compiler, TOKEN_COMMA));
 
-        emit_bytes(compiler, OP_IMPORT_NATIVE, index);
+        emit_argued(compiler, OP_IMPORT_NATIVE, index);
         emit_byte(compiler, import_name);
-        emit_byte(compiler, OP_POP);
+        emit_op(compiler, OP_POP);
 
-        emit_byte(compiler, OP_IMPORT_NATIVE_VARIABLE);
+        emit_op(compiler, OP_IMPORT_NATIVE_VARIABLE);
         emit_bytes(compiler, import_name, var_count);
 
         for(int i = 0; i < var_count; i++) 
@@ -2227,7 +2266,7 @@ static void while_statement(TeaCompiler* compiler)
 
     // Jump ot of the loop if the condition is false
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
 
     // Compile the body
     compiler->loop->body = compiler->function->chunk.count;
@@ -2250,7 +2289,7 @@ static void do_statement(TeaCompiler* compiler)
 
     if(!check(compiler, TOKEN_LEFT_PAREN))
     {
-        emit_byte(compiler, OP_TRUE);
+        emit_op(compiler, OP_TRUE);
     }
     else
     {
@@ -2260,7 +2299,7 @@ static void do_statement(TeaCompiler* compiler)
     }
 
     compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_byte(compiler, OP_POP);
+    emit_op(compiler, OP_POP);
 
     emit_loop(compiler, compiler->loop->start);
     end_loop(compiler);

@@ -794,12 +794,12 @@ static TeaValue iteratorvalue_list(TeaVM* vm, TeaValue instance, int count, TeaV
     return list->items.values[index];
 }
 
+// Map
 static TeaValue len_map(TeaVM* vm, TeaValue instance)
 {
     return NUMBER_VAL(AS_MAP(instance)->count);
 }
 
-// Map
 static TeaValue keys_map(TeaVM* vm, TeaValue instance)
 {
     TeaObjectMap* map = AS_MAP(instance);
@@ -1854,9 +1854,9 @@ void tea_open_core(TeaVM* vm)
     tea_native_method(vm, &vm->list_methods, "sort", sort_list);
     tea_native_method(vm, &vm->list_methods, "index", index_list);
     tea_native_method(vm, &vm->list_methods, "join", join_list);
+    //tea_native_method(vm, &vm->list_methods, "copy", copy_list);
     tea_native_method(vm, &vm->list_methods, "iterate", iterate_list);
     tea_native_method(vm, &vm->list_methods, "iteratorvalue", iteratorvalue_list);
-    //tea_native_method(vm, &vm->list_methods, "copy", copy_list);
 
     // Map
     tea_native_property(vm, &vm->map_methods, "len", len_map);

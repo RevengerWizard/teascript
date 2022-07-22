@@ -12,6 +12,7 @@
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
+#define IS_FIBER(value) tea_is_object_type(value, OBJ_FIBER)
 #define IS_USERDATA(value) tea_is_object_type(value, OBJ_DATA)
 #define IS_RANGE(value) tea_is_object_type(value, OBJ_RANGE)
 #define IS_FILE(value) tea_is_object_type(value, OBJ_FILE)
@@ -30,7 +31,8 @@
 
 #define IS_CALLABLE_FUNCTION(value) tea_is_callable_function(value)
 
-#define AS_USERDATA(value) ((TeaObjectData*)AS_OBJECT(value))
+#define AS_FIBER(value) ((TeaObjectFiber*)AS_OBJECT(value))
+#define AS_DATA(value) ((TeaObjectData*)AS_OBJECT(value))
 #define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
 #define AS_FILE(value) ((TeaObjectFile*)AS_OBJECT(value))
 #define AS_MODULE(value) ((TeaObjectModule*)AS_OBJECT(value))
@@ -66,7 +68,8 @@ typedef enum
     OBJ_NATIVE_PROPERTY,
     OBJ_STRING,
     OBJ_UPVALUE,
-    OBJ_DATA
+    OBJ_DATA,
+    OBJ_FIBER
 } TeaObjectType;
 
 typedef enum
@@ -115,6 +118,7 @@ typedef struct
     TeaObject obj;
     int arity;
     int upvalue_count;
+    int max_slots;
     TeaChunk chunk;
     TeaFunctionType type;
     TeaObjectString* name;
@@ -250,7 +254,36 @@ typedef struct TeaObjectData
     TeaFreeFunction fn;
 } TeaObjectData;
 
+typedef struct
+{
+    TeaObjectClosure* closure;
+    uint8_t* ip;
+    TeaValue* slots;
+} TeaCallFrame;
+
+typedef struct TeaObjectFiber
+{
+    TeaObject obj;
+
+    struct TeaObjectFiber* parent;
+
+    TeaValue* stack;
+    TeaValue* stack_top;
+    int stack_capacity;
+
+    TeaCallFrame* frames;
+    int frame_capacity;
+    int frame_count;
+
+    TeaObjectUpvalue* open_upvalues;
+
+    TeaValue error;
+} TeaObjectFiber;
+
 TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type);
+
+TeaObjectFiber* tea_new_fiber(TeaState* state, TeaObjectClosure* closure);
+void tea_ensure_stack(TeaState* state, TeaObjectFiber* fiber, int needed);
 
 TeaObjectData* tea_new_data(TeaState* state, size_t size);
 TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool inclusive);
@@ -261,7 +294,7 @@ TeaObjectMap* tea_new_map(TeaState* state);
 TeaObjectBoundMethod* tea_new_bound_method(TeaState* state, TeaValue receiver, TeaObjectClosure* method);
 TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name, TeaObjectClass* superclass);
 TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function);
-TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaObjectModule* module);
+TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaObjectModule* module, int max_slots);
 TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass);
 TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot);
 

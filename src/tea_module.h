@@ -9,8 +9,8 @@ TeaValue tea_import_math(TeaVM* vm);
 #define TEA_TIME_MODULE "time"
 TeaValue tea_import_time(TeaVM* vm);
 
-#define TEA_DATE_MODULE "date"
-TeaValue tea_import_date(TeaVM* vm);
+//#define TEA_DATE_MODULE "date"
+//TeaValue tea_import_date(TeaVM* vm);
 
 //#define TEA_JSON_MODULE "json"
 //TeaValue tea_import_json(TeaVM* vm);
@@ -27,8 +27,8 @@ TeaValue tea_import_date(TeaVM* vm);
 //#define TEA_HASH_MODULE "hash"
 //TeaValue tea_import_hash(TeaVM* vm);
 
-#define TEA_WEB_MODULE "web"
-TeaValue tea_import_web(TeaVM* vm);
+//#define TEA_WEB_MODULE "web"
+//TeaValue tea_import_web(TeaVM* vm);
 
 #define TEA_OS_MODULE "os"
 TeaValue tea_import_os(TeaVM* vm);

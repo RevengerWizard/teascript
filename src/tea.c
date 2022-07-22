@@ -104,7 +104,7 @@ int main(int argc, const char* argv[])
     if(argc == 1)
     {
         state->repl = true;
-        printf("%s\n", TEA_RELEASE);
+        printf("teascript v%s\n", TEA_VERSION);
         repl(state);
     }
     else if(argc >= 2)

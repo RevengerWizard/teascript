@@ -12,30 +12,15 @@
 #include "tea_table.h"
 #include "tea_value.h"
 
-#define FRAMES_MAX 64
-#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
-
-typedef struct
-{
-    TeaObjectClosure* closure;
-    uint8_t* ip;
-    TeaValue* slots;
-} TeaCallFrame;
-
 typedef struct TeaVM
 {
     TeaState* state;
 
-    TeaCallFrame frames[FRAMES_MAX];
-    int frame_count;
-
-    TeaValue stack[STACK_MAX];
-    TeaValue* stack_top;
-
-    TeaObjectModule* last_module;
     TeaTable modules;
     TeaTable globals;
     TeaTable strings;
+
+    TeaObjectModule* last_module;
 
     TeaObjectString* constructor_string;
     TeaObjectString* repl_var;
@@ -46,12 +31,11 @@ typedef struct TeaVM
     TeaTable file_methods;
     TeaTable range_methods;
 
-    TeaObjectUpvalue* open_upvalues;
-
-    TeaObject* objects;
-    
     bool error;
 
+    TeaObjectFiber* fiber;
+
+    TeaObject* objects;
     int gray_count;
     int gray_capacity;
     TeaObject** gray_stack;
@@ -64,17 +48,17 @@ TeaInterpretResult tea_interpret_module(TeaState* state, const char* module_name
 
 static inline void tea_push(TeaVM* vm, TeaValue value)
 {
-    *vm->stack_top++ = value;
+    *vm->fiber->stack_top++ = value;
 }
 
 static inline TeaValue tea_pop(TeaVM* vm)
 {
-    return *(--vm->stack_top);
+    return *(--vm->fiber->stack_top);
 }
 
 static inline TeaValue tea_peek(TeaVM* vm, int distance)
 {
-    return vm->stack_top[-1 - (distance)];
+    return vm->fiber->stack_top[-1 - (distance)];
 }
 
 #endif

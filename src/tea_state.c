@@ -14,6 +14,8 @@ TeaState* tea_init_state()
     state->bytes_allocated = 0;
     state->next_gc = 1024 * 1024;
 
+    state->roots_count = 0;
+
     state->scanner = (TeaScanner*)malloc(sizeof(TeaScanner));
     state->compiler = (TeaCompiler*)malloc(sizeof(TeaCompiler));
     state->vm = (TeaVM*)malloc(sizeof(TeaVM));

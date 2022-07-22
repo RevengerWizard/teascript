@@ -27,4 +27,6 @@ void tea_mark_value(TeaVM* vm, TeaValue value);
 void tea_collect_garbage(TeaVM* vm);
 void tea_free_objects(TeaState* state, TeaObject* objects);
 
+int tea_closest_power_of_two(int n);
+
 #endif
