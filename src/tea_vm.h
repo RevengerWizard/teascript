@@ -21,9 +21,6 @@ typedef struct TeaVM
     TeaTable strings;
 
     TeaObjectModule* last_module;
-
-    TeaObjectString* constructor_string;
-    TeaObjectString* repl_var;
     
     TeaTable string_methods;
     TeaTable list_methods;

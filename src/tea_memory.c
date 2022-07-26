@@ -346,6 +346,9 @@ static void mark_roots(TeaVM* vm)
         tea_mark_value(vm, vm->state->roots[i]);
     }
 
+    tea_mark_object(vm, (TeaObject*)vm->fiber);
+    tea_mark_object(vm, (TeaObject*)vm->last_module);
+
     tea_mark_table(vm, &vm->globals);
     tea_mark_table(vm, &vm->modules);
     
@@ -356,9 +359,6 @@ static void mark_roots(TeaVM* vm)
     tea_mark_table(vm, &vm->range_methods);
 
     tea_mark_compiler_roots(vm->state);
-
-    tea_mark_object(vm, (TeaObject*)&vm->constructor_string);
-    tea_mark_object(vm, (TeaObject*)&vm->repl_var);
 }
 
 static void trace_references(TeaVM* vm)

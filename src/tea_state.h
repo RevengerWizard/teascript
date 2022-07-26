@@ -19,17 +19,9 @@ typedef struct TeaState
 {
     //TeaHandle* handles;
     //TeaValue* slots;
+    
     TeaValue roots[TEA_MAX_TEMP_ROOTS];
     int roots_count;
-
-    size_t bytes_allocated;
-    size_t next_gc;
-
-    //TeaObject* objects;
-    
-    //int gray_count;
-    //int gray_capacity;
-    //TeaObject** gray_stack;
 
     bool repl;
 
@@ -37,10 +29,16 @@ typedef struct TeaState
     struct TeaCompiler* compiler;
     struct TeaVM* vm;
 
-    bool allow_gc;
-
     int argc;
     const char** argv;
+
+    size_t bytes_allocated;
+    size_t next_gc;
+
+    //TeaObject* objects;
+    //int gray_count;
+    //int gray_capacity;
+    //TeaObject** gray_stack;
 } TeaState;
 
 typedef enum TeaInterpretResult

@@ -21,7 +21,7 @@ static TeaValue seed_random(TeaVM* vm, int count, TeaValue* args)
     
     srand(AS_NUMBER(args[0]));
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue random_random(TeaVM* vm, int count, TeaValue* args)

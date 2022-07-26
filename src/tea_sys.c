@@ -32,7 +32,7 @@ static TeaValue exit_sys(TeaVM* vm, int count, TeaValue* args)
 
     exit(NUMBER_VAL(args[0]));
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue sleep_sys(TeaVM* vm, int count, TeaValue* args)
@@ -66,7 +66,7 @@ static TeaValue sleep_sys(TeaVM* vm, int count, TeaValue* args)
     usleep(fmod(stop_time, 1) * 1000000);
 #endif
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static void init_argv(TeaState* state, TeaTable* table)

@@ -3,10 +3,10 @@ import time
 var start = time.clock()
 var list = []
 
-for(var i in 0...1000000) list.add(i)
+for(var i in 0..1000000) list.add(i)
 
 var sum = 0
-for(var i in list) sum++
+for(var i in list) sum += i
 
 print(sum)
 

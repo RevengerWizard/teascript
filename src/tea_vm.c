@@ -72,14 +72,9 @@ void tea_init_vm(TeaState* state, TeaVM* vm)
 
     vm->last_module = NULL;
 
-    vm->constructor_string = NULL;
-    vm->repl_var = NULL;
-
     tea_init_table(&vm->modules);
     tea_init_table(&vm->globals);
     tea_init_table(&vm->strings);
-
-    vm->constructor_string = tea_copy_string(state, "constructor", 11);
 
     tea_init_table(&vm->string_methods);
     tea_init_table(&vm->list_methods);
@@ -88,11 +83,6 @@ void tea_init_vm(TeaState* state, TeaVM* vm)
     tea_init_table(&vm->range_methods);
 
     tea_open_core(vm);
-
-    if(state->repl)
-    {
-        vm->repl_var = tea_copy_string(state, "_", 1);
-    }
 }
 
 void tea_free_vm(TeaVM* vm)
@@ -102,9 +92,6 @@ void tea_free_vm(TeaVM* vm)
     tea_free_table(vm->state, &vm->strings);
 
     vm->fiber = NULL;
-
-    vm->constructor_string = NULL;
-    vm->repl_var = NULL;
 
     tea_free_objects(vm->state, vm->objects);
 
@@ -435,7 +422,7 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
                         tea_pop(vm);
                         tea_pop(vm);
                         tea_pop(vm);
-                        tea_push(vm, EMPTY_VAL);
+                        tea_push(vm, NULL_VAL);
                     }
                     else
                     {
@@ -463,7 +450,7 @@ static bool subscript_store(TeaVM* vm, TeaValue item_value, TeaValue index_value
                     tea_pop(vm);
                     tea_pop(vm);
                     tea_pop(vm);
-                    tea_push(vm, EMPTY_VAL);
+                    tea_push(vm, NULL_VAL);
                 }
                 else
                 {
@@ -952,7 +939,7 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
                 tea_table_set(vm->state, &instance->fields, name, tea_peek(vm, 0));
                 tea_pop(vm);
                 tea_pop(vm);
-                tea_push(vm, EMPTY_VAL);
+                tea_push(vm, NULL_VAL);
                 return true;
             }
             case OBJ_CLASS:
@@ -961,7 +948,7 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
                 tea_table_set(vm->state, &klass->statics, name, tea_peek(vm, 0));
                 tea_pop(vm);
                 tea_pop(vm);
-                tea_push(vm, EMPTY_VAL);
+                tea_push(vm, NULL_VAL);
                 return true;
             }
             case OBJ_MAP:
@@ -970,7 +957,7 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
                 tea_map_set(vm->state, map, OBJECT_VAL(name), tea_peek(vm, 0));
                 tea_pop(vm);
                 tea_pop(vm);
-                tea_push(vm, EMPTY_VAL);
+                tea_push(vm, NULL_VAL);
                 return true;
             }
             case OBJ_MODULE:
@@ -979,7 +966,7 @@ static bool set_property(TeaVM* vm, TeaObjectString* name, TeaValue receiver)
                 tea_table_set(vm->state, &module->values, name, tea_peek(vm, 0));
                 tea_pop(vm);
                 tea_pop(vm);
-                tea_push(vm, EMPTY_VAL);
+                tea_push(vm, NULL_VAL);
                 return true;
             }
             default:
@@ -1037,7 +1024,8 @@ static void define_method(TeaVM* vm, TeaObjectString* name)
     TeaValue method = tea_peek(vm, 0);
     TeaObjectClass* klass = AS_CLASS(tea_peek(vm, 1));
     tea_table_set(vm->state, &klass->methods, name, method);
-    if(name == vm->constructor_string) klass->constructor = method;
+    TeaObjectString* constructor_string = tea_copy_string(vm->state, "constructor", 11);
+    if(name == constructor_string) klass->constructor = method;
     tea_pop(vm);
 }
 
@@ -1268,9 +1256,9 @@ static TeaInterpretResult run_interpreter(TeaState* state, register TeaObjectFib
         CASE_CODE(POP_REPL):
         {
             TeaValue value = PEEK(0);
-            if(!IS_EMPTY(value))
+            if(!IS_NULL(value))
             {
-                tea_table_set(state, &vm->globals, vm->repl_var, value);
+                tea_table_set(state, &vm->globals, tea_copy_string(state, "_", 1), value);
                 tea_print_value(value);
                 printf("\n");
             }
@@ -2145,8 +2133,7 @@ TeaInterpretResult tea_interpret_module(TeaState* state, const char* module_name
     if(function == NULL)
         return INTERPRET_COMPILE_ERROR;
 
-    TeaObjectClosure* closure = tea_new_closure(state, function);
-    TeaObjectFiber* fiber = tea_new_fiber(state, closure);
+    TeaObjectFiber* fiber = tea_new_fiber(state, tea_new_closure(state, function));
 
     return run_interpreter(state, fiber);
 }

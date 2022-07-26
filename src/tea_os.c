@@ -121,7 +121,7 @@ static TeaValue system_os(TeaVM* vm, int count, TeaValue* args)
         return EMPTY_VAL;
     }
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static const char* os_name()

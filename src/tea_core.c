@@ -232,7 +232,7 @@ static TeaValue close_file(TeaVM* vm, TeaValue instance, int count, TeaValue* ar
     fclose(file->file);
     file->is_open = false;
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue iterate_file(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -285,7 +285,7 @@ static TeaValue remove_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
 
     if(list->items.count == 0) 
     {
-        return EMPTY_VAL;
+        return NULL_VAL;
     }
 
     if(list->items.count > 1) 
@@ -321,7 +321,7 @@ static TeaValue remove_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
     if(found) 
     {
         list->items.count--;
-        return EMPTY_VAL;
+        return NULL_VAL;
     }
 
     tea_runtime_error(vm, "Value does not exist within the list");
@@ -340,7 +340,7 @@ static TeaValue delete_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
 
     if(list->items.count == 0) 
     {
-        return EMPTY_VAL;
+        return NULL_VAL;
     }
 
     TeaValue element;
@@ -389,7 +389,7 @@ static TeaValue clear_list(TeaVM* vm, TeaValue instance, int count, TeaValue* ar
     TeaObjectList* list = AS_LIST(instance);
     tea_init_value_array(&list->items);
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue insert_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -432,7 +432,7 @@ static TeaValue insert_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
 
     list->items.values[index] = insert_value;
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue extend_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -457,7 +457,7 @@ static TeaValue extend_list(TeaVM* vm, TeaValue instance, int count, TeaValue* a
         tea_write_value_array(vm->state, &list->items, argument->items.values[i]);
     }
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue contains_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -532,7 +532,7 @@ static TeaValue swap_list(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
     list->items.values[index_a] = list->items.values[index_b];
     list->items.values[index_b] = value;
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue fill_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -551,7 +551,7 @@ static TeaValue fill_list(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
         list->items.values[i] = value;
     }
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue reverse_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -658,7 +658,7 @@ static TeaValue sort_list(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
 
     quicksort(list, 0, list->items.count - 1);
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue index_list(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -851,7 +851,7 @@ static TeaValue clear_map(TeaVM* vm, TeaValue instance, int count, TeaValue* arg
     map->capacity = 0;
     map->count = 0;
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue contains_map(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
@@ -1554,7 +1554,7 @@ static TeaValue print_native(TeaVM* vm, int count, TeaValue* args)
     {
         printf("\n");
 
-        return EMPTY_VAL;
+        return NULL_VAL;
     }
 
     for(int i = 0; i < count; i++)
@@ -1565,7 +1565,7 @@ static TeaValue print_native(TeaVM* vm, int count, TeaValue* args)
 
     printf("\n");
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue input_native(TeaVM* vm, int count, TeaValue* args)
@@ -1799,7 +1799,7 @@ static TeaValue gc_native(TeaVM* vm, int count, TeaValue* args)
 
     tea_collect_garbage(vm);
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 static TeaValue interpret_native(TeaVM* vm, int count, TeaValue* args)
@@ -1820,7 +1820,7 @@ static TeaValue interpret_native(TeaVM* vm, int count, TeaValue* args)
     tea_interpret(state, "interpret", AS_CSTRING(args[0]));
     tea_free_state(state);
 
-    return EMPTY_VAL;
+    return NULL_VAL;
 }
 
 void tea_open_core(TeaVM* vm)
