@@ -1004,6 +1004,36 @@ static TeaValue lower_string(TeaVM* vm, TeaValue instance, int count, TeaValue* 
     return OBJECT_VAL(tea_take_string(vm->state, temp, string->length));
 }
 
+static void rev(char* str)
+{
+    // this assumes that str is valid UTF-8
+    char* scanl, *scanr, *scanr2, c;
+
+    // first reverse the string
+    for(scanl = str, scanr = str + strlen(str); scanl < scanr;)
+        c = *scanl, *scanl++ = *--scanr, *scanr = c;
+
+    // then scan all bytes and reverse each multibyte character
+    for(scanl = scanr = str; c = *scanr++;)
+    {
+        if((c & 0x80) == 0) // ASCII char
+            scanl = scanr;
+        else if((c & 0xc0) == 0xc0)
+        { // start of multibyte
+            scanr2 = scanr;
+            switch(scanr - scanl)
+            {
+                case 4:
+                    c = *scanl, *scanl++ = *--scanr, *scanr = c; // fallthrough
+                case 3:                                          // fallthrough
+                case 2:
+                    c = *scanl, *scanl++ = *--scanr, *scanr = c;
+            }
+            scanr = scanl = scanr2;
+        }
+    }
+}
+
 static TeaValue reverse_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
 {
     if(count != 0)
@@ -1012,23 +1042,16 @@ static TeaValue reverse_string(TeaVM* vm, TeaValue instance, int count, TeaValue
         return EMPTY_VAL;
     }
 
-    const char* string = AS_CSTRING(instance);
+    TeaObjectString* string = AS_STRING(instance);
 
-    int l = strlen(string);
-
-    if(l == 0 || l == 1)
+    if(string->length == 0 || string->length == 1)
     {
-        return OBJECT_VAL(AS_STRING(instance));
+        return OBJECT_VAL(string);
     }
 
-    char* res = ALLOCATE(vm->state, char, l + 1);
-    for(int i = 0; i < l; i++)
-    {
-        res[i] = string[l - i - 1];
-    }
-    res[l] = '\0';
+    rev(string->chars);
 
-    return OBJECT_VAL(tea_take_string(vm->state, res, l));
+    return OBJECT_VAL(string);
 }
 
 static TeaValue split_string(TeaVM* vm, TeaValue instance, int count, TeaValue* args)
