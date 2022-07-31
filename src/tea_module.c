@@ -12,7 +12,7 @@ TeaNativeModule modules[] = {
     //{ TEA_WEB_MODULE, tea_import_web },
     { TEA_OS_MODULE, tea_import_os },
     { TEA_SYS_MODULE, tea_import_sys },
-    { TEA_PATH_MODULE, tea_import_path },
+    //{ TEA_PATH_MODULE, tea_import_path },
     { TEA_RANDOM_MODULE, tea_import_random },
     //{ TEA_FFI_MODULE, tea_import_ffi },
     { NULL, NULL }

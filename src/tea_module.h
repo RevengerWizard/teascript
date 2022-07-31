@@ -36,8 +36,8 @@ TeaValue tea_import_os(TeaVM* vm);
 #define TEA_SYS_MODULE "sys"
 TeaValue tea_import_sys(TeaVM* vm);
 
-#define TEA_PATH_MODULE "path"
-TeaValue tea_import_path(TeaVM* vm);
+//#define TEA_PATH_MODULE "path"
+//TeaValue tea_import_path(TeaVM* vm);
 
 #define TEA_RANDOM_MODULE "random"
 TeaValue tea_import_random(TeaVM* vm);
