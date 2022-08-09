@@ -213,7 +213,7 @@ static void blacken_object(TeaVM* vm, TeaObject* object)
 static void free_object(TeaState* state, TeaObject* object)
 {
 #ifdef DEBUG_LOG_GC
-    printf("%p free type %s\n", (void*)object, tea_object_type(OBJECT_VAL(object)));
+    printf("%p free %s\n", (void*)object, tea_object_type(OBJECT_VAL(object)));
 #endif
 
     switch(object->type)

@@ -1,16 +1,16 @@
 #ifndef TEA_CONFIG_H
 #define TEA_CONFIG_H
 
-#define STR(a) STR_(a)
-#define STR_(a) #a
+#define str(a) str_(a)
+#define str_(a) #a
 
-#define TEA_REPOSITORY ""
+#define TEA_REPOSITORY "https://github.com/RevengerWizard/teascript"
 
 #define TEA_VERSION_MAJOR 0
 #define TEA_VERSION_MINOR 0
 #define TEA_VERSION_PATCH 0
 
-#define TEA_VERSION STR(TEA_VERSION_MAJOR) "." STR(TEA_VERSION_MINOR) "." STR(TEA_VERSION_PATCH)
+#define TEA_VERSION str(TEA_VERSION_MAJOR) "." str(TEA_VERSION_MINOR) "." str(TEA_VERSION_PATCH)
 
 #define TEA_VERSION_NUMBER 0
 

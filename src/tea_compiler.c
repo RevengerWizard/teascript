@@ -581,6 +581,11 @@ static void binary(TeaCompiler* compiler, bool can_assign)
             emit_op(compiler, OP_LSHIFT);
             break;
         }
+        case TOKEN_IN:
+        {
+            emit_op(compiler, OP_IN);
+            break;
+        }
         default: return; // Unreachable.
     }
 }
@@ -1114,15 +1119,6 @@ static void unary(TeaCompiler* compiler, bool can_assign)
     }
 }
 
-static void in_(TeaCompiler* compiler, bool can_assign)
-{
-    TeaTokenType operator_type = compiler->parser->previous.type;
-    TeaParseRule* rule = get_rule(operator_type);
-    parse_precendence(compiler, (TeaPrecedence)(rule->precedence + 1));
-
-    emit_op(compiler, OP_IN);
-}
-
 static void range(TeaCompiler* compiler, bool can_assign)
 {
     bool inclusive = compiler->parser->previous.type == TOKEN_DOT_DOT ? false : true;
@@ -1212,7 +1208,7 @@ static TeaParseRule rules[] = {
     PREFIX(this_),                          // TOKEN_THIS
     NONE,                                   // TOKEN_CONTINUE
     NONE,                                   // TOKEN_BREAK
-    OPERATOR(in_, COMPARISON),              // TOKEN_IN
+    OPERATOR(binary, COMPARISON),           // TOKEN_IN
     PREFIX(boolean),                        // TOKEN_TRUE
     NONE,                                   // TOKEN_VAR
     NONE,                                   // TOKEN_CONST

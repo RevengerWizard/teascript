@@ -726,7 +726,7 @@ char* tea_object_tostring(TeaState* state, TeaValue value)
         case OBJ_FILE:
             return "<file>";
         case OBJ_DATA:
-            return "<userdata>";
+            return "<data>";
         case OBJ_FUNCTION:
         case OBJ_CLOSURE:
         case OBJ_BOUND_METHOD:
@@ -830,7 +830,7 @@ void tea_print_object(TeaValue value)
             printf("<file>");
             break;
         case OBJ_DATA:
-            printf("<userdata>");
+            printf("<data>");
             break;
         case OBJ_RANGE:
             print_range(AS_RANGE(value));

@@ -124,7 +124,7 @@ static TeaValue system_os(TeaVM* vm, int count, TeaValue* args)
     return NULL_VAL;
 }
 
-static const char* os_name()
+static inline const char* os_name()
 {
     #if defined(_WIN32) || defined(_WIN64)
     return "windows";
