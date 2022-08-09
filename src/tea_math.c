@@ -4,6 +4,8 @@
 #include "tea_module.h"
 #include "tea_core.h"
 
+#define PI 3.14159265358979323846
+
 static TeaValue min_math(TeaVM* vm, int count, TeaValue* args)
 {
     if(count == 0) 
@@ -214,6 +216,23 @@ static TeaValue round_math(TeaVM* vm, int count, TeaValue* args)
     return NUMBER_VAL(round(AS_NUMBER(args[0])));
 }
 
+static TeaValue acos_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "acos() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0])) 
+    {
+        tea_runtime_error(vm, "A non-number value passed to acos()");
+        return EMPTY_VAL;
+    }
+
+    return NUMBER_VAL(acos(AS_NUMBER(args[0])));
+}
+
 static TeaValue cos_math(TeaVM* vm, int count, TeaValue* args)
 {
     if(count != 1)
@@ -229,6 +248,23 @@ static TeaValue cos_math(TeaVM* vm, int count, TeaValue* args)
     }
 
     return NUMBER_VAL(cos(AS_NUMBER(args[0])));
+}
+
+static TeaValue asin_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "asin() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0])) 
+    {
+        tea_runtime_error(vm, "A non-number value passed to asin()");
+        return EMPTY_VAL;
+    }
+
+    return NUMBER_VAL(asin(AS_NUMBER(args[0])));
 }
 
 static TeaValue sin_math(TeaVM* vm, int count, TeaValue* args)
@@ -247,6 +283,24 @@ static TeaValue sin_math(TeaVM* vm, int count, TeaValue* args)
 
     return NUMBER_VAL(sin(AS_NUMBER(args[0])));
 }
+
+static TeaValue atan_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "atan() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0])) 
+    {
+        tea_runtime_error(vm, "A non-number value passed to atan()");
+        return EMPTY_VAL;
+    }
+
+    return NUMBER_VAL(atan(AS_NUMBER(args[0])));
+}
+
 
 static TeaValue tan_math(TeaVM* vm, int count, TeaValue* args)
 {
@@ -320,6 +374,57 @@ static TeaValue sqrt_math(TeaVM* vm, int count, TeaValue* args)
     return NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
 }
 
+static TeaValue deg_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "deg() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0])) 
+    {
+        tea_runtime_error(vm, "A non-number value passed to deg()");
+        return EMPTY_VAL;
+    }
+
+    return NUMBER_VAL(AS_NUMBER(args[0]) * (180.0 / PI));
+}
+
+static TeaValue rad_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "rad() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0])) 
+    {
+        tea_runtime_error(vm, "A non-number value passed to rad()");
+        return EMPTY_VAL;
+    }
+
+    return NUMBER_VAL(AS_NUMBER(args[0]) * (PI / 180.0));
+}
+
+static TeaValue exp_math(TeaVM* vm, int count, TeaValue* args)
+{
+    if(count != 1)
+    {
+        tea_runtime_error(vm, "exp() takes 1 argument (%d given)", count);
+        return EMPTY_VAL;
+    }
+
+    if(!IS_NUMBER(args[0])) 
+    {
+        tea_runtime_error(vm, "A non-number value passed to exp()");
+        return EMPTY_VAL;
+    }
+
+    return NUMBER_VAL(exp(AS_NUMBER(args[0])));
+}
+
 TeaValue tea_import_math(TeaVM* vm)
 {
     TeaObjectString* name = tea_copy_string(vm->state, TEA_MATH_MODULE, 4);
@@ -332,14 +437,20 @@ TeaValue tea_import_math(TeaVM* vm)
     tea_native_function(vm, &module->values, "floor", floor_math);
     tea_native_function(vm, &module->values, "ceil", ceil_math);
     tea_native_function(vm, &module->values, "round", round_math);
+    tea_native_function(vm, &module->values, "acos", acos_math);
     tea_native_function(vm, &module->values, "cos", cos_math);
+    tea_native_function(vm, &module->values, "asin", asin_math);
     tea_native_function(vm, &module->values, "sin", sin_math);
+    tea_native_function(vm, &module->values, "atan", atan_math);
     tea_native_function(vm, &module->values, "tan", tan_math);
     tea_native_function(vm, &module->values, "sign", sign_math);
     tea_native_function(vm, &module->values, "abs", abs_math);
     tea_native_function(vm, &module->values, "sqrt", sqrt_math);
+    tea_native_function(vm, &module->values, "deg", deg_math);
+    tea_native_function(vm, &module->values, "rad", rad_math);
+    tea_native_function(vm, &module->values, "exp", exp_math);
 
-    tea_native_value(vm, &module->values, "pi", NUMBER_VAL(3.14159265358979323846));
+    tea_native_value(vm, &module->values, "pi", NUMBER_VAL(PI));
     tea_native_value(vm, &module->values, "e", NUMBER_VAL(2.71828182845904523536));
     tea_native_value(vm, &module->values, "phi", NUMBER_VAL(1.61803398874989484820));
 
