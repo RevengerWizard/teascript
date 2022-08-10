@@ -7,10 +7,16 @@
 
 static TeaValue seed_random(TeaVM* vm, int count, TeaValue* args)
 {
-    if(count != 1)
+    if(count > 1)
     {
-        tea_runtime_error(vm, "seed() takes 1 argument (%d given)", count);
+        tea_runtime_error(vm, "seed() takes 0 or 1 arguments (%d given)", count);
         return EMPTY_VAL;
+    }
+
+    if(count == 0)
+    {
+        srand(time(NULL));
+        return NULL_VAL;
     }
 
     if(!IS_NUMBER(args[0]))
@@ -18,7 +24,7 @@ static TeaValue seed_random(TeaVM* vm, int count, TeaValue* args)
         tea_runtime_error(vm, "seed() argument must be a number");
         return EMPTY_VAL;
     }
-    
+
     srand(AS_NUMBER(args[0]));
 
     return NULL_VAL;
@@ -122,8 +128,6 @@ TeaValue tea_import_random(TeaVM* vm)
 {
     TeaObjectString* name = tea_copy_string(vm->state, TEA_RANDOM_MODULE, 6);
     TeaObjectModule* module = tea_new_module(vm->state, name);
-
-    srand(time(NULL));
 
     tea_native_function(vm, &module->values, "seed", seed_random);
     tea_native_function(vm, &module->values, "random", random_random);
