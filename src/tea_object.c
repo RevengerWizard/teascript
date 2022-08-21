@@ -365,7 +365,7 @@ static inline uint32_t hash_bits(uint64_t hash)
 
 static inline uint32_t hash_number(double number)
 {
-    return hash_bits(value_to_num(number));
+    return hash_bits(num_to_value(number));
 }
 
 static uint32_t hash_object(TeaObject* object)

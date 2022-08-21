@@ -103,13 +103,11 @@ int main(int argc, const char* argv[])
 
     if(argc == 1)
     {
-        state->repl = true;
         printf("teascript v%s\n", TEA_VERSION);
         repl(state);
     }
     else if(argc >= 2)
     {
-        state->repl = false;
         run_file(state, argv[1]);
     }
     else

@@ -8,22 +8,12 @@
 
 #define TEA_MAX_TEMP_ROOTS 8
 
-/*struct TeaHandle
-{
-    TeaValue value;
-    TeaHandle* prev;
-    TeaHandle* next;
-};*/
-
 typedef struct TeaState
 {
-    //TeaHandle* handles;
     //TeaValue* slots;
     
     TeaValue roots[TEA_MAX_TEMP_ROOTS];
     int roots_count;
-
-    bool repl;
 
     struct TeaScanner* scanner;
     struct TeaCompiler* compiler;

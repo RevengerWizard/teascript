@@ -1658,31 +1658,6 @@ static void var_declaration(TeaCompiler* compiler)
 
 static void expression_statement(TeaCompiler* compiler)
 {
-    if(compiler->state->repl)
-    {
-        TeaToken previous = compiler->parser->previous;
-        advance(compiler);
-        TeaTokenType t = compiler->parser->current.type;
-
-        for(int i = 0; i < compiler->parser->current.length; i++) 
-        {
-            tea_back_track(compiler->state->scanner);
-        }
-        compiler->parser->current = compiler->parser->previous;
-        compiler->parser->previous = previous;
-
-        expression(compiler);
-        if(t != TOKEN_EQUAL) 
-        {
-            emit_op(compiler, OP_POP_REPL);
-        }
-        else
-        {
-            emit_op(compiler, OP_POP);
-        }
-        return;
-    }
-    
     expression(compiler);
     emit_op(compiler, OP_POP);
 }
@@ -1698,7 +1673,6 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_SUBSCRIPT_STORE:
         case OP_SUBSCRIPT_PUSH:
         case OP_POP:
-        case OP_POP_REPL:
         case OP_EQUAL:
         case OP_GREATER:
         case OP_GREATER_EQUAL:

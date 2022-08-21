@@ -1253,18 +1253,6 @@ static TeaInterpretResult run_interpreter(TeaState* state, register TeaObjectFib
             POP();
             DISPATCH();
         }
-        CASE_CODE(POP_REPL):
-        {
-            TeaValue value = PEEK(0);
-            if(!IS_NULL(value))
-            {
-                tea_table_set(state, &vm->globals, tea_copy_string(state, "_", 1), value);
-                tea_print_value(value);
-                printf("\n");
-            }
-            POP();
-            DISPATCH();
-        }
         CASE_CODE(GET_LOCAL):
         {
             PUSH(slots[READ_BYTE()]);
