@@ -124,23 +124,7 @@ typedef struct
     TeaObjectString* name;
     TeaObjectModule* module;
 } TeaObjectFunction;
-/*
-typedef enum
-{
-    NATIVE_FUNCTION,
-    NATIVE_METHOD,
-    NATIVE_PROPERTY
-} TeaNativeType;
 
-typedef struct
-{
-    TeaObject obj;
-    union
-    {
-        TeaNativeFunction function;
-    } as;
-} TeaObjectNative;
-*/
 typedef TeaValue (*TeaNativeFunction)(TeaVM* vm, int count, TeaValue* args);
 
 typedef struct
@@ -339,14 +323,6 @@ static inline bool tea_is_falsey(TeaValue value)
             (IS_STRING(value) && AS_CSTRING(value)[0] == '\0') || 
             (IS_LIST(value) && AS_LIST(value)->items.count == 0) ||
             (IS_MAP(value) && AS_MAP(value)->count == 0);
-}
-
-static inline bool tea_is_callable_function(TeaValue value)
-{
-    return  IS_CLOSURE(value) ||
-            IS_FUNCTION(value) ||
-            IS_NATIVE_FUNCTION(value) ||
-            IS_BOUND_METHOD(value);
 }
 
 #endif

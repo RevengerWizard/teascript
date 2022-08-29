@@ -447,9 +447,11 @@ bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
     return true;
 }
 
+#define MAP_MAX_LOAD 0.75
+
 bool tea_map_set(TeaState* state, TeaObjectMap* map, TeaValue key, TeaValue value)
 {
-    if(map->count + 1 > map->capacity * TABLE_MAX_LOAD)
+    if(map->count + 1 > map->capacity * MAP_MAX_LOAD)
     {
         int capacity = GROW_CAPACITY(map->capacity);
         TeaMapItem* items = ALLOCATE(state, TeaMapItem, capacity);
