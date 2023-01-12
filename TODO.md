@@ -1,5 +1,0 @@
-- package manager
-- tests
-- teascript notebooks
-- ffi module
-- C API
