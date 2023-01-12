@@ -1,51 +1,30 @@
 #ifndef TEA_MODULE_H
+// tea_module.h
+// Teascript module loading
+
 #define TEA_MODULE_H
 
-#include "tea_vm.h"
+#include "tea.h"
 
 #define TEA_MATH_MODULE "math"
-TeaValue tea_import_math(TeaVM* vm);
+void tea_import_math(TeaState* T);
 
 #define TEA_TIME_MODULE "time"
-TeaValue tea_import_time(TeaVM* vm);
-
-//#define TEA_DATE_MODULE "date"
-//TeaValue tea_import_date(TeaVM* vm);
-
-//#define TEA_JSON_MODULE "json"
-//TeaValue tea_import_json(TeaVM* vm);
-
-//#define TEA_CSV_MODULE "csv"
-//TeaValue tea_import_csv(TeaVM* vm);
-
-//#define TEA_HTTP_MODULE "http"
-//TeaValue tea_import_http(TeaVM* vm);
-
-//#define TEA_SOCKET_MODULE "socket"
-//TeaValue tea_import_socket(TeaVM* vm);
-
-//#define TEA_HASH_MODULE "hash"
-//TeaValue tea_import_hash(TeaVM* vm);
-
-//#define TEA_WEB_MODULE "web"
-//TeaValue tea_import_web(TeaVM* vm);
+void tea_import_time(TeaState* T);
 
 #define TEA_OS_MODULE "os"
-TeaValue tea_import_os(TeaVM* vm);
+void tea_import_os(TeaState* T);
 
 #define TEA_SYS_MODULE "sys"
-TeaValue tea_import_sys(TeaVM* vm);
+void tea_import_sys(TeaState* T);
 
-//#define TEA_PATH_MODULE "path"
-//TeaValue tea_import_path(TeaVM* vm);
+#define TEA_IO_MODULE "io"
+void tea_import_io(TeaState* T);
 
 #define TEA_RANDOM_MODULE "random"
-TeaValue tea_import_random(TeaVM* vm);
+void tea_import_random(TeaState* T);
 
-//#define TEA_FFI_MODULE "ffi"
-//TeaValue tea_import_ffi(TeaVM* vm);
-
-TeaValue tea_import_native_module(TeaVM* vm, int index);
+void tea_import_native_module(TeaState* T, int index);
 int tea_find_native_module(char* name, int length);
 
 #endif

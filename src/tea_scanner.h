@@ -1,27 +1,25 @@
+// tea_scanner.h
+// Teascript scanner
+
 #ifndef TEA_SCANNER_H
 #define TEA_SCANNER_H
 
-#include "tea_predefines.h"
 #include "tea_state.h"
 #include "tea_token.h"
 
 typedef struct TeaScanner
 {
-    TeaState* state;
-
+    TeaState* T;
     const char* start;
     const char* current;
     int line;
-
     char string;
-
     int braces[4];
     int num_braces;
-
     bool raw;
 } TeaScanner;
 
-void tea_init_scanner(TeaState* state, TeaScanner* scanner, const char* source);
+void tea_init_scanner(TeaState* T, TeaScanner* scanner, const char* source);
 void tea_back_track(TeaScanner* scanner);
 TeaToken tea_scan_token(TeaScanner* scanner);
 
@@ -43,6 +41,11 @@ static inline bool is_hex_digit(char c)
 static inline bool is_binary_digit(char c)
 {
     return (c >= '0' && c <= '1');
+}
+
+static inline bool is_octal_digit(char c)
+{
+    return (c >= '0' && c <= '7');
 }
 
 #endif

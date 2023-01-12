@@ -1,7 +1,11 @@
+// tea_token.h
+// Teascript tokens
+
 #ifndef TEA_TOKEN_H
 #define TEA_TOKEN_H
 
 #include "tea_common.h"
+#include "tea_value.h"
 
 typedef enum
 {
@@ -53,10 +57,8 @@ typedef struct
 {
     TeaTokenType type;
     const char* start;
-    
     int length;
     int line;
-
     TeaValue value;
 } TeaToken;
 

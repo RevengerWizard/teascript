@@ -1,3 +1,6 @@
+// tea_utf.h
+// UTF-8 functions for Teascript
+
 #ifndef TEA_UTF_H
 #define TEA_UTF_H
 
@@ -11,10 +14,10 @@ int tea_ustring_length(TeaObjectString* string);
 int tea_ustring_decode(const uint8_t* bytes, uint32_t length);
 int tea_ustring_encode(int value, uint8_t* bytes);
 
-TeaObjectString* tea_ustring_code_point_at(TeaState* state, TeaObjectString* string, uint32_t index);
-TeaObjectString* tea_ustring_from_code_point(TeaState* state, int value);
-TeaObjectString* tea_ustring_from_range(TeaState* state, TeaObjectString* source, int start, uint32_t count);
+TeaObjectString* tea_ustring_code_point_at(TeaState* T, TeaObjectString* string, uint32_t index);
+TeaObjectString* tea_ustring_from_code_point(TeaState* T, int value);
+TeaObjectString* tea_ustring_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count);
 
-int tea_uchar_offset(char *str, int index);
+int tea_uchar_offset(char* str, int index);
 
 #endif

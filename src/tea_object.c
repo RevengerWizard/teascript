@@ -1,3 +1,6 @@
+// tea_object.c
+// Teascript object model and functions
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,95 +9,96 @@
 #include "tea_object.h"
 #include "tea_table.h"
 #include "tea_value.h"
-#include "tea_vm.h"
+#include "tea_state.h"
 
-TeaObject* tea_allocate_object(TeaState* state, size_t size, TeaObjectType type)
+TeaObject* tea_allocate_object(TeaState* T, size_t size, TeaObjectType type)
 {
-    TeaObject* object = (TeaObject*)tea_reallocate(state, NULL, 0, size);
+    TeaObject* object = (TeaObject*)tea_reallocate(T, NULL, 0, size);
     object->type = type;
     object->is_marked = false;
 
-    object->next = state->vm->objects;
-    state->vm->objects = object;
+    object->next = T->objects;
+    T->objects = object;
 
 #ifdef DEBUG_LOG_GC
-    printf("%p allocate %zu for %d\n", (void*)object, size, type);
+    printf("%p allocate %zu for %s\n", (void*)object, size, tea_value_type(OBJECT_VAL(object)));
 #endif
 
     return object;
 }
 
-TeaObjectFiber* tea_new_fiber(TeaState* state, TeaObjectClosure* closure)
+TeaObjectNative* tea_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn)
 {
-    int stack_capacity = closure == NULL ? 1 : tea_closest_power_of_two(closure->function->max_slots + 1);
-    TeaValue* stack = ALLOCATE(state, TeaValue, stack_capacity);
+    TeaObjectNative* native = ALLOCATE_OBJECT(T, TeaObjectNative, OBJ_NATIVE);
+    native->type = type;
+    native->fn = fn;
 
-    TeaCallFrame* frames = ALLOCATE(state, TeaCallFrame, 64);
-    TeaObjectFiber* fiber = ALLOCATE_OBJECT(state, TeaObjectFiber, OBJ_FIBER);
+    return native;
+}
 
-    fiber->stack = stack;
-    fiber->stack_top = fiber->stack;
-    fiber->stack_capacity = stack_capacity;
+TeaObjectThread* tea_new_thread(TeaState* T, TeaObjectClosure* closure)
+{
+    int stack_capacity = closure == NULL ? TEA_MIN_SLOTS : tea_closest_power_of_two(closure->function->max_slots + 1);
+    TeaValue* stack = ALLOCATE(T, TeaValue, stack_capacity);
 
-    fiber->frames = frames;
-    fiber->frame_capacity = 64;
-    fiber->frame_count = 0;
+    TeaCallFrame* frames = ALLOCATE(T, TeaCallFrame, 64);
+    TeaObjectThread* thread = ALLOCATE_OBJECT(T, TeaObjectThread, OBJ_THREAD);
 
-    fiber->parent = NULL;
+    thread->stack = stack;
+    thread->stack_top = thread->stack;
+    thread->stack_capacity = stack_capacity;
 
-    fiber->open_upvalues = NULL;
+    thread->frames = frames;
+    thread->frame_capacity = 64;
+    thread->frame_count = 0;
+
+    thread->parent = NULL;
+    thread->open_upvalues = NULL;
 
     if(closure != NULL)
     {
-        TeaCallFrame* frame = &fiber->frames[fiber->frame_count++];
-        frame->closure = closure;
-        frame->slots = fiber->stack;
-        frame->ip = closure->function->chunk.code;
+        tea_append_callframe(T, thread, closure, thread->stack);
         
-        fiber->stack_top[0] = OBJECT_VAL(closure);
-        fiber->stack_top++;
+        thread->stack_top[0] = OBJECT_VAL(closure);
+        thread->stack_top++;
     }
 
-    return fiber;
+    return thread;
 }
 
-void tea_ensure_stack(TeaState* state, TeaObjectFiber* fiber, int needed)
+void tea_ensure_stack(TeaState* T, TeaObjectThread* thread, int needed)
 {
-    if(fiber->stack_capacity >= needed)
-    {
-		return;
-	}
+    if(thread->stack_capacity >= needed) return;
 
 	int capacity = (int)tea_closest_power_of_two((int)needed);
-	TeaValue* old_stack = fiber->stack;
+	TeaValue* old_stack = thread->stack;
 
-	fiber->stack = (TeaValue*)tea_reallocate(state, fiber->stack, sizeof(TeaValue) * fiber->stack_capacity, sizeof(TeaValue) * capacity);
-	fiber->stack_capacity = capacity;
+	thread->stack = (TeaValue*)tea_reallocate(T, thread->stack, sizeof(TeaValue) * thread->stack_capacity, sizeof(TeaValue) * capacity);
+	thread->stack_capacity = capacity;
 
-	if(fiber->stack != old_stack)
+	if(thread->stack != old_stack)
     {
-		for(int i = 0; i < fiber->frame_capacity; i++)
+		for(int i = 0; i < thread->frame_capacity; i++)
         {
-			TeaCallFrame* frame = &fiber->frames[i];
-			frame->slots = fiber->stack + (frame->slots - old_stack);
+			TeaCallFrame* frame = &thread->frames[i];
+			frame->slots = thread->stack + (frame->slots - old_stack);
 		}
 
-		for(TeaObjectUpvalue* upvalue = fiber->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+		for(TeaObjectUpvalue* upvalue = thread->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
         {
-			upvalue->location = fiber->stack + (upvalue->location - old_stack);
+			upvalue->location = thread->stack + (upvalue->location - old_stack);
 		}
 
-		fiber->stack_top = fiber->stack + (fiber->stack_top - old_stack);
+		thread->stack_top = thread->stack + (thread->stack_top - old_stack);
 	}
 }
 
-TeaObjectData* tea_new_data(TeaState* state, size_t size)
+TeaObjectUserdata* tea_new_userdata(TeaState* T, size_t size)
 {
-    TeaObjectData* userdata = ALLOCATE_OBJECT(state, TeaObjectData, OBJ_DATA);
-
+    TeaObjectUserdata* userdata = ALLOCATE_OBJECT(T, TeaObjectUserdata, OBJ_USERDATA);
     if(size > 0)
     {
-        userdata->data = tea_reallocate(state, NULL, 0, size);
+        userdata->data = tea_reallocate(T, NULL, 0, size);
     }
     else
     {
@@ -107,54 +111,55 @@ TeaObjectData* tea_new_data(TeaState* state, size_t size)
     return userdata;
 }
 
-TeaObjectRange* tea_new_range(TeaState* state, double from, double to, bool inclusive)
+TeaObjectRange* tea_new_range(TeaState* T, double start, double end, double step)
 {
-    TeaObjectRange* range = ALLOCATE_OBJECT(state, TeaObjectRange, OBJ_RANGE);
-
-    range->from = from;
-    range->to = to;
-    range->inclusive = inclusive;
+    TeaObjectRange* range = ALLOCATE_OBJECT(T, TeaObjectRange, OBJ_RANGE);
+    range->start = start;
+    range->end = end;
+    range->step = step;
 
     return range;
 }
 
-TeaObjectFile* tea_new_file(TeaState* state)
+TeaObjectFile* tea_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type)
 {
-    TeaObjectFile* file = ALLOCATE_OBJECT(state, TeaObjectFile, OBJ_FILE);
-    file->is_open = false;
+    TeaObjectFile* file = ALLOCATE_OBJECT(T, TeaObjectFile, OBJ_FILE);
+    file->path = path;
+    file->type = type;
+    file->is_open = true;
 
     return file;
 }
 
-TeaObjectModule* tea_new_module(TeaState* state, TeaObjectString* name)
+TeaObjectModule* tea_new_module(TeaState* T, TeaObjectString* name)
 {
     TeaValue module_val;
-    if(tea_table_get(&state->vm->modules, name, &module_val)) 
+    if(tea_table_get(&T->modules, name, &module_val)) 
     {
         return AS_MODULE(module_val);
     }
 
-    TeaObjectModule* module = ALLOCATE_OBJECT(state, TeaObjectModule, OBJ_MODULE);
+    TeaObjectModule* module = ALLOCATE_OBJECT(T, TeaObjectModule, OBJ_MODULE);
     tea_init_table(&module->values);
     module->name = name;
     module->path = NULL;
 
-    tea_table_set(state, &state->vm->modules, name, OBJECT_VAL(module));
+    tea_table_set(T, &T->modules, name, OBJECT_VAL(module));
 
     return module;
 }
 
-TeaObjectList* tea_new_list(TeaState* state)
+TeaObjectList* tea_new_list(TeaState* T)
 {
-    TeaObjectList* list = ALLOCATE_OBJECT(state, TeaObjectList, OBJ_LIST);
+    TeaObjectList* list = ALLOCATE_OBJECT(T, TeaObjectList, OBJ_LIST);
     tea_init_value_array(&list->items);
 
     return list;
 }
 
-TeaObjectMap* tea_new_map(TeaState* state)
+TeaObjectMap* tea_new_map(TeaState* T)
 {
-    TeaObjectMap* map = ALLOCATE_OBJECT(state, TeaObjectMap, OBJ_MAP);
+    TeaObjectMap* map = ALLOCATE_OBJECT(T, TeaObjectMap, OBJ_MAP);
     map->count = 0;
     map->capacity = 0;
     map->items = NULL;
@@ -162,18 +167,18 @@ TeaObjectMap* tea_new_map(TeaState* state)
     return map;
 }
 
-TeaObjectBoundMethod* tea_new_bound_method(TeaState* state, TeaValue receiver, TeaObjectClosure* method)
+TeaObjectBoundMethod* tea_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method)
 {
-    TeaObjectBoundMethod* bound = ALLOCATE_OBJECT(state, TeaObjectBoundMethod, OBJ_BOUND_METHOD);
+    TeaObjectBoundMethod* bound = ALLOCATE_OBJECT(T, TeaObjectBoundMethod, OBJ_BOUND_METHOD);
     bound->receiver = receiver;
     bound->method = method;
 
     return bound;
 }
 
-TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name, TeaObjectClass* superclass)
+TeaObjectClass* tea_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass)
 {
-    TeaObjectClass* klass = ALLOCATE_OBJECT(state, TeaObjectClass, OBJ_CLASS);
+    TeaObjectClass* klass = ALLOCATE_OBJECT(T, TeaObjectClass, OBJ_CLASS);
     klass->name = name;
     klass->super = superclass;
     klass->constructor = NULL_VAL;
@@ -183,15 +188,15 @@ TeaObjectClass* tea_new_class(TeaState* state, TeaObjectString* name, TeaObjectC
     return klass;
 }
 
-TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function)
+TeaObjectClosure* tea_new_closure(TeaState* T, TeaObjectFunction* function)
 {
-    TeaObjectUpvalue** upvalues = ALLOCATE(state, TeaObjectUpvalue*, function->upvalue_count);
+    TeaObjectUpvalue** upvalues = ALLOCATE(T, TeaObjectUpvalue*, function->upvalue_count);
     for(int i = 0; i < function->upvalue_count; i++)
     {
         upvalues[i] = NULL;
     }
 
-    TeaObjectClosure* closure = ALLOCATE_OBJECT(state, TeaObjectClosure, OBJ_CLOSURE);
+    TeaObjectClosure* closure = ALLOCATE_OBJECT(T, TeaObjectClosure, OBJ_CLOSURE);
     closure->function = function;
     closure->upvalues = upvalues;
     closure->upvalue_count = function->upvalue_count;
@@ -199,10 +204,12 @@ TeaObjectClosure* tea_new_closure(TeaState* state, TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaObjectModule* module, int max_slots)
+TeaObjectFunction* tea_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots)
 {
-    TeaObjectFunction* function = ALLOCATE_OBJECT(state, TeaObjectFunction, OBJ_FUNCTION);
+    TeaObjectFunction* function = ALLOCATE_OBJECT(T, TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
+    function->arity_optional = 0;
+    function->variadic = 0;
     function->upvalue_count = 0;
     function->max_slots = max_slots;
     function->type = type;
@@ -213,25 +220,25 @@ TeaObjectFunction* tea_new_function(TeaState* state, TeaFunctionType type, TeaOb
     return function;
 }
 
-TeaObjectInstance* tea_new_instance(TeaState* state, TeaObjectClass* klass)
+TeaObjectInstance* tea_new_instance(TeaState* T, TeaObjectClass* klass)
 {
-    TeaObjectInstance* instance = ALLOCATE_OBJECT(state, TeaObjectInstance, OBJ_INSTANCE);
+    TeaObjectInstance* instance = ALLOCATE_OBJECT(T, TeaObjectInstance, OBJ_INSTANCE);
     instance->klass = klass;
     tea_init_table(&instance->fields);
 
     return instance;
 }
 
-static TeaObjectString* allocate_string(TeaState* state, char* chars, int length, uint32_t hash)
+static TeaObjectString* allocate_string(TeaState* T, char* chars, int length, uint32_t hash)
 {
-    TeaObjectString* string = ALLOCATE_OBJECT(state, TeaObjectString, OBJ_STRING);
+    TeaObjectString* string = ALLOCATE_OBJECT(T, TeaObjectString, OBJ_STRING);
     string->length = length;
     string->chars = chars;
     string->hash = hash;
 
-    tea_push_root(state, OBJECT_VAL(string));
-    tea_table_set(state, &state->vm->strings, string, NULL_VAL);
-    tea_pop_root(state);
+    tea_push_root(T, OBJECT_VAL(string));
+    tea_table_set(T, &T->strings, string, NULL_VAL);
+    tea_pop_root(T);
 
     return string;
 }
@@ -247,106 +254,46 @@ static uint32_t hash_string(const char* key, int length)
     return hash;
 }
 
-TeaObjectString* tea_take_string(TeaState* state, char* chars, int length)
+TeaObjectString* tea_new_string(TeaState* T, const char* name)
+{
+    return tea_copy_string(T, name, strlen(name));
+}
+
+TeaObjectString* tea_take_string(TeaState* T, char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
-    TeaObjectString* interned = tea_table_find_string(&state->vm->strings, chars, length, hash);
+    TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
     if(interned != NULL)
     {
-        FREE_ARRAY(state, char, chars, length + 1);
+        FREE_ARRAY(T, char, chars, length + 1);
         return interned;
     }
 
-    return allocate_string(state, chars, length, hash);
+    return allocate_string(T, chars, length, hash);
 }
 
-TeaObjectString* tea_copy_string(TeaState* state, const char* chars, int length)
+TeaObjectString* tea_copy_string(TeaState* T, const char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
-    TeaObjectString* interned = tea_table_find_string(&state->vm->strings, chars, length, hash);
+    TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
     if (interned != NULL)
         return interned;
 
-    char* heap_chars = ALLOCATE(state, char, length + 1);
+    char* heap_chars = ALLOCATE(T, char, length + 1);
     memcpy(heap_chars, chars, length);
     heap_chars[length] = '\0';
 
-    return allocate_string(state, heap_chars, length, hash);
+    return allocate_string(T, heap_chars, length, hash);
 }
 
-TeaObjectUpvalue* tea_new_upvalue(TeaState* state, TeaValue* slot)
+TeaObjectUpvalue* tea_new_upvalue(TeaState* T, TeaValue* slot)
 {
-    TeaObjectUpvalue* upvalue = ALLOCATE_OBJECT(state, TeaObjectUpvalue, OBJ_UPVALUE);
+    TeaObjectUpvalue* upvalue = ALLOCATE_OBJECT(T, TeaObjectUpvalue, OBJ_UPVALUE);
     upvalue->closed = NULL_VAL;
     upvalue->location = slot;
     upvalue->next = NULL;
 
     return upvalue;
-}
-
-TeaObjectNativeFunction* tea_new_native_function(TeaState* state, TeaNativeFunction function)
-{
-    TeaObjectNativeFunction* native = ALLOCATE_OBJECT(state, TeaObjectNativeFunction, OBJ_NATIVE_FUNCTION);
-    native->function = function;
-
-    return native;
-}
-
-TeaObjectNativeMethod* tea_new_native_method(TeaState* state, TeaNativeMethod method)
-{
-    TeaObjectNativeMethod* native = ALLOCATE_OBJECT(state, TeaObjectNativeMethod, OBJ_NATIVE_METHOD);
-    native->method = method;
-
-    return native;
-}
-
-TeaObjectNativeProperty* tea_new_native_property(TeaState* state, TeaNativeProperty property)
-{
-    TeaObjectNativeProperty* native = ALLOCATE_OBJECT(state, TeaObjectNativeProperty, OBJ_NATIVE_PROPERTY);
-    native->property = property;
-
-    return native;
-}
-
-void tea_native_value(TeaVM* vm, TeaTable* table, const char* name, TeaValue value)
-{
-    TeaObjectString* property = tea_copy_string(vm->state, name, strlen(name));
-    tea_push_root(vm->state, OBJECT_VAL(property));
-    tea_table_set(vm->state, table, property, value);
-    tea_pop_root(vm->state);
-}
-
-void tea_native_function(TeaVM* vm, TeaTable* table, const char* name, TeaNativeFunction function)
-{
-    TeaObjectNativeFunction* native = tea_new_native_function(vm->state, function);
-    tea_push_root(vm->state, OBJECT_VAL(native));
-    TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
-    tea_push_root(vm->state, OBJECT_VAL(string));
-    tea_table_set(vm->state, table, string, OBJECT_VAL(native));
-    tea_pop_root(vm->state);
-    tea_pop_root(vm->state);
-}
-
-void tea_native_method(TeaVM* vm, TeaTable* table, const char* name, TeaNativeMethod method)
-{
-    TeaObjectNativeMethod* native = tea_new_native_method(vm->state, method);
-    tea_push_root(vm->state, OBJECT_VAL(native));
-    TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
-    tea_push_root(vm->state, OBJECT_VAL(string));
-    tea_table_set(vm->state, table, string, OBJECT_VAL(native));
-    tea_pop_root(vm->state);
-    tea_pop_root(vm->state);
-}
-
-void tea_native_property(TeaVM* vm, TeaTable* table, const char* name, TeaNativeProperty property)
-{
-    TeaObjectNativeProperty* native = tea_new_native_property(vm->state, property);
-    tea_push_root(vm->state, OBJECT_VAL(native));
-    TeaObjectString* string = tea_copy_string(vm->state, name, strlen(name));
-    tea_push_root(vm->state, OBJECT_VAL(string));
-    tea_table_set(vm->state, table, string, OBJECT_VAL(native));
-    tea_pop_root(vm->state);
-    tea_pop_root(vm->state);
 }
 
 static inline uint32_t hash_bits(uint64_t hash)
@@ -449,12 +396,12 @@ bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
 
 #define MAP_MAX_LOAD 0.75
 
-bool tea_map_set(TeaState* state, TeaObjectMap* map, TeaValue key, TeaValue value)
+bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
 {
     if(map->count + 1 > map->capacity * MAP_MAX_LOAD)
     {
         int capacity = GROW_CAPACITY(map->capacity);
-        TeaMapItem* items = ALLOCATE(state, TeaMapItem, capacity);
+        TeaMapItem* items = ALLOCATE(T, TeaMapItem, capacity);
         for(int i = 0; i < capacity; i++)
         {
             items[i].key = NULL_VAL;
@@ -476,7 +423,7 @@ bool tea_map_set(TeaState* state, TeaObjectMap* map, TeaValue key, TeaValue valu
             map->count++;
         }
 
-        FREE_ARRAY(state, TeaMapItem, map->items, map->capacity);
+        FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
         map->items = items;
         map->capacity = capacity;
     }
@@ -512,26 +459,34 @@ bool tea_map_delete(TeaObjectMap* map, TeaValue key)
     return true;
 }
 
-void tea_map_add_all(TeaState* state, TeaObjectMap* from, TeaObjectMap* to)
+void tea_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to)
 {
     for(int i = 0; i < from->capacity; i++)
     {
         TeaMapItem* item = &from->items[i];
         if(!item->empty)
         {
-            tea_map_set(state, to, item->key, item->value);
+            tea_map_set(T, to, item->key, item->value);
         }
     }
 }
 
-static char* list_tostring(TeaState* state, TeaObjectList* list)
+static TeaObjectString* function_tostring(TeaState* T, TeaObjectFunction* function)
 {
-    int size = 50;
+    if(function->name == NULL)
+        return tea_copy_string(T, "<script>", 8);
 
+    return tea_copy_string(T, "<function>", 10);
+}
+
+static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
+{
     if(list->items.count == 0)
-        return "[]";
+        return tea_copy_string(T, "[]", 2);
 
-    char* string = ALLOCATE(state, char, size);
+    int size = 50;
+    
+    char* string = ALLOCATE(T, char, size);
     memcpy(string, "[", 1);
     int length = 1;
 
@@ -542,20 +497,21 @@ static char* list_tostring(TeaState* state, TeaObjectList* list)
         char* element;
         int element_size;
 
-        if(IS_STRING(value))
+        if(value == OBJECT_VAL(list))
         {
-            TeaObjectString* s = AS_STRING(value);
+            element = "[...]";
+            element_size = 5;
+        }
+        else
+        {
+            TeaObjectString* s = tea_value_tostring(T, value);
             element = s->chars;
             element_size = s->length;
-        }
-        else 
-        {
-            element = tea_value_tostring(state, value);
-            element_size = strlen(element);
         }
 
         if(element_size > (size - length - 6)) 
         {
+            int old_size = size;
             if(element_size > size) 
             {
                 size = size + element_size * 2 + 6;
@@ -565,15 +521,7 @@ static char* list_tostring(TeaState* state, TeaObjectList* list)
                 size = size * 2 + 6;
             }
 
-            char* new = GROW_ARRAY(state, char, string, element_size, size);
-
-            if(new == NULL) 
-            {
-                printf("Unable to allocate memory\n");
-                exit(71);
-            }
-
-            string = new;
+            string = GROW_ARRAY(T, char, string, old_size, size);
         }
 
         memcpy(string + length, element, element_size);
@@ -587,24 +535,27 @@ static char* list_tostring(TeaState* state, TeaObjectList* list)
     }
 
     memcpy(string + length, "]", 1);
-    string[length + 1] = '\0';
+    length += 1;
+    string[length] = '\0';
 
-    return string;
+    string = GROW_ARRAY(T, char, string, size, length + 1);
+
+    return tea_take_string(T, string, length);
 }
 
-static char* map_tostring(TeaState* state, TeaObjectMap* map)
+static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
 {
+    if(map->count == 0)
+        return tea_copy_string(T, "{}", 2);
+        
     int count = 0;
     int size = 50;
 
-    if(map->count == 0)
-        return "{}";
-
-    char* string = ALLOCATE(state, char, size);
+    char* string = ALLOCATE(T, char, size);
     memcpy(string, "{", 1);
     int length = 1;
 
-    for(int i = 0; i <= map->capacity; i++) 
+    for(int i = 0; i < map->capacity; i++) 
     {
         TeaMapItem* item = &map->items[i];
         if(item->empty) 
@@ -616,21 +567,22 @@ static char* map_tostring(TeaState* state, TeaObjectMap* map)
 
         char* key;
         int key_size;
-
-        if(IS_STRING(item->key))
+        
+        if(item->key == OBJECT_VAL(map))
         {
-            TeaObjectString* s = AS_STRING(item->key);
+            key = "{...}";
+            key_size = 5;
+        }
+        else
+        {
+            TeaObjectString* s = tea_value_tostring(T, item->key);
             key = s->chars;
             key_size = s->length;
         } 
-        else 
-        {
-            key = tea_value_tostring(state, item->key);
-            key_size = strlen(key);
-        }
 
         if(key_size > (size - length - key_size - 4)) 
         {
+            int old_size = size;
             if(key_size > size) 
             {
                 size += key_size * 2 + 4;
@@ -640,38 +592,41 @@ static char* map_tostring(TeaState* state, TeaObjectMap* map)
                 size *= 2 + 4;
             }
 
-            char* new = GROW_ARRAY(state, char, string, key_size, size);
-
-            if(new == NULL)
-            {
-                printf("Unable to allocate memory\n");
-                exit(71);
-            }
-
-            string = new;
+            string = GROW_ARRAY(T, char, string, old_size, size);
         }
 
-        memcpy(string + length, key, key_size);
-        memcpy(string + length + key_size, " = ", 3);
-        length += 3 + key_size;
+        if(!IS_STRING(item->key))
+        {
+            memcpy(string + length, "[", 1);
+            memcpy(string + length + 1, key, key_size);
+            memcpy(string + length + 1 + key_size, "] = ", 4);
+            length += 5 + key_size;
+        }
+        else 
+        {
+            memcpy(string + length, key, key_size);
+            memcpy(string + length + key_size, " = ", 3);
+            length += 3 + key_size;
+        }
 
         char* element;
         int element_size;
-
-        if(IS_STRING(item->value)) 
+        
+        if(item->value == OBJECT_VAL(map))
         {
-            TeaObjectString* s = AS_STRING(item->value);
+            element = "{...}";
+            element_size = 5;
+        }
+        else
+        {
+            TeaObjectString* s = tea_value_tostring(T, item->value);
             element = s->chars;
             element_size = s->length;
         } 
-        else 
-        {
-            element = tea_value_tostring(state, item->value);
-            element_size = strlen(element);
-        }
 
         if(element_size > (size - length - element_size - 6)) 
         {
+            int old_size = size;
             if(element_size > size) 
             {
                 size += element_size * 2 + 6;
@@ -681,15 +636,7 @@ static char* map_tostring(TeaState* state, TeaObjectMap* map)
                 size = size * 2 + 6;
             }
 
-            char* new = GROW_ARRAY(state, char, string, element_size, size);
-
-            if(new == NULL)
-            {
-                printf("Unable to allocate memory\n");
-                exit(71);
-            }
-
-            string = new;
+            string = GROW_ARRAY(T, char, string, old_size, size);
         }
 
         memcpy(string + length, element, element_size);
@@ -703,198 +650,115 @@ static char* map_tostring(TeaState* state, TeaObjectMap* map)
     }
 
     memcpy(string + length, "}", 1);
-    string[length + 1] = '\0';
+    length += 1;
+    string[length] = '\0';
 
-    return string;
+    string = GROW_ARRAY(T, char, string, size, length + 1);
+
+    return tea_take_string(T, string, length);
 }
 
-static char* range_tostring(TeaState* state, TeaObjectRange* range)
+static TeaObjectString* range_tostring(TeaState* T, TeaObjectRange* range)
 {
-    char* a = tea_number_tostring(state, range->from);
-    char* b = tea_number_tostring(state, range->to);
-    char* c = range->inclusive ? "..." : "..";
+    char* start = tea_number_tostring(T, range->start)->chars;
+    char* end = tea_number_tostring(T, range->end)->chars;
 
-    int length = strlen(a) + strlen(c) + strlen(b) + 1;
-    char* string = ALLOCATE(state, char, length);
-    snprintf(string, length, "%s%s%s", a, c, b);
+    int len = snprintf(NULL, 0, "%s...%s", start, end);
+    char* string = ALLOCATE(T, char, len + 1);
+    snprintf(string, len + 1, "%s...%s", start, end);
 
-    return string;
+    return tea_take_string(T, string, len);
 }
 
-char* tea_object_tostring(TeaState* state, TeaValue value)
+static TeaObjectString* module_tostring(TeaState* T, TeaObjectModule* module)
+{
+    int len = snprintf(NULL, 0, "<%s module>", module->name->chars);
+    char* string = ALLOCATE(T, char, len + 1);
+    snprintf(string, len + 1, "<%s module>", module->name->chars);
+
+    return tea_take_string(T, string, len);
+}
+
+static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
+{
+    int len = snprintf(NULL, 0, "<%s>", klass->name->chars);
+    char* string = ALLOCATE(T, char, len + 1);
+    snprintf(string, len + 1, "<%s>", klass->name->chars);
+
+    return tea_take_string(T, string, len);
+}
+
+static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instance)
+{
+    int len = snprintf(NULL, 0, "<%s instance>", instance->klass->name->chars);
+    char* string = ALLOCATE(T, char, len + 1);
+    snprintf(string, len + 1, "<%s instance>", instance->klass->name->chars);
+
+    return tea_take_string(T, string, len);
+}
+
+TeaObjectString* tea_object_tostring(TeaState* T, TeaValue value)
 {
     switch(OBJECT_TYPE(value))
     {
         case OBJ_FILE:
-            return "<file>";
-        case OBJ_DATA:
-            return "<data>";
-        case OBJ_FUNCTION:
-        case OBJ_CLOSURE:
+            return tea_copy_string(T, "<file>", 6);
+        case OBJ_USERDATA:
+            return tea_copy_string(T, "<userdata>", 10);
         case OBJ_BOUND_METHOD:
-        case OBJ_NATIVE_FUNCTION:
-        case OBJ_NATIVE_METHOD:
-            return "<function>";
+            return tea_copy_string(T, "<method>", 8);
+        case OBJ_NATIVE:
+        {
+            switch(AS_NATIVE(value)->type)
+            {
+                case NATIVE_PROPERTY:
+                    return tea_copy_string(T, "<property>", 10);
+                case NATIVE_FUNCTION: 
+                case NATIVE_METHOD: 
+                    return tea_copy_string(T, "<function>", 10);
+            }
+        }
+        case OBJ_FUNCTION:
+            return function_tostring(T, AS_FUNCTION(value));
+        case OBJ_CLOSURE:
+            return function_tostring(T, AS_CLOSURE(value)->function);
         case OBJ_LIST:
-        {
-            return list_tostring(state, AS_LIST(value));
-        }
+            return list_tostring(T, AS_LIST(value));
         case OBJ_MAP:
-        {
-            return map_tostring(state, AS_MAP(value));
-        }
+            return map_tostring(T, AS_MAP(value));
         case OBJ_RANGE:
-        {
-            return range_tostring(state, AS_RANGE(value));
-        }
-        case OBJ_STRING:
-            return AS_STRING(value)->chars;
-    }
-
-    return "unknown";
-}
-
-static void print_list(TeaObjectList* list)
-{
-    printf("[");
-
-    for(int i = 0; i < list->items.count - 1; i++)
-    {
-        tea_print_value(list->items.values[i]);
-        printf(", ");
-    }
-    if(list->items.count != 0)
-    {
-        tea_print_value(list->items.values[list->items.count - 1]);
-    }
-
-    printf("]");
-}
-
-static void print_map(TeaObjectMap* map)
-{
-    bool first = true;
-    printf("{");
-
-    for(int i = 0; i < map->capacity; i++)
-    {
-        if(!(map->items[i].empty))
-        {
-            if(!first) 
-            {
-                printf(", ");
-            }
-            first = false;
-            if(IS_STRING(map->items[i].key))
-            {
-                tea_print_value(map->items[i].key);
-            }
-            else
-            {
-                printf("[");
-                tea_print_value(map->items[i].key);
-                printf("]");
-            }
-
-            printf(" = ");
-            tea_print_value(map->items[i].value);
-        }
-    }
-    
-    printf("}");
-}
-
-static void print_range(TeaObjectRange* range)
-{
-    printf("%.16g", range->from);
-    
-    range->inclusive ? printf("...") : printf("..");
-
-    printf("%.16g", range->to);
-}
-
-static void print_function(TeaObjectFunction* function)
-{
-    if(function->name == NULL)
-    {
-        printf("<script>");
-        return;
-    }
-
-    printf("<function>");
-}
-
-void tea_print_object(TeaValue value)
-{
-    switch(OBJECT_TYPE(value))
-    {
-        case OBJ_FILE:
-            printf("<file>");
-            break;
-        case OBJ_DATA:
-            printf("<data>");
-            break;
-        case OBJ_RANGE:
-            print_range(AS_RANGE(value));
-            break;
+            return range_tostring(T, AS_RANGE(value));
         case OBJ_MODULE:
-            printf("<%s module>", AS_MODULE(value)->name->chars);
-            break;
-        case OBJ_LIST:
-            print_list(AS_LIST(value));
-            break;
-        case OBJ_MAP:
-            print_map(AS_MAP(value));
-            break;
-        case OBJ_BOUND_METHOD:
-            print_function(AS_BOUND_METHOD(value)->method->function);
-            break;
+            return module_tostring(T, AS_MODULE(value));
         case OBJ_CLASS:
-            printf("<%s>", AS_CLASS(value)->name->chars);
-            break;
-        case OBJ_CLOSURE:
-            print_function(AS_CLOSURE(value)->function);
-            break;
-        case OBJ_FUNCTION:
-            print_function(AS_FUNCTION(value));
-            break;
+            return class_tostring(T, AS_CLASS(value));
         case OBJ_INSTANCE:
-            printf("<%s instance>", AS_INSTANCE(value)->klass->name->chars);
-            break;
-        case OBJ_NATIVE_METHOD:
-        case OBJ_NATIVE_FUNCTION:
-            printf("<function>");
-            break;
+            return instance_tostring(T, AS_INSTANCE(value));
         case OBJ_STRING:
-            fwrite(AS_CSTRING(value), sizeof(char), strlen(AS_CSTRING(value)), stdout);
-            break;
+            return AS_STRING(value);
         case OBJ_UPVALUE:
-            printf("<upvalue>");
+            return tea_copy_string(T, "<upvalue>", 9);
+        default:
             break;
     }
+    return tea_copy_string(T, "unknown", 7);
 }
 
-static bool range_equals(TeaValue a, TeaValue b)
+static bool range_equals(TeaObjectRange* a, TeaObjectRange* b)
 {
-    TeaObjectRange* r1 = AS_RANGE(a);
-    TeaObjectRange* r2 = AS_RANGE(b);
-
-    return r1->from == r2->from && r1->to == r2->to && r1->inclusive == r2->inclusive;
+    return a->start == b->start && a->end == b->end && a->step == b->step;
 }
 
-static bool list_equals(TeaValue a, TeaValue b)
+static bool list_equals(TeaObjectList* a, TeaObjectList* b)
 {
-    TeaObjectList* l1 = AS_LIST(a);
-    TeaObjectList* l2 = AS_LIST(b);
-
-    if(l1->items.count != l2->items.count)
+    if(a->items.count != b->items.count)
     {
         return false;
     }
 
-    for(int i = 0; i < l1->items.count; ++i)
+    for(int i = 0; i < a->items.count; ++i)
     {
-        if(!tea_values_equal(l1->items.values[i], l2->items.values[i]))
+        if(!tea_values_equal(a->items.values[i], b->items.values[i]))
         {
             return false;
         }
@@ -903,24 +767,21 @@ static bool list_equals(TeaValue a, TeaValue b)
     return true;
 }
 
-static bool map_equals(TeaValue a, TeaValue b)
+static bool map_equals(TeaObjectMap* a, TeaObjectMap* b)
 {
-    TeaObjectMap* m1 = AS_MAP(a);
-    TeaObjectMap* m2 = AS_MAP(b);
-
-    if(m1->count != m2->count)
+    if(a->count != b->count)
     {
         return false;
     }
 
-    if(m1->count == 0)
+    if(a->count == 0)
     {
         return true;
     }
 
-    for(int i = 0; i < m1->capacity; i++)
+    for(int i = 0; i < a->capacity; i++)
     {
-        TeaMapItem* item = &m1->items[i];
+        TeaMapItem* item = &a->items[i];
 
         if(item->empty)
         {
@@ -928,7 +789,7 @@ static bool map_equals(TeaValue a, TeaValue b)
         }
 
         TeaValue value;
-        if(!tea_map_get(m2, item->key, &value))
+        if(!tea_map_get(b, item->key, &value))
         {
             return false;
         }
@@ -949,30 +810,23 @@ bool tea_objects_equal(TeaValue a, TeaValue b)
     switch(OBJECT_TYPE(a))
     {
         case OBJ_RANGE:
-        {
-            return range_equals(a, b);
-        }
+            return range_equals(AS_RANGE(a), AS_RANGE(b));
         case OBJ_LIST:
-        {
-            return list_equals(a, b);
-        }
+            return list_equals(AS_LIST(a), AS_LIST(b));
         case OBJ_MAP:
-        {
-            return map_equals(a, b);
-        }
+            return map_equals(AS_MAP(a), AS_MAP(b));
         default:
             break;
     }
-
-    return a == b;
+    return AS_OBJECT(a) == AS_OBJECT(b);
 }
 
 const char* tea_object_type(TeaValue a)
 {
     switch(OBJECT_TYPE(a))
     {
-        case OBJ_DATA:
-            return "data";
+        case OBJ_USERDATA:
+            return "userdata";
         case OBJ_FILE:
             return "file";
         case OBJ_RANGE:
@@ -991,12 +845,24 @@ const char* tea_object_type(TeaValue a)
             return "list";
         case OBJ_MAP:
             return "map";
+        case OBJ_NATIVE:
+        {
+            switch(AS_NATIVE(a)->type)
+            {
+                case NATIVE_FUNCTION:
+                case NATIVE_METHOD:
+                    return "function";
+                case NATIVE_PROPERTY:
+                    return "property";
+            }
+        }
         case OBJ_CLOSURE:
         case OBJ_FUNCTION:
-        case OBJ_NATIVE_FUNCTION:
-        case OBJ_NATIVE_METHOD:
             return "function";
+        case OBJ_THREAD:
+            return "thread";
         default:
-            return "unknown";
+            break;
     }
+    return "unknown";
 }

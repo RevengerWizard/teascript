@@ -1,458 +1,295 @@
+// tea_math.c
+// Teascript math module
+
 #include <string.h>
 #include <math.h>
+
+#include "tea.h"
 
 #include "tea_module.h"
 #include "tea_core.h"
 
+#undef PI
+#undef TAU
+#undef E
+#undef PHI
 #define PI 3.14159265358979323846
+#define TAU 6.28318530717958647692
+#define E 2.71828182845904523536
+#define PHI 1.61803398874989484820
 
-static TeaValue min_math(TeaVM* vm, int count, TeaValue* args)
+static void math_min(TeaState* T)
 {
-    if(count == 0) 
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+
+    if(count == 1 && tea_is_list(T, 0))
     {
-        return NUMBER_VAL(0);
-    } 
-    else if(count == 1 && IS_LIST(args[0])) 
-    {
-        TeaObjectList* list = AS_LIST(args[0]);
-        count = list->items.count;
-        args = list->items.values;
-    }
-    else if(count == 1 && IS_RANGE(args[0]))
-    {
-        TeaObjectRange* range = AS_RANGE(args[0]);
-        return NUMBER_VAL(fmin(range->from, range->to));
+        int len = tea_len(T, 0);
+        tea_get_item(T, 0, 0);
+        double min = tea_check_number(T, 1);
+        tea_pop(T, 1);
+        for(int i = 1; i < len; i++) 
+        {
+            tea_get_item(T, 0, i);
+            double n = tea_check_number(T, 1);
+            if(min > n)
+            {
+                min = n;
+            }
+            tea_pop(T, 1);
+        }
+        tea_push_number(T, min);
+        return;
     }
 
-    double minimum = AS_NUMBER(args[0]);
-
+    double min = tea_check_number(T, 0);
     for(int i = 1; i < count; i++) 
     {
-        TeaValue value = args[i];
-        if(!IS_NUMBER(value)) 
+        double n = tea_check_number(T, i);
+        if(min > n)
         {
-            tea_runtime_error(vm, "A non-number value passed to min()");
-            return EMPTY_VAL;
-        }
-
-        double current = AS_NUMBER(value);
-
-        if(minimum > current) 
-        {
-            minimum = current;
+            min = n;
         }
     }
-
-    return NUMBER_VAL(minimum);
+    tea_push_number(T, min);
 }
 
-static TeaValue max_math(TeaVM* vm, int count, TeaValue* args)
+static void math_max(TeaState* T)
 {
-    if(count == 0) 
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+
+    if(count == 1 && tea_is_list(T, 0))
     {
-        return NUMBER_VAL(0);
-    } 
-    else if(count == 1 && IS_LIST(args[0])) 
-    {
-        TeaObjectList* list = AS_LIST(args[0]);
-        count = list->items.count;
-        args = list->items.values;
-    }
-    else if(count == 1 && IS_RANGE(args[0]))
-    {
-        TeaObjectRange* range = AS_RANGE(args[0]);
-        return NUMBER_VAL(fmax(range->from, range->to));
+        int len = tea_len(T, 0);
+        tea_get_item(T, 0, 0);
+        double max = tea_check_number(T, 1);
+        tea_pop(T, 1);
+        for(int i = 1; i < len; i++) 
+        {
+            tea_get_item(T, 0, i);
+            double n = tea_check_number(T, 1);
+            if(n > max)
+            {
+                max = n;
+            }
+            tea_pop(T, 1);
+        }
+        tea_push_number(T, max);
+        return;
     }
 
-    double maximum = AS_NUMBER(args[0]);
-
+    double max = tea_check_number(T, 0);
     for(int i = 1; i < count; i++) 
     {
-        TeaValue value = args[i];
-        if(!IS_NUMBER(value)) 
+        double n = tea_check_number(T, i);
+        if(n > max)
         {
-            tea_runtime_error(vm, "A non-number value passed to min()");
-            return EMPTY_VAL;
-        }
-
-        double current = AS_NUMBER(value);
-
-        if(maximum < current) 
-        {
-            maximum = current;
+            max = n;
         }
     }
-
-    return NUMBER_VAL(maximum);
+    tea_push_number(T, max);
 }
 
-static TeaValue mid_math(TeaVM* vm, int count, TeaValue* args)
+static double mid(double x, double y, double z)
 {
-    if(count == 0)
+    double mid;
+    if(x > y)
     {
-        return NUMBER_VAL(0);
-    }
-    else if(count == 1 && IS_LIST(args[0]))
-    {
-        TeaObjectList* list = AS_LIST(args[0]);
-        count = list->items.count;
-        args = list->items.values;
-    }
-
-    if(count == 3 && IS_NUMBER(args[0]) && IS_NUMBER(args[1]) && IS_NUMBER(args[2]))
-    {
-        double x = AS_NUMBER(args[0]);
-        double y = AS_NUMBER(args[1]);
-        double z = AS_NUMBER(args[2]);
-
-        double mid;
-
-        if(x > y)
-        {
-            if(y > z)
-                mid = y;
-            else if(x > z)
-                mid = z;
-            else
-                mid = x;
-        }
+        if(y > z)
+            mid = y;
+        else if(x > z)
+            mid = z;
         else
-        {
-            if(x > z)
-                mid = x;
-            else if(y > z)
-                mid = z;
-            else
-                mid = y;
-        }
-
-        return NUMBER_VAL(mid);
+            mid = x;
     }
     else
     {
-        tea_runtime_error(vm, "mid() takes three numbers");
-        return EMPTY_VAL;
+        if(x > z)
+            mid = x;
+        else if(y > z)
+            mid = z;
+        else
+            mid = y;
     }
+    return mid;
 }
 
-static TeaValue average_math(TeaVM* vm, int count, TeaValue* args)
+static void math_mid(TeaState* T)
 {
-    double average = 0;
-
-    if(count == 0)
-    {
-        return NUMBER_VAL(0);
-    }
-    else if(count == 1 && IS_LIST(args[0]))
-    {
-        TeaObjectList* list = AS_LIST(args[0]);
-        count = list->items.count;
-        args = list->items.values;
-    }
-
-    for(int i = 1; i < count; i++) 
-    {
-        TeaValue value = args[i];
-        if(!IS_NUMBER(value)) 
-        {
-            tea_runtime_error(vm, "A non-number value passed to min()");
-            return EMPTY_VAL;
-        }
-
-        average = average + AS_NUMBER(value);
-    }
-
-    return NUMBER_VAL(average);
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 3);
+    double x = tea_check_number(T, 0);
+    double y = tea_check_number(T, 1);
+    double z = tea_check_number(T, 2);
+    tea_push_number(T, mid(x, y, z));
 }
 
-static TeaValue floor_math(TeaVM* vm, int count, TeaValue* args)
+static void math_sum(TeaState* T)
 {
-    if(count != 1)
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    double sum;
+    for(int i = 0; i < count; i++) 
     {
-        tea_runtime_error(vm, "floor() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
+        double n = tea_check_number(T, i);
+        sum = sum + n;
     }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to floor()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(round(AS_NUMBER(args[0])));
+    tea_push_number(T, sum);
 }
 
-static TeaValue ceil_math(TeaVM* vm, int count, TeaValue* args)
+static void math_floor(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "ceil() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to ceil()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(ceil(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, floor(tea_check_number(T, 0)));
 }
 
-static TeaValue round_math(TeaVM* vm, int count, TeaValue* args)
+static void math_ceil(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "round() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to round()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(round(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, ceil(tea_check_number(T, 0)));
 }
 
-static TeaValue acos_math(TeaVM* vm, int count, TeaValue* args)
+static void math_round(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "acos() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to acos()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(acos(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, round(tea_check_number(T, 0)));
 }
 
-static TeaValue cos_math(TeaVM* vm, int count, TeaValue* args)
+static void math_acos(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "cos() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to cos()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(cos(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, acos(tea_check_number(T, 0)));
 }
 
-static TeaValue asin_math(TeaVM* vm, int count, TeaValue* args)
+static void math_cos(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "asin() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to asin()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(asin(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, cos(tea_check_number(T, 0)));
 }
 
-static TeaValue sin_math(TeaVM* vm, int count, TeaValue* args)
+static void math_asin(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "sin() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to sin()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(sin(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, asin(tea_check_number(T, 0)));
 }
 
-static TeaValue atan_math(TeaVM* vm, int count, TeaValue* args)
+static void math_sin(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "atan() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to atan()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(atan(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, sin(tea_check_number(T, 0)));
 }
 
-
-static TeaValue tan_math(TeaVM* vm, int count, TeaValue* args)
+static void math_atan(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "tan() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to tan()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(tan(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, atan(tea_check_number(T, 0)));
 }
 
-static TeaValue sign_math(TeaVM* vm, int count, TeaValue* args)
+static void math_atan2(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "sign() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0]))
-    {
-        tea_runtime_error(vm, "sign() takes a number");
-        return EMPTY_VAL;
-    }
-
-    double n = AS_NUMBER(args[0]);
-
-    return (n > 0) ? NUMBER_VAL(1) : ((n < 0) ? NUMBER_VAL(-1) : NUMBER_VAL(0));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 2);
+    tea_push_number(T, atan2(tea_check_number(T, 0), tea_check_number(T, 1)));
 }
 
-static TeaValue abs_math(TeaVM* vm, int count, TeaValue* args)
+static void math_tan(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "abs() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0]))
-    {
-        tea_runtime_error(vm, "A non-number value passed to abs()");
-        return EMPTY_VAL;
-    }
-
-    double n = AS_NUMBER(args[0]);
-
-    return (n < 0) ? NUMBER_VAL(n * -1) : NUMBER_VAL(n);
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, tan(tea_check_number(T, 0)));
 }
 
-static TeaValue sqrt_math(TeaVM* vm, int count, TeaValue* args)
+static void math_sign(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "sqrt() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to sqrt()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(sqrt(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    double n = tea_check_number(T, 0);
+    tea_push_number(T, (n > 0) ? 1 : ((n < 0) ? -1 : 0));
 }
 
-static TeaValue deg_math(TeaVM* vm, int count, TeaValue* args)
+static void math_abs(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "deg() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to deg()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(AS_NUMBER(args[0]) * (180.0 / PI));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, fabs(tea_check_number(T, 0)));
 }
 
-static TeaValue rad_math(TeaVM* vm, int count, TeaValue* args)
+static void math_sqrt(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "rad() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to rad()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(AS_NUMBER(args[0]) * (PI / 180.0));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, sqrt(tea_check_number(T, 0)));
 }
 
-static TeaValue exp_math(TeaVM* vm, int count, TeaValue* args)
+static void math_deg(TeaState* T)
 {
-    if(count != 1)
-    {
-        tea_runtime_error(vm, "exp() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
-    }
-
-    if(!IS_NUMBER(args[0])) 
-    {
-        tea_runtime_error(vm, "A non-number value passed to exp()");
-        return EMPTY_VAL;
-    }
-
-    return NUMBER_VAL(exp(AS_NUMBER(args[0])));
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, tea_check_number(T, 0) * (180.0 / PI));
 }
 
-TeaValue tea_import_math(TeaVM* vm)
+static void math_rad(TeaState* T)
 {
-    TeaObjectString* name = tea_copy_string(vm->state, TEA_MATH_MODULE, 4);
-    TeaObjectModule* module = tea_new_module(vm->state, name);
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, tea_check_number(T, 0) * (PI / 180.0));
+}
 
-    tea_native_function(vm, &module->values, "min", min_math);
-    tea_native_function(vm, &module->values, "max", max_math);
-    tea_native_function(vm, &module->values, "mid", mid_math);
-    tea_native_function(vm, &module->values, "average", average_math);
-    tea_native_function(vm, &module->values, "floor", floor_math);
-    tea_native_function(vm, &module->values, "ceil", ceil_math);
-    tea_native_function(vm, &module->values, "round", round_math);
-    tea_native_function(vm, &module->values, "acos", acos_math);
-    tea_native_function(vm, &module->values, "cos", cos_math);
-    tea_native_function(vm, &module->values, "asin", asin_math);
-    tea_native_function(vm, &module->values, "sin", sin_math);
-    tea_native_function(vm, &module->values, "atan", atan_math);
-    tea_native_function(vm, &module->values, "tan", tan_math);
-    tea_native_function(vm, &module->values, "sign", sign_math);
-    tea_native_function(vm, &module->values, "abs", abs_math);
-    tea_native_function(vm, &module->values, "sqrt", sqrt_math);
-    tea_native_function(vm, &module->values, "deg", deg_math);
-    tea_native_function(vm, &module->values, "rad", rad_math);
-    tea_native_function(vm, &module->values, "exp", exp_math);
+static void math_exp(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, exp(tea_check_number(T, 0)));
+}
 
-    tea_native_value(vm, &module->values, "pi", NUMBER_VAL(PI));
-    tea_native_value(vm, &module->values, "e", NUMBER_VAL(2.71828182845904523536));
-    tea_native_value(vm, &module->values, "phi", NUMBER_VAL(1.61803398874989484820));
+static const TeaModule math_module[] = 
+{
+    { "min", math_min },
+    { "max", math_max },
+    { "mid", math_mid },
+    { "sum", math_sum },
+    { "floor", math_floor },
+    { "ceil", math_ceil },
+    { "round", math_round },
+    { "acos", math_acos },
+    { "cos", math_cos },
+    { "asin", math_asin },
+    { "sin", math_sin },
+    { "atan", math_atan },
+    { "atan2", math_atan2 },
+    { "tan", math_tan },
+    { "sign", math_sign },
+    { "abs", math_abs },
+    { "sqrt", math_sqrt },
+    { "deg", math_deg },
+    { "rad", math_rad },
+    { "exp", math_exp },
+    { "pi", NULL },
+    { "tau", NULL },
+    { "e", NULL },
+    { "phi", NULL },
+    { NULL, NULL }
+};
 
-    return OBJECT_VAL(module);
+void tea_import_math(TeaState* T)
+{
+    tea_create_module(T, TEA_MATH_MODULE, math_module);
+    tea_push_number(T, PI);
+    tea_set_key(T, 0, "pi");
+    tea_push_number(T, TAU);
+    tea_set_key(T, 0, "tau");
+    tea_push_number(T, E);
+    tea_set_key(T, 0, "e");
+    tea_push_number(T, PHI);
+    tea_set_key(T, 0, "phi");
 }

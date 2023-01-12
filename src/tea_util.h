@@ -1,3 +1,6 @@
+// tea_util.h
+// Teascript utility functions
+
 #ifndef TEA_FS_H
 #define TEA_FS_H
 
@@ -31,10 +34,10 @@
 #define IS_DIR_SEPARATOR(c) (c == DIR_SEPARATOR)
 #endif
 
-char* tea_read_file(TeaState* state, const char* path);
-TeaObjectString* tea_dirname(TeaState* state, char* path, int len);
+char* tea_read_file(TeaState* T, const char* path);
+TeaObjectString* tea_dirname(TeaState* T, char* path, int len);
 bool tea_resolve_path(char* directory, char* path, char* ret);
 bool tea_ends_with(const char* name, const char* extension, size_t length);
-TeaObjectString* tea_get_directory(TeaState* state, char* source);
+TeaObjectString* tea_get_directory(TeaState* T, char* source);
 
 #endif

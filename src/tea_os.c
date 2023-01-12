@@ -1,6 +1,11 @@
+// tea_os.c
+// Teascript os module
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "tea.h"
 
 #include "tea_module.h"
 #include "tea_core.h"
@@ -25,133 +30,125 @@ int setenv(const char* name, const char* value, int overwrite)
 }
 #endif
 
-static TeaValue getenv_os(TeaVM* vm, int count, TeaValue* args)
+static void os_getenv(TeaState* T)
 {
-    if(count != 1 && count != 2)
-    {
-        tea_runtime_error(vm, "getenv() expected either 1 or 2 arguments (got %d)", count);
-        return EMPTY_VAL;
-    }
+    int count = tea_get_top(T);
+    tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
 
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "getenv() argument takes a string");
-        return EMPTY_VAL;
-    }
-
-    char* value = getenv(AS_CSTRING(args[0]));
-
+    int l;
+    const char* value = getenv(tea_check_lstring(T, 0, &l));
     if(count == 2)
     {
-        if(!IS_STRING(args[1]))
-        {
-            tea_runtime_error(vm, "getenv() arguments must be a string.");
-            return EMPTY_VAL;
-        }
+        const char* s = tea_check_string(T, 1);
 
         if(value != NULL) 
         {
-            return OBJECT_VAL(tea_copy_string(vm->state, value, strlen(value)));
+            tea_push_lstring(T, value, l);
+            return;
         }
 
-        return args[1];
+        tea_push_string(T, s);
+        return;
     }
 
     if(value != NULL) 
     {
-        return OBJECT_VAL(tea_copy_string(vm->state, value, strlen(value)));
+        tea_push_lstring(T, value, l);
+        return;
     }
 
-    return NULL_VAL;
+    tea_push_null(T);
 }
 
-static TeaValue setenv_os(TeaVM* vm, int count, TeaValue* args)
+static void os_setenv(TeaState* T)
 {
-    if(count != 1)
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+
+    if(!tea_is_string(T, 0) || (!tea_is_string(T, 1) && !tea_is_null(T, 1)))
     {
-        tea_runtime_error(vm, "setenv() takes 2 arguments (%d given)", count);
-        return EMPTY_VAL;
+        tea_error(T, "Expected string or null");
     }
 
-    if(!IS_STRING(args[0]) || (!IS_STRING(args[1]) && !IS_NULL(args[1])))
+    const char* key = tea_check_string(T, 0);
+    int ret;
+    if(tea_is_null(T, 1))
     {
-        tea_runtime_error(vm, "setenv() arguments must be a string or a null.");
-        return EMPTY_VAL;
-    }
-
-    char* key = AS_CSTRING(args[0]);
-
-    int retval;
-    if(IS_NULL(args[1]))
-    {
-        retval = unsetenv(key);
+        ret = unsetenv(key);
     }
     else
     {
-        retval = setenv(key, AS_CSTRING(args[1]), 1);
+        ret = setenv(key, tea_get_string(T, 1), 1);
     }
 
-    if(retval == -1)
+    if(ret == -1)
     {
-        tea_runtime_error(vm, "Failed to set environment variable");
-        return EMPTY_VAL;
+        tea_error(T, "Failed to set environment variable");
     }
 
-    return NULL_VAL;
+    tea_push_null(T);
 }
 
-static TeaValue system_os(TeaVM* vm, int count, TeaValue* args)
+static void os_system(TeaState* T)
 {
-    if(count != 1)
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+
+    const char* arg = tea_check_string(T, 0);
+    if(system(arg) == -1)
     {
-        tea_runtime_error(vm, "system() takes 1 argument (%d given)", count);
-        return EMPTY_VAL;
+        tea_error(T, "Unable to execute the command");
     }
 
-    if(!IS_STRING(args[0]))
-    {
-        tea_runtime_error(vm, "system() argument takes a string");
-        return EMPTY_VAL;
-    }
-
-    const char* s = AS_CSTRING(args[0]);
-    if(system(s) == -1)
-    {
-        tea_runtime_error(vm, "Unable to execute the command");
-        return EMPTY_VAL;
-    }
-
-    return NULL_VAL;
+    tea_push_null(T);
 }
 
 static inline const char* os_name()
 {
-    #if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
     return "windows";
-    #elif defined(__unix) || defined(__unix__)
+#elif defined(__unix) || defined(__unix__)
     return "unix";
-    #elif defined(__APPLE__) || defined(__MACH__)
+#elif defined(__APPLE__) || defined(__MACH__)
     return "macOS";
-    #elif defined(__linux__)
+#elif defined(__linux__)
     return "linux";
-    #elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__)
     return "freeBSD";
-    #else
+#else
     return "other";
-    #endif
+#endif
 }
 
-TeaValue tea_import_os(TeaVM* vm)
+static void init_env(TeaState* T)
 {
-    TeaObjectString* name = tea_copy_string(vm->state, TEA_OS_MODULE, 2);
-    TeaObjectModule* module = tea_new_module(vm->state, name);
+    // This is not a portable feature on all the C compilers
+    extern char** environ;
 
-    const char* os = os_name();
-    tea_native_value(vm, &module->values, "name", OBJECT_VAL(tea_copy_string(vm->state, os, strlen(os))));
+    tea_push_list(T);
 
-    tea_native_function(vm, &module->values, "getenv", getenv_os);
-    tea_native_function(vm, &module->values, "setenv", setenv_os);
-    tea_native_function(vm, &module->values, "system", system_os);
+    for(char** current = environ; *current; current++)
+    {
+        tea_push_string(T, *current);
+        tea_add_item(T, 1);
+    }
 
-    return OBJECT_VAL(module);
+    tea_set_key(T, 0, "env");
+}
+
+static const TeaModule os_module[] = {
+    { "getenv", os_getenv },
+    { "setenv", os_setenv },
+    { "system", os_system },
+    { "name", NULL },
+    { "env", NULL },
+    { NULL, NULL }
+};
+
+void tea_import_os(TeaState* T)
+{
+    tea_create_module(T, TEA_OS_MODULE, os_module);    
+    tea_push_string(T, os_name());
+    tea_set_key(T, 0, "name");
+    init_env(T);
 }

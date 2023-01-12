@@ -1,31 +1,35 @@
+// tea_memory.h
+// Teascript gc and memory functions
+
 #ifndef TEA_MEMORY_H
 #define TEA_MEMORY_H
 
-#include "tea_predefines.h"
 #include "tea_value.h"
 #include "tea_common.h"
 
-#define ALLOCATE(state, type, count) \
-    (type*)tea_reallocate(state, NULL, 0, sizeof(type) * (count))
+#define ALLOCATE(T, type, count) \
+    (type*)tea_reallocate(T, NULL, 0, sizeof(type) * (count))
 
-#define FREE(state, type, pointer) tea_reallocate(state, pointer, sizeof(type), 0)
+#define FREE(T, type, pointer) tea_reallocate(T, pointer, sizeof(type), 0)
 
 #define GROW_CAPACITY(capacity) \
     ((capacity) < 8 ? 8 : (capacity) * 2)
 
-#define GROW_ARRAY(state, type, pointer, old_count, new_count) \
-    (type*)tea_reallocate(state, pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
+#define GROW_ARRAY(T, type, pointer, old_count, new_count) \
+    (type*)tea_reallocate(T, pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
 
-#define FREE_ARRAY(state, type, pointer, old_count) \
-    tea_reallocate(state, pointer, sizeof(type) * (old_count), 0)
+#define SHRINK_ARRAY(T, type, pointer, old_count, new_count) \
+    (type*)tea_reallocate(T, pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
 
-void* tea_reallocate(TeaState* state, void* pointer, size_t old_size, size_t new_size);
+#define FREE_ARRAY(T, type, pointer, old_count) \
+    tea_reallocate(T, pointer, sizeof(type) * (old_count), 0)
 
-void tea_mark_object(TeaVM* vm, TeaObject* object);
-void tea_mark_value(TeaVM* vm, TeaValue value);
+void* tea_reallocate(TeaState* T, void* pointer, size_t old_size, size_t new_size);
 
-void tea_collect_garbage(TeaVM* vm);
-void tea_free_objects(TeaState* state, TeaObject* objects);
+void tea_mark_object(TeaState* T, TeaObject* object);
+void tea_mark_value(TeaState* T, TeaValue value);
+
+void tea_free_objects(TeaState* T);
 
 int tea_closest_power_of_two(int n);
 

@@ -1,3 +1,6 @@
+// tea_common.h
+// Teascript commons
+
 #ifndef TEA_COMMON_H
 #define TEA_COMMON_H
 

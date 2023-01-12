@@ -1,35 +1,45 @@
+// tea.c
+// Teascript standalone interpreter
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <signal.h>
 
-#include "tea_common.h"
-#include "tea_chunk.h"
-#include "tea_debug.h"
-#include "tea_state.h"
-#include "tea_config.h"
+#include "tea.h"
+
+static TeaState* global = NULL;
+
+void tsignal(int id)
+{
+    tea_close(global);
+    exit(0);
+}
 
 static void clear()
 {
-    #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
-        system("clear");
-    #endif
-
-    #if defined(_WIN32) || defined(_WIN64)
-        system("cls");
-    #endif
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+    system("clear");
+#elif defined(_WIN32) || defined(_WIN64)
+    system("cls");
+#endif
 }
 
-static void repl(TeaState* state)
+static void repl(TeaState* T)
 {
+    global = T;
+    signal(SIGINT, tsignal);
+
     char line[1024];
     while(true)
     {
         line:
-        printf("> ");
+        tea_write_string("> ", 2);
 
         if(!fgets(line, sizeof(line), stdin))
         {
-            printf("\n");
+            tea_write_line();
             break;
         }
 
@@ -44,7 +54,7 @@ static void repl(TeaState* state)
             goto line;
         }
 
-        tea_interpret(state, "repl", line);
+        tea_interpret(T, "<repl>", line);
     }
 }
 
@@ -82,33 +92,38 @@ static char* read_file(const char* path)
     return buffer;
 }
 
-static void run_file(TeaState* state, const char* path)
+static void run_file(TeaState* T, const char* path)
 {
     char* source = read_file(path);
 
-    TeaInterpretResult result = tea_interpret(state, path, source);
+    TeaInterpretResult result = tea_interpret(T, path, source);
     free(source);
 
-    if(result == INTERPRET_COMPILE_ERROR)
+    if(result == TEA_COMPILE_ERROR)
         exit(65);
-    if(result == INTERPRET_RUNTIME_ERROR)
+    if(result == TEA_RUNTIME_ERROR)
         exit(70);
 }
 
 int main(int argc, const char* argv[])
 {
-    TeaState* state = tea_init_state();
-    state->argc = argc;
-    state->argv = argv;
+    TeaState* T = tea_open();
+    if(T == NULL)
+    {
+        fprintf(stderr, "Cannot create state: not enough memory");
+        return 1;
+    }
+    tea_set_argv(T, argc, argv);
 
     if(argc == 1)
     {
-        printf("teascript v%s\n", TEA_VERSION);
-        repl(state);
+        tea_write_version();
+        tea_set_repl(T, true);
+        repl(T);
     }
     else if(argc >= 2)
     {
-        run_file(state, argv[1]);
+        run_file(T, argv[1]);
     }
     else
     {
@@ -116,7 +131,7 @@ int main(int argc, const char* argv[])
         exit(64);
     }
 
-    tea_free_state(state);
+    tea_close(T);
 
     return 0;
 }

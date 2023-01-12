@@ -1,55 +1,67 @@
+// tea_state.c
+// Teascript global state
+
 #ifndef TEA_STATE_H
 #define TEA_STATE_H
 
+#include <setjmp.h>
+
 #include "tea.h"
-#include "tea_predefines.h"
+
 #include "tea_common.h"
+#include "tea_value.h"
 #include "tea_object.h"
 
-#define TEA_MAX_TEMP_ROOTS 8
+typedef struct TeaStackInfo
+{
+    TeaValue* slot;
+    int top;
+} TeaStackInfo;
 
 typedef struct TeaState
 {
-    //TeaValue* slots;
-    
-    TeaValue roots[TEA_MAX_TEMP_ROOTS];
-    int roots_count;
-
-    struct TeaScanner* scanner;
-    struct TeaCompiler* compiler;
-    struct TeaVM* vm;
-
-    int argc;
-    const char** argv;
-
+    TeaCompiler* compiler;
+    TeaTable modules;
+    TeaTable globals;
+    TeaTable strings;
+    TeaObjectModule* last_module;
+    TeaObjectClass* string_class;
+    TeaObjectClass* list_class;
+    TeaObjectClass* map_class;
+    TeaObjectClass* file_class;
+    TeaObjectClass* range_class;
+    TeaObjectString* constructor_string;
+    TeaValue stack[1000];
+    TeaValue* slot;
+    int top;
+    TeaStackInfo infos[64];
+    int info_count;
+    TeaObjectThread* thread;
+    TeaObject* objects;
     size_t bytes_allocated;
     size_t next_gc;
-
-    //TeaObject* objects;
-    //int gray_count;
-    //int gray_capacity;
-    //TeaObject** gray_stack;
+    int gray_count;
+    int gray_capacity;
+    TeaObject** gray_stack;
+    jmp_buf error_jump;
+    int argc;
+    const char** argv;
+    bool repl;
 } TeaState;
 
-typedef enum TeaInterpretResult
-{
-    INTERPRET_OK,
-    INTERPRET_COMPILE_ERROR,
-    INTERPRET_RUNTIME_ERROR
-} TeaInterpretResult;
+#define tea_exit_jump(T) (longjmp(T->error_jump, 1))
+#define tea_set_jump(T) (setjmp(T->error_jump))
 
-TeaState* tea_init_state();
-void tea_free_state(TeaState* state);
-TeaInterpretResult tea_interpret(TeaState* state, const char* module_name, const char* source);
+TeaObjectClass* tea_get_class(TeaState* T, TeaValue value);
 
-static inline void tea_push_root(TeaState* state, TeaValue value)
+static inline void tea_push_root(TeaState* T, TeaValue value)
 {
-    state->roots[state->roots_count++] = value;
+    T->slot[T->top++] = value;
 }
 
-static inline void tea_pop_root(TeaState* state)
+static inline void tea_pop_root(TeaState* T)
 {
-    state->roots_count--;
+    T->top--;
 }
 
 #endif

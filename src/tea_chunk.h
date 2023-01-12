@@ -1,8 +1,10 @@
+// tea_chunk.h
+// Teascript chunks
+
 #ifndef TEA_CHUNK_H
 #define TEA_CHUNK_H
 
 #include "tea_common.h"
-#include "tea_predefines.h"
 #include "tea_value.h"
 
 typedef enum
@@ -17,15 +19,13 @@ typedef struct
     int count;
     int capacity;
     uint8_t* code;
-    
     int* lines;
-    
     TeaValueArray constants;
 } TeaChunk;
 
 void tea_init_chunk(TeaChunk* chunk);
-void tea_free_chunk(TeaState* state, TeaChunk* chunk);
-void tea_write_chunk(TeaState* state, TeaChunk* chunk, uint8_t byte, int line);
-int tea_add_constant(TeaState* state, TeaChunk* chunk, TeaValue value);
+void tea_free_chunk(TeaState* T, TeaChunk* chunk);
+void tea_write_chunk(TeaState* T, TeaChunk* chunk, uint8_t byte, int line);
+int tea_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value);
 
 #endif

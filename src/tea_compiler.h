@@ -1,7 +1,5 @@
-/* 
-** tea_compiler.h
-** Teascript compiler and parser
-*/ 
+// tea_compiler.h
+// Teascript compiler and parser
 
 #ifndef TEA_COMPILER_H
 #define TEA_COMPILER_H
@@ -27,8 +25,8 @@ typedef enum
     PREC_FACTOR,     // * /
     PREC_INDICES,    // **
     PREC_UNARY,      // not ! - ~
-    PREC_CALL,       // . ()
     PREC_SUBSCRIPT,  // []
+    PREC_CALL,       // . ()
     PREC_PRIMARY
 } TeaPrecedence;
 
@@ -47,6 +45,8 @@ typedef struct
 
 typedef struct
 {
+    TeaState* T;
+    TeaScanner scanner;
     TeaToken current;
     TeaToken previous;
     bool had_error;
@@ -72,21 +72,15 @@ typedef struct TeaLoop
 
 typedef struct TeaCompiler
 {
-    TeaState* state;
-
     TeaParser* parser;
     struct TeaCompiler* enclosing;
     TeaClassCompiler* klass;
     TeaLoop* loop;
-
     TeaObjectFunction* function;
     TeaFunctionType type;
-
     TeaLocal locals[UINT8_COUNT];
-
     int local_count;
     TeaUpvalue upvalues[UINT8_COUNT];
-
     int slot_count;
     int scope_depth;
 } TeaCompiler;
@@ -100,7 +94,7 @@ typedef struct
     TeaPrecedence precedence;
 } TeaParseRule;
 
-TeaObjectFunction* tea_compile(TeaState* state, TeaObjectModule* module, const char* source);
-void tea_mark_compiler_roots(TeaState* state);
+TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char* source);
+void tea_mark_compiler_roots(TeaState* T, TeaCompiler* compiler);
 
 #endif

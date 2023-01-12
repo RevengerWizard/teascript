@@ -1,21 +1,32 @@
+// tea_value.h
+// Teascript value model and functions
+
 #ifndef TEA_VALUE_H
 #define TEA_VALUE_H
 
 #include <string.h>
 
 #include "tea_common.h"
-#include "tea_predefines.h"
 #include "tea_array.h"
+
+typedef struct TeaState TeaState;
+typedef struct TeaCompiler TeaCompiler;
+typedef struct TeaObject TeaObject;
+typedef struct TeaObjectString TeaObjectString;
+typedef struct TeaObjectFile TeaObjectFile;
+typedef struct TeaObjectUserdata TeaObjectUserdata;
 
 #ifdef NAN_TAGGING
 
 #define SIGN_BIT ((uint64_t)0x8000000000000000)
 #define QNAN ((uint64_t)0x7ffc000000000000)
 
-#define TAG_NULL    1   // 001.
-#define TAG_FALSE   2   // 010.
-#define TAG_TRUE    3   // 011.
-#define TAG_EMPTY   4   // 100
+#define TAG_NULL    1   // 0001
+#define TAG_FALSE   2   // 0010
+#define TAG_TRUE    3   // 0011
+#define TAG_EMPTY   4   // 0100
+
+typedef uint64_t TeaValue;
 
 #define IS_BOOL(value)      (((value) | 1) == TRUE_VAL)
 #define IS_NULL(value)      ((value) == NULL_VAL)
@@ -96,8 +107,8 @@ DECLARE_ARRAY(TeaBytes, uint8_t, bytes)
 
 const char* tea_value_type(TeaValue a);
 bool tea_values_equal(TeaValue a, TeaValue b);
-char* tea_value_tostring(TeaState* state, TeaValue value);
-char* tea_number_tostring(TeaState* state, double number);
-void tea_print_value(TeaValue value);
+double tea_value_tonumber(TeaValue value, int* x);
+TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value);
+TeaObjectString* tea_number_tostring(TeaState* T, double number);
 
 #endif

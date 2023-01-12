@@ -23,10 +23,10 @@ def fannkuch(n):
             checksum += flipsCount if permSign else -flipsCount
 
         if permSign:
-            perm1[0],perm1[1] = perm1[1],perm1[0]
+            perm1[0], perm1[1] = perm1[1], perm1[0]
             permSign = False
         else:
-            perm1[1],perm1[2] = perm1[2],perm1[1]
+            perm1[1], perm1[2] = perm1[2], perm1[1]
             permSign = True
             for r in rxrange:
                 if count[r]:
@@ -38,9 +38,9 @@ def fannkuch(n):
             else:
                 r = nm
                 if not count[r]:
-                    print( checksum )
-                    return maxFlipsCount
+                    return checksum, maxFlipsCount
             count[r] -= 1
 
 n = 9
-print("fannkuchen(%i) = %i" % (n, fannkuch(n)))
+checksum, flips = fannkuch(n)
+print("%i\nfannkuchen(%i) = %i" % (checksum, n, flips))

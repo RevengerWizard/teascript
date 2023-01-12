@@ -1,9 +1,7 @@
-#ifndef TEA_HPP
-#define TEA_HPP
+// tea.hpp
+// Teascript header for C++
 
 extern "C"
 {
     #include "tea.h"
 }
-
-#endif

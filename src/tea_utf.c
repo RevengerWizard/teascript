@@ -1,7 +1,8 @@
+// tea_utf.c
+// UTF-8 functions for Teascript
+
 #include "tea_utf.h"
 #include "tea_object.h"
-
-#include <wchar.h>
 
 int tea_decode_bytes(uint8_t byte)
 {
@@ -81,12 +82,12 @@ int tea_ustring_decode(const uint8_t* bytes, uint32_t length)
 		value = *bytes & 0x1f;
 		remaining_bytes = 1;
 	} 
-    else if ((*bytes & 0xf0) == 0xe0) 
+    else if((*bytes & 0xf0) == 0xe0) 
     {
 		value = *bytes & 0x0f;
 		remaining_bytes = 2;
 	} 
-    else if ((*bytes & 0xf8) == 0xf0) 
+    else if((*bytes & 0xf8) == 0xf0) 
     {
 		value = *bytes & 0x07;
 		remaining_bytes = 3;
@@ -125,14 +126,14 @@ int tea_ustring_encode(int value, uint8_t* bytes)
 		*bytes = value & 0x7f;
 		return 1;
 	} 
-    else if (value <= 0x7ff) 
+    else if(value <= 0x7ff) 
     {
 		*bytes = 0xc0 | ((value & 0x7c0) >> 6);
 		bytes++;
 		*bytes = 0x80 | (value & 0x3f);
 		return 2;
 	} 
-    else if (value <= 0xffff) 
+    else if(value <= 0xffff) 
     {
 		*bytes = 0xe0 | ((value & 0xf000) >> 12);
 		bytes++;
@@ -158,7 +159,7 @@ int tea_ustring_encode(int value, uint8_t* bytes)
 	return 0;
 }
 
-TeaObjectString* tea_ustring_code_point_at(TeaState* state, TeaObjectString* string, uint32_t index) 
+TeaObjectString* tea_ustring_code_point_at(TeaState* T, TeaObjectString* string, uint32_t index) 
 {
 	if(index >= string->length) 
     {
@@ -174,25 +175,25 @@ TeaObjectString* tea_ustring_code_point_at(TeaState* state, TeaObjectString* str
 		bytes[0] = string->chars[index];
 		bytes[1] = '\0';
 
-		return tea_copy_string(state, bytes, 1);
+		return tea_copy_string(T, bytes, 1);
 	}
 
-	return tea_ustring_from_code_point(state, code_point);
+	return tea_ustring_from_code_point(T, code_point);
 }
 
-TeaObjectString* tea_ustring_from_code_point(TeaState* state, int value) 
+TeaObjectString* tea_ustring_from_code_point(TeaState* T, int value) 
 {
 	int length = tea_encode_bytes(value);
 	char bytes[length + 1];
 
 	tea_ustring_encode(value, (uint8_t*) bytes);
 
-	return tea_copy_string(state, bytes, length);
+	return tea_copy_string(T, bytes, length);
 }
 
-TeaObjectString* tea_ustring_from_range(TeaState* state, TeaObjectString* source, int start, uint32_t count) 
+TeaObjectString* tea_ustring_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count) 
 {
-	uint8_t* from = (uint8_t*) source->chars;
+	uint8_t* from = (uint8_t*)source->chars;
 	int length = 0;
 
 	for(uint32_t i = 0; i < count; i++) 
@@ -202,7 +203,7 @@ TeaObjectString* tea_ustring_from_range(TeaState* state, TeaObjectString* source
 
 	char bytes[length];
 
-	uint8_t* to = (uint8_t*) bytes;
+	uint8_t* to = (uint8_t*)bytes;
 
 	for(uint32_t i = 0; i < count; i++) 
     {
@@ -215,10 +216,10 @@ TeaObjectString* tea_ustring_from_range(TeaState* state, TeaObjectString* source
 		}
 	}
 
-	return tea_copy_string(state, bytes, length);
+	return tea_copy_string(T, bytes, length);
 }
 
-int tea_uchar_offset(char *str, int index) 
+int tea_uchar_offset(char* str, int index) 
 {
 	#define is_utf(c) (((c) & 0xC0) != 0x80)
 	int offset = 0;
