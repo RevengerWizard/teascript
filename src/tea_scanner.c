@@ -227,7 +227,18 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
             }
             break;
         }
-        case 'e': return check_keyword(scanner, 1, 3, "lse", TOKEN_ELSE);
+        case 'e':
+        {
+            if(scanner->current - scanner->start > 1)
+            {
+                switch(scanner->start[1])
+                {
+                    case 'n': return check_keyword(scanner, 2, 2, "um", TOKEN_ENUM);
+                    case 'l': return check_keyword(scanner, 2, 2, "se", TOKEN_ELSE);
+                }
+            }
+            break;
+        }
         case 'f':
         {
             if(scanner->current - scanner->start > 1)

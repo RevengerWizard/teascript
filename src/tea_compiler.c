@@ -1260,6 +1260,7 @@ static TeaParseRule rules[] = {
     NONE,                                   // TOKEN_IMPORT
     NONE,                                   // TOKEN_FROM
     NONE,                                   // TOKEN_AS
+    NONE,                                   // TOKEN_ENUM
     NONE,                                   // TOKEN_RETURN
     PREFIX(super_),                         // TOKEN_SUPER
     PREFIX(this_),                          // TOKEN_THIS
@@ -2399,7 +2400,7 @@ static void synchronize(TeaCompiler* compiler)
             case TOKEN_FROM:
                 return;
 
-            default:; // Do nothing.
+            default:; // Do nothing
         }
 
         advance(compiler);

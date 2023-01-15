@@ -2,8 +2,12 @@ cmake_minimum_required(VERSION 3.20)
 
 project(teascript)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
 set(CMAKE_C_FLAGS_RELEASE "-O2 -s")
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 
 file(GLOB_RECURSE SOURCE_FILES src/*.c)
 include_directories(src/)
