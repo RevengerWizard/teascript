@@ -1329,6 +1329,20 @@ static void block(TeaCompiler* compiler)
     consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after block");
 }
 
+static void check_parameters(TeaCompiler* compiler, TeaToken* name)
+{
+    for(int i = compiler->local_count - 1; i >= 0; i--)
+    {
+        TeaLocal* local = &compiler->locals[i];
+        
+        if(identifiers_equal(name, &local->name))
+        {
+            error(compiler, "Duplicate parameter name in function declaration");
+            return;
+        }
+    }
+}
+
 static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaFunctionType type)
 {
     init_compiler(compiler->parser, fn_compiler, compiler, type);
@@ -1350,7 +1364,12 @@ static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaF
             }
 
             spread = match(fn_compiler, TOKEN_DOT_DOT_DOT);
-            uint8_t constant = parse_variable(fn_compiler, "Expect parameter name");
+            consume(fn_compiler, TOKEN_NAME, "Expect parameter name");
+
+            TeaToken name = fn_compiler->parser->previous;
+            check_parameters(fn_compiler, &name);
+
+            uint8_t constant = parse_variable_at(fn_compiler, name);
             define_variable(fn_compiler, constant);
 
             if(spread)

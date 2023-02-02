@@ -46,8 +46,8 @@ TEA_API void tea_close(TeaState* T)
     tea_free_objects(T);
 
 #ifdef DEBUG_TRACE_MEMORY
-    printf("total bytes lost: %zu\n", T->bytes_allocated);
 #endif
+    printf("total bytes lost: %zu\n", T->bytes_allocated);
 
     free(T);
 }
