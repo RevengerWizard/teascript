@@ -1,8 +1,8 @@
 // tea_util.h
 // Teascript utility functions
 
-#ifndef TEA_FS_H
-#define TEA_FS_H
+#ifndef TEA_UTIL_H
+#define TEA_UTIL_H
 
 #include "tea_vm.h"
 
