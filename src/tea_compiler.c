@@ -1,5 +1,5 @@
 // tea_compiler.c
-// Teascript compiler and parser
+// Teascript parser and compiler
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1334,7 +1334,6 @@ static void check_parameters(TeaCompiler* compiler, TeaToken* name)
     for(int i = compiler->local_count - 1; i >= 0; i--)
     {
         TeaLocal* local = &compiler->locals[i];
-        
         if(identifiers_equal(name, &local->name))
         {
             error(compiler, "Duplicate parameter name in function declaration");

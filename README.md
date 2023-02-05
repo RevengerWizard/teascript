@@ -28,4 +28,4 @@ tea hello.tea
 
 ## License
 
-Licenced under GNU General Public License, Version 2, June 1991. [Copy of the license can be found here](https://github.com/RevengerWizard/teascript/blob/master/LICENSE)
+Licenced under MIT License. [Copy of the license can be found here](https://github.com/RevengerWizard/teascript/blob/master/LICENSE)
