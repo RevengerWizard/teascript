@@ -13,6 +13,9 @@
 
 void tea_init_scanner(TeaState* T, TeaScanner* scanner, const char* source)
 {
+    // Skip the UTF-8 BOM if there is one
+    if(strncmp(source, "\xEF\xBB\xBF", 3) == 0) source += 3;
+
     scanner->T = T;
     scanner->start = source;
     scanner->current = source;
@@ -91,6 +94,12 @@ static TeaToken error_token(TeaScanner* scanner, const char *message)
     return token;
 }
 
+static void skip_line_comment(TeaScanner* scanner)
+{
+    while(peek(scanner) != '\n' && !is_at_end(scanner)) 
+        advance(scanner);
+}
+
 static bool skip_whitespace(TeaScanner* scanner)
 {
     while(true)
@@ -112,11 +121,24 @@ static bool skip_whitespace(TeaScanner* scanner)
                 advance(scanner);
                 break;
             }
+            case '#':
+            {
+                // Ignore shebang on first line
+                if(scanner->line == 1 && peek_next(scanner) == '!')
+                {
+                    skip_line_comment(scanner);
+                }
+                else
+                {
+                    return false;
+                }
+                break;
+            }
             case '/':
             {
                 if(peek_next(scanner) == '/') 
                 {
-                    while(peek(scanner) != '\n' && !is_at_end(scanner)) advance(scanner);
+                    skip_line_comment(scanner);
                 } 
                 else if(peek_next(scanner) == '*') 
                 {
