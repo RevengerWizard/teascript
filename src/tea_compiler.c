@@ -1690,21 +1690,36 @@ static void class_declaration(TeaCompiler* compiler)
     compiler->klass = compiler->klass->enclosing;
 }
 
+static void function_assignment(TeaCompiler* compiler)
+{
+    if(match(compiler, TOKEN_DOT))
+    {
+        consume(compiler, TOKEN_NAME, "Expect property name");
+        uint8_t dot = identifier_constant(compiler, &compiler->parser->previous);
+        if(!check(compiler, TOKEN_LEFT_PAREN))
+        {
+            emit_argued(compiler, OP_GET_PROPERTY, dot);
+            function_assignment(compiler);
+        }
+        else
+        {
+            function(compiler, TYPE_FUNCTION);
+            emit_argued(compiler, OP_SET_PROPERTY, dot);
+            emit_op(compiler, OP_POP);
+            return;
+        }
+    }
+}
+
 static void function_declaration(TeaCompiler* compiler)
 {
     consume(compiler, TOKEN_NAME, "Expect function name");
     TeaToken name = compiler->parser->previous;
     
-    if(match(compiler, TOKEN_DOT))
+    if(check(compiler, TOKEN_DOT))
     {
         named_variable(compiler, name, false);
-
-        consume(compiler, TOKEN_NAME, "Expect property name");
-        uint8_t dot = identifier_constant(compiler, &compiler->parser->previous);
-        
-        function(compiler, TYPE_FUNCTION);
-        emit_argued(compiler, OP_SET_PROPERTY, dot);
-        emit_op(compiler, OP_POP);
+        function_assignment(compiler);        
         return;
     }
     else if(match(compiler, TOKEN_COLON))
