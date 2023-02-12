@@ -1492,6 +1492,74 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
                 PUSH(OBJECT_VAL(list));
                 DISPATCH();
             }
+            CASE_CODE(UNPACK_LIST):
+            {
+                uint8_t var_count = READ_BYTE();
+
+                if(!IS_LIST(PEEK(0)))
+                {
+                    RUNTIME_ERROR("Can only unpack lists");
+                }
+
+                TeaObjectList* list = AS_LIST(POP());
+
+                if(var_count != list->items.count) 
+                {
+                    if(var_count < list->items.count)
+                    {
+                        RUNTIME_ERROR("Too many values to unpack");
+                    } 
+                    else
+                    {
+                        RUNTIME_ERROR("Not enough values to unpack");
+                    }
+                }
+
+                for(int i = 0; i < list->items.count; i++)
+                {
+                    PUSH(list->items.values[i]);
+                }
+
+                DISPATCH();
+            }
+            CASE_CODE(UNPACK_REST_LIST):
+            {
+                uint8_t var_count = READ_BYTE();
+                uint8_t rest_pos = READ_BYTE();
+
+                if(!IS_LIST(PEEK(0)))
+                {
+                    RUNTIME_ERROR("Can only unpack lists");
+                }
+
+                TeaObjectList* list = AS_LIST(POP());
+
+                if(var_count > list->items.count)
+                {
+                    RUNTIME_ERROR("Not enough values to unpack");
+                }
+
+                for(int i = 0; i < list->items.count; i++)
+                {
+                    if(i == rest_pos)
+                    {
+                        TeaObjectList* rest_list = tea_new_list(T);
+                        PUSH(OBJECT_VAL(rest_list));
+                        int j;
+                        for(j = i; j < list->items.count - (var_count - rest_pos); j++)
+                        {
+                            tea_write_value_array(T, &rest_list->items, list->items.values[j]);
+                        }
+                        i = j;
+                    }
+                    else
+                    {
+                        PUSH(list->items.values[i]);
+                    }
+                }
+
+                DISPATCH();
+            }
             CASE_CODE(MAP):
             {
                 uint8_t item_count = READ_BYTE();

@@ -161,6 +161,10 @@ int tea_disassemble_instruction(TeaState* T, TeaChunk* chunk, int offset)
             return byte_instruction("OP_MULTI_CASE", chunk, offset);
         case OP_LIST:
             return byte_instruction("OP_LIST", chunk, offset);
+        case OP_UNPACK_LIST:
+            return byte_instruction("OP_UNPACK_LIST", chunk, offset);
+        case OP_UNPACK_REST_LIST:
+            return byte_instruction("UNPACK_REST_LIST", chunk, offset);
         case OP_MAP:
             return byte_instruction("OP_MAP", chunk, offset);
         case OP_SUBSCRIPT:

@@ -202,7 +202,7 @@ static void emit_constant(TeaCompiler* compiler, TeaValue value)
 
 static void patch_jump(TeaCompiler* compiler, int offset)
 {
-    // -2 to adjust for the bytecode for the jump offset itself.
+    // -2 to adjust for the bytecode for the jump offset itself
     int jump = current_chunk(compiler)->count - offset - 2;
 
     if(jump > UINT16_MAX)
@@ -225,7 +225,6 @@ static void init_compiler(TeaParser* parser, TeaCompiler* compiler, TeaCompiler*
     if(parent != NULL)
     {
         compiler->klass = parent->klass;
-        compiler->loop = parent->loop;
     }
 
     compiler->type = type;
@@ -594,7 +593,7 @@ static void binary(TeaCompiler* compiler, bool can_assign)
             emit_op(compiler, OP_IN);
             break;
         }
-        default: return; // Unreachable.
+        default: return; // Unreachable
     }
 }
 
@@ -1393,14 +1392,14 @@ static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaF
 
                 if(optional)
                 {
-                    error(fn_compiler, "Cannot have non-optional parameter after optional.");
+                    error(fn_compiler, "Cannot have non-optional parameter after optional");
                     return;
                 }
             }
 
             if(fn_compiler->function->arity + fn_compiler->function->arity_optional > 255)
             {
-                error(fn_compiler, "Cannot have more than 255 parameters.");
+                error(fn_compiler, "Cannot have more than 255 parameters");
                 return;
             }
         } 
@@ -1737,18 +1736,120 @@ static void function_declaration(TeaCompiler* compiler)
 
 static void var_declaration(TeaCompiler* compiler)
 {
-    uint8_t global = parse_variable(compiler, "Expect variable name");
+    TeaToken variables[255];
+    int var_count = 0;
+    int expr_count = 0;
+    bool rest = false;
+    int rest_count = 0;
+    int rest_pos = 0;
+
+    do
+    {
+        if(rest_count > 1)
+        {
+            error(compiler, "Multiple '...'");
+            return;
+        }
+
+        if(match(compiler, TOKEN_DOT_DOT_DOT))
+        {
+            rest = true;
+            rest_count++;
+        }
+
+        consume(compiler, TOKEN_NAME, "Expect variable name");
+        variables[var_count] = compiler->parser->previous;
+        var_count++;
+        
+        if(rest)
+        {
+            rest_pos = var_count;
+            rest = false;
+        }
+
+        if(var_count == 1 && match(compiler, TOKEN_EQUAL))
+        {
+            if(rest_count)
+            {
+                error(compiler, "Cannot rest single variable");
+                return;
+            }
+
+            uint8_t global = parse_variable_at(compiler, variables[0]);
+            expression(compiler);
+            define_variable(compiler, global);
+
+            if(match(compiler, TOKEN_COMMA))
+            {
+                do
+                {
+                    uint8_t global = parse_variable(compiler, "Expect variable name");
+                    consume(compiler, TOKEN_EQUAL, "Expected an assignment");
+                    expression(compiler);
+                    define_variable(compiler, global);
+                }
+                while(match(compiler, TOKEN_COMMA));
+            }
+
+            return;
+        }
+    }
+    while(match(compiler, TOKEN_COMMA));
+
+    if(rest_count)
+    {
+        consume(compiler, TOKEN_EQUAL, "Expected variable assignment");
+        expression(compiler);
+        emit_op(compiler, OP_UNPACK_REST_LIST);
+        emit_bytes(compiler, var_count, rest_pos - 1);
+        goto finish;
+    }
 
     if(match(compiler, TOKEN_EQUAL))
     {
-        expression(compiler);
+        do
+        {
+            expression(compiler);
+            expr_count++;
+            if(expr_count == 1 && (!check(compiler, TOKEN_COMMA)))
+            {
+                emit_argued(compiler, OP_UNPACK_LIST, var_count);
+                goto finish;
+            }
+
+        }
+        while(match(compiler, TOKEN_COMMA));
+
+        if(expr_count != var_count)
+        {
+            error(compiler, "Not enough values to assign to");
+        }
     }
     else
     {
-        emit_op(compiler, OP_NULL);
+        for(int i = 0; i < var_count; i++)
+        {
+            emit_op(compiler, OP_NULL);
+        }
     }
-
-    define_variable(compiler, global);
+    
+    finish:
+    if(compiler->scope_depth == 0)
+    {
+        for(int i = var_count - 1; i >= 0; i--)
+        {
+            uint8_t identifier = identifier_constant(compiler, &variables[i]);
+            define_variable(compiler, identifier);
+        }
+    } 
+    else
+    {
+        for(int i = 0; i < var_count; i++)
+        {
+            declare_variable(compiler, &variables[i]);
+            define_variable(compiler, 0);
+        }
+    }
 }
 
 static void expression_statement(TeaCompiler* compiler)
@@ -1827,9 +1928,11 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_METHOD:
         case OP_IMPORT:
         case OP_LIST:
+        case OP_UNPACK_LIST:
         case OP_MAP:
         case OP_MULTI_CASE:
             return 1;
+        case OP_UNPACK_REST_LIST:
         case OP_DEFINE_OPTIONAL:
         case OP_COMPARE_JUMP:
         case OP_JUMP:
@@ -2342,7 +2445,7 @@ static void while_statement(TeaCompiler* compiler)
     TeaLoop loop;
     begin_loop(compiler, &loop);
 
-    if(check(compiler, TOKEN_LEFT_BRACE))
+    if(!check(compiler, TOKEN_LEFT_PAREN))
     {
         emit_byte(compiler, OP_TRUE);
     }
