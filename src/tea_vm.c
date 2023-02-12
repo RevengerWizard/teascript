@@ -1546,11 +1546,11 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
                         TeaObjectList* rest_list = tea_new_list(T);
                         PUSH(OBJECT_VAL(rest_list));
                         int j;
-                        for(j = i; j < list->items.count - (var_count - rest_pos); j++)
+                        for(j = i; j < list->items.count - (var_count - rest_pos) + 1; j++)
                         {
                             tea_write_value_array(T, &rest_list->items, list->items.values[j]);
                         }
-                        i = j;
+                        i = j - 1;
                     }
                     else
                     {
