@@ -20,7 +20,7 @@ TeaObject* tea_allocate_object(TeaState* T, size_t size, TeaObjectType type)
     object->next = T->objects;
     T->objects = object;
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p allocate %zu for %s\n", (void*)object, size, tea_value_type(OBJECT_VAL(object)));
 #endif
 
@@ -143,8 +143,10 @@ TeaObjectModule* tea_new_module(TeaState* T, TeaObjectString* name)
     tea_init_table(&module->values);
     module->name = name;
     module->path = NULL;
-
+    
+    tea_push_root(T, OBJECT_VAL(module));
     tea_table_set(T, &T->modules, name, OBJECT_VAL(module));
+    tea_pop_root(T);
 
     return module;
 }
@@ -328,7 +330,7 @@ static uint32_t hash_object(TeaObject* object)
 
 static uint32_t hash_value(TeaValue value)
 {
-#ifdef NAN_TAGGING
+#ifdef TEA_NAN_TAGGING
     if(IS_OBJECT(value)) return hash_object(AS_OBJECT(value));
 
     // Hash the raw bits of the unboxed value.

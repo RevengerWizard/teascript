@@ -16,7 +16,7 @@ DEFINE_ARRAY(TeaBytes, uint8_t, bytes)
 
 const char* tea_value_type(TeaValue a)
 {
-#ifdef NAN_TAGGING
+#ifdef TEA_NAN_TAGGING
     if(IS_BOOL(a))
     {
         return "bool";
@@ -53,7 +53,7 @@ const char* tea_value_type(TeaValue a)
 
 bool tea_values_equal(TeaValue a, TeaValue b)
 {
-#ifdef NAN_TAGGING
+#ifdef TEA_NAN_TAGGING
     if(IS_NUMBER(a) && IS_NUMBER(b))
     {
         return AS_NUMBER(a) == AS_NUMBER(b);
@@ -120,7 +120,7 @@ double tea_value_tonumber(TeaValue value, int* x)
 
 TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value)
 {
-#ifdef NAN_TAGGING
+#ifdef TEA_NAN_TAGGING
     if(IS_BOOL(value))
     {
         return AS_BOOL(value) ? tea_copy_string(T, "true", 4) : tea_copy_string(T, "false", 5);

@@ -1186,7 +1186,7 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
     } \
     while(false)
 
-#ifdef DEBUG_TRACE_EXECUTION
+#ifdef TEA_DEBUG_TRACE_EXECUTION
     #define TRACE_INSTRUCTIONS() \
         do \
         { \
@@ -1197,7 +1197,7 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
     #define TRACE_INSTRUCTIONS() do { } while(false)
 #endif
 
-#ifdef COMPUTED_GOTO
+#ifdef TEA_COMPUTED_GOTO
     static void* dispatch_table[] = {
         #define OPCODE(name, _) &&OP_##name
         #include "tea_opcodes.h"
@@ -1426,7 +1426,7 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
             {
                 TeaObjectString* name = READ_STRING();
                 TeaObjectClass* superclass = AS_CLASS(POP());
-
+                STORE_FRAME;
                 if(!bind_method(T, superclass, name))
                 {
                     return TEA_RUNTIME_ERROR;
@@ -1643,6 +1643,7 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
                 TeaValue end = PEEK(1);
                 TeaValue start = PEEK(2);
                 TeaValue object = PEEK(3);
+                STORE_FRAME;
                 if(!slice(T, object, start, end, step))
                 {
                     return TEA_RUNTIME_ERROR;
@@ -2006,8 +2007,8 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
             {
                 TeaObjectString* method = READ_STRING();
                 int arg_count = READ_BYTE();
-                STORE_FRAME;
                 TeaObjectClass* superclass = AS_CLASS(POP());
+                STORE_FRAME;
                 if(!invoke_from_class(T, superclass, method, arg_count))
                 {
                     return TEA_RUNTIME_ERROR;

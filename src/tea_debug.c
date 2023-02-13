@@ -21,7 +21,7 @@ static int constant_instruction(TeaState* T, const char* name, TeaChunk* chunk, 
 {
     uint8_t constant = chunk->code[offset + 1];
     printf("%-16s %4d '", name, constant);
-    printf("%s", tea_value_tostring(T, chunk->constants.values[constant])->chars);
+    printf("%s", tea_value_type(chunk->constants.values[constant]));
     printf("'\n");
 
     return offset + 2;
@@ -32,7 +32,7 @@ static int invoke_instruction(TeaState* T, const char* name, TeaChunk* chunk, in
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
     printf("%-16s    (%d args) %4d '", name, arg_count, constant);
-    printf("%s", tea_value_tostring(T, chunk->constants.values[constant])->chars);
+    printf("%s", tea_value_type(chunk->constants.values[constant]));
     printf("'\n");
 
     return offset + 3;
@@ -43,7 +43,7 @@ static int import_from_instruction(TeaState* T, const char* name, TeaChunk* chun
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
     printf("%-16s %4d '", name, arg_count, constant);
-    printf("%s", tea_value_tostring(T, chunk->constants.values[constant])->chars);
+    printf("%s", tea_value_type(chunk->constants.values[constant]));
     printf("'\n");
 
     return offset + 1 + arg_count;
@@ -53,7 +53,7 @@ static int native_import_instruction(TeaState* T, const char* name, TeaChunk* ch
 {
     uint8_t module = chunk->code[offset + 2];
     printf("%-16s '", name);
-    printf("%s", tea_value_tostring(T, chunk->constants.values[module])->chars);
+    printf("%s", tea_value_type(chunk->constants.values[module]));
     printf("'\n");
 
     return offset + 3;
@@ -64,7 +64,7 @@ static int native_from_import_instruction(TeaState* T, const char* name, TeaChun
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
     printf("%-16s '", name, arg_count, constant);
-    printf("%s", tea_value_tostring(T, chunk->constants.values[constant])->chars);
+    printf("%s", tea_value_type(chunk->constants.values[constant]));
     printf("'\n");
 
     return offset + 2 + arg_count;

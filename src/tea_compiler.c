@@ -12,7 +12,7 @@
 #include "tea_scanner.h"
 #include "tea_module.h"
 
-#ifdef DEBUG_PRINT_CODE
+#ifdef TEA_DEBUG_PRINT_CODE
 #include "tea_debug.h"
 #endif
 
@@ -261,7 +261,7 @@ static TeaObjectFunction* end_compiler(TeaCompiler* compiler)
     emit_return(compiler);
     TeaObjectFunction* function = compiler->function;
 
-#ifdef DEBUG_PRINT_CODE
+#ifdef TEA_DEBUG_PRINT_CODE
     if(!compiler->parser->had_error)
     {
         TeaState* T = compiler->parser->T;
@@ -2374,7 +2374,7 @@ static void from_import_statement(TeaCompiler* compiler)
         }
 
         // This needs to be two separate loops as we need
-        // all the variables popped before defining.
+        // all the variables popped before defining
         if(compiler->scope_depth == 0) 
         {
             for(int i = var_count - 1; i >= 0; i--) 

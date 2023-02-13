@@ -11,7 +11,7 @@
 #include "tea_state.h"
 #include "tea_array.h"
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
 #include <stdio.h>
 #include "tea_debug.h"
 #endif
@@ -22,13 +22,13 @@ void* tea_reallocate(TeaState* T, void* pointer, size_t old_size, size_t new_siz
 {
     T->bytes_allocated += new_size - old_size;
 
-#ifdef DEBUG_TRACE_MEMORY
+#ifdef TEA_DEBUG_TRACE_MEMORY
     printf("total bytes allocated: %zu\nnew allocation: %zu\nold allocation: %zu\n\n", T->bytes_allocated, new_size, old_size);
 #endif
 
     if(new_size > old_size)
     {
-#ifdef DEBUG_STRESS_GC
+#ifdef TEA_DEBUG_STRESS_GC
         tea_collect_garbage(T);
 #endif
 
@@ -59,7 +59,7 @@ void tea_mark_object(TeaState* T, TeaObject* object)
     if(object->is_marked)
         return;
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p mark %s", (void*)object, tea_value_type(OBJECT_VAL(object)));
     printf("\n");
 #endif
@@ -94,7 +94,7 @@ static void mark_array(TeaState* T, TeaValueArray* array)
 
 static void blacken_object(TeaState* T, TeaObject* object)
 {
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p blacken %s", (void*)object, tea_value_type(OBJECT_VAL(object)));
     printf("\n");
 #endif
@@ -194,15 +194,15 @@ static void blacken_object(TeaState* T, TeaObject* object)
         {
             TeaObjectThread* thread = (TeaObjectThread*)object;
 
-            for(int i = 0; i < thread->frame_count; i++)
-            {
-                tea_mark_object(T, (TeaObject*)thread->frames[i].closure);
-            }
-
             for(TeaValue* slot = thread->stack; slot < thread->stack_top; slot++) 
             {
 				tea_mark_value(T, *slot);
 			}
+            
+            for(int i = 0; i < thread->frame_count; i++)
+            {
+                tea_mark_object(T, (TeaObject*)thread->frames[i].closure);
+            }
 
             TeaObjectUpvalue* upvalue = thread->open_upvalues;
             while(upvalue != NULL)
@@ -223,7 +223,7 @@ static void blacken_object(TeaState* T, TeaObject* object)
 
 static void free_object(TeaState* T, TeaObject* object)
 {
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("%p free %s\n", (void*)object, tea_object_type(OBJECT_VAL(object)));
 #endif
 
@@ -352,6 +352,9 @@ static void mark_roots(TeaState* T)
         tea_mark_value(T, *slot);
     }
 
+    tea_mark_table(T, &T->modules);
+    tea_mark_table(T, &T->globals);
+
     tea_mark_object(T, (TeaObject*)T->thread);
 
     tea_mark_object(T, (TeaObject*)T->list_class);
@@ -359,9 +362,6 @@ static void mark_roots(TeaState* T)
     tea_mark_object(T, (TeaObject*)T->string_class);
     tea_mark_object(T, (TeaObject*)T->range_class);
     tea_mark_object(T, (TeaObject*)T->file_class);
-
-    tea_mark_table(T, &T->globals);
-    tea_mark_table(T, &T->modules);
     
     if(T->compiler != NULL)
     {
@@ -413,7 +413,7 @@ static void sweep(TeaState* T)
 
 TEA_API void tea_collect_garbage(TeaState* T)
 {
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("-- gc begin\n");
     size_t before = T->bytes_allocated;
 #endif
@@ -425,7 +425,7 @@ TEA_API void tea_collect_garbage(TeaState* T)
 
     T->next_gc = T->bytes_allocated * GC_HEAP_GROW_FACTOR;
 
-#ifdef DEBUG_LOG_GC
+#ifdef TEA_DEBUG_LOG_GC
     printf("-- gc end\n");
     printf("   collected %zu bytes (from %zu to %zu) next at %zu\n", before - T->bytes_allocated, before, T->bytes_allocated, T->next_gc);
 #endif
