@@ -1608,6 +1608,14 @@ static void method(TeaCompiler* compiler, TeaFunctionType type)
     emit_argued(compiler, OP_METHOD, constant);
 }
 
+static void init_class_compiler(TeaCompiler* compiler, TeaClassCompiler* class_compiler)
+{
+    class_compiler->is_static = false;
+    class_compiler->has_superclass = false;
+    class_compiler->enclosing = compiler->klass;
+    compiler->klass = class_compiler;
+}
+
 static void class_body(TeaCompiler* compiler)
 {
     while(!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF))
@@ -1656,10 +1664,7 @@ static void class_declaration(TeaCompiler* compiler)
     define_variable(compiler, name_constant);
 
     TeaClassCompiler class_compiler;
-    class_compiler.is_static = false;
-    class_compiler.has_superclass = false;
-    class_compiler.enclosing = compiler->klass;
-    compiler->klass = &class_compiler;
+    init_class_compiler(compiler, &class_compiler);
 
     if(match(compiler, TOKEN_COLON))
     {
@@ -1709,6 +1714,21 @@ static void function_assignment(TeaCompiler* compiler)
             return;
         }
     }
+    else if(match(compiler, TOKEN_COLON))
+    {
+        consume(compiler, TOKEN_NAME, "Expect method name");
+        uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
+        
+        TeaClassCompiler class_compiler;
+        init_class_compiler(compiler, &class_compiler);
+
+        function(compiler, TYPE_METHOD);
+
+        compiler->klass = compiler->klass->enclosing;
+
+        emit_argued(compiler, OP_EXTENSION_METHOD, constant);
+        return;
+    }
 }
 
 static void function_declaration(TeaCompiler* compiler)
@@ -1716,30 +1736,10 @@ static void function_declaration(TeaCompiler* compiler)
     consume(compiler, TOKEN_NAME, "Expect function name");
     TeaToken name = compiler->parser->previous;
     
-    if(check(compiler, TOKEN_DOT))
+    if(check(compiler, TOKEN_DOT) || check(compiler, TOKEN_COLON))
     {
         named_variable(compiler, name, false);
         function_assignment(compiler);        
-        return;
-    }
-    else if(match(compiler, TOKEN_COLON))
-    {
-        named_variable(compiler, name, false);
-
-        consume(compiler, TOKEN_NAME, "Expect method name");
-        uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
-        
-        TeaClassCompiler class_compiler;
-        class_compiler.is_static = false;
-        class_compiler.has_superclass = false;
-        class_compiler.enclosing = compiler->klass;
-        compiler->klass = &class_compiler;
-
-        function(compiler, TYPE_METHOD);
-
-        compiler->klass = compiler->klass->enclosing;
-
-        emit_argued(compiler, OP_EXTENSION_METHOD, constant);
         return;
     }
 
