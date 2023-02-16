@@ -224,7 +224,7 @@ static const TeaReg globals[] = {
     { "open", open },
     { "assert", assert },
     { "error", error },
-    { "type", type },
+    { "typeof", type },
     { "gc", gc },
     { "interpret", interpret },
     { "char", chr },
