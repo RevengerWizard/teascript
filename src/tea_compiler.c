@@ -493,6 +493,27 @@ static void and_(TeaCompiler* compiler, bool can_assign)
 static void binary(TeaCompiler* compiler, bool can_assign)
 {
     TeaTokenType operator_type = compiler->parser->previous.type;
+
+    if(operator_type == TOKEN_BANG)
+    {
+        consume(compiler, TOKEN_IN, "Expected 'not in' binary operator");
+
+        TeaParseRule* rule = get_rule(operator_type);
+        parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
+
+        emit_ops(compiler, OP_IN, OP_NOT);
+        return;
+    }
+
+    if(operator_type == TOKEN_IS && match(compiler, TOKEN_BANG))
+    {
+        TeaParseRule* rule = get_rule(operator_type);
+        parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
+
+        emit_ops(compiler, OP_IS, OP_NOT);
+        return;
+    }
+
     TeaParseRule* rule = get_rule(operator_type);
     parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
 
@@ -1214,7 +1235,7 @@ static TeaParseRule rules[] = {
     NONE,                                   // TOKEN_MINUS_EQUAL
     NONE,                                   // TOKEN_STAR_EQUAL
     NONE,                                   // TOKEN_SLASH_EQUAL
-    PREFIX(unary),                          // TOKEN_BANG
+    RULE(unary, binary, IS),                // TOKEN_BANG
     OPERATOR(binary, EQUALITY),             // TOKEN_BANG_EQUAL
     NONE,                                   // TOKEN_EQUAL
     OPERATOR(binary, EQUALITY),             // TOKEN_EQUAL_EQUAL
