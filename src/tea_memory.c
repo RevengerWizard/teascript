@@ -354,6 +354,7 @@ static void mark_roots(TeaState* T)
 
     tea_mark_table(T, &T->modules);
     tea_mark_table(T, &T->globals);
+    //tea_mark_table(T, &T->constants);
 
     tea_mark_object(T, (TeaObject*)T->thread);
 

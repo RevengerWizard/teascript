@@ -23,6 +23,7 @@ typedef struct TeaState
     TeaCompiler* compiler;
     TeaTable modules;
     TeaTable globals;
+    TeaTable constants;
     TeaTable strings;
     TeaObjectModule* last_module;
     TeaObjectClass* string_class;

@@ -31,6 +31,7 @@ TEA_API TeaState* tea_open()
     T->range_class = NULL;
     tea_init_table(&T->modules);
     tea_init_table(&T->globals);
+    tea_init_table(&T->constants);
     tea_init_table(&T->strings);
     T->constructor_string = tea_copy_string(T, "constructor", 11);
     T->repl_string = tea_copy_string(T, "_", 1);
@@ -40,8 +41,14 @@ TEA_API TeaState* tea_open()
 
 TEA_API void tea_close(TeaState* T)
 {
+    if(T->repl)
+    {
+        tea_free_table(T, &T->constants);   
+    }
+
     tea_free_table(T, &T->modules);
     tea_free_table(T, &T->globals);
+    tea_free_table(T, &T->constants);
     tea_free_table(T, &T->strings);
     T->constructor_string = NULL;
     T->repl_string = NULL;

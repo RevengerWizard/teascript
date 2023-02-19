@@ -35,12 +35,14 @@ typedef struct
     TeaToken name;
     int depth;
     bool is_captured;
+    bool constant;
 } TeaLocal;
 
 typedef struct
 {
     uint8_t index;
     bool is_local;
+    bool constant;
 } TeaUpvalue;
 
 typedef struct
