@@ -1190,6 +1190,14 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
     #define TRACE_INSTRUCTIONS() \
         do \
         { \
+            printf("          "); \
+            for(TeaValue* slot = thread->stack; slot < thread->stack_top; slot++) \
+            { \
+                printf("[ "); \
+                tea_print_value(*slot); \
+                printf(" ]"); \
+            } \
+            printf("\n"); \
             tea_disassemble_instruction(T, current_chunk, (int)(ip - current_chunk->code)); \
         } \
         while(false)

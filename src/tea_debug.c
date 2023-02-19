@@ -7,6 +7,82 @@
 #include "tea_object.h"
 #include "tea_value.h"
 
+static void print_object(TeaValue object)
+{
+    switch(OBJECT_TYPE(object))
+    {
+        case OBJ_CLASS:
+            printf("<class %s>", AS_CLASS(object)->name->chars);
+            break;
+        case OBJ_THREAD: 
+            printf("<thread>"); 
+            break;
+        case OBJ_CLOSURE:
+        {
+            if(AS_CLOSURE(object)->function->name == NULL)
+                printf("<script>");
+            else
+                printf("<function>");
+            break;
+        }
+        case OBJ_FUNCTION: 
+        {
+            if(AS_FUNCTION(object)->name == NULL)
+                printf("<script>");
+            else
+                printf("<function>");
+            break;
+        }
+        case OBJ_NATIVE: 
+            printf("<native>");
+            break;
+        case OBJ_INSTANCE: 
+            printf("<instance>");
+            break;
+        case OBJ_LIST: 
+            printf("<list>");
+            break;
+        case OBJ_MAP: 
+            printf("<map>");
+            break;
+        case OBJ_MODULE: 
+            printf("<module>"); 
+            break;
+        case OBJ_RANGE:
+            printf("<range>"); 
+            break;
+        case OBJ_STRING: 
+            printf("%s", AS_CSTRING(object)); 
+            break;
+        case OBJ_UPVALUE: 
+            printf("<upvalue>");
+            break;
+        default: 
+            printf("unknown"); 
+            break;
+    }
+}
+
+void tea_print_value(TeaValue value)
+{
+    if(IS_BOOL(value))
+    {
+        AS_BOOL(value) ? printf("true") : printf("false");
+    }
+    else if(IS_NULL(value))
+    {
+        printf("null");
+    }
+    else if(IS_NUMBER(value))
+    {
+        printf("%.16g", AS_NUMBER(value));
+    }
+    else if(IS_OBJECT(value))
+    {
+        print_object(value);
+    }
+}
+
 void tea_disassemble_chunk(TeaState* T, TeaChunk* chunk, const char* name)
 {
     printf("== %s ==\n", name);
@@ -21,7 +97,7 @@ static int constant_instruction(TeaState* T, const char* name, TeaChunk* chunk, 
 {
     uint8_t constant = chunk->code[offset + 1];
     printf("%-16s %4d '", name, constant);
-    printf("%s", tea_value_type(chunk->constants.values[constant]));
+    tea_print_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 2;
@@ -32,7 +108,7 @@ static int invoke_instruction(TeaState* T, const char* name, TeaChunk* chunk, in
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
     printf("%-16s    (%d args) %4d '", name, arg_count, constant);
-    printf("%s", tea_value_type(chunk->constants.values[constant]));
+    tea_print_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 3;
@@ -43,7 +119,7 @@ static int import_from_instruction(TeaState* T, const char* name, TeaChunk* chun
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
     printf("%-16s %4d '", name, arg_count, constant);
-    printf("%s", tea_value_type(chunk->constants.values[constant]));
+    tea_print_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 1 + arg_count;
@@ -53,7 +129,7 @@ static int native_import_instruction(TeaState* T, const char* name, TeaChunk* ch
 {
     uint8_t module = chunk->code[offset + 2];
     printf("%-16s '", name);
-    printf("%s", tea_value_type(chunk->constants.values[module]));
+    tea_print_value(chunk->constants.values[module]);
     printf("'\n");
 
     return offset + 3;
@@ -64,7 +140,7 @@ static int native_from_import_instruction(TeaState* T, const char* name, TeaChun
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
     printf("%-16s '", name, arg_count, constant);
-    printf("%s", tea_value_type(chunk->constants.values[constant]));
+    tea_print_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 2 + arg_count;
