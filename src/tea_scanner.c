@@ -844,6 +844,11 @@ static TeaToken string(TeaScanner* scanner, bool interpolation)
 	return token;
 }
 
+void tea_backtrack(TeaScanner* scanner)
+{
+    scanner->current--;
+}
+
 TeaToken tea_scan_token(TeaScanner* scanner)
 {
     if(skip_whitespace(scanner))

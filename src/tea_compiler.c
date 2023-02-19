@@ -69,6 +69,15 @@ static void advance(TeaCompiler* compiler)
     }
 }
 
+// Go back by one token. You need to patch the current token to the previous one after calling this function
+static void recede(TeaCompiler* compiler)
+{
+    for(int i = 0; i < compiler->parser->current.length; i++)
+    {
+        tea_backtrack(&compiler->parser->scanner);
+    }
+}
+
 static void consume(TeaCompiler* compiler, TeaTokenType type, const char* message)
 {
     if(compiler->parser->current.type == type)
@@ -2579,6 +2588,86 @@ static void do_statement(TeaCompiler* compiler)
     end_loop(compiler);
 }
 
+static void multiple_assignment(TeaCompiler* compiler)
+{
+    int expr_count = 0;
+    int var_count = 0;
+    TeaToken variables[255];
+
+    TeaToken previous = compiler->parser->previous;
+
+    if(!match(compiler, TOKEN_COMMA))
+    {
+        recede(compiler);
+        compiler->parser->current = compiler->parser->previous;
+        expression_statement(compiler);
+        return;
+    }
+
+    variables[var_count] = previous;
+    var_count++;
+
+    do 
+    {
+        consume(compiler, TOKEN_NAME, "Expect variable name");
+        variables[var_count] = compiler->parser->previous;
+        var_count++;
+    } 
+    while(match(compiler, TOKEN_COMMA));
+
+    consume(compiler, TOKEN_EQUAL, "Expect '=' multiple assignment");
+
+    do
+    {
+        expression(compiler);
+        expr_count++;
+        if(expr_count == 1 && (!check(compiler, TOKEN_COMMA)))
+        {
+            emit_argued(compiler, OP_UNPACK_LIST, var_count);
+            goto finish;
+        }
+    }
+    while(match(compiler, TOKEN_COMMA));
+
+    if(expr_count != var_count)
+    {
+        error(compiler, "Not enough values to assign to");
+    }
+    
+    finish:
+    for(int i = var_count - 1; i >= 0; i--)
+    {
+        TeaToken token = variables[i];
+    
+        uint8_t set_op;
+        int arg = resolve_local(compiler, &token);
+        if(arg != -1) 
+        {
+            set_op = OP_SET_LOCAL;
+        } 
+        else if((arg = resolve_upvalue(compiler, &token)) != -1) 
+        {
+            set_op = OP_SET_UPVALUE;
+        } 
+        else
+        {
+            arg = identifier_constant(compiler, &token);
+            TeaObjectString* string = tea_copy_string(compiler->parser->T, token.start, token.length);
+            TeaValue value;
+            if(tea_table_get(&compiler->parser->T->globals, string, &value)) 
+            {
+                set_op = OP_SET_GLOBAL;
+            } 
+            else 
+            {
+                set_op = OP_SET_MODULE;
+            }
+        }
+        emit_argued(compiler, set_op, (uint8_t)arg);
+        emit_op(compiler, OP_POP);
+    }
+}
+
 static void synchronize(TeaCompiler* compiler)
 {
     compiler->parser->panic_mode = false;
@@ -2679,6 +2768,10 @@ static void statement(TeaCompiler* compiler)
     else if(match(compiler, TOKEN_CONTINUE))
     {
         continue_statement(compiler);
+    }
+    else if(match(compiler, TOKEN_NAME))
+    {
+        multiple_assignment(compiler);
     }
     else if(match(compiler, TOKEN_LEFT_BRACE))
     {

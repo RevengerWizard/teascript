@@ -23,24 +23,17 @@ args = parser.parse_args(sys.argv[1:])
 config = args.suffix.lstrip('_d')
 is_debug = args.suffix.startswith('_d')
 
-WREN_DIR = dirname(dirname(realpath(__file__)))
-WREN_APP = join(WREN_DIR, 'bin', 'wren_test' + args.suffix)
-
-WREN_APP_WITH_EXT = WREN_APP
-if platform.system() == "Windows":
-    WREN_APP_WITH_EXT += ".exe"
-
-if not isfile(WREN_APP_WITH_EXT):
-    print("The binary file 'wren_test' was not found, expected it to be at " + WREN_APP)
-    print("In order to run the tests, you need to build Wren first!")
-    sys.exit(1)
+TEA_DIR = dirname(dirname(realpath(__file__)))
+TEA_APP = join(TEA_DIR, 'tea' + args.suffix)
 
 EXPECT_PATTERN = re.compile(r'// expect: ?(.*)')
 EXPECT_ERROR_PATTERN = re.compile(r'// expect error(?! line)')
 EXPECT_ERROR_LINE_PATTERN = re.compile(r'// expect error line (\d+)')
 EXPECT_RUNTIME_ERROR_PATTERN = re.compile(r'// expect (handled )?runtime error: (.+)')
-ERROR_PATTERN = re.compile(r'\[.* line (\d+)\] Error')
-STACK_TRACE_PATTERN = re.compile(r'(?:\[\./)?test/.* line (\d+)\] in')
+
+ERROR_PATTERN = re.compile(r'File .*, \[.* line (\d+)\] Error')
+STACK_TRACE_PATTERN = re.compile(r'\[line (\d+)\]')
+
 STDIN_PATTERN = re.compile(r'// stdin: (.*)')
 SKIP_PATTERN = re.compile(r'// skip: (.*)')
 NONTEST_PATTERN = re.compile(r'// nontest')
@@ -96,9 +89,9 @@ class Test:
                 if match:
                     self.compile_errors.add(line_num)
 
-                # If we expect a compile error, it should exit with WREN_EX_DATAERR.
-                self.exit_code = 65
-                expectations += 1
+                    # If we expect a compile error, it should exit with WREN_EX_DATAERR.
+                    self.exit_code = 65
+                    expectations += 1
 
             match = EXPECT_ERROR_LINE_PATTERN.search(line)
             if match:
@@ -343,18 +336,18 @@ def run_script(app, path, type):
     global failed
     global num_skipped
 
-    if (splitext(path)[1] != '.wren'):
+    if (splitext(path)[1] != '.tea'):
         return
 
     # Check if we are just running a subset of the tests.
     if args.suite:
-        this_test = relpath(path, join(WREN_DIR, 'test'))
+        this_test = relpath(path, join(TEA_DIR, 'test'))
         if not this_test.startswith(args.suite):
             return
 
     # Update the status line.
     print_line('({}) Passed: {} Failed: {} Skipped: {} '.format(
-        relpath(app, WREN_DIR), green(passed), red(failed), yellow(num_skipped)))
+        relpath(app, TEA_DIR), green(passed), red(failed), yellow(num_skipped)))
 
     # Make a nice short path relative to the working directory.
 
@@ -384,27 +377,18 @@ def run_script(app, path, type):
 
 
 def run_test(path, example=False):
-    run_script(WREN_APP, path, "test")
+    run_script(TEA_APP, path, "test")
 
 
 def run_api_test(path):
-    run_script(WREN_APP, path, "api test")
+    run_script(TEA_APP, path, "api test")
 
 
 def run_example(path):
-    # Don't run examples that require user input.
-    if "animals" in path: return
-    if "guess_number" in path: return
-
-    # This one is annoyingly slow.
-    if "skynet" in path: return
-
-    run_script(WREN_APP, path, "example")
+    run_script(TEA_APP, path, "example")
 
 
-walk(join(WREN_DIR, 'test'), run_test, ignored=['api', 'benchmark'])
-walk(join(WREN_DIR, 'test', 'api'), run_api_test)
-walk(join(WREN_DIR, 'example'), run_example)
+walk('test', run_test)
 
 print_line()
 if failed == 0:
