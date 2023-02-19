@@ -33,6 +33,7 @@ TEA_API TeaState* tea_open()
     tea_init_table(&T->globals);
     tea_init_table(&T->strings);
     T->constructor_string = tea_copy_string(T, "constructor", 11);
+    T->repl_string = tea_copy_string(T, "_", 1);
     tea_open_core(T);
     return T;
 }
@@ -43,6 +44,7 @@ TEA_API void tea_close(TeaState* T)
     tea_free_table(T, &T->globals);
     tea_free_table(T, &T->strings);
     T->constructor_string = NULL;
+    T->repl_string = NULL;
     tea_free_objects(T);
 
 #if defined (TEA_DEBUG_TRACE_MEMORY) || defined (TEA_DEBUG_FINAL_MEMORY)

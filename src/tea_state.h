@@ -31,6 +31,7 @@ typedef struct TeaState
     TeaObjectClass* file_class;
     TeaObjectClass* range_class;
     TeaObjectString* constructor_string;
+    TeaObjectString* repl_string;
     TeaValue stack[1000];
     TeaValue* slot;
     int top;

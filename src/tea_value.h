@@ -21,10 +21,15 @@ typedef struct TeaObjectUserdata TeaObjectUserdata;
 #define SIGN_BIT ((uint64_t)0x8000000000000000)
 #define QNAN ((uint64_t)0x7ffc000000000000)
 
-#define TAG_NULL    1   // 0001
-#define TAG_FALSE   2   // 0010
-#define TAG_TRUE    3   // 0011
-#define TAG_EMPTY   4   // 0100
+#define MASK_TAG        (7)
+
+#define TAG_NULL        (1)
+#define TAG_FALSE       (2)
+#define TAG_TRUE        (3)
+#define TAG_EMPTY       (4)
+#define TAG_UNUSED1     (5)
+#define TAG_UNUSED2     (6)
+#define TAG_UNUSED3     (7)
 
 typedef uint64_t TeaValue;
 
@@ -48,6 +53,8 @@ typedef uint64_t TeaValue;
 #define NUMBER_VAL(num) num_to_value(num)
 #define OBJECT_VAL(obj) \
     (TeaValue)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
+
+#define GET_TAG(value)  ((int)((value) & MASK_TAG))
 
 static inline double value_to_num(TeaValue value)
 {

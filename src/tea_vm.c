@@ -1274,6 +1274,7 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
                 TeaValue value = PEEK(0);
                 if(!IS_NULL(value))
                 {
+                    tea_table_set(T, &T->globals, T->repl_string, value);
                     TeaObjectString* string = tea_value_tostring(T, value);
                     PUSH(OBJECT_VAL(string));
                     tea_write_string(string->chars, string->length);

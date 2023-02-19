@@ -369,6 +369,7 @@ static void mark_roots(TeaState* T)
     }
     
     tea_mark_object(T, (TeaObject*)T->constructor_string);
+    tea_mark_object(T, (TeaObject*)T->repl_string);
 }
 
 static void trace_references(TeaState* T)
