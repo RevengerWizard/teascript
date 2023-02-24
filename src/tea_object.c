@@ -144,9 +144,9 @@ TeaObjectModule* tea_new_module(TeaState* T, TeaObjectString* name)
     module->name = name;
     module->path = NULL;
     
-    tea_push_root(T, OBJECT_VAL(module));
+    tea_push_slot(T, OBJECT_VAL(module));
     tea_table_set(T, &T->modules, name, OBJECT_VAL(module));
-    tea_pop_root(T);
+    tea_pop_slot(T);
 
     return module;
 }
@@ -238,9 +238,9 @@ static TeaObjectString* allocate_string(TeaState* T, char* chars, int length, ui
     string->chars = chars;
     string->hash = hash;
 
-    tea_push_root(T, OBJECT_VAL(string));
+    tea_push_slot(T, OBJECT_VAL(string));
     tea_table_set(T, &T->strings, string, NULL_VAL);
-    tea_pop_root(T);
+    tea_pop_slot(T);
 
     return string;
 }

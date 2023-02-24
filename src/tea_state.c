@@ -84,7 +84,7 @@ TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, c
 
 TEA_API TeaInterpretResult tea_call(TeaState* T, int n)
 {
-    TeaValue native = T->slot[T->top - n - 1];
+    TeaValue func = T->slot[T->top - n - 1];
 
     TeaStackInfo* info = &T->infos[T->info_count++];
     info->slot = T->slot; // Save the start of last slot
@@ -93,9 +93,9 @@ TEA_API TeaInterpretResult tea_call(TeaState* T, int n)
     T->slot = T->slot - n + T->top;     // Offset slot to new position (first argument of function)
     T->top = n;
 
-    if(IS_NATIVE(native)) 
+    if(IS_NATIVE(func)) 
     { 
-        AS_NATIVE(native)->fn(T);
+        AS_NATIVE(func)->fn(T);
     }
 
     TeaValue ret = T->slot[T->top - 1];

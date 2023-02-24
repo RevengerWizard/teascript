@@ -62,7 +62,7 @@ static void* tsys_load(TeaState* T, const char* path, int seeglb)
 static TeaCFunction tsys_sym(TeaState* T, void* lib, const char* sym)
 {
     TeaCFunction f = (TeaCFunction)(voidf)GetProcAddress((HMODULE)lib, sym);
-    if(f == NULL) //pusherror(L);
+    if(f == NULL) // error;
     return f;
 }
 

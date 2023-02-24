@@ -6,7 +6,7 @@
 
 #include "tea.h"
 
-#include "tea_module.h"
+#include "tea_import.h"
 #include "tea_core.h"
 
 #undef PI

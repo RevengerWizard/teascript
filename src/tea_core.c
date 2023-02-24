@@ -73,7 +73,7 @@ static void input(TeaState* T)
     
     line[length] = '\0';
 
-    T->slot[T->top++] = OBJECT_VAL(tea_take_string(T, line, length));
+    tea_push_slot(T, OBJECT_VAL(tea_take_string(T, line, length)));
 }
 
 static void open(TeaState* T)
@@ -94,7 +94,7 @@ static void open(TeaState* T)
     {
         tea_error(T, "Unable to open file '%s'", path);
     }
-    T->slot[T->top++] = OBJECT_VAL(file);
+    tea_push_slot(T, OBJECT_VAL(file));
 }
 
 static void assert(TeaState* T)
@@ -145,7 +145,7 @@ static void chr(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     int n = tea_check_number(T, 0);
-    T->slot[T->top++] = OBJECT_VAL(tea_ustring_from_code_point(T, n));
+    tea_push_slot(T, OBJECT_VAL(tea_ustring_from_code_point(T, n)));
 }
 
 static void ord(TeaState* T)
@@ -166,7 +166,7 @@ static void hex(TeaState* T)
     char* string = ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "0x%x", n);
 
-    T->slot[T->top++] = OBJECT_VAL(tea_take_string(T, string, len));
+    tea_push_slot(T, OBJECT_VAL(tea_take_string(T, string, len)));
 }
 
 static void bin(TeaState* T)

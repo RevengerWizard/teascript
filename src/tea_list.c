@@ -424,7 +424,7 @@ static void list_join(TeaState* T)
     string[length] = '\0';
     tea_pop(T, 2);
 
-    T->slot[T->top++] = OBJECT_VAL(tea_take_string(T, string, length));
+    tea_push_slot(T, OBJECT_VAL(tea_take_string(T, string, length)));
 }
 
 static void list_copy(TeaState* T)

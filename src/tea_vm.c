@@ -14,7 +14,7 @@
 #include "tea_vm.h"
 #include "tea_util.h"
 #include "tea_utf.h"
-#include "tea_module.h"
+#include "tea_import.h"
 
 static inline void push(TeaState* T, TeaValue value)
 {
@@ -559,10 +559,10 @@ static bool call(TeaState* T, TeaObjectClosure* closure, int arg_count)
 static bool call_native_property(TeaState* T, TeaObjectNative* native)
 {
     // a fake caller
-    T->slot[T->top++] = NULL_VAL;
+    tea_push_slot(T, NULL_VAL);
 
     // move function arguments to c stack
-    T->slot[T->top++] = *(T->thread->stack_top - 1);
+    tea_push_slot(T, *(T->thread->stack_top - 1));
 
     TeaStackInfo* info = &T->infos[T->info_count++];
     info->slot = T->slot; // Save the start of last slot
@@ -586,19 +586,19 @@ static bool call_native_property(TeaState* T, TeaObjectNative* native)
 static bool call_native(TeaState* T, TeaObjectNative* native, uint8_t arg_count)
 {
     // a fake caller
-    T->slot[T->top++] = NULL_VAL;
+    tea_push_slot(T, NULL_VAL);
 
     int n = 0;
     if(native->type == NATIVE_METHOD)
     {
-        T->slot[T->top++] = T->thread->stack_top[-arg_count - 1];
+        tea_push_slot(T, T->thread->stack_top[-arg_count - 1]);
         n = 1;
     }
 
     // move function arguments to c stack
     for(TeaValue* slot = T->thread->stack_top - arg_count; slot <= T->thread->stack_top-1; slot++)
     {
-        T->slot[T->top++] = *slot;
+        tea_push_slot(T, *slot);
     }
 
     TeaStackInfo* info = &T->infos[T->info_count++];
@@ -2315,25 +2315,25 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
 TeaInterpretResult tea_interpret_module(TeaState* T, const char* module_name, const char* source)
 {
     TeaObjectString* name = tea_copy_string(T, module_name, strlen(module_name));
-    tea_push_root(T, OBJECT_VAL(name));
+    tea_push_slot(T, OBJECT_VAL(name));
     TeaObjectModule* module = tea_new_module(T, name);
-    tea_pop_root(T);
+    tea_pop_slot(T);
 
-    tea_push_root(T, OBJECT_VAL(module));
+    tea_push_slot(T, OBJECT_VAL(module));
     module->path = tea_get_directory(T, (char*)module_name);
-    tea_pop_root(T);
+    tea_pop_slot(T);
     
     TeaObjectFunction* function = tea_compile(T, module, source);
     if(function == NULL)
         return TEA_COMPILE_ERROR;
 
-    tea_push_root(T, OBJECT_VAL(function));
+    tea_push_slot(T, OBJECT_VAL(function));
     TeaObjectClosure* closure = tea_new_closure(T, function);
-    tea_pop_root(T);
+    tea_pop_slot(T);
 
-    tea_push_root(T, OBJECT_VAL(closure));
+    tea_push_slot(T, OBJECT_VAL(closure));
     TeaObjectThread* thread = tea_new_thread(T, closure);
-    tea_pop_root(T);
+    tea_pop_slot(T);
 
     return run_interpreter(T, thread);
 }

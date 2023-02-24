@@ -31,12 +31,12 @@ static void file_closed(TeaState* T)
 
 static void file_path(TeaState* T)
 {
-    T->slot[T->top++] = OBJECT_VAL(get_file(T)->path);
+    tea_push_slot(T, OBJECT_VAL(get_file(T)->path));
 }
 
 static void file_type(TeaState* T)
 {
-    T->slot[T->top++] = OBJECT_VAL(get_file(T)->type);
+    tea_push_slot(T, OBJECT_VAL(get_file(T)->type));
 }
 
 static void file_write(TeaState* T)
@@ -117,7 +117,7 @@ static void file_read(TeaState* T)
 
     contents = GROW_ARRAY(T, char, contents, current_size, total_read_bytes + 1);
 
-    T->slot[T->top++] = OBJECT_VAL(tea_take_string(T, contents, total_read_bytes));
+    tea_push_slot(T, OBJECT_VAL(tea_take_string(T, contents, total_read_bytes)));
 }
 
 static void file_readline(TeaState* T)
@@ -155,7 +155,7 @@ static void file_readline(TeaState* T)
             line[line_length] = '\0';
             line = GROW_ARRAY(T, char, line, current_size, line_length + 1);
 
-            T->slot[T->top++] = OBJECT_VAL(tea_take_string(T, line, line_length));
+            tea_push_slot(T, OBJECT_VAL(tea_take_string(T, line, line_length)));
             return;
         }
     }

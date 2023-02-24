@@ -56,12 +56,12 @@ typedef struct TeaState
 
 TeaObjectClass* tea_get_class(TeaState* T, TeaValue value);
 
-static inline void tea_push_root(TeaState* T, TeaValue value)
+static inline void tea_push_slot(TeaState* T, TeaValue value)
 {
     T->slot[T->top++] = value;
 }
 
-static inline void tea_pop_root(TeaState* T)
+static inline void tea_pop_slot(TeaState* T)
 {
     T->top--;
 }

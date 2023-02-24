@@ -10,7 +10,7 @@
 #include "tea_compiler.h"
 #include "tea_memory.h"
 #include "tea_scanner.h"
-#include "tea_module.h"
+#include "tea_import.h"
 
 #ifdef TEA_DEBUG_PRINT_CODE
 #include "tea_debug.h"
@@ -1498,7 +1498,8 @@ static void function(TeaCompiler* compiler, TeaFunctionType type)
     TeaCompiler fn_compiler;
 
     begin_function(compiler, &fn_compiler, type);
-    statement(&fn_compiler);
+    consume(&fn_compiler, TOKEN_LEFT_BRACE, "Expect '{' before function body");
+    block(&fn_compiler);
     end_compiler(&fn_compiler);
 }
 

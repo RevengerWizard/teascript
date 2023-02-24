@@ -4,7 +4,7 @@
 #include "tea.h"
 
 #include "tea_state.h"
-#include "tea_module.h"
+#include "tea_import.h"
 
 static const TeaReg modules[] = {
     { TEA_MATH_MODULE, tea_import_math },

@@ -40,9 +40,9 @@ void tea_write_chunk(TeaState* T, TeaChunk* chunk, uint8_t byte, int line)
 
 int tea_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value)
 {
-    tea_push_root(T, value);
+    tea_push_slot(T, value);
     tea_write_value_array(T, &chunk->constants, value);
-    tea_pop_root(T);
+    tea_pop_slot(T);
 
     return chunk->constants.count - 1;
 }

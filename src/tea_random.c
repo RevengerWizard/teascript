@@ -7,7 +7,7 @@
 
 #include "tea.h"
 
-#include "tea_module.h"
+#include "tea_import.h"
 #include "tea_core.h"
 
 static void random_seed(TeaState* T)
