@@ -138,8 +138,8 @@ static void list_insert(TeaState* T)
     if(list->items.capacity < list->items.count + 1) 
     {
         int old_capacity = list->items.capacity;
-        list->items.capacity = GROW_CAPACITY(old_capacity);
-        list->items.values = GROW_ARRAY(T, TeaValue, list->items.values, old_capacity, list->items.capacity);
+        list->items.capacity = TEA_GROW_CAPACITY(old_capacity);
+        list->items.values = TEA_GROW_ARRAY(T, TeaValue, list->items.values, old_capacity, list->items.capacity);
     }
 
     list->items.count++;
@@ -405,7 +405,7 @@ static void list_join(TeaState* T)
         tea_get_item(T, 0, i);
         output = (char*)tea_to_lstring(T, count, &element_len);
 
-        string = GROW_ARRAY(T, char, string, length, length + element_len + sep_len);
+        string = TEA_GROW_ARRAY(T, char, string, length, length + element_len + sep_len);
 
         memcpy(string + length, output, element_len);
         length += element_len;
@@ -418,7 +418,7 @@ static void list_join(TeaState* T)
     // Outside the loop as we do not want the append the delimiter on the last element
     output = (char*)tea_to_lstring(T, count, &element_len);
 
-    string = GROW_ARRAY(T, char, string, length, length + element_len + 1);
+    string = TEA_GROW_ARRAY(T, char, string, length, length + element_len + 1);
     memcpy(string + length, output, element_len);
     length += element_len;
     string[length] = '\0';

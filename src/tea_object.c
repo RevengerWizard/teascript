@@ -39,9 +39,9 @@ TeaObjectNative* tea_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn
 TeaObjectThread* tea_new_thread(TeaState* T, TeaObjectClosure* closure)
 {
     int stack_capacity = closure == NULL ? TEA_MIN_SLOTS : tea_closest_power_of_two(closure->function->max_slots + 1);
-    TeaValue* stack = ALLOCATE(T, TeaValue, stack_capacity);
+    TeaValue* stack = TEA_ALLOCATE(T, TeaValue, stack_capacity);
 
-    TeaCallFrame* frames = ALLOCATE(T, TeaCallFrame, 64);
+    TeaCallFrame* frames = TEA_ALLOCATE(T, TeaCallFrame, 64);
     TeaObjectThread* thread = ALLOCATE_OBJECT(T, TeaObjectThread, OBJ_THREAD);
 
     thread->stack = stack;
@@ -192,7 +192,7 @@ TeaObjectClass* tea_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass
 
 TeaObjectClosure* tea_new_closure(TeaState* T, TeaObjectFunction* function)
 {
-    TeaObjectUpvalue** upvalues = ALLOCATE(T, TeaObjectUpvalue*, function->upvalue_count);
+    TeaObjectUpvalue** upvalues = TEA_ALLOCATE(T, TeaObjectUpvalue*, function->upvalue_count);
     for(int i = 0; i < function->upvalue_count; i++)
     {
         upvalues[i] = NULL;
@@ -267,7 +267,7 @@ TeaObjectString* tea_take_string(TeaState* T, char* chars, int length)
     TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
     if(interned != NULL)
     {
-        FREE_ARRAY(T, char, chars, length + 1);
+        TEA_FREE_ARRAY(T, char, chars, length + 1);
         return interned;
     }
 
@@ -281,7 +281,7 @@ TeaObjectString* tea_copy_string(TeaState* T, const char* chars, int length)
     if (interned != NULL)
         return interned;
 
-    char* heap_chars = ALLOCATE(T, char, length + 1);
+    char* heap_chars = TEA_ALLOCATE(T, char, length + 1);
     memcpy(heap_chars, chars, length);
     heap_chars[length] = '\0';
 
@@ -402,8 +402,8 @@ bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
 {
     if(map->count + 1 > map->capacity * MAP_MAX_LOAD)
     {
-        int capacity = GROW_CAPACITY(map->capacity);
-        TeaMapItem* items = ALLOCATE(T, TeaMapItem, capacity);
+        int capacity = TEA_GROW_CAPACITY(map->capacity);
+        TeaMapItem* items = TEA_ALLOCATE(T, TeaMapItem, capacity);
         for(int i = 0; i < capacity; i++)
         {
             items[i].key = NULL_VAL;
@@ -425,7 +425,7 @@ bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
             map->count++;
         }
 
-        FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
+        TEA_FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
         map->items = items;
         map->capacity = capacity;
     }
@@ -488,7 +488,7 @@ static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
 
     int size = 50;
     
-    char* string = ALLOCATE(T, char, size);
+    char* string = TEA_ALLOCATE(T, char, size);
     memcpy(string, "[", 1);
     int length = 1;
 
@@ -523,7 +523,7 @@ static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
                 size = size * 2 + 6;
             }
 
-            string = GROW_ARRAY(T, char, string, old_size, size);
+            string = TEA_GROW_ARRAY(T, char, string, old_size, size);
         }
 
         memcpy(string + length, element, element_size);
@@ -540,7 +540,7 @@ static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
     length += 1;
     string[length] = '\0';
 
-    string = GROW_ARRAY(T, char, string, size, length + 1);
+    string = TEA_GROW_ARRAY(T, char, string, size, length + 1);
 
     return tea_take_string(T, string, length);
 }
@@ -553,7 +553,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
     int count = 0;
     int size = 50;
 
-    char* string = ALLOCATE(T, char, size);
+    char* string = TEA_ALLOCATE(T, char, size);
     memcpy(string, "{", 1);
     int length = 1;
 
@@ -594,7 +594,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
                 size *= 2 + 4;
             }
 
-            string = GROW_ARRAY(T, char, string, old_size, size);
+            string = TEA_GROW_ARRAY(T, char, string, old_size, size);
         }
 
         if(!IS_STRING(item->key))
@@ -638,7 +638,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
                 size = size * 2 + 6;
             }
 
-            string = GROW_ARRAY(T, char, string, old_size, size);
+            string = TEA_GROW_ARRAY(T, char, string, old_size, size);
         }
 
         memcpy(string + length, element, element_size);
@@ -655,7 +655,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
     length += 1;
     string[length] = '\0';
 
-    string = GROW_ARRAY(T, char, string, size, length + 1);
+    string = TEA_GROW_ARRAY(T, char, string, size, length + 1);
 
     return tea_take_string(T, string, length);
 }
@@ -666,7 +666,7 @@ static TeaObjectString* range_tostring(TeaState* T, TeaObjectRange* range)
     char* end = tea_number_tostring(T, range->end)->chars;
 
     int len = snprintf(NULL, 0, "%s...%s", start, end);
-    char* string = ALLOCATE(T, char, len + 1);
+    char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "%s...%s", start, end);
 
     return tea_take_string(T, string, len);
@@ -675,7 +675,7 @@ static TeaObjectString* range_tostring(TeaState* T, TeaObjectRange* range)
 static TeaObjectString* module_tostring(TeaState* T, TeaObjectModule* module)
 {
     int len = snprintf(NULL, 0, "<%s module>", module->name->chars);
-    char* string = ALLOCATE(T, char, len + 1);
+    char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s module>", module->name->chars);
 
     return tea_take_string(T, string, len);
@@ -684,7 +684,7 @@ static TeaObjectString* module_tostring(TeaState* T, TeaObjectModule* module)
 static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
 {
     int len = snprintf(NULL, 0, "<%s>", klass->name->chars);
-    char* string = ALLOCATE(T, char, len + 1);
+    char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s>", klass->name->chars);
 
     return tea_take_string(T, string, len);
@@ -693,7 +693,7 @@ static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
 static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instance)
 {
     int len = snprintf(NULL, 0, "<%s instance>", instance->klass->name->chars);
-    char* string = ALLOCATE(T, char, len + 1);
+    char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s instance>", instance->klass->name->chars);
 
     return tea_take_string(T, string, len);

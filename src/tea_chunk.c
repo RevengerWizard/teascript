@@ -17,8 +17,8 @@ void tea_init_chunk(TeaChunk* chunk)
 
 void tea_free_chunk(TeaState* T, TeaChunk* chunk)
 {
-    FREE_ARRAY(T, uint8_t, chunk->code, chunk->capacity);
-    FREE_ARRAY(T, int, chunk->lines, chunk->capacity);
+    TEA_FREE_ARRAY(T, uint8_t, chunk->code, chunk->capacity);
+    TEA_FREE_ARRAY(T, int, chunk->lines, chunk->capacity);
     tea_free_value_array(T, &chunk->constants);
     tea_init_chunk(chunk);
 }
@@ -28,9 +28,9 @@ void tea_write_chunk(TeaState* T, TeaChunk* chunk, uint8_t byte, int line)
     if(chunk->capacity < chunk->count + 1)
     {
         int old_capacity = chunk->capacity;
-        chunk->capacity = GROW_CAPACITY(old_capacity);
-        chunk->code = GROW_ARRAY(T, uint8_t, chunk->code, old_capacity, chunk->capacity);
-        chunk->lines = GROW_ARRAY(T, int, chunk->lines, old_capacity, chunk->capacity);
+        chunk->capacity = TEA_GROW_CAPACITY(old_capacity);
+        chunk->code = TEA_GROW_ARRAY(T, uint8_t, chunk->code, old_capacity, chunk->capacity);
+        chunk->lines = TEA_GROW_ARRAY(T, int, chunk->lines, old_capacity, chunk->capacity);
     }
 
     chunk->code[chunk->count] = byte;

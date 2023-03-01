@@ -95,8 +95,6 @@ typedef struct
     double step;
 } TeaObjectRange;
 
-TeaObjectRange* tea_new_range(TeaState* T, double start, double end, double step);
-
 struct TeaObjectFile
 {
     TeaObject obj;
@@ -106,8 +104,6 @@ struct TeaObjectFile
     int is_open;
 };
 
-TeaObjectFile* tea_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
-
 typedef struct
 {
     TeaObject obj;
@@ -115,8 +111,6 @@ typedef struct
     TeaObjectString* path;
     TeaTable values;
 } TeaObjectModule;
-
-TeaObjectModule* tea_new_module(TeaState* T, TeaObjectString* name);
 
 typedef struct
 {
@@ -132,8 +126,6 @@ typedef struct
     TeaObjectModule* module;
 } TeaObjectFunction;
 
-TeaObjectFunction* tea_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots);
-
 typedef enum
 {
     NATIVE_FUNCTION,
@@ -148,8 +140,6 @@ typedef struct
     TeaCFunction fn;
 } TeaObjectNative;
 
-TeaObjectNative* tea_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn);
-
 struct TeaObjectString
 {
     TeaObject obj;
@@ -158,17 +148,11 @@ struct TeaObjectString
     uint32_t hash;
 };
 
-TeaObjectString* tea_new_string(TeaState* T, const char* name);
-TeaObjectString* tea_take_string(TeaState* T, char* chars, int length);
-TeaObjectString* tea_copy_string(TeaState* T, const char* chars, int length);
-
 typedef struct
 {
     TeaObject obj;
     TeaValueArray items;
 } TeaObjectList;
-
-TeaObjectList* tea_new_list(TeaState* T);
 
 typedef struct 
 {
@@ -185,12 +169,6 @@ typedef struct
     TeaMapItem* items;
 } TeaObjectMap;
 
-TeaObjectMap* tea_new_map(TeaState* T);
-bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value);
-bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
-bool tea_map_delete(TeaObjectMap* map, TeaValue key);
-void tea_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to);
-
 typedef struct TeaObjectUpvalue
 {
     TeaObject obj;
@@ -199,8 +177,6 @@ typedef struct TeaObjectUpvalue
     struct TeaObjectUpvalue* next;
 } TeaObjectUpvalue;
 
-TeaObjectUpvalue* tea_new_upvalue(TeaState* T, TeaValue* slot);
-
 typedef struct
 {
     TeaObject obj;
@@ -208,8 +184,6 @@ typedef struct
     TeaObjectUpvalue** upvalues;
     int upvalue_count;
 } TeaObjectClosure;
-
-TeaObjectClosure* tea_new_closure(TeaState* T, TeaObjectFunction* function);
 
 typedef struct TeaObjectClass
 {
@@ -221,8 +195,6 @@ typedef struct TeaObjectClass
     TeaTable methods;
 } TeaObjectClass;
 
-TeaObjectClass* tea_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
-
 typedef struct
 {
     TeaObject obj;
@@ -230,16 +202,12 @@ typedef struct
     TeaTable fields;
 } TeaObjectInstance;
 
-TeaObjectInstance* tea_new_instance(TeaState* T, TeaObjectClass* klass);
-
 typedef struct
 {
     TeaObject obj;
     TeaValue receiver;
     TeaValue method;
 } TeaObjectBoundMethod;
-
-TeaObjectBoundMethod* tea_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
 
 typedef void (*TeaFreeFunction)(TeaState* T, TeaObjectUserdata* data, bool mark);
 
@@ -250,8 +218,6 @@ typedef struct TeaObjectUserdata
     size_t size;
     TeaFreeFunction fn;
 } TeaObjectUserdata;
-
-TeaObjectUserdata* tea_new_userdata(TeaState* T, size_t size);
 
 typedef struct
 {
@@ -302,6 +268,31 @@ static inline void tea_ensure_callframe(TeaState* T, TeaObjectThread* thread)
 
 TeaObjectThread* tea_new_thread(TeaState* T, TeaObjectClosure* closure);
 void tea_ensure_stack(TeaState* T, TeaObjectThread* thread, int needed);
+
+TeaObjectUserdata* tea_new_userdata(TeaState* T, size_t size);
+TeaObjectBoundMethod* tea_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
+TeaObjectInstance* tea_new_instance(TeaState* T, TeaObjectClass* klass);
+TeaObjectClass* tea_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
+TeaObjectClosure* tea_new_closure(TeaState* T, TeaObjectFunction* function);
+TeaObjectUpvalue* tea_new_upvalue(TeaState* T, TeaValue* slot);
+
+TeaObjectMap* tea_new_map(TeaState* T);
+bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value);
+bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
+bool tea_map_delete(TeaObjectMap* map, TeaValue key);
+void tea_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to);
+
+TeaObjectList* tea_new_list(TeaState* T);
+
+TeaObjectString* tea_new_string(TeaState* T, const char* name);
+TeaObjectString* tea_take_string(TeaState* T, char* chars, int length);
+TeaObjectString* tea_copy_string(TeaState* T, const char* chars, int length);
+
+TeaObjectNative* tea_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn);
+TeaObjectFunction* tea_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots);
+TeaObjectModule* tea_new_module(TeaState* T, TeaObjectString* name);
+TeaObjectFile* tea_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
+TeaObjectRange* tea_new_range(TeaState* T, double start, double end, double step);
 
 TeaObject* tea_allocate_object(TeaState* T, size_t size, TeaObjectType type);
 

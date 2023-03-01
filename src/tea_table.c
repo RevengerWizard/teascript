@@ -18,7 +18,7 @@ void tea_init_table(TeaTable* table)
 
 void tea_free_table(TeaState* T, TeaTable* table)
 {
-    FREE_ARRAY(T, TeaEntry, table->entries, table->capacity);
+    TEA_FREE_ARRAY(T, TeaEntry, table->entries, table->capacity);
     tea_init_table(table);
 }
 
@@ -70,7 +70,7 @@ bool tea_table_get(TeaTable* table, TeaObjectString* key, TeaValue* value)
 
 static void adjust_capacity(TeaState* T, TeaTable* table, int capacity)
 {
-    TeaEntry* entries = ALLOCATE(T, TeaEntry, capacity);
+    TeaEntry* entries = TEA_ALLOCATE(T, TeaEntry, capacity);
     for(int i = 0; i < capacity; i++)
     {
         entries[i].key = NULL;
@@ -90,7 +90,7 @@ static void adjust_capacity(TeaState* T, TeaTable* table, int capacity)
         table->count++;
     }
 
-    FREE_ARRAY(T, TeaEntry, table->entries, table->capacity);
+    TEA_FREE_ARRAY(T, TeaEntry, table->entries, table->capacity);
     table->entries = entries;
     table->capacity = capacity;
 }
@@ -99,7 +99,7 @@ bool tea_table_set(TeaState* T, TeaTable* table, TeaObjectString* key, TeaValue 
 {
     if(table->count + 1 > table->capacity * TABLE_MAX_LOAD)
     {
-        int capacity = GROW_CAPACITY(table->capacity);
+        int capacity = TEA_GROW_CAPACITY(table->capacity);
         adjust_capacity(T, table, capacity);
     }
 

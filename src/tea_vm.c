@@ -1019,7 +1019,7 @@ static void concatenate(TeaState* T)
     TeaObjectString* a = AS_STRING(peek(T, 1));
 
     int length = a->length + b->length;
-    char* chars = ALLOCATE(T, char, length + 1);
+    char* chars = TEA_ALLOCATE(T, char, length + 1);
     memcpy(chars, a->chars, a->length);
     memcpy(chars + a->length, b->chars, b->length);
     chars[length] = '\0';
@@ -1063,7 +1063,7 @@ static void repeat(TeaState* T)
     }
 
     int length = string->length;
-    char* chars = ALLOCATE(T, char, (n * length) + 1);
+    char* chars = TEA_ALLOCATE(T, char, (n * length) + 1);
 
     int i; 
     char* p;
@@ -2190,7 +2190,7 @@ static TeaInterpretResult run_interpreter(TeaState* T, register TeaObjectThread*
 
                 TeaObjectFunction* function = tea_compile(T, module, source);
 
-                FREE_ARRAY(T, char, source, strlen(source) + 1);
+                TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
 
                 if(function == NULL) return TEA_COMPILE_ERROR;
                 TeaObjectClosure* closure = tea_new_closure(T, function);

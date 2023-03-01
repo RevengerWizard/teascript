@@ -49,7 +49,7 @@ static void input(TeaState* T)
     }
 
     uint64_t current_size = 128;
-    char* line = ALLOCATE(T, char, current_size);
+    char* line = TEA_ALLOCATE(T, char, current_size);
 
     int c = EOF;
     uint64_t length = 0;
@@ -60,15 +60,15 @@ static void input(TeaState* T)
         if(length + 1 == current_size) 
         {
             int old_size = current_size;
-            current_size = GROW_CAPACITY(current_size);
-            line = GROW_ARRAY(T, char, line, old_size, current_size);
+            current_size = TEA_GROW_CAPACITY(current_size);
+            line = TEA_GROW_ARRAY(T, char, line, old_size, current_size);
         }
     }
 
     // If length has changed, shrink
     if(length != current_size) 
     {
-        line = GROW_ARRAY(T, char, line, current_size, length + 1);
+        line = TEA_GROW_ARRAY(T, char, line, current_size, length + 1);
     }
     
     line[length] = '\0';
@@ -163,7 +163,7 @@ static void hex(TeaState* T)
     int n = tea_check_int(T, 0);
 
     int len = snprintf(NULL, 0, "0x%x", n);
-    char* string = ALLOCATE(T, char, len + 1);
+    char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "0x%x", n);
 
     tea_push_slot(T, OBJECT_VAL(tea_take_string(T, string, len)));

@@ -21,7 +21,7 @@ char* tea_read_file(TeaState* T, const char* path)
     size_t file_size = ftell(file);
     rewind(file);
 
-    char* buffer = ALLOCATE(T, char, file_size + 1);
+    char* buffer = TEA_ALLOCATE(T, char, file_size + 1);
 
     size_t bytesRead = fread(buffer, sizeof(char), file_size, file);
     if(bytesRead < file_size) 

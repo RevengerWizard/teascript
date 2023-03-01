@@ -97,7 +97,7 @@ static void file_read(TeaState* T)
     }
 
     int current_size = BUFFER_SIZE;
-    char* contents = ALLOCATE(T, char, current_size);
+    char* contents = TEA_ALLOCATE(T, char, current_size);
     size_t read_bytes = 0;
     size_t total_read_bytes = 0;
     do
@@ -108,14 +108,14 @@ static void file_read(TeaState* T)
         {
             int old_size = current_size;
             current_size += BUFFER_SIZE;
-            contents = GROW_ARRAY(T, char, contents, old_size, current_size);
+            contents = TEA_GROW_ARRAY(T, char, contents, old_size, current_size);
         }
     } 
     while(read_bytes == BUFFER_SIZE);
 
     contents[total_read_bytes] = '\0';
 
-    contents = GROW_ARRAY(T, char, contents, current_size, total_read_bytes + 1);
+    contents = TEA_GROW_ARRAY(T, char, contents, current_size, total_read_bytes + 1);
 
     tea_push_slot(T, OBJECT_VAL(tea_take_string(T, contents, total_read_bytes)));
 }
@@ -133,7 +133,7 @@ static void file_readline(TeaState* T)
     }
 
     int current_size = BUFFER_SIZE;
-    char* line = ALLOCATE(T, char, current_size);
+    char* line = TEA_ALLOCATE(T, char, current_size);
 
     while(fgets(line, BUFFER_SIZE, file->file) != NULL) 
     {
@@ -143,7 +143,7 @@ static void file_readline(TeaState* T)
         {
             int old_size = current_size;
             current_size += BUFFER_SIZE;
-            line = GROW_ARRAY(T, char, line, old_size, current_size);
+            line = TEA_GROW_ARRAY(T, char, line, old_size, current_size);
         }
         else
         {
@@ -153,14 +153,14 @@ static void file_readline(TeaState* T)
                 line_length--;
             }
             line[line_length] = '\0';
-            line = GROW_ARRAY(T, char, line, current_size, line_length + 1);
+            line = TEA_GROW_ARRAY(T, char, line, current_size, line_length + 1);
 
             tea_push_slot(T, OBJECT_VAL(tea_take_string(T, line, line_length)));
             return;
         }
     }
 
-    FREE_ARRAY(T, char, line, current_size);
+    TEA_FREE_ARRAY(T, char, line, current_size);
     tea_push_null(T);
 }
 

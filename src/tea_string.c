@@ -32,7 +32,7 @@ static void string_upper(TeaState* T)
 
     int len;
     const char* string = tea_get_lstring(T, 0, &len);
-    char* temp = ALLOCATE(T, char, len + 1);
+    char* temp = TEA_ALLOCATE(T, char, len + 1);
 
     for(int i = 0; string[i]; i++) 
     {
@@ -50,7 +50,7 @@ static void string_lower(TeaState* T)
 
     int len;
     const char* string = tea_get_lstring(T, 0, &len);
-    char* temp = ALLOCATE(T, char, len + 1);
+    char* temp = TEA_ALLOCATE(T, char, len + 1);
 
     for(int i = 0; string[i]; i++) 
     {
@@ -103,7 +103,7 @@ static void string_reverse(TeaState* T)
         return;
     }
 
-    char* reversed = ALLOCATE(T, char, len + 1);
+    char* reversed = TEA_ALLOCATE(T, char, len + 1);
     strcpy(reversed, string);
     rev(reversed, len);
     tea_push_slot(T, OBJECT_VAL(tea_take_string(T, reversed, len)));
@@ -140,7 +140,7 @@ static void string_split(TeaState* T)
         }
     }
 
-    char* temp = ALLOCATE(T, char, len + 1);
+    char* temp = TEA_ALLOCATE(T, char, len + 1);
     char* temp_free = temp;
     memcpy(temp, string, len);
     temp[len] = '\0';
@@ -200,7 +200,7 @@ static void string_split(TeaState* T)
         tea_push_string(T, temp);
         tea_add_item(T, count);
     }
-    FREE_ARRAY(T, char, temp_free, len + 1);
+    TEA_FREE_ARRAY(T, char, temp_free, len + 1);
 }
 
 static void string_title(TeaState* T)
@@ -210,7 +210,7 @@ static void string_title(TeaState* T)
 
     int len;
     const char* string = tea_get_lstring(T, 0, &len);
-    char* temp = ALLOCATE(T, char, len + 1);
+    char* temp = TEA_ALLOCATE(T, char, len + 1);
 
     bool next = true;
     for(int i = 0; string[i]; i++) 
@@ -277,7 +277,7 @@ static void string_leftstrip(TeaState* T)
 
     int i = 0;
     count = 0;
-    char* temp = ALLOCATE(T, char, len + 1);
+    char* temp = TEA_ALLOCATE(T, char, len + 1);
 
     for(i = 0; i < len; i++) 
     {
@@ -290,7 +290,7 @@ static void string_leftstrip(TeaState* T)
 
     if(count != 0) 
     {
-        temp = GROW_ARRAY(T, char, temp, len + 1, (len - count) + 1);
+        temp = TEA_GROW_ARRAY(T, char, temp, len + 1, (len - count) + 1);
     }
 
     memcpy(temp, string + count, len - count);
@@ -308,7 +308,7 @@ static void string_rightstrip(TeaState* T)
     const char* string = tea_get_lstring(T, 0, &l);
 
     int length;
-    char* temp = ALLOCATE(T, char, l + 1);
+    char* temp = TEA_ALLOCATE(T, char, l + 1);
 
     for(length = l - 1; length > 0; length--) 
     {
@@ -321,7 +321,7 @@ static void string_rightstrip(TeaState* T)
     // If characters were stripped resize the buffer
     if(length + 1 != l) 
     {
-        temp = GROW_ARRAY(T, char, temp, l + 1, length + 2);
+        temp = TEA_GROW_ARRAY(T, char, temp, l + 1, length + 2);
     }
 
     memcpy(temp, string, length + 1);
@@ -358,7 +358,7 @@ static void string_center(TeaState* T)
     int left_padding = padding / 2;
     int right_padding = padding - left_padding;
 
-    char* temp = ALLOCATE(T, char, width + 1);
+    char* temp = TEA_ALLOCATE(T, char, width + 1);
     for(int i = 0; i < left_padding; i++) temp[i] = ' ';
     for(int i = 0; i < len; i++) temp[i + left_padding] = string[i];
     for(int i = left_padding + len; i < width; i++) temp[i] = ' ';
@@ -455,7 +455,7 @@ static void string_replace(TeaState* T)
         result_size += rlen - slen;
     }
 
-    char* result = ALLOCATE(T, char, result_size + 1);
+    char* result = TEA_ALLOCATE(T, char, result_size + 1);
 
     // Perform the replacement
     char* q = result;

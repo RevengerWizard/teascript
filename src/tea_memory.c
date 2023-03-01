@@ -68,7 +68,7 @@ void tea_mark_object(TeaState* T, TeaObject* object)
 
     if(T->gray_capacity < T->gray_count + 1)
     {
-        T->gray_capacity = GROW_CAPACITY(T->gray_capacity);
+        T->gray_capacity = TEA_GROW_CAPACITY(T->gray_capacity);
         T->gray_stack = (TeaObject**)realloc(T->gray_stack, sizeof(TeaObject*) * T->gray_capacity);
 
         if(T->gray_stack == NULL)
@@ -231,7 +231,7 @@ static void free_object(TeaState* T, TeaObject* object)
     {
         case OBJ_RANGE:
         {
-            FREE(T, TeaObjectRange, object);
+            TEA_FREE(T, TeaObjectRange, object);
             break;
         }
         case OBJ_FILE:
@@ -241,33 +241,33 @@ static void free_object(TeaState* T, TeaObject* object)
             {
                 fclose(file->file);
             }
-            FREE(T, TeaObjectFile, object);
+            TEA_FREE(T, TeaObjectFile, object);
             break;
         }
         case OBJ_MODULE:
         {
             TeaObjectModule* module = (TeaObjectModule*)object;
             tea_free_table(T, &module->values);
-            FREE(T, TeaObjectModule, object);
+            TEA_FREE(T, TeaObjectModule, object);
             break;
         }
         case OBJ_LIST:
         {
             TeaObjectList* list = (TeaObjectList*)object;
             tea_free_value_array(T, &list->items);
-            FREE(T, TeaObjectList, object);
+            TEA_FREE(T, TeaObjectList, object);
             break;
         }
         case OBJ_MAP:
         {
             TeaObjectMap* map = (TeaObjectMap*)object;
-            FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
-            FREE(T, TeaObjectMap, object);
+            TEA_FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
+            TEA_FREE(T, TeaObjectMap, object);
             break;
         }
         case OBJ_BOUND_METHOD:
         {
-            FREE(T, TeaObjectBoundMethod, object);
+            TEA_FREE(T, TeaObjectBoundMethod, object);
             break;
         }
         case OBJ_CLASS:
@@ -275,40 +275,40 @@ static void free_object(TeaState* T, TeaObject* object)
             TeaObjectClass* klass = (TeaObjectClass*)object;
             tea_free_table(T, &klass->methods);
             tea_free_table(T, &klass->statics);
-            FREE(T, TeaObjectClass, object);
+            TEA_FREE(T, TeaObjectClass, object);
             break;
         }
         case OBJ_CLOSURE:
         {
             TeaObjectClosure* closure = (TeaObjectClosure*)object;
-            FREE_ARRAY(T, TeaObjectUpvalue *, closure->upvalues, closure->upvalue_count);
-            FREE(T, TeaObjectClosure, object);
+            TEA_FREE_ARRAY(T, TeaObjectUpvalue *, closure->upvalues, closure->upvalue_count);
+            TEA_FREE(T, TeaObjectClosure, object);
             break;
         }
         case OBJ_FUNCTION:
         {
             TeaObjectFunction* function = (TeaObjectFunction*)object;
             tea_free_chunk(T, &function->chunk);
-            FREE(T, TeaObjectFunction, object);
+            TEA_FREE(T, TeaObjectFunction, object);
             break;
         }
         case OBJ_INSTANCE:
         {
             TeaObjectInstance* instance = (TeaObjectInstance*)object;
             tea_free_table(T, &instance->fields);
-            FREE(T, TeaObjectInstance, object);
+            TEA_FREE(T, TeaObjectInstance, object);
             break;
         }
         case OBJ_STRING:
         {
             TeaObjectString* string = (TeaObjectString*)object;
-            FREE_ARRAY(T, char, string->chars, string->length + 1);
-            FREE(T, TeaObjectString, object);
+            TEA_FREE_ARRAY(T, char, string->chars, string->length + 1);
+            TEA_FREE(T, TeaObjectString, object);
             break;
         }
         case OBJ_UPVALUE:
         {
-            FREE(T, TeaObjectUpvalue, object);
+            TEA_FREE(T, TeaObjectUpvalue, object);
             break;
         }
         case OBJ_USERDATA:
@@ -325,21 +325,21 @@ static void free_object(TeaState* T, TeaObject* object)
                 tea_reallocate(T, data->data, data->size, 0);
             }
 
-            FREE(T, TeaObjectUserdata, object);
+            TEA_FREE(T, TeaObjectUserdata, object);
             break;
         }
         case OBJ_THREAD:
         {
             TeaObjectThread* thread = (TeaObjectThread*)object;
 
-            FREE_ARRAY(T, TeaCallFrame, thread->frames, thread->frame_capacity);
-            FREE_ARRAY(T, TeaValue, thread->stack, thread->stack_capacity);
-            FREE(T, TeaObjectThread, object);
+            TEA_FREE_ARRAY(T, TeaCallFrame, thread->frames, thread->frame_capacity);
+            TEA_FREE_ARRAY(T, TeaValue, thread->stack, thread->stack_capacity);
+            TEA_FREE(T, TeaObjectThread, object);
             break;
         }
         case OBJ_NATIVE:
         {
-            FREE(T, TeaObjectNative, object);
+            TEA_FREE(T, TeaObjectNative, object);
             break;
         }
     }
@@ -354,7 +354,6 @@ static void mark_roots(TeaState* T)
 
     tea_mark_table(T, &T->modules);
     tea_mark_table(T, &T->globals);
-    //tea_mark_table(T, &T->constants);
 
     tea_mark_object(T, (TeaObject*)T->thread);
 

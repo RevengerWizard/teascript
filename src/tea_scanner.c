@@ -371,7 +371,7 @@ static TeaToken make_number_token(TeaScanner* scanner, bool strip, bool is_hex, 
     if(strip)
     {
         int len = (int)(scanner->current - scanner->start);
-        char* buffer = ALLOCATE(scanner->T, char, len + 1);
+        char* buffer = TEA_ALLOCATE(scanner->T, char, len + 1);
         char* current = buffer;
 
         // Strip it of any underscores
@@ -404,7 +404,7 @@ static TeaToken make_number_token(TeaScanner* scanner, bool strip, bool is_hex, 
             value = NUMBER_VAL(strtod(buffer, NULL));
         }
         
-        FREE_ARRAY(scanner->T, char, buffer, len + 1);
+        TEA_FREE_ARRAY(scanner->T, char, buffer, len + 1);
         goto done;
     }
 

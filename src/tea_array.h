@@ -32,8 +32,8 @@
 		if(array->capacity < array->count + count) \
         { \
 			int old_capacity = array->capacity; \
-			array->capacity = GROW_CAPACITY(old_capacity); \
-			array->values = GROW_ARRAY(T, type, array->values, old_capacity, array->capacity); \
+			array->capacity = TEA_GROW_CAPACITY(old_capacity); \
+			array->values = TEA_GROW_ARRAY(T, type, array->values, old_capacity, array->capacity); \
 		} \
 		\
 		for(int i = 0; i < count; i++) \
@@ -47,7 +47,7 @@
 	} \
 	void tea_free_##shr(TeaState* T, name* array) \
     { \
-		FREE_ARRAY(T, type, array->values, array->capacity); \
+		TEA_FREE_ARRAY(T, type, array->values, array->capacity); \
 		tea_init_##shr(array); \
 	}
 

@@ -7,21 +7,21 @@
 #include "tea_value.h"
 #include "tea_common.h"
 
-#define ALLOCATE(T, type, count) \
+#define TEA_ALLOCATE(T, type, count) \
     (type*)tea_reallocate(T, NULL, 0, sizeof(type) * (count))
 
-#define FREE(T, type, pointer) tea_reallocate(T, pointer, sizeof(type), 0)
+#define TEA_FREE(T, type, pointer) tea_reallocate(T, pointer, sizeof(type), 0)
 
-#define GROW_CAPACITY(capacity) \
+#define TEA_GROW_CAPACITY(capacity) \
     ((capacity) < 8 ? 8 : (capacity) * 2)
 
-#define GROW_ARRAY(T, type, pointer, old_count, new_count) \
+#define TEA_GROW_ARRAY(T, type, pointer, old_count, new_count) \
     (type*)tea_reallocate(T, pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
 
-#define SHRINK_ARRAY(T, type, pointer, old_count, new_count) \
+#define TEA_SHRINK_ARRAY(T, type, pointer, old_count, new_count) \
     (type*)tea_reallocate(T, pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
 
-#define FREE_ARRAY(T, type, pointer, old_count) \
+#define TEA_FREE_ARRAY(T, type, pointer, old_count) \
     tea_reallocate(T, pointer, sizeof(type) * (old_count), 0)
 
 void* tea_reallocate(TeaState* T, void* pointer, size_t old_size, size_t new_size);

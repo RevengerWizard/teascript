@@ -248,7 +248,7 @@ TEA_API const char* tea_push_string(TeaState* T, const char* s)
 static char* format(TeaState* T, const char* fmt, va_list args, int* l)
 {
     int len = vsnprintf(NULL, 0, fmt, args);
-    char* msg = ALLOCATE(T, char, len + 1);
+    char* msg = TEA_ALLOCATE(T, char, len + 1);
     vsnprintf(msg, len + 1, fmt, args);
     *l = len;
     return msg;
@@ -540,6 +540,6 @@ TEA_API void tea_error(TeaState* T, const char* fmt, ...)
     va_end(args);
 
     tea_runtime_error(T, s);
-    FREE_ARRAY(T, char, s, len + 1);
+    TEA_FREE_ARRAY(T, char, s, len + 1);
     tea_exit_jump(T);
 }
