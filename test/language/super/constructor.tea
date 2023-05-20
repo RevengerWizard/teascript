@@ -1,0 +1,20 @@
+class Base 
+{
+    constructor(a, b)
+    {
+        print("Base.init(" + a + ", " + b + ")")
+    }
+}
+
+class Derived : Base 
+{
+    constructor()
+    {
+        print("Derived.init()")
+        super("a", "b")
+    }
+}
+
+Derived()
+// expect: Derived.init()
+// expect: Base.init(a, b)

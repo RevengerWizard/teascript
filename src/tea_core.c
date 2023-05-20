@@ -73,7 +73,7 @@ static void input(TeaState* T)
     
     line[length] = '\0';
 
-    tea_push_slot(T, OBJECT_VAL(tea_take_string(T, line, length)));
+    teaV_push(T, OBJECT_VAL(teaO_take_string(T, line, length)));
 }
 
 static void open(TeaState* T)
@@ -87,17 +87,19 @@ static void open(TeaState* T)
     if(count == 2)
         type = tea_check_string(T, 1);
 
-    TeaObjectFile* file = tea_new_file(T, tea_new_string(T, path), tea_new_string(T, type));
-    file->file = fopen(file->path->chars, file->type->chars);
-
-    if(file->file == NULL) 
+    FILE* fp = fopen(path, type);
+    if(fp == NULL) 
     {
         tea_error(T, "Unable to open file '%s'", path);
     }
-    tea_push_slot(T, OBJECT_VAL(file));
+
+    TeaObjectFile* file = teaO_new_file(T, teaO_new_string(T, path), teaO_new_string(T, type));
+    file->file = fp;
+
+    teaV_push(T, OBJECT_VAL(file));
 }
 
-static void assert(TeaState* T)
+static void fassert(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -145,7 +147,7 @@ static void chr(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     int n = tea_check_number(T, 0);
-    tea_push_slot(T, OBJECT_VAL(tea_ustring_from_code_point(T, n)));
+    teaV_push(T, OBJECT_VAL(teaU_from_code_point(T, n)));
 }
 
 static void ord(TeaState* T)
@@ -153,27 +155,27 @@ static void ord(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     const char* c = tea_check_string(T, 0);
-    tea_push_int(T, tea_ustring_decode((uint8_t*)c, 1));
+    tea_push_number(T, teaU_decode((uint8_t*)c, 1));
 }
 
 static void hex(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
-    int n = tea_check_int(T, 0);
+    int n = tea_check_number(T, 0);
 
     int len = snprintf(NULL, 0, "0x%x", n);
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "0x%x", n);
 
-    tea_push_slot(T, OBJECT_VAL(tea_take_string(T, string, len)));
+    teaV_push(T, OBJECT_VAL(teaO_take_string(T, string, len)));
 }
 
 static void bin(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
-    int n = tea_check_int(T, 0);
+    int n = tea_check_number(T, 0);
 
     char buffer[34];
     int i = 2;
@@ -218,11 +220,21 @@ static void number(TeaState* T)
     tea_push_number(T, n);
 }
 
+static void callt(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_check_function(T, 0);
+    tea_push_string(T, "HELLO");
+    tea_push_string(T, "WORLD");
+    tea_call(T, 2);
+}
+
 static const TeaReg globals[] = {
     { "print", print },
     { "input", input },
     { "open", open },
-    { "assert", assert },
+    { "assert", fassert },
     { "error", error },
     { "typeof", type },
     { "gc", gc },
@@ -232,12 +244,14 @@ static const TeaReg globals[] = {
     { "hex", hex },
     { "bin", bin },
     { "number", number },
+    { "call", callt },
     { NULL, NULL }
 };
 
 static void tea_open_global(TeaState* T)
 {
     tea_set_funcs(T, globals);
+    tea_push_null(T);
 }
 
 void tea_open_core(TeaState* T)
@@ -248,5 +262,7 @@ void tea_open_core(TeaState* T)
     {
         tea_push_cfunction(T, core[i]);
         tea_call(T, 0);
+        tea_pop(T, 1);
+        tea_assert(tea_get_top(T) == 0);
     }
 }

@@ -1,0 +1,13 @@
+class Foo 
+{
+    constructor() 
+    {
+        print("constructor")
+        return;
+        print("nope")
+    }
+}
+
+var foo = Foo() // expect: constructor
+print(foo.constructor()) // expect: constructor
+// expect: Foo instance

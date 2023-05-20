@@ -14,7 +14,6 @@ typedef struct TeaCompiler TeaCompiler;
 typedef struct TeaObject TeaObject;
 typedef struct TeaObjectString TeaObjectString;
 typedef struct TeaObjectFile TeaObjectFile;
-typedef struct TeaObjectUserdata TeaObjectUserdata;
 
 #ifdef TEA_NAN_TAGGING
 
@@ -26,16 +25,15 @@ typedef struct TeaObjectUserdata TeaObjectUserdata;
 #define TAG_NULL        (1)
 #define TAG_FALSE       (2)
 #define TAG_TRUE        (3)
-#define TAG_EMPTY       (4)
-#define TAG_UNUSED1     (5)
-#define TAG_UNUSED2     (6)
-#define TAG_UNUSED3     (7)
+#define TAG_UNUSED1     (4)
+#define TAG_UNUSED2     (5)
+#define TAG_UNUSED3     (6)
+#define TAG_UNUSED4     (7)
 
 typedef uint64_t TeaValue;
 
 #define IS_BOOL(value)      (((value) | 1) == TRUE_VAL)
 #define IS_NULL(value)      ((value) == NULL_VAL)
-#define IS_EMPTY(value)     ((value) == EMPTY_VAL)
 #define IS_NUMBER(value)    (((value) & QNAN) != QNAN)
 #define IS_OBJECT(value) \
     (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
@@ -49,7 +47,6 @@ typedef uint64_t TeaValue;
 #define FALSE_VAL       ((TeaValue)(uint64_t)(QNAN | TAG_FALSE))
 #define TRUE_VAL        ((TeaValue)(uint64_t)(QNAN | TAG_TRUE))
 #define NULL_VAL        ((TeaValue)(uint64_t)(QNAN | TAG_NULL))
-#define EMPTY_VAL       ((TeaValue)(uint64_t)(QNAN | TAG_EMPTY))
 #define NUMBER_VAL(num) num_to_value(num)
 #define OBJECT_VAL(obj) \
     (TeaValue)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
@@ -76,8 +73,8 @@ static inline TeaValue num_to_value(double num)
 
 typedef enum
 {
-    VAL_BOOL,
     VAL_NULL,
+    VAL_BOOL,
     VAL_NUMBER,
     VAL_OBJECT
 } TeaValueType;
@@ -103,6 +100,8 @@ typedef struct
 #define AS_NUMBER(value) ((value).as.number)
 
 #define BOOL_VAL(value) ((TeaValue){VAL_BOOL, {.boolean = value}})
+#define FALSE_VAL ((TeaValue){VAL_BOOL, {.boolean = false}})
+#define TRUE_VAL ((TeaValue){VAL_BOOL, {.boolean = true}})
 #define NULL_VAL ((TeaValue){VAL_NULL, {.number = 0}})
 #define NUMBER_VAL(value) ((TeaValue){VAL_NUMBER, {.number = value}})
 #define OBJECT_VAL(object) ((TeaValue){VAL_OBJECT, {.obj = (TeaObject*)object}})
@@ -112,10 +111,12 @@ typedef struct
 DECLARE_ARRAY(TeaValueArray, TeaValue, value_array)
 DECLARE_ARRAY(TeaBytes, uint8_t, bytes)
 
-const char* tea_value_type(TeaValue a);
-bool tea_values_equal(TeaValue a, TeaValue b);
-double tea_value_tonumber(TeaValue value, int* x);
-TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value);
-TeaObjectString* tea_number_tostring(TeaState* T, double number);
+const char* teaL_type(TeaValue a);
+bool teaL_equal(TeaValue a, TeaValue b);
+double teaL_tonumber(TeaValue value, int* x);
+TeaObjectString* teaL_tostring(TeaState* T, TeaValue value);
+TeaObjectString* teaL_number_tostring(TeaState* T, double number);
+
+extern const char *const teaL_typenames[];
 
 #endif

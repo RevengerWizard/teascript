@@ -1,0 +1,21 @@
+class Base 
+{
+    toString() { return "Base" }
+}
+
+class Derived : Base 
+{
+    getClosure() 
+    {
+        function closure() 
+        {
+            return super.toString()
+        }
+        return closure
+    }
+
+    toString() { return "Derived" }
+}
+
+var closure = Derived().getClosure()
+print(closure()) // expect: Base

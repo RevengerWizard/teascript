@@ -1,0 +1,14 @@
+var a = "global"
+
+{
+    function assign() 
+    {
+        a = "assigned"
+    }
+
+    var a = "inner"
+    assign()
+    print(a) // expect: inner
+}
+
+print(a) // expect: assigned

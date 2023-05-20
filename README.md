@@ -6,11 +6,10 @@ It tries to mix the familiarity of Javascript, the simplicity of Python and the 
 
 ## Building
 
-Teascript doesn't have any external dependencies, you'll need just gcc, make and cmake
+Teascript doesn't have any external dependencies, you'll need just gcc and make
 
 ```bash
 git clone https://github.com/RevengerWizard/teascript && cd teascript
-cmake .
 make
 ```
 

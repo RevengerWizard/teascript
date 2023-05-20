@@ -22,15 +22,15 @@ typedef struct
     TeaEntry* entries;
 } TeaTable;
 
-void tea_init_table(TeaTable* table);
-void tea_free_table(TeaState* T, TeaTable* table);
-bool tea_table_get(TeaTable* table, TeaObjectString* key, TeaValue* value);
-bool tea_table_set(TeaState* T, TeaTable* table, TeaObjectString* key, TeaValue value);
-bool tea_table_delete(TeaTable* table, TeaObjectString* key);
-void tea_table_add_all(TeaState* T, TeaTable* from, TeaTable* to);
-TeaObjectString* tea_table_find_string(TeaTable* table, const char* chars, int length, uint32_t hash);
+void teaT_init(TeaTable* table);
+void teaT_free(TeaState* T, TeaTable* table);
+bool teaT_get(TeaTable* table, TeaObjectString* key, TeaValue* value);
+bool teaT_set(TeaState* T, TeaTable* table, TeaObjectString* key, TeaValue value);
+bool teaT_delete(TeaTable* table, TeaObjectString* key);
+void teaT_add_all(TeaState* T, TeaTable* from, TeaTable* to);
+TeaObjectString* teaT_find_string(TeaTable* table, const char* chars, int length, uint32_t hash);
 
-void tea_table_remove_white(TeaTable* table);
-void tea_mark_table(TeaState* T, TeaTable* table);
+void teaT_remove_white(TeaTable* table);
+void teaT_mark(TeaState* T, TeaTable* table);
 
 #endif

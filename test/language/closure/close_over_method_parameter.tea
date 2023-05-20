@@ -1,0 +1,15 @@
+var f
+
+class Foo 
+{
+    method(param) 
+    {
+        f = function()
+        {
+            print(param)
+        }
+    }
+}
+
+Foo().method("param")
+f() // expect: param

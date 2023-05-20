@@ -1,0 +1,18 @@
+function histogram(s)
+{
+    var hist = {}
+    for(var c in s)
+    {
+        if(c in hist)
+            hist[c]++
+        else
+            hist[c] = 1
+    }
+    return hist
+}
+
+var s = "The quick brown fox jumps over the lazy dog"
+
+var hist = histogram(s)
+
+print(hist)

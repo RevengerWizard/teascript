@@ -16,16 +16,25 @@ typedef enum
 
 typedef struct
 {
+    int offset;
+    int line;
+} TeaLineStart;
+
+typedef struct
+{
     int count;
     int capacity;
     uint8_t* code;
-    int* lines;
     TeaValueArray constants;
+    int line_count;
+    int line_capacity;
+    TeaLineStart* lines;
 } TeaChunk;
 
-void tea_init_chunk(TeaChunk* chunk);
-void tea_free_chunk(TeaState* T, TeaChunk* chunk);
-void tea_write_chunk(TeaState* T, TeaChunk* chunk, uint8_t byte, int line);
-int tea_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value);
+void teaK_init(TeaChunk* chunk);
+void teaK_free(TeaState* T, TeaChunk* chunk);
+void teaK_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line);
+int teaK_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value);
+int teaK_getline(TeaChunk* chunk, int instruction);
 
 #endif

@@ -100,9 +100,15 @@ static void run_file(TeaState* T, const char* path)
     free(source);
 
     if(result == TEA_COMPILE_ERROR)
+    {
+        tea_close(T);
         exit(65);
+    }
     if(result == TEA_RUNTIME_ERROR)
+    {
+        tea_close(T);
         exit(70);
+    }
 }
 
 int main(int argc, const char* argv[])
@@ -111,7 +117,7 @@ int main(int argc, const char* argv[])
     if(T == NULL)
     {
         fprintf(stderr, "Cannot create state: not enough memory");
-        return 1;
+        return EXIT_FAILURE;
     }
     tea_set_argv(T, argc, argv);
 
@@ -133,5 +139,5 @@ int main(int argc, const char* argv[])
 
     tea_close(T);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

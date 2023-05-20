@@ -1,0 +1,24 @@
+class Foo 
+{
+    getClosure() 
+    {
+        function f() 
+        {
+            function g() 
+            {
+                function h() 
+                {
+                    return this.toString()
+                }
+                return h
+            }
+            return g
+        }
+        return f
+    }
+
+    toString() { return "Foo" }
+}
+
+var closure = Foo().getClosure()
+print(closure()()()) // expect: Foo

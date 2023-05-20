@@ -1,0 +1,15 @@
+import math, sys
+
+var n = 0
+var speed = 100
+
+while(true)
+{
+    var v1 = math.sin(n)
+    var v2 = math.sin(n + math.pi)
+
+    n += 0.2
+
+    print(" " * math.floor(v2 * 5 + 15) + "-" * math.floor(12 + 10 * v1))
+    sys.sleep(0.1 / speed)
+}

@@ -1,0 +1,17 @@
+class Foo 
+{
+    constructor(arg) 
+    {
+        print("Foo.constructor(" + arg + ")")
+        this.field = "constructor"
+    }
+}
+
+var foo = Foo("one") // expect: Foo.constructor(one)
+foo.field = "field"
+
+var foo2 = foo.constructor("two") // expect: Foo.constructor(two)
+print(foo2) // expect: Foo instance
+
+// Make sure constructor() doesn't create a fresh instance
+print(foo.field) // expect: constructor

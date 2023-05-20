@@ -1,0 +1,19 @@
+for(var i in 0..3) 
+{
+    print("outer {i}")
+    if(i == 1) continue
+
+    for(var j in 0..3) 
+    {
+        if (j == 1) continue
+        print("inner {j}")
+    }
+}
+
+// expect: outer 0
+// expect: inner 0
+// expect: inner 2
+// expect: outer 1
+// expect: outer 2
+// expect: inner 0
+// expect: inner 2

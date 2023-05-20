@@ -9,7 +9,7 @@
 #include "tea_state.h"
 #include "tea_memory.h"
 
-char* tea_read_file(TeaState* T, const char* path) 
+char* teaZ_read_file(TeaState* T, const char* path) 
 {
     FILE* file = fopen(path, "rb");
     if(file == NULL) 
@@ -26,6 +26,7 @@ char* tea_read_file(TeaState* T, const char* path)
     size_t bytesRead = fread(buffer, sizeof(char), file_size, file);
     if(bytesRead < file_size) 
     {
+        TEA_FREE_ARRAY(T, char, buffer, file_size + 1);
         fprintf(stderr, "Could not read file \"%s\"\n", path);
         exit(74);
     }
@@ -36,11 +37,11 @@ char* tea_read_file(TeaState* T, const char* path)
     return buffer;
 }
 
-TeaObjectString* tea_dirname(TeaState* T, char* path, int len) 
+TeaObjectString* teaZ_dirname(TeaState* T, char* path, int len) 
 {
     if(!len) 
     {
-        return tea_copy_string(T, ".", 1);
+        return teaO_new_literal(T, ".");
     }
 
     char* sep = path + len;
@@ -71,15 +72,15 @@ TeaObjectString* tea_dirname(TeaState* T, char* path, int len)
 
     if(sep == path && !IS_DIR_SEPARATOR(*sep)) 
     {
-        return tea_copy_string(T, ".", 1);
+        return teaO_new_literal(T, ".");
     }
 
     len = sep - path + 1;
 
-    return tea_copy_string(T, path, len);
+    return teaO_copy_string(T, path, len);
 }
 
-bool tea_resolve_path(char* directory, char* path, char* ret) 
+bool teaZ_resolve_path(char* directory, char* path, char* ret) 
 {
     char buf[PATH_MAX];
     if(*path == DIR_SEPARATOR)
@@ -103,33 +104,14 @@ bool tea_resolve_path(char* directory, char* path, char* ret)
     return true;
 }
 
-bool tea_ends_with(const char* name, const char* extension, size_t length)
+TeaObjectString* teaZ_get_directory(TeaState* T, char* source) 
 {
-    const char* ldot = strrchr(name, '.');
-    if(ldot != NULL)
-    {
-        if(length == 0)
-            length = strlen(extension);
-        return strncmp(ldot + 1, extension, length) == 0;
-    }
-
-    return false;
-}
-
-TeaObjectString* tea_get_directory(TeaState* T, char* source) 
-{
-    int len = strlen(source);
-    if(!tea_ends_with(source, "tea", len)) 
-    {
-        source = "";
-    }
-
     char res[PATH_MAX];
-    if(!tea_resolve_path(".", source, res)) 
+    if(!teaZ_resolve_path(".", source, res)) 
     {
-        tea_runtime_error(T, "Unable to resolve path '%s'", source);
+        teaV_runtime_error(T, "Unable to resolve path '%s'", source);
         exit(1);
     }
 
-    return tea_dirname(T, res, strlen(res));
+    return teaZ_dirname(T, res, strlen(res));
 }

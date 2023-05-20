@@ -6,8 +6,9 @@
 
 #include "tea_chunk.h"
 
-void tea_print_value(TeaValue value);
-void tea_disassemble_chunk(TeaState* T, TeaChunk* chunk, const char* name);
-int tea_disassemble_instruction(TeaState* T, TeaChunk* chunk, int offset);
+void teaG_print_value(TeaValue value);
+void teaG_dump_chunk(TeaState* T, TeaChunk* chunk, const char* name);
+void teaG_dump_stack(TeaState* T);
+int teaG_dump_instruction(TeaState* T, TeaChunk* chunk, int offset);
 
 #endif

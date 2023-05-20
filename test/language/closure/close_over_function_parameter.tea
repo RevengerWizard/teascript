@@ -1,0 +1,12 @@
+var f
+
+function foo(param) 
+{
+    f = function() 
+    {
+        print(param)
+    }
+}
+foo("param")
+
+f() // expect: param

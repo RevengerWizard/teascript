@@ -14,7 +14,12 @@
 DEFINE_ARRAY(TeaValueArray, TeaValue, value_array)
 DEFINE_ARRAY(TeaBytes, uint8_t, bytes)
 
-const char* tea_value_type(TeaValue a)
+const char* const teaL_typenames[] = {
+    "null", "number", "bool", 
+    "string", "range", "function", "module", "class", "instance", "list", "map", "file"
+};
+
+const char* teaL_type(TeaValue a)
 {
 #ifdef TEA_NAN_TAGGING
     if(IS_BOOL(a))
@@ -31,7 +36,7 @@ const char* tea_value_type(TeaValue a)
     }
     else if(IS_OBJECT(a))
     {
-        return tea_object_type(a);
+        return teaO_type(a);
     }
 #else
     switch(a.type)
@@ -41,9 +46,9 @@ const char* tea_value_type(TeaValue a)
         case VAL_NULL:
             return "null";
         case VAL_NUMBER:
-            return "number"
+            return "number";
         case VAL_OBJECT:
-            return tea_object_type(a);
+            return teaO_type(a);
         default:
             break;
     }
@@ -51,7 +56,7 @@ const char* tea_value_type(TeaValue a)
     return "unknown";
 }
 
-bool tea_values_equal(TeaValue a, TeaValue b)
+bool teaL_equal(TeaValue a, TeaValue b)
 {
 #ifdef TEA_NAN_TAGGING
     if(IS_NUMBER(a) && IS_NUMBER(b))
@@ -60,7 +65,7 @@ bool tea_values_equal(TeaValue a, TeaValue b)
     }
     else if(IS_OBJECT(a) && IS_OBJECT(b))
     {
-        return tea_objects_equal(a, b);
+        return teaO_equal(a, b);
     }
     return a == b;
 #else
@@ -82,7 +87,7 @@ bool tea_values_equal(TeaValue a, TeaValue b)
 #endif
 }
 
-double tea_value_tonumber(TeaValue value, int* x)
+double teaL_tonumber(TeaValue value, int* x)
 {
     if(x != NULL)
         *x = true;
@@ -118,61 +123,61 @@ double tea_value_tonumber(TeaValue value, int* x)
     }
 }
 
-TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value)
+TeaObjectString* teaL_tostring(TeaState* T, TeaValue value)
 {
 #ifdef TEA_NAN_TAGGING
     if(IS_BOOL(value))
     {
-        return AS_BOOL(value) ? tea_copy_string(T, "true", 4) : tea_copy_string(T, "false", 5);
+        return AS_BOOL(value) ? teaO_new_literal(T, "true") : teaO_new_literal(T, "false");
     }
     else if(IS_NULL(value))
     {
-        return tea_copy_string(T, "null", 4);
+        return teaO_new_literal(T, "null");
     }
     else if(IS_NUMBER(value))
     {
-        return tea_number_tostring(T, AS_NUMBER(value));
+        return teaL_number_tostring(T, AS_NUMBER(value));
     }
     else if(IS_OBJECT(value))
     {
-        return tea_object_tostring(T, value);
+        return teaO_tostring(T, value);
     }
 #else
     switch(value.type)
     {
         case VAL_BOOL:
-            return AS_BOOL(value) ? tea_copy_string(T, "true", 4) : tea_copy_string(T, "false", 5);
+            return AS_BOOL(value) ? teaO_new_literal(T, "true") : teaO_new_literal(T, "false");
         case VAL_NULL:
-            return tea_copy_string(T, "null", 4);
+            return teaO_new_literal(T, "null");
         case VAL_NUMBER:
-            return tea_number_tostring(T, AS_NUMBER(value));
+            return teaL_number_tostring(T, AS_NUMBER(value));
         case VAL_OBJECT:
-            return tea_object_tostring(T, value);
+            return teaO_tostring(T, value);
         default:
             break;
     }
 #endif
-    return tea_copy_string(T, "unknown", 7);
+    return teaO_new_literal(T, "unknown");
 }
 
-TeaObjectString* tea_number_tostring(TeaState* T, double number)
+TeaObjectString* teaL_number_tostring(TeaState* T, double number)
 {
-    if(isnan(number)) return tea_copy_string(T, "nan", 3);
+    if(isnan(number)) return teaO_new_literal(T, "nan");
     if(isinf(number))
     {
         if(number > 0.0)
         {
-            return tea_copy_string(T, "infinity", 8);
+            return teaO_new_literal(T, "infinity");
         }
         else
         {
-            return tea_copy_string(T, "-infinity", 9);
+            return teaO_new_literal(T, "-infinity");
         }
     }
 
-    int length = snprintf(NULL, 0, "%.16g", number);
+    int length = snprintf(NULL, 0, TEA_NUMBER_FMT, number);
     char* string = TEA_ALLOCATE(T, char, length + 1);
-    snprintf(string, length + 1, "%.16g", number);
+    snprintf(string, length + 1, TEA_NUMBER_FMT, number);
 
-    return tea_take_string(T, string, length);
+    return teaO_take_string(T, string, length);
 }

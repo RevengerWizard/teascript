@@ -1,0 +1,9 @@
+class A {}
+
+function f() 
+{
+    class B : A {}
+    return B
+}
+
+print(f()) // expect: B

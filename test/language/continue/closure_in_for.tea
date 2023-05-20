@@ -1,0 +1,11 @@
+var f
+for(var i in [1, 2, 3]) 
+{
+    var j = 4
+    
+    f = function() { print(i + j) }
+    continue
+}
+
+f()
+// expect: 7

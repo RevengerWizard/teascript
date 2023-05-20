@@ -1,0 +1,28 @@
+var f
+
+function f1() 
+{
+    var a = "a"
+    function f2() 
+    {
+        var b = "b"
+        function f3() 
+        {
+            var c = "c"
+            f = function() 
+            {
+                print(a)
+                print(b)
+                print(c)
+            }
+        }
+        f3()
+    }
+    f2()
+}
+f1()
+
+f()
+// expect: a
+// expect: b
+// expect: c

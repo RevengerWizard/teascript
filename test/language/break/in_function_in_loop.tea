@@ -1,0 +1,9 @@
+var done = false
+while(!done) 
+{
+    function f()
+    {
+        break // expect error
+    }
+    done = true
+}

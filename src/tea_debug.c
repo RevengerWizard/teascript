@@ -6,6 +6,7 @@
 #include "tea_debug.h"
 #include "tea_object.h"
 #include "tea_value.h"
+#include "tea_state.h"
 
 static void print_object(TeaValue object)
 {
@@ -13,9 +14,6 @@ static void print_object(TeaValue object)
     {
         case OBJ_CLASS:
             printf("<class %s>", AS_CLASS(object)->name->chars);
-            break;
-        case OBJ_THREAD: 
-            printf("<thread>"); 
             break;
         case OBJ_CLOSURE:
         {
@@ -51,19 +49,25 @@ static void print_object(TeaValue object)
         case OBJ_RANGE:
             printf("<range>"); 
             break;
-        case OBJ_STRING: 
-            printf("%s", AS_CSTRING(object)); 
+        case OBJ_STRING:
+        {
+            TeaObjectString* string = AS_STRING(object);
+            if(string->length > 40)
+                printf("<string>");
+            else
+                printf("'%s'", AS_CSTRING(object)); 
             break;
-        case OBJ_UPVALUE: 
+        }
+        case OBJ_UPVALUE:
             printf("<upvalue>");
             break;
-        default: 
+        default:
             printf("<unknown>"); 
             break;
     }
 }
 
-void tea_print_value(TeaValue value)
+void teaG_print_value(TeaValue value)
 {
     if(IS_BOOL(value))
     {
@@ -83,13 +87,13 @@ void tea_print_value(TeaValue value)
     }
 }
 
-void tea_disassemble_chunk(TeaState* T, TeaChunk* chunk, const char* name)
+void teaG_dump_chunk(TeaState* T, TeaChunk* chunk, const char* name)
 {
     printf("== %s ==\n", name);
 
     for(int offset = 0; offset < chunk->count;)
     {
-        offset = tea_disassemble_instruction(T, chunk, offset);
+        offset = teaG_dump_instruction(T, chunk, offset);
     }
 }
 
@@ -97,7 +101,7 @@ static int constant_instruction(const char* name, TeaChunk* chunk, int offset)
 {
     uint8_t constant = chunk->code[offset + 1];
     printf("%-16s %4d '", name, constant);
-    tea_print_value(chunk->constants.values[constant]);
+    teaG_print_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 2;
@@ -108,7 +112,7 @@ static int invoke_instruction(const char* name, TeaChunk* chunk, int offset)
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
     printf("%-16s    (%d args) %4d '", name, arg_count, constant);
-    tea_print_value(chunk->constants.values[constant]);
+    teaG_print_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 3;
@@ -118,8 +122,8 @@ static int import_from_instruction(const char* name, TeaChunk* chunk, int offset
 {
     uint8_t constant = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
-    printf("%-16s %4d '", name, arg_count, constant);
-    tea_print_value(chunk->constants.values[constant]);
+    printf("%-16s %4d '", name, constant);
+    teaG_print_value(chunk->constants.values[constant]);
     printf("'\n");
 
     return offset + 1 + arg_count;
@@ -129,7 +133,7 @@ static int native_import_instruction(const char* name, TeaChunk* chunk, int offs
 {
     uint8_t module = chunk->code[offset + 2];
     printf("%-16s '", name);
-    tea_print_value(chunk->constants.values[module]);
+    teaG_print_value(chunk->constants.values[module]);
     printf("'\n");
 
     return offset + 3;
@@ -137,10 +141,10 @@ static int native_import_instruction(const char* name, TeaChunk* chunk, int offs
 
 static int native_from_import_instruction(const char* name, TeaChunk* chunk, int offset)
 {
-    uint8_t constant = chunk->code[offset + 1];
+    uint8_t module = chunk->code[offset + 1];
     uint8_t arg_count = chunk->code[offset + 2];
-    printf("%-16s '", name, arg_count, constant);
-    tea_print_value(chunk->constants.values[constant]);
+    printf("%-16s '", name);
+    teaG_print_value(chunk->constants.values[module]);
     printf("'\n");
 
     return offset + 2 + arg_count;
@@ -170,16 +174,28 @@ static int jump_instruction(const char* name, int sign, TeaChunk* chunk, int off
     return offset + 3;
 }
 
-int tea_disassemble_instruction(TeaState* T, TeaChunk* chunk, int offset)
+void teaG_dump_stack(TeaState* T)
+{
+    printf("          ");
+    for(TeaValue* slot = T->stack; slot < T->top; slot++)
+    {
+        printf("[ ");
+        teaG_print_value(*slot);
+        printf(" ]");
+    }
+    printf("\n");
+}
+
+int teaG_dump_instruction(TeaState* T, TeaChunk* chunk, int offset)
 {
     printf("%04d ", offset);
-    if(offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1])
+    if(offset > 0 && teaK_getline(chunk, offset - 1))
     {
         printf("   | ");
     }
     else
     {
-        printf("%4d ", chunk->lines[offset]);
+        printf("%4d ", teaK_getline(chunk, offset));
     }
 
     uint8_t instruction = chunk->code[offset];
@@ -197,8 +213,6 @@ int tea_disassemble_instruction(TeaState* T, TeaChunk* chunk, int offset)
             return simple_instruction("OP_POP", offset);
         case OP_POP_REPL:
             return simple_instruction("OP_POP_REPL", offset);
-        case OP_DUP:
-            return simple_instruction("OP_DUP", offset);
         case OP_GET_PROPERTY_NO_POP:
             return constant_instruction("OP_GET_PROPERTY_NO_POP", chunk, offset);
         case OP_SET_CLASS_VAR:
@@ -251,8 +265,6 @@ int tea_disassemble_instruction(TeaState* T, TeaChunk* chunk, int offset)
             return simple_instruction("OP_SUBSCRIPT_STORE", offset);
         case OP_SUBSCRIPT_PUSH:
             return simple_instruction("OP_SUBSCRIPT_PUSH", offset);
-        case OP_SLICE:
-            return simple_instruction("OP_SLICE", offset);
         case OP_EQUAL:
             return simple_instruction("OP_EQUAL", offset);
         case OP_IS:
@@ -320,7 +332,7 @@ int tea_disassemble_instruction(TeaState* T, TeaChunk* chunk, int offset)
             offset++;
             uint8_t constant = chunk->code[offset++];
             printf("%-16s %4d ", "OP_CLOSURE", constant);
-            printf("%s", tea_value_tostring(T, chunk->constants.values[constant])->chars);
+            printf("%s", teaL_tostring(T, chunk->constants.values[constant])->chars);
             printf("\n");
 
             TeaObjectFunction* function = AS_FUNCTION(chunk->constants.values[constant]);

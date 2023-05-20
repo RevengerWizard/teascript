@@ -1,0 +1,15 @@
+{
+    function even(n) 
+    {
+        if(n == 0) return true
+        return odd(n - 1) // expect runtime error: Undefined variable 'even'
+    }
+
+    function odd(n) 
+    {
+        if(n == 0) return false
+        return even(n - 1)
+    }
+
+    even(4)
+}

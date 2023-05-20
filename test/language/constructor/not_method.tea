@@ -1,0 +1,15 @@
+class Foo 
+{
+    constructor(arg) 
+    {
+        print("Foo.constructor(" + arg + ")")
+        this.field = "constructor"
+    }
+}
+
+function constructor() 
+{
+    print("not constructor")
+}
+
+constructor() // expect: not initializer

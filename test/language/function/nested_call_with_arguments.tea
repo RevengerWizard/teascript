@@ -1,0 +1,16 @@
+function f(arg) 
+{
+    return arg
+}
+
+function g(func, arg) 
+{
+    return f(func)(arg)
+}
+
+function printer(arg) 
+{
+    print(arg)
+}
+
+g(printer, "hello world") // expect: hello world

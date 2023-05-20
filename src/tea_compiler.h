@@ -51,8 +51,6 @@ typedef struct
     TeaScanner scanner;
     TeaToken current;
     TeaToken previous;
-    bool had_error;
-    bool panic_mode;
     TeaObjectModule* module;
 } TeaParser;
 
@@ -96,7 +94,7 @@ typedef struct
     TeaPrecedence precedence;
 } TeaParseRule;
 
-TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char* source);
-void tea_mark_compiler_roots(TeaState* T, TeaCompiler* compiler);
+TeaObjectFunction* teaY_compile(TeaState* T, TeaObjectModule* module, const char* source);
+void teaY_mark_roots(TeaState* T, TeaCompiler* compiler);
 
 #endif

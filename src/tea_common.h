@@ -9,13 +9,16 @@
 #include <stdint.h>
 
 #define TEA_NAN_TAGGING
-#define TEA_DEBUG_PRINT_CODE
-#define TEA_DEBUG_TRACE_EXECUTION
-#define TEA_DEBUG_TRACE_MEMORY
-#define TEA_DEBUG_FINAL_MEMORY
 
-#define TEA_DEBUG_STRESS_GC
-#define TEA_DEBUG_LOG_GC
+#define TEA_MAX_CALLS   1000
+#define TEA_MAX_CCALLS  200
+
+#ifdef TEA_DEBUG
+#include <assert.h>
+#define tea_assert(c)   assert(c)
+#else
+#define tea_assert(c)   ((void)0)
+#endif
 
 #ifndef _MSC_VER
 #define TEA_COMPUTED_GOTO
@@ -24,10 +27,3 @@
 #define UINT8_COUNT (UINT8_MAX + 1)
 
 #endif
-
-#undef TEA_DEBUG_PRINT_CODE
-#undef TEA_DEBUG_TRACE_EXECUTION
-#undef TEA_DEBUG_TRACE_MEMORY
-#undef TEA_DEBUG_FINAL_MEMORY
-#undef TEA_DEBUG_STRESS_GC
-#undef TEA_DEBUG_LOG_GC

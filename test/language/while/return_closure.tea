@@ -1,0 +1,11 @@
+function f() 
+{
+    while(true) 
+    {
+        var i = "i"
+        return function() { print(i) }
+    }
+}
+
+var h = f()
+h() // expect: i

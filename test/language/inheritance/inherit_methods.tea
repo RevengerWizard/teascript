@@ -1,0 +1,16 @@
+class Foo 
+{
+    foo() { print("foo") }
+    override() { print("foo") }
+}
+
+class Bar : Foo
+{
+    bar() { print("bar") }
+    override() { print("bar") }
+}
+
+var bar = Bar()
+bar.foo() // expect: foo
+bar.bar() // expect: bar
+bar.override() // expect: bar

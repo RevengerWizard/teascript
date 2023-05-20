@@ -1,0 +1,14 @@
+function even(n) 
+{
+    if(n == 0) return true
+    return odd(n - 1)
+}
+
+function odd(n) 
+{
+    if(n == 0) return false
+    return even(n - 1)
+}
+
+print(even(4)) // expect: true
+print(odd(3)) // expect: true
