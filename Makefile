@@ -1,4 +1,12 @@
-.PHONY: all
+# Teascript Makefile
 
-all clean:
-	@cd src && $(MAKE) $@
+PLAT = none
+
+PLATS= mingw
+
+all:	$(PLAT)
+
+$(PLATS) clean:
+	cd src && $(MAKE) $@
+
+.PHONY: all $(PLATS)

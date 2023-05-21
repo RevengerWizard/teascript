@@ -1,4 +1,6 @@
 *.o
 *.exe
+*.a
+*.dll
 .vscode
 tea.tea
