@@ -60,6 +60,7 @@ mingw:
 	$(MAKE) "TEA_A=tea.dll" "TEA_T=tea.exe" \
 	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
 	"MYCFLAGS=-DTEA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" tea.exe
+	$(MAKE) a
 
 .PHONY: all $(PLATS) default o a clean depend echo none
 
