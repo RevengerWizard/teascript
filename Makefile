@@ -6,7 +6,7 @@ PLATS= mingw
 
 all:	$(PLAT)
 
-$(PLATS) clean:
+$(PLATS) clean o a:
 	cd src && $(MAKE) $@
 
 none:

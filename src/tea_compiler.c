@@ -191,7 +191,6 @@ static uint8_t make_constant(TeaCompiler* compiler, TeaValue value)
     if(constant > UINT8_MAX)
     {
         error(compiler, "Too many constants in one chunk");
-        return 0;
     }
 
     return (uint8_t)constant;
@@ -378,7 +377,6 @@ static int add_upvalue(TeaCompiler* compiler, uint8_t index, bool is_local, bool
     if(upvalue_count == UINT8_COUNT)
     {
         error(compiler, "Too many closure variables in function");
-        return 0;
     }
 
     compiler->upvalues[upvalue_count].is_local = is_local;
@@ -964,7 +962,6 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
             if(compiler->locals[arg].constant)
             {
                 error(compiler, "Cannot assign to a constant");
-                break;
             }
             
             break;
@@ -976,7 +973,6 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
             if(upvalue.constant)
             {
                 error(compiler, "Cannot assign to a constant");
-                break;
             }
             
             break;
@@ -989,7 +985,6 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
             if(teaT_get(&compiler->parser->T->constants, string, &_))
             {
                 error(compiler, "Cannot assign to a constant");
-                break;
             }
             
             break;
@@ -1123,17 +1118,14 @@ static void super_(TeaCompiler* compiler, bool can_assign)
     if(compiler->klass == NULL)
     {
         error(compiler, "Can't use 'super' outside of a class");
-        return;
     }
     else if(compiler->klass->is_static)
     {
         error(compiler, "Can't use 'this' inside a static method");
-        return;
     }
     else if(!compiler->klass->has_superclass)
     {
         error(compiler, "Can't use 'super' in a class with no superclass");
-        return;
     }
 
     // constructor super
@@ -1175,12 +1167,10 @@ static void this_(TeaCompiler* compiler, bool can_assign)
     if(compiler->klass == NULL)
     {
         error(compiler, "Can't use 'this' outside of a class");
-        return;
     }
     else if(compiler->klass->is_static)
     {
         error(compiler, "Can't use 'this' inside a static method");
-        return;
     }
 
     variable(compiler, false);
@@ -1345,7 +1335,6 @@ static void parse_precedence(TeaCompiler* compiler, TeaPrecedence precedence)
     if(prefix_rule == NULL)
     {
         error(compiler, "Expect expression");
-        return;
     }
 
     bool can_assign = precedence <= PREC_ASSIGNMENT;
@@ -1392,7 +1381,6 @@ static void check_parameters(TeaCompiler* compiler, TeaToken* name)
         if(identifiers_equal(name, &local->name))
         {
             error(compiler, "Duplicate parameter name in function declaration");
-            return;
         }
     }
 }
@@ -1816,7 +1804,6 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
         if(rest_count > 1)
         {
             error(compiler, "Multiple '...'");
-            return;
         }
 
         if(match(compiler, TOKEN_DOT_DOT_DOT))
@@ -1840,7 +1827,6 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
             if(rest_count)
             {
                 error(compiler, "Cannot rest single variable");
-                return;
             }
 
             uint8_t global = parse_variable_at(compiler, variables[0]);
@@ -2125,7 +2111,6 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var, bool constant)
     if(compiler->local_count + 2 > 256)
     {
         error(compiler, "Cannot declare more than 256 variables in one scope (Not enough space for for-loops internal variables)");
-        return;
     }
 
     TeaToken variables[255];
@@ -2268,7 +2253,6 @@ static void break_statement(TeaCompiler* compiler)
     if(compiler->loop == NULL)
     {
         error(compiler, "Cannot use 'break' outside of a loop");
-        return;
     }
 
     // Discard any locals created inside the loop
@@ -2282,7 +2266,6 @@ static void continue_statement(TeaCompiler* compiler)
     if(compiler->loop == NULL)
     {
         error(compiler, "Cannot use 'continue' outside of a loop");
-        return;
     }
 
     // Discard any locals created inside the loop
