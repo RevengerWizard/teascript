@@ -2432,6 +2432,8 @@ static void import_statement(TeaCompiler* compiler)
             define_variable(compiler, import_name, false);
         }
 
+        emit_op(compiler, OP_IMPORT_END);
+
         if(match(compiler, TOKEN_COMMA))
         {
             import_statement(compiler);
@@ -2553,6 +2555,8 @@ static void from_import_statement(TeaCompiler* compiler)
                 define_variable(compiler, 0, false);
             }
         }
+
+        emit_op(compiler, OP_IMPORT_END);
     }
 }
 
