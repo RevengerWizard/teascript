@@ -2,12 +2,15 @@
 
 PLAT = none
 
-PLATS= mingw
+PLATS = mingw
 
 all:	$(PLAT)
 
-$(PLATS) clean o a:
-	cd src && $(MAKE) $@
+$(PLATS) clean:
+	$(MAKE) -C src $@
+
+%:
+	$(MAKE) -C src $(MAKECMDGOALS)
 
 none:
 	@echo "Please do"
