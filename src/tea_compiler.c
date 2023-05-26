@@ -762,7 +762,7 @@ static void dot(TeaCompiler* compiler, bool can_assign)
 #undef SHORT_HAND_INCREMENT
 }
 
-static void boolean(TeaCompiler* compiler, bool can_assign)
+static void boolean_(TeaCompiler* compiler, bool can_assign)
 {
     emit_op(compiler, compiler->parser->previous.type == TOKEN_FALSE ? OP_FALSE : OP_TRUE);
 }
@@ -842,7 +842,7 @@ static void map(TeaCompiler* compiler, bool can_assign)
     emit_argued(compiler, OP_MAP, item_count);
 }
 
-static void subscript(TeaCompiler* compiler, bool can_assign)
+static void csubscript(TeaCompiler* compiler, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
     expression(compiler); \
@@ -1242,7 +1242,7 @@ static void range(TeaCompiler* compiler, bool can_assign)
 static TeaParseRule rules[] = {
     RULE(grouping, call, CALL),             // TOKEN_LEFT_PAREN
     NONE,                                   // TOKEN_RIGHT_PAREN
-    RULE(list, subscript, SUBSCRIPT),       // TOKEN_LEFT_BRACKET
+    RULE(list, csubscript, SUBSCRIPT),       // TOKEN_LEFT_BRACKET
     NONE,                                   // TOKEN_RIGHT_BRACKET
     PREFIX(map),                            // TOKEN_LEFT_BRACE
     NONE,                                   // TOKEN_RIGHT_BRACE
@@ -1293,7 +1293,7 @@ static TeaParseRule rules[] = {
     NONE,                                   // TOKEN_CLASS
     PREFIX(static_),                        // TOKEN_STATIC
     NONE,                                   // TOKEN_ELSE
-    PREFIX(boolean),                        // TOKEN_FALSE
+    PREFIX(boolean_),                       // TOKEN_FALSE
     NONE,                                   // TOKEN_FOR
     PREFIX(anonymous),                      // TOKEN_FUNCTION
     NONE,                                   // TOKEN_CASE
@@ -1313,7 +1313,7 @@ static TeaParseRule rules[] = {
     NONE,                                   // TOKEN_CONTINUE
     NONE,                                   // TOKEN_BREAK
     OPERATOR(binary, COMPARISON),           // TOKEN_IN
-    PREFIX(boolean),                        // TOKEN_TRUE
+    PREFIX(boolean_),                       // TOKEN_TRUE
     NONE,                                   // TOKEN_VAR
     NONE,                                   // TOKEN_CONST
     NONE,                                   // TOKEN_WHILE

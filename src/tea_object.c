@@ -273,7 +273,7 @@ static uint32_t hash_value(TeaValue value)
 #endif
 }
 
-static TeaMapItem* find_entry(TeaMapItem* items, int capacity, TeaValue key)
+static TeaMapItem* find_map_entry(TeaMapItem* items, int capacity, TeaValue key)
 {
     uint32_t hash = hash_value(key);
     uint32_t index = hash & (capacity - 1);
@@ -315,7 +315,7 @@ bool teaO_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
     if(map->count == 0)
         return false;
 
-    TeaMapItem* item = find_entry(map->items, map->capacity, key);
+    TeaMapItem* item = find_map_entry(map->items, map->capacity, key);
     if(item->empty)
         return false;
 
@@ -346,7 +346,7 @@ bool teaO_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
             if(item->empty)
                 continue;
 
-            TeaMapItem* dest = find_entry(items, capacity, item->key);
+            TeaMapItem* dest = find_map_entry(items, capacity, item->key);
             dest->key = item->key;
             dest->value = item->value;
             dest->empty = false;
@@ -358,7 +358,7 @@ bool teaO_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
         map->capacity = capacity;
     }
 
-    TeaMapItem* item = find_entry(map->items, map->capacity, key);
+    TeaMapItem* item = find_map_entry(map->items, map->capacity, key);
     bool is_new_key = item->empty;
 
     if(is_new_key && IS_NULL(item->value))
@@ -376,12 +376,12 @@ bool teaO_map_delete(TeaObjectMap* map, TeaValue key)
     if(map->count == 0)
         return false;
 
-    // Find the entry.
-    TeaMapItem* item = find_entry(map->items, map->capacity, key);
+    // Find the entry
+    TeaMapItem* item = find_map_entry(map->items, map->capacity, key);
     if(item->empty)
         return false;
 
-    // Place a tombstone in the entry.
+    // Place a tombstone in the entry
     item->key = NULL_VAL;
     item->value = BOOL_VAL(true);
     item->empty = true;

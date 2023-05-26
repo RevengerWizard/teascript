@@ -111,7 +111,7 @@ static void run_file(TeaState* T, const char* path)
     }
 }
 
-int main(int argc, const char* argv[])
+int main(int argc, const char** argv)
 {
     TeaState* T = tea_open();
     if(T == NULL)

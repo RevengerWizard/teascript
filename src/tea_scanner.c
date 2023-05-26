@@ -29,7 +29,7 @@ static bool is_at_end(TeaScanner* scanner)
     return *scanner->current == '\0';
 }
 
-static char advance(TeaScanner* scanner)
+static char advance_char(TeaScanner* scanner)
 {
     scanner->current++;
 
@@ -49,7 +49,7 @@ static char peek_next(TeaScanner* scanner)
     return scanner->current[1];
 }
 
-static bool match(TeaScanner* scanner, char expected)
+static bool match_char(TeaScanner* scanner, char expected)
 {
     if(is_at_end(scanner))
         return false;
@@ -75,12 +75,12 @@ static TeaToken make_token(TeaScanner* scanner, TeaTokenType type)
 
 static TeaToken match_tokens(TeaScanner* scanner, char cr, char cb, TeaTokenType a, TeaTokenType b, TeaTokenType c)
 {
-    return make_token(scanner, match(scanner, cr) ? a : match(scanner, cb) ? b : c);
+    return make_token(scanner, match_char(scanner, cr) ? a : match_char(scanner, cb) ? b : c);
 }
 
 static TeaToken match_token(TeaScanner* scanner, char c, TeaTokenType a, TeaTokenType b)
 {
-    return make_token(scanner, match(scanner, c) ? a : b);
+    return make_token(scanner, match_char(scanner, c) ? a : b);
 }
 
 static TeaToken error_token(TeaScanner* scanner, const char *message)
@@ -97,7 +97,7 @@ static TeaToken error_token(TeaScanner* scanner, const char *message)
 static void skip_line_comment(TeaScanner* scanner)
 {
     while(peek(scanner) != '\n' && !is_at_end(scanner)) 
-        advance(scanner);
+        advance_char(scanner);
 }
 
 static bool skip_whitespace(TeaScanner* scanner)
@@ -111,13 +111,13 @@ static bool skip_whitespace(TeaScanner* scanner)
             case '\r':
             case '\t':
             {
-                advance(scanner);
+                advance_char(scanner);
                 break;
             }
             case '\n':
             {
                 scanner->line++;
-                advance(scanner);
+                advance_char(scanner);
                 break;
             }
             case '#':
@@ -141,8 +141,8 @@ static bool skip_whitespace(TeaScanner* scanner)
                 } 
                 else if(peek_next(scanner) == '*') 
                 {
-                    advance(scanner);
-                    advance(scanner);
+                    advance_char(scanner);
+                    advance_char(scanner);
 
                     int nesting = 1;
                     while(nesting > 0)
@@ -154,23 +154,23 @@ static bool skip_whitespace(TeaScanner* scanner)
 
                         if(peek(scanner) == '/' && peek_next(scanner) == '*')
                         {
-                            advance(scanner);
-                            advance(scanner);
+                            advance_char(scanner);
+                            advance_char(scanner);
                             nesting++;
                             continue;
                         }
 
                         if(peek(scanner) == '*' && peek_next(scanner) == '/')
                         {
-                            advance(scanner);
-                            advance(scanner);
+                            advance_char(scanner);
+                            advance_char(scanner);
                             nesting--;
                             continue;
                         }
 
                         if(peek(scanner) == '\n')
                             scanner->line++;
-                        advance(scanner);
+                        advance_char(scanner);
                     }
                 }
                 else
@@ -357,7 +357,7 @@ static TeaTokenType identifier_type(TeaScanner* scanner)
 static TeaToken identifier(TeaScanner* scanner)
 {
     while(is_alpha(peek(scanner)) || is_digit(peek(scanner)))
-        advance(scanner);
+        advance_char(scanner);
 
     return make_token(scanner, identifier_type(scanner));
 }
@@ -447,12 +447,12 @@ static TeaToken hex_number(TeaScanner* scanner)
         {
             if(!underscore) underscore = true;
             if(last) return error_token(scanner, "Cannot have consecutive underscores");
-            advance(scanner);
+            advance_char(scanner);
             last = true;
         }
         else
         {
-            advance(scanner);
+            advance_char(scanner);
             last = false;
         }
     }
@@ -472,12 +472,12 @@ static TeaToken binary_number(TeaScanner* scanner)
         {
             if(!underscore) underscore = true;
             if(last) return error_token(scanner, "Cannot have consecutive underscores");
-            advance(scanner);
+            advance_char(scanner);
             last = true;
         }
         else
         {
-            advance(scanner);
+            advance_char(scanner);
             last = false;
         }
     }
@@ -497,12 +497,12 @@ static TeaToken octal_number(TeaScanner* scanner)
         {
             if(!underscore) underscore = true;
             if(last) return error_token(scanner, "Cannot have consecutive underscores");
-            advance(scanner);
+            advance_char(scanner);
             last = true;
         }
         else
         {
-            advance(scanner);
+            advance_char(scanner);
             last = false;
         }
     }
@@ -514,9 +514,9 @@ static TeaToken octal_number(TeaScanner* scanner)
 
 static TeaToken exponent_number(TeaScanner* scanner)
 {
-    if(!match(scanner, '+'))
+    if(!match_char(scanner, '+'))
     {
-        match(scanner, '-');
+        match_char(scanner, '-');
     }
 
     if(!is_digit(peek(scanner)))
@@ -532,12 +532,12 @@ static TeaToken exponent_number(TeaScanner* scanner)
         {
             if(!underscore) underscore = true;
             if(last) return error_token(scanner, "Cannot have consecutive underscores");
-            advance(scanner);
+            advance_char(scanner);
             last = true;
         }
         else
         {
-            advance(scanner);
+            advance_char(scanner);
             last = false;
         }
     }
@@ -557,12 +557,12 @@ static TeaToken number(TeaScanner* scanner)
         {
             if(!underscore) underscore = true;
             if(last) return error_token(scanner, "Cannot have consecutive underscores");
-            advance(scanner);
+            advance_char(scanner);
             last = true;
         }
         else
         {
-            advance(scanner);
+            advance_char(scanner);
             last = false;
         }
     }
@@ -571,7 +571,7 @@ static TeaToken number(TeaScanner* scanner)
     if(peek(scanner) == '.' && is_digit(peek_next(scanner)))
     {
         // Consume the "."
-        advance(scanner);
+        advance_char(scanner);
         last = false;
 
         while(is_digit(peek(scanner)) || peek(scanner) == '_')
@@ -580,18 +580,18 @@ static TeaToken number(TeaScanner* scanner)
             {
                 if(!underscore) underscore = true;
                 if(last) return error_token(scanner, "Cannot have consecutive underscores");
-                advance(scanner);
+                advance_char(scanner);
                 last = true;
             }
             else
             {
-                advance(scanner);
+                advance_char(scanner);
                 last = false;
             }
         }
     }
 
-    if(match(scanner, 'e') || match(scanner, 'E'))
+    if(match_char(scanner, 'e') || match_char(scanner, 'E'))
     {
         return exponent_number(scanner);
     }
@@ -603,7 +603,7 @@ static TeaToken number(TeaScanner* scanner)
 
 static int read_hex_digit(TeaScanner* scanner)
 {
-    char c = advance(scanner);
+    char c = advance_char(scanner);
     if(c >= '0' && c <= '9') return c - '0';
     if(c >= 'a' && c <= 'f') return c - 'a' + 10;
     if(c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -654,8 +654,8 @@ static TeaToken multistring(TeaScanner* scanner)
     tea_init_bytes(&bytes);
 
     // Consume second and third quote
-    advance(scanner);
-    advance(scanner);
+    advance_char(scanner);
+    advance_char(scanner);
 
     int skip_start = 0;
     int first_newline = -1;
@@ -665,7 +665,7 @@ static TeaToken multistring(TeaScanner* scanner)
 
     while(true)
     {
-        char c = advance(scanner);
+        char c = advance_char(scanner);
         char c1 = peek(scanner);
         char c2 = peek_next(scanner);
 
@@ -704,8 +704,8 @@ static TeaToken multistring(TeaScanner* scanner)
     }
 
     //consume the second and third quote
-    advance(scanner);
-    advance(scanner);
+    advance_char(scanner);
+    advance_char(scanner);
 
     int offset = 0;
     int count = bytes.count;
@@ -732,7 +732,7 @@ static TeaToken string(TeaScanner* scanner, bool interpolation)
 
     while(true)
     {
-        char c = advance(scanner);
+        char c = advance_char(scanner);
 
         if(c == scanner->string)
         {
@@ -775,7 +775,7 @@ static TeaToken string(TeaScanner* scanner, bool interpolation)
                     break;
                 }
 
-                switch(advance(scanner))
+                switch(advance_char(scanner))
                 {
                     case '\"': tea_write_bytes(T, &bytes, '\"'); break;
                     case '\'': tea_write_bytes(T, &bytes, '\''); break;
@@ -859,23 +859,23 @@ TeaToken teaS_scan_token(TeaScanner* scanner)
     if(is_at_end(scanner))
         return make_token(scanner, TOKEN_EOF);
 
-    char c = advance(scanner);
+    char c = advance_char(scanner);
 
     if(c == '0')
     {
         if(peek(scanner) == 'x' || peek(scanner) == 'X')
         {
-            advance(scanner);
+            advance_char(scanner);
             return hex_number(scanner);
         }
         if(peek(scanner) == 'b' || peek(scanner) == 'B')
         {
-            advance(scanner);
+            advance_char(scanner);
             return binary_number(scanner);
         }
         if(peek(scanner) == 'c' || peek(scanner) == 'C')
         {
-            advance(scanner);
+            advance_char(scanner);
             return octal_number(scanner);
         }
     }
@@ -884,7 +884,7 @@ TeaToken teaS_scan_token(TeaScanner* scanner)
         if(peek(scanner) == '"' || peek(scanner) == '\'')
         {
             scanner->raw = true;
-            scanner->string = advance(scanner);
+            scanner->string = advance_char(scanner);
             return string(scanner, false);
         }
     }
@@ -931,7 +931,7 @@ TeaToken teaS_scan_token(TeaScanner* scanner)
             {
                 return number(scanner);
             }
-            if(!match(scanner, '.'))
+            if(!match_char(scanner, '.'))
             {
                 return make_token(scanner, TOKEN_DOT);
             }
@@ -941,13 +941,13 @@ TeaToken teaS_scan_token(TeaScanner* scanner)
         case '+': return match_tokens(scanner, '=', '+', TOKEN_PLUS_EQUAL, TOKEN_PLUS_PLUS, TOKEN_PLUS);
         case '*':
         {
-            if(match(scanner, '='))
+            if(match_char(scanner, '='))
             {
                 return make_token(scanner, TOKEN_STAR_EQUAL);
             }
-            else if(match(scanner, '*'))
+            else if(match_char(scanner, '*'))
             {
-                if(match(scanner, '='))
+                if(match_char(scanner, '='))
                 {
                     return make_token(scanner, TOKEN_STAR_STAR_EQUAL);
                 }
@@ -961,20 +961,20 @@ TeaToken teaS_scan_token(TeaScanner* scanner)
                 return make_token(scanner, TOKEN_STAR);
             }
         }
-        case '/': return make_token(scanner, match(scanner, '=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
-        case '%': return make_token(scanner, match(scanner, '=') ? TOKEN_PERCENT_EQUAL : TOKEN_PERCENT);
-        case '&': return make_token(scanner, match(scanner, '=') ? TOKEN_AMPERSAND_EQUAL : TOKEN_AMPERSAND);
-        case '|': return make_token(scanner, match(scanner, '=') ? TOKEN_PIPE_EQUAL : TOKEN_PIPE);
-        case '^': return make_token(scanner, match(scanner, '=') ? TOKEN_CARET_EQUAL : TOKEN_CARET);
+        case '/': return make_token(scanner, match_char(scanner, '=') ? TOKEN_SLASH_EQUAL : TOKEN_SLASH);
+        case '%': return make_token(scanner, match_char(scanner, '=') ? TOKEN_PERCENT_EQUAL : TOKEN_PERCENT);
+        case '&': return make_token(scanner, match_char(scanner, '=') ? TOKEN_AMPERSAND_EQUAL : TOKEN_AMPERSAND);
+        case '|': return make_token(scanner, match_char(scanner, '=') ? TOKEN_PIPE_EQUAL : TOKEN_PIPE);
+        case '^': return make_token(scanner, match_char(scanner, '=') ? TOKEN_CARET_EQUAL : TOKEN_CARET);
         case '~': return make_token(scanner, TOKEN_TILDE);
-        case '!': return make_token(scanner, match(scanner, '=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
+        case '!': return make_token(scanner, match_char(scanner, '=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
         case '=':
         {
-            if(match(scanner, '='))
+            if(match_char(scanner, '='))
             {
                 return make_token(scanner, TOKEN_EQUAL_EQUAL);
             }
-            else if(match(scanner, '>'))
+            else if(match_char(scanner, '>'))
             {
                 return make_token(scanner, TOKEN_ARROW);
             }

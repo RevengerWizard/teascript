@@ -51,7 +51,7 @@ clean:
 	$(RM) $(ALL_T) $(ALL_O)
 
 depend:
-	@$(CC) $(CFLAGS) -MM *.c > Makefile.dep
+	@$(CC) $(CFLAGS) -MM tea_*.c > Makefile.dep
 
 # Convenience targets for popular platforms
 

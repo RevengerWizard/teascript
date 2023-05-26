@@ -77,7 +77,7 @@ void teaD_grow_stack(TeaState* T, int needed)
         teaD_realloc_stack(T, T->stack_size + needed);
 }
 
-static void call(TeaState* T, TeaObjectClosure* closure, int arg_count)
+static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
 {
     if(arg_count < closure->function->arity)
     {
@@ -192,7 +192,7 @@ void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
                 return;
             }
             case OBJ_CLOSURE:
-                call(T, AS_CLOSURE(callee), arg_count);
+                callt(T, AS_CLOSURE(callee), arg_count);
                 return;
             case OBJ_NATIVE:
                 callc(T, AS_NATIVE(callee), arg_count);

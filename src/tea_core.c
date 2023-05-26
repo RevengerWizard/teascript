@@ -14,7 +14,7 @@
 #include "tea_core.h"
 #include "tea_utf.h"
 
-static void print(TeaState* T)
+static void core_print(TeaState* T)
 {
     int count = tea_get_top(T);
     if(count == 0)
@@ -37,7 +37,7 @@ static void print(TeaState* T)
     tea_push_null(T);
 }
 
-static void input(TeaState* T)
+static void core_input(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_max_args(T, count, 1);
@@ -76,7 +76,7 @@ static void input(TeaState* T)
     teaV_push(T, OBJECT_VAL(teaO_take_string(T, line, length)));
 }
 
-static void open(TeaState* T)
+static void core_open(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
@@ -99,7 +99,7 @@ static void open(TeaState* T)
     teaV_push(T, OBJECT_VAL(file));
 }
 
-static void fassert(TeaState* T)
+static void core_fassert(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -110,7 +110,7 @@ static void fassert(TeaState* T)
     tea_push_value(T, 0);
 }
 
-static void error(TeaState* T)
+static void core_error(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -118,14 +118,14 @@ static void error(TeaState* T)
     tea_push_null(T);
 }
 
-static void type(TeaState* T)
+static void core_type(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     tea_push_string(T, tea_type_name(T, 0));
 }
 
-static void gc(TeaState* T)
+static void core_gc(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 0);
@@ -133,7 +133,7 @@ static void gc(TeaState* T)
     tea_push_null(T);
 }
 
-static void interpret(TeaState* T)
+static void core_interpret(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -142,7 +142,7 @@ static void interpret(TeaState* T)
     tea_close(T1);
 }
 
-static void chr(TeaState* T)
+static void core_chr(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -150,7 +150,7 @@ static void chr(TeaState* T)
     teaV_push(T, OBJECT_VAL(teaU_from_code_point(T, n)));
 }
 
-static void ord(TeaState* T)
+static void core_ord(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -158,7 +158,7 @@ static void ord(TeaState* T)
     tea_push_number(T, teaU_decode((uint8_t*)c, 1));
 }
 
-static void hex(TeaState* T)
+static void core_hex(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -171,7 +171,7 @@ static void hex(TeaState* T)
     teaV_push(T, OBJECT_VAL(teaO_take_string(T, string, len)));
 }
 
-static void bin(TeaState* T)
+static void core_bin(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -207,7 +207,7 @@ static void bin(TeaState* T)
     tea_push_string(T, buffer);
 }
 
-static void number(TeaState* T)
+static void core_number(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -220,7 +220,7 @@ static void number(TeaState* T)
     tea_push_number(T, n);
 }
 
-static void callt(TeaState* T)
+static void core_call(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -231,20 +231,20 @@ static void callt(TeaState* T)
 }
 
 static const TeaReg globals[] = {
-    { "print", print },
-    { "input", input },
-    { "open", open },
-    { "assert", fassert },
-    { "error", error },
-    { "typeof", type },
-    { "gc", gc },
-    { "interpret", interpret },
-    { "char", chr },
-    { "ord", ord },
-    { "hex", hex },
-    { "bin", bin },
-    { "number", number },
-    { "call", callt },
+    { "print", core_print },
+    { "input", core_input },
+    { "open", core_open },
+    { "assert", core_fassert },
+    { "error", core_error },
+    { "typeof", core_type },
+    { "gc", core_gc },
+    { "interpret", core_interpret },
+    { "char", core_chr },
+    { "ord", core_ord },
+    { "hex", core_hex },
+    { "bin", core_bin },
+    { "number", core_number },
+    { "call", core_call },
     { NULL, NULL }
 };
 
