@@ -20,11 +20,7 @@ parser.add_argument('suite', nargs='?')
 
 args = parser.parse_args(sys.argv[1:])
 
-config = args.suffix.lstrip('_d')
-is_debug = args.suffix.startswith('_d')
-
-TEA_DIR = dirname(dirname(realpath(__file__)))
-TEA_APP = join(TEA_DIR, 'tea' + args.suffix)
+TEA_APP = 'tea' + args.suffix
 
 EXPECT_PATTERN = re.compile(r'// expect: ?(.*)')
 EXPECT_ERROR_PATTERN = re.compile(r'// expect error(?! line)')
@@ -167,7 +163,7 @@ class Test:
     def validate(self, is_example, exit_code, out, err):
         if self.compile_errors and self.runtime_error_message:
             self.fail("Test error: Cannot expect both compile and runtime errors.")
-        return
+            return
 
         try:
             out = out.decode("utf-8").replace('\r\n', '\n')
@@ -341,13 +337,13 @@ def run_script(app, path, type):
 
     # Check if we are just running a subset of the tests.
     if args.suite:
-        this_test = relpath(path, join(TEA_DIR, 'test'))
+        this_test = relpath(path, 'test')
         if not this_test.startswith(args.suite):
             return
 
     # Update the status line.
     print_line('({}) Passed: {} Failed: {} Skipped: {} '.format(
-        relpath(app, TEA_DIR), green(passed), red(failed), yellow(num_skipped)))
+        app, green(passed), red(failed), yellow(num_skipped)))
 
     # Make a nice short path relative to the working directory.
 
