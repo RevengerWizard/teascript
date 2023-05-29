@@ -1,9 +1,9 @@
 class A {}
 
-class B < A 
+class B : A 
 {
     method()
     {
-        super. // expect error
-    }
+        super.
+    }   // expect error
 }

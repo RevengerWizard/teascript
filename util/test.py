@@ -27,7 +27,7 @@ EXPECT_ERROR_PATTERN = re.compile(r'// expect error(?! line)')
 EXPECT_ERROR_LINE_PATTERN = re.compile(r'// expect error line (\d+)')
 EXPECT_RUNTIME_ERROR_PATTERN = re.compile(r'// expect (handled )?runtime error: (.+)')
 
-ERROR_PATTERN = re.compile(r'File .*, \[.* line (\d+)\] Error')
+ERROR_PATTERN = re.compile(r'File .*, \[line (\d+)\] Error.*')
 STACK_TRACE_PATTERN = re.compile(r'\[line (\d+)\]')
 
 STDIN_PATTERN = re.compile(r'// stdin: (.*)')
@@ -89,39 +89,39 @@ class Test:
                     self.exit_code = 65
                     expectations += 1
 
-            match = EXPECT_ERROR_LINE_PATTERN.search(line)
-            if match:
-                self.compile_errors.add(int(match.group(1)))
+                match = EXPECT_ERROR_LINE_PATTERN.search(line)
+                if match:
+                    self.compile_errors.add(int(match.group(1)))
 
-                # If we expect a compile error, it should exit with WREN_EX_DATAERR.
-                self.exit_code = 65
-                expectations += 1
+                    # If we expect a compile error, it should exit with WREN_EX_DATAERR.
+                    self.exit_code = 65
+                    expectations += 1
 
-            match = EXPECT_RUNTIME_ERROR_PATTERN.search(line)
-            if match:
-                self.runtime_error_line = line_num
-                self.runtime_error_message = match.group(2)
-                # If the runtime error isn't handled, it should exit with WREN_EX_SOFTWARE.
-                if match.group(1) != "handled ":
-                    self.exit_code = 70
-                expectations += 1
+                match = EXPECT_RUNTIME_ERROR_PATTERN.search(line)
+                if match:
+                    self.runtime_error_line = line_num
+                    self.runtime_error_message = match.group(2)
+                    # If the runtime error isn't handled, it should exit with WREN_EX_SOFTWARE.
+                    if match.group(1) != "handled ":
+                        self.exit_code = 70
+                    expectations += 1
 
-            match = STDIN_PATTERN.search(line)
-            if match:
-                input_lines.append(match.group(1))
+                match = STDIN_PATTERN.search(line)
+                if match:
+                    input_lines.append(match.group(1))
 
-            match = SKIP_PATTERN.search(line)
-            if match:
-                num_skipped += 1
-                skipped[match.group(1)] += 1
-                return False
+                match = SKIP_PATTERN.search(line)
+                if match:
+                    num_skipped += 1
+                    skipped[match.group(1)] += 1
+                    return False
 
-            # Not a test file at all, so ignore it.
-            match = NONTEST_PATTERN.search(line)
-            if match:
-                return False
+                # Not a test file at all, so ignore it.
+                match = NONTEST_PATTERN.search(line)
+                if match:
+                    return False
 
-            line_num += 1
+                line_num += 1
 
 
         # If any input is fed to the test in stdin, concatenate it into one string.
