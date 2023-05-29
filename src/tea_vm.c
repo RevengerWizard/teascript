@@ -1632,6 +1632,7 @@ void teaV_run(TeaState* T)
                     RUNTIME_ERROR("A class can't inherit from itself");
                 }
                 klass->super = superclass;
+                klass->constructor = superclass->constructor;
                 
                 teaT_add_all(T, &superclass->methods, &klass->methods);
                 teaT_add_all(T, &superclass->statics, &klass->statics);

@@ -28,8 +28,9 @@ static void core_print(TeaState* T)
     {
         int len;
         const char* string = tea_to_lstring(T, i, &len);
+        if(i > 0)
+            tea_write_string("\t", 1);
         tea_write_string(string, len);
-        tea_write_string("\t", 1);
         tea_pop(T, 1);
     }
 
