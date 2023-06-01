@@ -3,7 +3,6 @@
 ** Teascript parser and compiler
 */
 
-
 #ifndef TEA_COMPILER_H
 #define TEA_COMPILER_H
 
