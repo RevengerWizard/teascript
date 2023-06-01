@@ -1,5 +1,7 @@
-// tea_do.c
-// Stack and Call structure of Teascript
+/*
+** tea_do.h
+** Stack and Call structure of Teascript
+*/
 
 #ifndef TEA_DO_H
 #define TEA_DO_H

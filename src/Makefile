@@ -54,6 +54,7 @@ depend:
 	@$(CC) $(CFLAGS) -MM tea_*.c > Makefile.dep
 
 # Convenience targets for popular platforms
+ALL = all
 
 none:
 	@echo "Please choose a platform:"

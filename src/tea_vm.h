@@ -1,5 +1,7 @@
-// tea_vm.h
-// Teascript virtual machine
+/*
+** tea_vm.h
+** Teascript virtual machine
+*/
 
 #ifndef TEA_VM_H
 #define TEA_VM_H

@@ -1,5 +1,7 @@
-// tea_file.c
-// Teascript file class
+/*
+** tea_fileclass.c
+** Teascript file class
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

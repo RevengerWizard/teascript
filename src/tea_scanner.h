@@ -1,5 +1,7 @@
-// tea_scanner.h
-// Teascript scanner
+/*
+** tea_scanner.h
+** Teascript scanner
+*/
 
 #ifndef TEA_SCANNER_H
 #define TEA_SCANNER_H

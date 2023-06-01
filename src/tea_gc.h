@@ -1,5 +1,7 @@
-// tea_gc.h
-// Teascript garbage collector
+/*
+** tea_gc.h
+** Teascript garbage collector
+*/
 
 #ifndef TEA_GC_H
 #define TEA_GC_H

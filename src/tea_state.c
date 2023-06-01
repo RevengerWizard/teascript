@@ -1,5 +1,7 @@
-// tea_state.c
-// Teascript global state
+/*
+** tea_state.c
+** Teascript global state
+*/
 
 #include <stdlib.h>
 #include <string.h>

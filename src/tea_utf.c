@@ -1,5 +1,7 @@
-// tea_utf.c
-// UTF-8 functions for Teascript
+/*
+** tea_utf.c
+** UTF-8 functions for Teascript
+*/
 
 #include "tea_utf.h"
 #include "tea_object.h"

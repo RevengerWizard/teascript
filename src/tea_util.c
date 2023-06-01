@@ -1,5 +1,7 @@
-// tea_util.c
-// Teascript utility functions
+ /*
+** tea_util.c
+** Teascript utility functions
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

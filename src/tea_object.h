@@ -1,5 +1,7 @@
-// tea_object.h
-// Teascript object model and functions
+/*
+** tea_object.h
+** Teascript object model and functions
+*/
 
 #ifndef TEA_OBJECT_H
 #define TEA_OBJECT_H

@@ -1,5 +1,7 @@
-// tea_api.c
-// C API functions for Teascript 
+/*
+** tea_api.c
+** C API functions for Teascript
+*/
 
 #include "tea.h"
 

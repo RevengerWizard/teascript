@@ -1,5 +1,7 @@
-// tea_core.h
-// Teascript core classes and functions
+/*
+** tea_core.h
+** Teascript core classes and functions
+*/
 
 #ifndef TEA_CORE_H
 #define TEA_CORE_H

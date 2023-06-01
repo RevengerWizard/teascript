@@ -1,5 +1,7 @@
-// tea.h
-// Teascript C API
+/*
+** tea.h
+** Teascript C API
+*/
 
 #ifndef TEA_H
 #define TEA_H

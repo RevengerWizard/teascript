@@ -1,5 +1,7 @@
-// tea_value.c
-// Teascript value model and functions
+/*
+** tea_value.c
+** Teascript value model and functions
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,5 +1,7 @@
-// tea_memory.h
-// Teascript gc and memory functions
+/*
+** tea_memory.h
+** Teascript memory functions
+*/
 
 #ifndef TEA_MEMORY_H
 #define TEA_MEMORY_H

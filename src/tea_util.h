@@ -1,5 +1,7 @@
-// tea_util.h
-// Teascript utility functions
+/*
+** tea_util.h
+** Teascript utility functions
+*/
 
 #ifndef TEA_UTIL_H
 #define TEA_UTIL_H

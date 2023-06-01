@@ -1,5 +1,8 @@
-// tea_compiler.h
-// Teascript compiler and parser
+/*
+** tea_compiler.h
+** Teascript parser and compiler
+*/
+
 
 #ifndef TEA_COMPILER_H
 #define TEA_COMPILER_H

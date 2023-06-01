@@ -1,5 +1,7 @@
-// tea_opcodes.h
-// Teascript opcodes
+/*
+** tea_opcodes.h
+** Teascript opcodes
+*/
 
 OPCODE(CONSTANT, 1),
 OPCODE(NULL, 1),

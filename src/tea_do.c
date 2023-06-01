@@ -1,3 +1,8 @@
+/*
+** tea_do.c
+** Stack and Call structure of Teascript
+*/
+
 #include <setjmp.h>
 #include <stdlib.h>
 

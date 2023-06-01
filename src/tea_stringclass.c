@@ -1,5 +1,7 @@
-// tea_string.c
-// Teascript string class
+/*
+** tea_stringclass.c
+** Teascript string class
+*/
 
 #include <string.h>
 #include <ctype.h>

@@ -1,5 +1,7 @@
-// tea_object.c
-// Teascript object model and functions
+/*
+** tea_object.c
+** Teascript object model and functions
+*/
 
 #include <stdlib.h>
 #include <stdio.h>

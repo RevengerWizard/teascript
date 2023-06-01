@@ -1,5 +1,7 @@
-// tea_array.h
-// Teascript generic array macro
+/*
+** tea_array.h
+** Teascript generic array macro
+*/
 
 #ifndef TEA_ARRAY_H
 #define TEA_ARRAY_H

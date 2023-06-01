@@ -1,5 +1,7 @@
-// tea_list.c
-// Teascript list class
+/*
+** tea_listclass.c
+** Teascript list class
+*/
 
 #include <math.h>
 

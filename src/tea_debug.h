@@ -1,5 +1,7 @@
-// tea_debug.h
-// Teascript debug functions
+/*
+** tea_debug.h
+** Teascript debug functions
+*/
 
 #ifndef TEA_DEBUG_H
 #define TEA_DEBUG_H

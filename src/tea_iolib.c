@@ -1,5 +1,7 @@
-// tea_io.c
-// Teascript io module
+/*
+** tea_iolib.c
+** Teascript io module
+*/
 
 #include "stdio.h"
 

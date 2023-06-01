@@ -1,5 +1,7 @@
-// tea_time.c
-// Teascript time module
+/*
+** tea_timelib.c
+** Teascript time module
+*/
 
 #include <stdlib.h>
 #include <time.h>

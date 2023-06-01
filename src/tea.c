@@ -1,5 +1,7 @@
-// tea.c
-// Teascript standalone interpreter
+/*
+** tea.c
+** Teascript standalone interpreter
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

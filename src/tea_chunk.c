@@ -1,5 +1,7 @@
-// tea_chunk.c
-// Teascript chunks
+/*
+** tea_chunk.c
+** Teascript chunks
+*/
 
 #include "tea_chunk.h"
 #include "tea_memory.h"

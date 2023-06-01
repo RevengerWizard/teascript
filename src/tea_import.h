@@ -1,5 +1,7 @@
-// tea_import.h
-// Teascript module loading
+/*
+** tea_import.h
+** Teascript import loading
+*/
 
 #ifndef TEA_IMPORT_H
 #define TEA_IMPORT_H

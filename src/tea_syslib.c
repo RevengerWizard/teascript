@@ -1,5 +1,7 @@
-// tea_sys.c
-// Teascript sys module
+/*
+** tea_syslib.c
+** Teascript sys module
+*/
 
 #include <stdlib.h>
 #include <math.h>

@@ -1,5 +1,7 @@
-// tea_os.c
-// Teascript os module
+/*
+** tea_oslib.c
+** Teascript os module
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

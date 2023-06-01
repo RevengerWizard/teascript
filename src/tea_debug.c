@@ -1,5 +1,7 @@
-// tea_debug.c
-// Teascript debug functions
+/*
+** tea_debug.c
+** Teascript debug functions
+*/
 
 #include <stdio.h>
 

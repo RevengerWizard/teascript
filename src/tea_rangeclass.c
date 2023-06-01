@@ -1,5 +1,7 @@
-// tea_file.c
-// Teascript range class
+/*
+** tea_rangeclass.c
+** Teascript range class
+*/
 
 #include <math.h>
 

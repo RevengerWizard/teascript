@@ -1,5 +1,7 @@
-// tea_value.h
-// Teascript value model and functions
+/*
+** tea_value.h
+** Teascript value model and functions
+*/
 
 #ifndef TEA_VALUE_H
 #define TEA_VALUE_H

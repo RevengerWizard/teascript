@@ -1,5 +1,7 @@
-// tea_math.c
-// Teascript math module
+/*
+** tea_mathlib.c
+** Teascript math module
+*/
 
 #include <string.h>
 #include <math.h>

@@ -1,5 +1,7 @@
-// tea_memory.c
-// Teascript gc and memory functions
+/*
+** tea_memory.c
+** Teascript memory functions
+*/
 
 #include <stdlib.h>
 

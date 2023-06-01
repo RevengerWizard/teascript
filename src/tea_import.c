@@ -1,5 +1,7 @@
-// tea_module.c
-// Teascript module loading
+/*
+** tea_import.c
+** Teascript import loading
+*/
 
 #include "tea.h"
 

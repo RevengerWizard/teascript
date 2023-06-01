@@ -1,5 +1,7 @@
-// tea_config.h
-// Configuration file for Teascript
+/*
+** tea_conf.h
+** Configuration file for Teascript
+*/
 
 #ifndef TEA_CONFIG_H
 #define TEA_CONFIG_H

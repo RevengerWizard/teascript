@@ -1,5 +1,7 @@
-// tea_token.h
-// Teascript tokens
+/*
+** tea_token.h
+** Teascript tokens
+*/
 
 #ifndef TEA_TOKEN_H
 #define TEA_TOKEN_H

@@ -1,5 +1,7 @@
-// tea_table.h
-// Teascript hash table
+/*
+** tea_table.h
+** Teascript hash table
+*/
 
 #ifndef TEA_TABLE_H
 #define TEA_TABLE_H

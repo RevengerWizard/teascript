@@ -1,5 +1,7 @@
-// tea_core.c
-// Teascript core classes and functions
+/*
+** tea_core.c
+** Teascript core classes and functions
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,5 +1,7 @@
-// tea_chunk.h
-// Teascript chunks
+/*
+** tea_chunk.h
+** Teascript chunks
+*/
 
 #ifndef TEA_CHUNK_H
 #define TEA_CHUNK_H

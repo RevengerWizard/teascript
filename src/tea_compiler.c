@@ -1,5 +1,7 @@
-// tea_compiler.c
-// Teascript parser and compiler
+/*
+** tea_compiler.c
+** Teascript parser and compiler
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

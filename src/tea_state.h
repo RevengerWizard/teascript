@@ -1,5 +1,7 @@
-// tea_state.c
-// Teascript global state
+/*
+** tea_state.h
+** Teascript global state
+*/
 
 #ifndef TEA_STATE_H
 #define TEA_STATE_H

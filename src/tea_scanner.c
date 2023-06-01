@@ -1,5 +1,7 @@
-// tea_scanner.c
-// Teascript scanner
+/*
+** tea_scanner.c
+** Teascript scanner
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

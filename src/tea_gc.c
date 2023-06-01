@@ -1,5 +1,7 @@
-// tea_gc.c
-// Teascript garbage collector
+/*
+** tea_gc.c
+** Teascript garbage collector
+*/
 
 #include <stdlib.h>
 

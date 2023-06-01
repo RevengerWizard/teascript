@@ -1,5 +1,7 @@
-// tea_vm.c
-// Teascript virtual machine
+/*
+** tea_vm.c
+** Teascript virtual machine
+*/
 
 #include <stdarg.h>
 #include <stdio.h>

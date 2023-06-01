@@ -1,5 +1,7 @@
-// tea_random.c
-// Teascript random module
+/*
+** tea_randomlib.c
+** Teascript random module
+*/
 
 #include <stdlib.h>
 #include <time.h>

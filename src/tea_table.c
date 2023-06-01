@@ -1,5 +1,7 @@
-// tea_table.c
-// Teascript hash table
+/*
+** tea_table.c
+** Teascript hash table
+*/
 
 #include <stdlib.h>
 #include <string.h>

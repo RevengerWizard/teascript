@@ -1,5 +1,7 @@
-// tea_map.c
-// Teascript map class
+/*
+** tea_mapclass.c
+** Teascript map class
+*/
 
 #include "tea_vm.h"
 #include "tea_core.h"
