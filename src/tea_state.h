@@ -10,7 +10,7 @@
 
 #include "tea.h"
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_value.h"
 #include "tea_object.h"
 

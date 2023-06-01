@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_state.h"
 #include "tea_compiler.h"
 #include "tea_gc.h"

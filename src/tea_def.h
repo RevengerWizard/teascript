@@ -1,10 +1,10 @@
 /*
 ** tea_common.h
-** Teascript commons
+** Teascript common defines
 */
 
-#ifndef TEA_COMMON_H
-#define TEA_COMMON_H
+#ifndef TEA_DEF_H
+#define TEA_DEF_H
 
 #include <stdbool.h>
 #include <stddef.h>

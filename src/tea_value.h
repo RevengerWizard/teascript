@@ -8,7 +8,7 @@
 
 #include <string.h>
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_array.h"
 
 typedef struct TeaState TeaState;

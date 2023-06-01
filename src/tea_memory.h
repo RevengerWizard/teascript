@@ -7,7 +7,7 @@
 #define TEA_MEMORY_H
 
 #include "tea_value.h"
-#include "tea_common.h"
+#include "tea_def.h"
 
 #define TEA_ALLOCATE(T, type, count) \
     (type*)teaM_realloc(T, NULL, 0, sizeof(type) * (count))

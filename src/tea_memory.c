@@ -7,7 +7,7 @@
 
 #include "tea.h"
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_memory.h"
 #include "tea_state.h"
 #include "tea_array.h"

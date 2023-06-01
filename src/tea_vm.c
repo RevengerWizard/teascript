@@ -8,7 +8,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_compiler.h"
 #include "tea_debug.h"
 #include "tea_object.h"

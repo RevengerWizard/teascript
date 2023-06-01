@@ -6,7 +6,7 @@
 #ifndef TEA_TABLE_H
 #define TEA_TABLE_H
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_value.h"
 
 #define TABLE_MAX_LOAD 0.75

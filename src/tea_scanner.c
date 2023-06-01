@@ -8,7 +8,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_value.h"
 #include "tea_scanner.h"
 #include "tea_utf.h"

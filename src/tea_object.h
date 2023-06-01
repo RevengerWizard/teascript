@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 #include "tea.h"
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_memory.h"
 #include "tea_chunk.h"
 #include "tea_table.h"

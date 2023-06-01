@@ -6,7 +6,7 @@
 #ifndef TEA_UTF_H
 #define TEA_UTF_H
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_value.h"
 
 int teaU_decode_bytes(uint8_t byte);

@@ -6,7 +6,7 @@
 #ifndef TEA_ARRAY_H
 #define TEA_ARRAY_H
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_value.h"
 
 #define DECLARE_ARRAY(name, type, shr) \

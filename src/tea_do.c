@@ -6,7 +6,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_do.h"
 #include "tea_vm.h"
 #include "tea_compiler.h"

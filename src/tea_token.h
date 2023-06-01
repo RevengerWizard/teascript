@@ -6,7 +6,7 @@
 #ifndef TEA_TOKEN_H
 #define TEA_TOKEN_H
 
-#include "tea_common.h"
+#include "tea_def.h"
 #include "tea_value.h"
 
 typedef enum
