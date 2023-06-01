@@ -57,13 +57,13 @@ static void map_contains(TeaState* T)
 
     TeaObjectMap* map = AS_MAP(T->base[0]);
 
-    if(!teaO_is_valid_key(T->base[1]))
+    if(!tea_obj_isvalidkey(T->base[1]))
     {
         tea_error(T, "Map key isn't hashable");
     }
     
     TeaValue _;
-    tea_push_bool(T, teaO_map_get(map, T->base[1], &_));
+    tea_push_bool(T, tea_obj_map_get(map, T->base[1], &_));
 }
 
 static void map_delete(TeaState* T)
@@ -73,16 +73,16 @@ static void map_delete(TeaState* T)
 
     TeaObjectMap* map = AS_MAP(T->base[0]);
     TeaValue _;
-    if(!teaO_is_valid_key(T->base[1]))
+    if(!tea_obj_isvalidkey(T->base[1]))
     {
         tea_error(T, "Map key isn't hashable");
     }
-    else if(!teaO_map_get(map, T->base[1], &_))
+    else if(!tea_obj_map_get(map, T->base[1], &_))
     {
         tea_error(T, "No such key in the map");
     }
 
-    teaO_map_delete(map, T->base[1]);
+    tea_obj_map_delete(map, T->base[1]);
 }
 
 static void map_copy(TeaState* T)
@@ -98,7 +98,7 @@ static void map_copy(TeaState* T)
     for(int i = 0; i < map->capacity; i++)
     {
         if(map->items[i].empty) continue;
-        teaO_map_set(T, new, map->items[i].key, map->items[i].value);
+        tea_obj_map_set(T, new, map->items[i].key, map->items[i].value);
     }
 }
 
@@ -171,9 +171,9 @@ static void map_iteratorvalue(TeaState* T)
     }
 
     tea_new_list(T);
-    teaV_push(T, item->key);
+    tea_vm_push(T, item->key);
     tea_add_item(T, 2);
-    teaV_push(T, item->value);
+    tea_vm_push(T, item->value);
     tea_add_item(T, 2);
 }
 

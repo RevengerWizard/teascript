@@ -6,7 +6,7 @@
 #include "tea_utf.h"
 #include "tea_object.h"
 
-int teaU_decode_bytes(uint8_t byte)
+int tea_utf_decode_bytes(uint8_t byte)
 {
     if((byte & 0xc0) == 0x80) 
     {
@@ -31,7 +31,7 @@ int teaU_decode_bytes(uint8_t byte)
 	return 1;
 }
 
-int teaU_encode_bytes(int value) 
+int tea_utf_encode_bytes(int value) 
 {
 	if(value <= 0x7f) 
     {
@@ -56,20 +56,20 @@ int teaU_encode_bytes(int value)
 	return 0;
 }
 
-int teaU_length(TeaObjectString* string)
+int tea_utf_length(TeaObjectString* string)
 {
 	int length = 0;
 
 	for(uint32_t i = 0; i < string->length;) 
     {
-		i += teaU_decode_bytes(string->chars[i]);
+		i += tea_utf_decode_bytes(string->chars[i]);
 		length++;
 	}
 
 	return length;
 }
 
-int teaU_decode(const uint8_t* bytes, uint32_t length) 
+int tea_utf_decode(const uint8_t* bytes, uint32_t length) 
 {
 	if(*bytes <= 0x7f) 
     {
@@ -120,7 +120,7 @@ int teaU_decode(const uint8_t* bytes, uint32_t length)
 	return value;
 }
 
-int teaU_encode(int value, uint8_t* bytes) 
+int tea_utf_encode(int value, uint8_t* bytes) 
 {
 	if(value <= 0x7f)
     {
@@ -160,14 +160,14 @@ int teaU_encode(int value, uint8_t* bytes)
 	return 0;
 }
 
-TeaObjectString* teaU_code_point_at(TeaState* T, TeaObjectString* string, uint32_t index) 
+TeaObjectString* tea_utf_code_point_at(TeaState* T, TeaObjectString* string, uint32_t index) 
 {
 	if(index >= string->length) 
     {
 		return NULL;
 	}
 
-	int code_point = teaU_decode((uint8_t*)string->chars + index, string->length - index);
+	int code_point = tea_utf_decode((uint8_t*)string->chars + index, string->length - index);
 
 	if(code_point == -1) 
     {
@@ -176,30 +176,30 @@ TeaObjectString* teaU_code_point_at(TeaState* T, TeaObjectString* string, uint32
 		bytes[0] = string->chars[index];
 		bytes[1] = '\0';
 
-		return teaO_copy_string(T, bytes, 1);
+		return tea_obj_copy_string(T, bytes, 1);
 	}
 
-	return teaU_from_code_point(T, code_point);
+	return tea_utf_from_code_point(T, code_point);
 }
 
-TeaObjectString* teaU_from_code_point(TeaState* T, int value) 
+TeaObjectString* tea_utf_from_code_point(TeaState* T, int value) 
 {
-	int length = teaU_encode_bytes(value);
+	int length = tea_utf_encode_bytes(value);
 	char bytes[length + 1];
 
-	teaU_encode(value, (uint8_t*) bytes);
+	tea_utf_encode(value, (uint8_t*) bytes);
 
-	return teaO_copy_string(T, bytes, length);
+	return tea_obj_copy_string(T, bytes, length);
 }
 
-TeaObjectString* teaU_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count, int step) 
+TeaObjectString* tea_utf_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count, int step) 
 {
 	uint8_t* from = (uint8_t*)source->chars;
 	int length = 0;
 
 	for(uint32_t i = 0; i < count; i++) 
     {
-		length += teaU_decode_bytes(from[start + i * step]);
+		length += tea_utf_decode_bytes(from[start + i * step]);
 	}
 
 	char bytes[length];
@@ -209,18 +209,18 @@ TeaObjectString* teaU_from_range(TeaState* T, TeaObjectString* source, int start
 	for(uint32_t i = 0; i < count; i++) 
     {
 		int index = start + i * step;
-		int code_point = teaU_decode(from + index, source->length - index);
+		int code_point = tea_utf_decode(from + index, source->length - index);
 
 		if(code_point != -1) 
         {
-			to += teaU_encode(code_point, to);
+			to += tea_utf_encode(code_point, to);
 		}
 	}
 
-	return teaO_copy_string(T, bytes, length);
+	return tea_obj_copy_string(T, bytes, length);
 }
 
-int teaU_char_offset(char* str, int index) 
+int tea_utf_char_offset(char* str, int index) 
 {
 	#define is_utf(c) (((c) & 0xC0) != 0x80)
 	int offset = 0;

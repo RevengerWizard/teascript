@@ -12,7 +12,7 @@
 #include "tea_state.h"
 #include "tea_array.h"
 
-void* teaM_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_size)
+void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_size)
 {
     T->bytes_allocated += new_size - old_size;
 

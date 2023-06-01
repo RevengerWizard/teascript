@@ -21,9 +21,9 @@ typedef struct TeaScanner
     bool raw;
 } TeaScanner;
 
-void teaS_init(TeaState* T, TeaScanner* scanner, const char* source);
-void teaS_backtrack(TeaScanner* scanner);
-TeaToken teaS_scan_token(TeaScanner* scanner);
+void tea_scanner_init(TeaState* T, TeaScanner* scanner, const char* source);
+void tea_scanner_backtrack(TeaScanner* scanner);
+TeaToken tea_scanner_token(TeaScanner* scanner);
 
 static inline bool is_alpha(char c)
 {

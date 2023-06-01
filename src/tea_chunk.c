@@ -9,7 +9,7 @@
 #include "tea_value.h"
 #include "tea_vm.h"
 
-void teaK_init(TeaChunk* chunk)
+void tea_chunk_init(TeaChunk* chunk)
 {
     chunk->count = 0;
     chunk->capacity = 0;
@@ -20,15 +20,15 @@ void teaK_init(TeaChunk* chunk)
     tea_init_value_array(&chunk->constants);
 }
 
-void teaK_free(TeaState* T, TeaChunk* chunk)
+void tea_chunk_free(TeaState* T, TeaChunk* chunk)
 {
     TEA_FREE_ARRAY(T, uint8_t, chunk->code, chunk->capacity);
     TEA_FREE_ARRAY(T, TeaLineStart, chunk->lines, chunk->line_capacity);
     tea_free_value_array(T, &chunk->constants);
-    teaK_init(chunk);
+    tea_chunk_init(chunk);
 }
 
-void teaK_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line)
+void tea_chunk_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line)
 {
     if(chunk->capacity < chunk->count + 1)
     {
@@ -59,16 +59,16 @@ void teaK_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line)
     line_start->line = line;
 }
 
-int teaK_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value)
+int tea_chunk_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value)
 {
-    teaV_push(T, value);
+    tea_vm_push(T, value);
     tea_write_value_array(T, &chunk->constants, value);
-    teaV_pop(T, 1);
+    tea_vm_pop(T, 1);
 
     return chunk->constants.count - 1;
 }
 
-int teaK_getline(TeaChunk* chunk, int instruction)
+int tea_chunk_getline(TeaChunk* chunk, int instruction)
 {
     int start = 0;
     int end = chunk->line_count - 1;

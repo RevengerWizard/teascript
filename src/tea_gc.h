@@ -10,9 +10,9 @@
 
 #define GC_HEAP_GROW_FACTOR 2
 
-void teaC_mark_object(TeaState* T, TeaObject* object);
-void teaC_mark_value(TeaState* T, TeaValue value);
+void tea_gc_mark_object(TeaState* T, TeaObject* object);
+void tea_gc_mark_value(TeaState* T, TeaValue value);
 
-void teaC_free_objects(TeaState* T);
+void tea_gc_free_objects(TeaState* T);
 
 #endif

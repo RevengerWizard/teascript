@@ -63,10 +63,10 @@ TEA_API TeaState* tea_open()
     T->map_class = NULL;
     T->file_class = NULL;
     T->range_class = NULL;
-    teaT_init(&T->modules);
-    teaT_init(&T->globals);
-    teaT_init(&T->constants);
-    teaT_init(&T->strings);
+    tea_table_init(&T->modules);
+    tea_table_init(&T->globals);
+    tea_table_init(&T->constants);
+    tea_table_init(&T->strings);
     T->constructor_string = teaO_new_literal(T, "constructor");
     T->repl_string = teaO_new_literal(T, "_");
     T->repl = false;
@@ -80,14 +80,14 @@ TEA_API void tea_close(TeaState* T)
     T->repl_string = NULL;
     
     if(T->repl) 
-        teaT_free(T, &T->constants);
+        tea_table_free(T, &T->constants);
 
-    teaT_free(T, &T->modules);
-    teaT_free(T, &T->globals);
-    teaT_free(T, &T->constants);
-    teaT_free(T, &T->strings);
+    tea_table_free(T, &T->modules);
+    tea_table_free(T, &T->globals);
+    tea_table_free(T, &T->constants);
+    tea_table_free(T, &T->strings);
     free_stack(T);
-    teaC_free_objects(T);
+    tea_gc_free_objects(T);
 
 #if defined(TEA_DEBUG_TRACE_MEMORY) || defined(TEA_DEBUG_FINAL_MEMORY)
     printf("total bytes lost: %zu\n", T->bytes_allocated);
@@ -96,7 +96,7 @@ TEA_API void tea_close(TeaState* T)
     free_state(T);
 }
 
-TeaObjectClass* teaE_get_class(TeaState* T, TeaValue value)
+TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value)
 {
     if(IS_OBJECT(value))
     {
@@ -116,17 +116,17 @@ TeaObjectClass* teaE_get_class(TeaState* T, TeaValue value)
 TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, const char* source)
 {
     TeaObjectString* name = teaO_new_string(T, module_name);
-    teaV_push(T, OBJECT_VAL(name));
-    TeaObjectModule* module = teaO_new_module(T, name);
-    teaV_pop(T, 1);
+    tea_vm_push(T, OBJECT_VAL(name));
+    TeaObjectModule* module = tea_obj_new_module(T, name);
+    tea_vm_pop(T, 1);
 
-    teaV_push(T, OBJECT_VAL(module));
+    tea_vm_push(T, OBJECT_VAL(module));
     module->path = teaZ_get_directory(T, (char*)module_name);
-    teaV_pop(T, 1);
+    tea_vm_pop(T, 1);
     
     int status = teaD_protected_compiler(T, module, source);
     if(status != 0)
         return TEA_COMPILE_ERROR;
 
-    return teaD_pcall(T, T->top[-1], 0);
+    return tea_do_pcall(T, T->top[-1], 0);
 }

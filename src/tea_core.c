@@ -76,7 +76,7 @@ static void core_input(TeaState* T)
     
     line[length] = '\0';
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, line, length)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, line, length)));
 }
 
 static void core_open(TeaState* T)
@@ -96,10 +96,10 @@ static void core_open(TeaState* T)
         tea_error(T, "Unable to open file '%s'", path);
     }
 
-    TeaObjectFile* file = teaO_new_file(T, teaO_new_string(T, path), teaO_new_string(T, type));
+    TeaObjectFile* file = tea_obj_new_file(T, teaO_new_string(T, path), teaO_new_string(T, type));
     file->file = fp;
 
-    teaV_push(T, OBJECT_VAL(file));
+    tea_vm_push(T, OBJECT_VAL(file));
 }
 
 static void core_fassert(TeaState* T)
@@ -150,7 +150,7 @@ static void core_chr(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     int n = tea_check_number(T, 0);
-    teaV_push(T, OBJECT_VAL(teaU_from_code_point(T, n)));
+    tea_vm_push(T, OBJECT_VAL(tea_utf_from_code_point(T, n)));
 }
 
 static void core_ord(TeaState* T)
@@ -158,7 +158,7 @@ static void core_ord(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     const char* c = tea_check_string(T, 0);
-    tea_push_number(T, teaU_decode((uint8_t*)c, 1));
+    tea_push_number(T, tea_utf_decode((uint8_t*)c, 1));
 }
 
 static void core_hex(TeaState* T)
@@ -171,7 +171,7 @@ static void core_hex(TeaState* T)
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "0x%x", n);
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, string, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, string, len)));
 }
 
 static void core_bin(TeaState* T)

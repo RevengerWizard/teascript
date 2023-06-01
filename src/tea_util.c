@@ -79,7 +79,7 @@ TeaObjectString* teaZ_dirname(TeaState* T, char* path, int len)
 
     len = sep - path + 1;
 
-    return teaO_copy_string(T, path, len);
+    return tea_obj_copy_string(T, path, len);
 }
 
 bool teaZ_resolve_path(char* directory, char* path, char* ret) 
@@ -111,7 +111,7 @@ TeaObjectString* teaZ_get_directory(TeaState* T, char* source)
     char res[PATH_MAX];
     if(!teaZ_resolve_path(".", source, res)) 
     {
-        teaV_runtime_error(T, "Unable to resolve path '%s'", source);
+        tea_vm_runtime_error(T, "Unable to resolve path '%s'", source);
         exit(1);
     }
 

@@ -457,7 +457,7 @@ static void list_join(TeaState* T)
     string[length] = '\0';
     tea_pop(T, 2);
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, string, length)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, string, length)));
 }
 
 static void list_copy(TeaState* T)

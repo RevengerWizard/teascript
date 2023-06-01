@@ -8,22 +8,22 @@
 
 #include "tea_state.h"
 
-void teaV_runtime_error(TeaState* T, const char* format, ...);
-void teaV_run(TeaState* T);
+void tea_vm_runtime_error(TeaState* T, const char* format, ...);
+void tea_vm_run(TeaState* T);
 
-static inline void teaV_push(TeaState* T, TeaValue value)
+static inline void tea_vm_push(TeaState* T, TeaValue value)
 {
     *T->top = value;
     T->top++;
 }
 
-static inline TeaValue teaV_pop(TeaState* T, int n)
+static inline TeaValue tea_vm_pop(TeaState* T, int n)
 {
     T->top -= n;
     return *T->top;
 }
 
-static inline TeaValue teaV_peek(TeaState* T, int distance)
+static inline TeaValue tea_vm_peek(TeaState* T, int distance)
 {
     return T->top[-1 - (distance)];
 }

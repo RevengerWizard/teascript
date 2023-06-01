@@ -14,9 +14,9 @@
 #include "tea_state.h"
 #include "tea_vm.h"
 
-TeaObject* teaO_allocate(TeaState* T, size_t size, TeaObjectType type)
+TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type)
 {
-    TeaObject* object = (TeaObject*)teaM_realloc(T, NULL, 0, size);
+    TeaObject* object = (TeaObject*)tea_mem_realloc(T, NULL, 0, size);
     object->type = type;
     object->is_marked = false;
 
@@ -24,13 +24,13 @@ TeaObject* teaO_allocate(TeaState* T, size_t size, TeaObjectType type)
     T->objects = object;
 
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p allocate %zu for %s\n", (void*)object, size, teaL_type(OBJECT_VAL(object)));
+    printf("%p allocate %zu for %s\n", (void*)object, size, tea_value_type(OBJECT_VAL(object)));
 #endif
 
     return object;
 }
 
-TeaObjectNative* teaO_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn)
+TeaObjectNative* tea_obj_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn)
 {
     TeaObjectNative* native = ALLOCATE_OBJECT(T, TeaObjectNative, OBJ_NATIVE);
     native->type = type;
@@ -39,7 +39,7 @@ TeaObjectNative* teaO_new_native(TeaState* T, TeaNativeType type, TeaCFunction f
     return native;
 }
 
-TeaObjectRange* teaO_new_range(TeaState* T, double start, double end, double step)
+TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step)
 {
     TeaObjectRange* range = ALLOCATE_OBJECT(T, TeaObjectRange, OBJ_RANGE);
     range->start = start;
@@ -49,7 +49,7 @@ TeaObjectRange* teaO_new_range(TeaState* T, double start, double end, double ste
     return range;
 }
 
-TeaObjectFile* teaO_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type)
+TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type)
 {
     TeaObjectFile* file = ALLOCATE_OBJECT(T, TeaObjectFile, OBJ_FILE);
     file->path = path;
@@ -59,27 +59,27 @@ TeaObjectFile* teaO_new_file(TeaState* T, TeaObjectString* path, TeaObjectString
     return file;
 }
 
-TeaObjectModule* teaO_new_module(TeaState* T, TeaObjectString* name)
+TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name)
 {
     TeaValue module_val;
-    if(teaT_get(&T->modules, name, &module_val)) 
+    if(tea_table_get(&T->modules, name, &module_val)) 
     {
         return AS_MODULE(module_val);
     }
 
     TeaObjectModule* module = ALLOCATE_OBJECT(T, TeaObjectModule, OBJ_MODULE);
-    teaT_init(&module->values);
+    tea_table_init(&module->values);
     module->name = name;
     module->path = NULL;
     
-    teaV_push(T, OBJECT_VAL(module));
-    teaT_set(T, &T->modules, name, OBJECT_VAL(module));
-    teaV_pop(T, 1);
+    tea_vm_push(T, OBJECT_VAL(module));
+    tea_table_set(T, &T->modules, name, OBJECT_VAL(module));
+    tea_vm_pop(T, 1);
 
     return module;
 }
 
-TeaObjectList* teaO_new_list(TeaState* T)
+TeaObjectList* tea_obj_new_list(TeaState* T)
 {
     TeaObjectList* list = ALLOCATE_OBJECT(T, TeaObjectList, OBJ_LIST);
     tea_init_value_array(&list->items);
@@ -87,7 +87,7 @@ TeaObjectList* teaO_new_list(TeaState* T)
     return list;
 }
 
-TeaObjectMap* teaO_new_map(TeaState* T)
+TeaObjectMap* tea_obj_new_map(TeaState* T)
 {
     TeaObjectMap* map = ALLOCATE_OBJECT(T, TeaObjectMap, OBJ_MAP);
     map->count = 0;
@@ -97,7 +97,7 @@ TeaObjectMap* teaO_new_map(TeaState* T)
     return map;
 }
 
-TeaObjectBoundMethod* teaO_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method)
+TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method)
 {
     TeaObjectBoundMethod* bound = ALLOCATE_OBJECT(T, TeaObjectBoundMethod, OBJ_BOUND_METHOD);
     bound->receiver = receiver;
@@ -106,19 +106,19 @@ TeaObjectBoundMethod* teaO_new_bound_method(TeaState* T, TeaValue receiver, TeaV
     return bound;
 }
 
-TeaObjectClass* teaO_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass)
+TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass)
 {
     TeaObjectClass* klass = ALLOCATE_OBJECT(T, TeaObjectClass, OBJ_CLASS);
     klass->name = name;
     klass->super = superclass;
     klass->constructor = NULL_VAL;
-    teaT_init(&klass->statics);
-    teaT_init(&klass->methods);
+    tea_table_init(&klass->statics);
+    tea_table_init(&klass->methods);
 
     return klass;
 }
 
-TeaObjectClosure* teaO_new_closure(TeaState* T, TeaObjectFunction* function)
+TeaObjectClosure* tea_obj_new_closure(TeaState* T, TeaObjectFunction* function)
 {
     TeaObjectUpvalue** upvalues = TEA_ALLOCATE(T, TeaObjectUpvalue*, function->upvalue_count);
     for(int i = 0; i < function->upvalue_count; i++)
@@ -134,7 +134,7 @@ TeaObjectClosure* teaO_new_closure(TeaState* T, TeaObjectFunction* function)
     return closure;
 }
 
-TeaObjectFunction* teaO_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots)
+TeaObjectFunction* tea_obj_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots)
 {
     TeaObjectFunction* function = ALLOCATE_OBJECT(T, TeaObjectFunction, OBJ_FUNCTION);
     function->arity = 0;
@@ -145,16 +145,16 @@ TeaObjectFunction* teaO_new_function(TeaState* T, TeaFunctionType type, TeaObjec
     function->type = type;
     function->name = NULL;
     function->module = module;
-    teaK_init(&function->chunk);
+    tea_chunk_init(&function->chunk);
 
     return function;
 }
 
-TeaObjectInstance* teaO_new_instance(TeaState* T, TeaObjectClass* klass)
+TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass)
 {
     TeaObjectInstance* instance = ALLOCATE_OBJECT(T, TeaObjectInstance, OBJ_INSTANCE);
     instance->klass = klass;
-    teaT_init(&instance->fields);
+    tea_table_init(&instance->fields);
 
     return instance;
 }
@@ -166,9 +166,9 @@ static TeaObjectString* allocate_string(TeaState* T, char* chars, int length, ui
     string->chars = chars;
     string->hash = hash;
 
-    teaV_push(T, OBJECT_VAL(string));
-    teaT_set(T, &T->strings, string, NULL_VAL);
-    teaV_pop(T, 1);
+    tea_vm_push(T, OBJECT_VAL(string));
+    tea_table_set(T, &T->strings, string, NULL_VAL);
+    tea_vm_pop(T, 1);
 
     return string;
 }
@@ -184,10 +184,10 @@ static uint32_t hash_string(const char* key, int length)
     return hash;
 }
 
-TeaObjectString* teaO_take_string(TeaState* T, char* chars, int length)
+TeaObjectString* tea_obj_take_string(TeaState* T, char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
-    TeaObjectString* interned = teaT_find_string(&T->strings, chars, length, hash);
+    TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
     if(interned != NULL)
     {
         TEA_FREE_ARRAY(T, char, chars, length + 1);
@@ -197,10 +197,10 @@ TeaObjectString* teaO_take_string(TeaState* T, char* chars, int length)
     return allocate_string(T, chars, length, hash);
 }
 
-TeaObjectString* teaO_copy_string(TeaState* T, const char* chars, int length)
+TeaObjectString* tea_obj_copy_string(TeaState* T, const char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
-    TeaObjectString* interned = teaT_find_string(&T->strings, chars, length, hash);
+    TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
     if (interned != NULL)
         return interned;
 
@@ -211,7 +211,7 @@ TeaObjectString* teaO_copy_string(TeaState* T, const char* chars, int length)
     return allocate_string(T, heap_chars, length, hash);
 }
 
-TeaObjectUpvalue* teaO_new_upvalue(TeaState* T, TeaValue* slot)
+TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot)
 {
     TeaObjectUpvalue* upvalue = ALLOCATE_OBJECT(T, TeaObjectUpvalue, OBJ_UPVALUE);
     upvalue->closed = NULL_VAL;
@@ -301,7 +301,7 @@ static TeaMapItem* find_map_entry(TeaMapItem* items, int capacity, TeaValue key)
 #ifdef TEA_NAN_TAGGING
         else if(item->key == key)
 #else
-        else if(teaL_equal(item->key, key))
+        else if(tea_value_equal(item->key, key))
 #endif
         {
             // We found the key
@@ -312,7 +312,7 @@ static TeaMapItem* find_map_entry(TeaMapItem* items, int capacity, TeaValue key)
     }
 }
 
-bool teaO_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
+bool tea_obj_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
 {
     if(map->count == 0)
         return false;
@@ -328,7 +328,7 @@ bool teaO_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
 
 #define MAP_MAX_LOAD 0.75
 
-bool teaO_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
+bool tea_obj_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
 {
     if(map->count + 1 > map->capacity * MAP_MAX_LOAD)
     {
@@ -373,7 +373,7 @@ bool teaO_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
     return is_new_key;
 }
 
-bool teaO_map_delete(TeaObjectMap* map, TeaValue key)
+bool tea_obj_map_delete(TeaObjectMap* map, TeaValue key)
 {
     if(map->count == 0)
         return false;
@@ -391,14 +391,14 @@ bool teaO_map_delete(TeaObjectMap* map, TeaValue key)
     return true;
 }
 
-void teaO_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to)
+void tea_obj_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to)
 {
     for(int i = 0; i < from->capacity; i++)
     {
         TeaMapItem* item = &from->items[i];
         if(!item->empty)
         {
-            teaO_map_set(T, to, item->key, item->value);
+            tea_obj_map_set(T, to, item->key, item->value);
         }
     }
 }
@@ -432,7 +432,7 @@ static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
 #ifdef TEA_NAN_TAGGING
         if(value == OBJECT_VAL(list))
 #else
-        if(teaL_equal(value, OBJECT_VAL(list)))
+        if(tea_value_equal(value, OBJECT_VAL(list)))
 #endif
         {
             element = "[...]";
@@ -440,7 +440,7 @@ static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
         }
         else
         {
-            TeaObjectString* s = teaL_tostring(T, value);
+            TeaObjectString* s = tea_value_tostring(T, value);
             element = s->chars;
             element_size = s->length;
         }
@@ -476,7 +476,7 @@ static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
 
     string = TEA_GROW_ARRAY(T, char, string, size, length + 1);
 
-    return teaO_take_string(T, string, length);
+    return tea_obj_take_string(T, string, length);
 }
 
 static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
@@ -507,7 +507,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
 #ifdef TEA_NAN_TAGGING
         if(item->key == OBJECT_VAL(map))
 #else
-        if(teaL_equal(item->key, OBJECT_VAL(map)))
+        if(tea_value_equal(item->key, OBJECT_VAL(map)))
 #endif
         {
             key = "{...}";
@@ -515,7 +515,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
         }
         else
         {
-            TeaObjectString* s = teaL_tostring(T, item->key);
+            TeaObjectString* s = tea_value_tostring(T, item->key);
             key = s->chars;
             key_size = s->length;
         } 
@@ -555,7 +555,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
 #ifdef TEA_NAN_TAGGING
         if(item->value == OBJECT_VAL(map))
 #else
-        if(teaL_equal(item->value, OBJECT_VAL(map)))
+        if(tea_value_equal(item->value, OBJECT_VAL(map)))
 #endif
         {
             element = "{...}";
@@ -563,7 +563,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
         }
         else
         {
-            TeaObjectString* s = teaL_tostring(T, item->value);
+            TeaObjectString* s = tea_value_tostring(T, item->value);
             element = s->chars;
             element_size = s->length;
         } 
@@ -599,19 +599,19 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
 
     string = TEA_GROW_ARRAY(T, char, string, size, length + 1);
 
-    return teaO_take_string(T, string, length);
+    return tea_obj_take_string(T, string, length);
 }
 
 static TeaObjectString* range_tostring(TeaState* T, TeaObjectRange* range)
 {
-    char* start = teaL_number_tostring(T, range->start)->chars;
-    char* end = teaL_number_tostring(T, range->end)->chars;
+    char* start = tea_value_number_tostring(T, range->start)->chars;
+    char* end = tea_value_number_tostring(T, range->end)->chars;
 
     int len = snprintf(NULL, 0, "%s...%s", start, end);
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "%s...%s", start, end);
 
-    return teaO_take_string(T, string, len);
+    return tea_obj_take_string(T, string, len);
 }
 
 static TeaObjectString* module_tostring(TeaState* T, TeaObjectModule* module)
@@ -620,7 +620,7 @@ static TeaObjectString* module_tostring(TeaState* T, TeaObjectModule* module)
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s module>", module->name->chars);
 
-    return teaO_take_string(T, string, len);
+    return tea_obj_take_string(T, string, len);
 }
 
 static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
@@ -629,7 +629,7 @@ static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s>", klass->name->chars);
 
-    return teaO_take_string(T, string, len);
+    return tea_obj_take_string(T, string, len);
 }
 
 static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instance)
@@ -638,10 +638,10 @@ static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instan
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s instance>", instance->klass->name->chars);
 
-    return teaO_take_string(T, string, len);
+    return tea_obj_take_string(T, string, len);
 }
 
-TeaObjectString* teaO_tostring(TeaState* T, TeaValue value)
+TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value)
 {
     switch(OBJECT_TYPE(value))
     {
@@ -700,7 +700,7 @@ static bool list_equals(TeaObjectList* a, TeaObjectList* b)
 
     for(int i = 0; i < a->items.count; ++i)
     {
-        if(!teaL_equal(a->items.values[i], b->items.values[i]))
+        if(!tea_value_equal(a->items.values[i], b->items.values[i]))
         {
             return false;
         }
@@ -731,12 +731,12 @@ static bool map_equals(TeaObjectMap* a, TeaObjectMap* b)
         }
 
         TeaValue value;
-        if(!teaO_map_get(b, item->key, &value))
+        if(!tea_obj_map_get(b, item->key, &value))
         {
             return false;
         }
 
-        if(!teaL_equal(item->value, value))
+        if(!tea_value_equal(item->value, value))
         {
             return false;
         }
@@ -745,7 +745,7 @@ static bool map_equals(TeaObjectMap* a, TeaObjectMap* b)
     return true;
 }
 
-bool teaO_equal(TeaValue a, TeaValue b)
+bool tea_obj_equal(TeaValue a, TeaValue b)
 {
     if(OBJECT_TYPE(a) != OBJECT_TYPE(b)) return false;
 
@@ -763,7 +763,7 @@ bool teaO_equal(TeaValue a, TeaValue b)
     return AS_OBJECT(a) == AS_OBJECT(b);
 }
 
-const char* teaO_type(TeaValue a)
+const char* tea_obj_type(TeaValue a)
 {
     switch(OBJECT_TYPE(a))
     {

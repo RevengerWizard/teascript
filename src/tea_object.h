@@ -17,18 +17,18 @@
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
-#define IS_NATIVE(value) teaO_is_object_type(value, OBJ_NATIVE)
-#define IS_RANGE(value) teaO_is_object_type(value, OBJ_RANGE)
-#define IS_FILE(value) teaO_is_object_type(value, OBJ_FILE)
-#define IS_MODULE(value) teaO_is_object_type(value, OBJ_MODULE)
-#define IS_LIST(value) teaO_is_object_type(value, OBJ_LIST)
-#define IS_MAP(value) teaO_is_object_type(value, OBJ_MAP)
-#define IS_BOUND_METHOD(value) teaO_is_object_type(value, OBJ_BOUND_METHOD)
-#define IS_CLASS(value) teaO_is_object_type(value, OBJ_CLASS)
-#define IS_CLOSURE(value) teaO_is_object_type(value, OBJ_CLOSURE)
-#define IS_FUNCTION(value) teaO_is_object_type(value, OBJ_FUNCTION)
-#define IS_INSTANCE(value) teaO_is_object_type(value, OBJ_INSTANCE)
-#define IS_STRING(value) teaO_is_object_type(value, OBJ_STRING)
+#define IS_NATIVE(value) tea_obj_istype(value, OBJ_NATIVE)
+#define IS_RANGE(value) tea_obj_istype(value, OBJ_RANGE)
+#define IS_FILE(value) tea_obj_istype(value, OBJ_FILE)
+#define IS_MODULE(value) tea_obj_istype(value, OBJ_MODULE)
+#define IS_LIST(value) tea_obj_istype(value, OBJ_LIST)
+#define IS_MAP(value) tea_obj_istype(value, OBJ_MAP)
+#define IS_BOUND_METHOD(value) tea_obj_istype(value, OBJ_BOUND_METHOD)
+#define IS_CLASS(value) tea_obj_istype(value, OBJ_CLASS)
+#define IS_CLOSURE(value) tea_obj_istype(value, OBJ_CLOSURE)
+#define IS_FUNCTION(value) tea_obj_istype(value, OBJ_FUNCTION)
+#define IS_INSTANCE(value) tea_obj_istype(value, OBJ_INSTANCE)
+#define IS_STRING(value) tea_obj_istype(value, OBJ_STRING)
 
 #define AS_NATIVE(value) ((TeaObjectNative*)AS_OBJECT(value))
 #define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
@@ -48,7 +48,7 @@
 #define IS_NATIVE_METHOD(value) ((IS_NATIVE(value)) && AS_NATIVE(value)->type == NATIVE_METHOD)
 #define IS_NATIVE_PROPERTY(value) ((IS_NATIVE(value)) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
 
-#define ALLOCATE_OBJECT(T, type, object_type) (type*)teaO_allocate(T, sizeof(type), object_type)
+#define ALLOCATE_OBJECT(T, type, object_type) (type*)tea_obj_allocate(T, sizeof(type), object_type)
 
 typedef enum
 {
@@ -205,50 +205,50 @@ typedef struct
     TeaValue method;
 } TeaObjectBoundMethod;
 
-TeaObjectBoundMethod* teaO_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
-TeaObjectInstance* teaO_new_instance(TeaState* T, TeaObjectClass* klass);
-TeaObjectClass* teaO_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
-TeaObjectClosure* teaO_new_closure(TeaState* T, TeaObjectFunction* function);
-TeaObjectUpvalue* teaO_new_upvalue(TeaState* T, TeaValue* slot);
+TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
+TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass);
+TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
+TeaObjectClosure* tea_obj_new_closure(TeaState* T, TeaObjectFunction* function);
+TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot);
 
-TeaObjectMap* teaO_new_map(TeaState* T);
-bool teaO_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value);
-bool teaO_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
-bool teaO_map_delete(TeaObjectMap* map, TeaValue key);
-void teaO_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to);
+TeaObjectMap* tea_obj_new_map(TeaState* T);
+bool tea_obj_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value);
+bool tea_obj_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
+bool tea_obj_map_delete(TeaObjectMap* map, TeaValue key);
+void tea_obj_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to);
 
-TeaObjectList* teaO_new_list(TeaState* T);
+TeaObjectList* tea_obj_new_list(TeaState* T);
 
-#define teaO_new_literal(T, s) (teaO_copy_string(T, "" s, (sizeof(s)/sizeof(char))-1))
-#define teaO_new_string(T, s) (teaO_copy_string(T, s, strlen(s)))
+#define teaO_new_literal(T, s) (tea_obj_copy_string(T, "" s, (sizeof(s)/sizeof(char))-1))
+#define teaO_new_string(T, s) (tea_obj_copy_string(T, s, strlen(s)))
 
-TeaObjectString* teaO_take_string(TeaState* T, char* chars, int length);
-TeaObjectString* teaO_copy_string(TeaState* T, const char* chars, int length);
+TeaObjectString* tea_obj_take_string(TeaState* T, char* chars, int length);
+TeaObjectString* tea_obj_copy_string(TeaState* T, const char* chars, int length);
 
-TeaObjectNative* teaO_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn);
-TeaObjectFunction* teaO_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots);
-TeaObjectModule* teaO_new_module(TeaState* T, TeaObjectString* name);
-TeaObjectFile* teaO_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
-TeaObjectRange* teaO_new_range(TeaState* T, double start, double end, double step);
+TeaObjectNative* tea_obj_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn);
+TeaObjectFunction* tea_obj_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots);
+TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name);
+TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
+TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step);
 
-TeaObject* teaO_allocate(TeaState* T, size_t size, TeaObjectType type);
+TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
 
-TeaObjectString* teaO_tostring(TeaState* T, TeaValue value);
-bool teaO_equal(TeaValue a, TeaValue b);
-const char* teaO_type(TeaValue a);
+TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value);
+bool tea_obj_equal(TeaValue a, TeaValue b);
+const char* tea_obj_type(TeaValue a);
 
-static inline bool teaO_is_object_type(TeaValue value, TeaObjectType type)
+static inline bool tea_obj_istype(TeaValue value, TeaObjectType type)
 {
     return IS_OBJECT(value) && AS_OBJECT(value)->type == type;
 }
 
-static inline bool teaO_is_valid_key(TeaValue value)
+static inline bool tea_obj_isvalidkey(TeaValue value)
 {
     return IS_NULL(value) || IS_BOOL(value) || IS_NUMBER(value) ||
     IS_STRING(value);
 }
 
-static inline bool teaO_is_falsey(TeaValue value)
+static inline bool tea_obj_falsey(TeaValue value)
 {
     return  IS_NULL(value) || 
             (IS_BOOL(value) && !AS_BOOL(value)) || 

@@ -19,7 +19,7 @@ struct tea_longjmp
     volatile int status;
 };
 
-void teaD_realloc_ci(TeaState* T, int new_size)
+void tea_do_realloc_ci(TeaState* T, int new_size)
 {
     TeaCallInfo* old_ci = T->base_ci;
     T->base_ci = TEA_GROW_ARRAY(T, TeaCallInfo, T->base_ci, T->ci_size, new_size);
@@ -32,15 +32,15 @@ void teaD_realloc_ci(TeaState* T, int new_size)
     }
 }
 
-void teaD_grow_ci(TeaState* T)
+void tea_do_grow_ci(TeaState* T)
 {
     if(T->ci + 1 == T->end_ci)
     {
-        teaD_realloc_ci(T, T->ci_size * 2);
+        tea_do_realloc_ci(T, T->ci_size * 2);
     }
     if(T->ci_size > TEA_MAX_CALLS)
     {
-        teaV_runtime_error(T, "Stack overflow");
+        tea_vm_runtime_error(T, "Stack overflow");
     }
 }
 
@@ -61,7 +61,7 @@ static void correct_stack(TeaState* T, TeaValue* old_stack)
     T->base = (T->base - old_stack) + T->stack;
 }
 
-void teaD_realloc_stack(TeaState* T, int new_size)
+void tea_do_realloc_stack(TeaState* T, int new_size)
 {
 	TeaValue* old_stack = T->stack;
 	T->stack = TEA_GROW_ARRAY(T, TeaValue, T->stack, T->stack_size, new_size);
@@ -74,12 +74,12 @@ void teaD_realloc_stack(TeaState* T, int new_size)
     }
 }
 
-void teaD_grow_stack(TeaState* T, int needed)
+void tea_do_grow_stack(TeaState* T, int needed)
 {
 	if(needed <= T->stack_size)
-        teaD_realloc_stack(T, 2 * T->stack_size);
+        tea_do_realloc_stack(T, 2 * T->stack_size);
     else
-        teaD_realloc_stack(T, T->stack_size + needed);
+        tea_do_realloc_stack(T, T->stack_size + needed);
 }
 
 static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
@@ -89,13 +89,13 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
         if((arg_count + closure->function->variadic) == closure->function->arity)
         {
             // add missing variadic param ([])
-            TeaObjectList* list = teaO_new_list(T);
-            teaV_push(T, OBJECT_VAL(list));
+            TeaObjectList* list = tea_obj_new_list(T);
+            tea_vm_push(T, OBJECT_VAL(list));
             arg_count++;
         }
         else
         {
-            teaV_runtime_error(T, "Expected %d arguments, but got %d", closure->function->arity, arg_count);
+            tea_vm_runtime_error(T, "Expected %d arguments, but got %d", closure->function->arity, arg_count);
         }
     }
     else if(arg_count > closure->function->arity + closure->function->arity_optional)
@@ -105,33 +105,33 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
             int arity = closure->function->arity + closure->function->arity_optional;
             // +1 for the variadic param itself
             int varargs = arg_count - arity + 1;
-            TeaObjectList* list = teaO_new_list(T);
-            teaV_push(T, OBJECT_VAL(list));
+            TeaObjectList* list = tea_obj_new_list(T);
+            tea_vm_push(T, OBJECT_VAL(list));
             for(int i = varargs; i > 0; i--)
             {
-                tea_write_value_array(T, &list->items, teaV_peek(T, i));
+                tea_write_value_array(T, &list->items, tea_vm_peek(T, i));
             }
             // +1 for the list pushed earlier on the stack
             T->top -= varargs + 1;
-            teaV_push(T, OBJECT_VAL(list));
+            tea_vm_push(T, OBJECT_VAL(list));
             arg_count = arity;
         }
         else
         {
-            teaV_runtime_error(T, "Expected %d arguments, but got %d", closure->function->arity + closure->function->arity_optional, arg_count);
+            tea_vm_runtime_error(T, "Expected %d arguments, but got %d", closure->function->arity + closure->function->arity_optional, arg_count);
         }
     }
     else if(closure->function->variadic)
     {
         // last argument is the variadic arg
-        TeaObjectList* list = teaO_new_list(T);
-        teaV_push(T, OBJECT_VAL(list));
-        tea_write_value_array(T, &list->items, teaV_peek(T, 1));
+        TeaObjectList* list = tea_obj_new_list(T);
+        tea_vm_push(T, OBJECT_VAL(list));
+        tea_write_value_array(T, &list->items, tea_vm_peek(T, 1));
         T->top -= 2;
-        teaV_push(T, OBJECT_VAL(list));
+        tea_vm_push(T, OBJECT_VAL(list));
     }
 
-    teaD_grow_ci(T);
+    tea_do_grow_ci(T);
     teaD_checkstack(T, closure->function->max_slots);
 
     TeaCallInfo* ci = T->ci++;
@@ -143,7 +143,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
 
 static void callc(TeaState* T, TeaObjectNative* native, int arg_count)
 {
-    teaD_grow_ci(T);
+    tea_do_grow_ci(T);
     teaD_checkstack(T, BASE_STACK_SIZE);
 
     TeaCallInfo* ci = T->ci++;
@@ -166,7 +166,7 @@ static void callc(TeaState* T, TeaObjectNative* native, int arg_count)
     T->base = ci->base;
     T->top = ci->base;
 
-    teaV_push(T, res);
+    tea_vm_push(T, res);
 }
 
 void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
@@ -185,14 +185,14 @@ void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
             case OBJ_CLASS:
             {
                 TeaObjectClass* klass = AS_CLASS(callee);
-                T->top[-arg_count - 1] = OBJECT_VAL(teaO_new_instance(T, klass));
+                T->top[-arg_count - 1] = OBJECT_VAL(tea_obj_new_instance(T, klass));
                 if(!IS_NULL(klass->constructor)) 
                 {
                     teaD_precall(T, klass->constructor, arg_count);
                 }
                 else if(arg_count != 0)
                 {
-                    teaV_runtime_error(T, "Expected 0 arguments but got %d", arg_count);
+                    tea_vm_runtime_error(T, "Expected 0 arguments but got %d", arg_count);
                 }
                 return;
             }
@@ -207,7 +207,7 @@ void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
         }
     }
 
-    teaV_runtime_error(T, "%s is not callable", teaL_type(callee));
+    tea_vm_runtime_error(T, "%s is not callable", tea_value_type(callee));
 }
 
 struct PCall
@@ -219,21 +219,21 @@ struct PCall
 static void f_call(TeaState* T, void* ud)
 {
     struct PCall* c = (struct PCall*)ud;
-    teaD_call(T, c->func, c->arg_count);
+    tea_do_call(T, c->func, c->arg_count);
 }
 
-void teaD_call(TeaState* T, TeaValue func, int arg_count)
+void tea_do_call(TeaState* T, TeaValue func, int arg_count)
 {
     if(++T->nccalls >= TEA_MAX_CCALLS)
     {
         puts("C stack overflow");
-        teaD_throw(T, TEA_RUNTIME_ERROR);
+        tea_do_throw(T, TEA_RUNTIME_ERROR);
     }
     teaD_precall(T, func, arg_count);
 
     if(IS_CLOSURE(func))
     {
-        teaV_run(T);
+        tea_vm_run(T);
     }
     T->nccalls--;
 }
@@ -246,12 +246,12 @@ static void restore_stack_limit(TeaState* T)
         int inuse = (T->ci - T->base_ci);
         if(inuse + 1 < TEA_MAX_CALLS)
         {
-            teaD_realloc_ci(T, TEA_MAX_CALLS);
+            tea_do_realloc_ci(T, TEA_MAX_CALLS);
         }
     }
 }
 
-int teaD_pcall(TeaState* T, TeaValue func, int arg_count)
+int tea_do_pcall(TeaState* T, TeaValue func, int arg_count)
 {
     int status;
     struct PCall c;
@@ -268,7 +268,7 @@ int teaD_pcall(TeaState* T, TeaValue func, int arg_count)
     return status;
 }
 
-void teaD_throw(TeaState* T, int code)
+void tea_do_throw(TeaState* T, int code)
 {
     if(T->error_jump)
     {
@@ -308,9 +308,9 @@ static void f_compiler(TeaState* T, void* ud)
 
     c = (struct PCompiler*)(ud);
 
-    function = teaY_compile(T, c->module, c->source);
-    closure = teaO_new_closure(T, function);
-    teaV_push(T, OBJECT_VAL(closure));
+    function = tea_compile(T, c->module, c->source);
+    closure = tea_obj_new_closure(T, function);
+    tea_vm_push(T, OBJECT_VAL(closure));
 }
 
 int teaD_protected_compiler(TeaState* T, TeaObjectModule* module, const char* source)

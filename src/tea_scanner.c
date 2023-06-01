@@ -13,7 +13,7 @@
 #include "tea_scanner.h"
 #include "tea_utf.h"
 
-void teaS_init(TeaState* T, TeaScanner* scanner, const char* source)
+void tea_scanner_init(TeaState* T, TeaScanner* scanner, const char* source)
 {
     // Skip the UTF-8 BOM if there is one
     if(strncmp(source, "\xEF\xBB\xBF", 3) == 0) source += 3;
@@ -640,11 +640,11 @@ static bool read_unicode_escape(TeaScanner* scanner, TeaBytes* bytes, int length
     int value = read_hex_escape(scanner, length);
     if(value == -1) return true;
 
-    int num_bytes = teaU_encode_bytes(value);
+    int num_bytes = tea_utf_encode_bytes(value);
     if(num_bytes != 0)
     {
         tea_fill_bytes(scanner->T, bytes, 0, num_bytes);
-        teaU_encode(value, bytes->values + bytes->count - num_bytes);
+        tea_utf_encode(value, bytes->values + bytes->count - num_bytes);
     }
     return false;
 }
@@ -718,7 +718,7 @@ static TeaToken multistring(TeaScanner* scanner)
     count -= (offset > count) ? count : offset;
 
     TeaToken token = make_token(scanner, TOKEN_STRING);
-	token.value = OBJECT_VAL(teaO_copy_string(T, (const char*)bytes.values, bytes.count));
+	token.value = OBJECT_VAL(tea_obj_copy_string(T, (const char*)bytes.values, bytes.count));
 	tea_free_bytes(T, &bytes);
 
 	return token;
@@ -839,18 +839,18 @@ static TeaToken string(TeaScanner* scanner, bool interpolation)
 
     scanner->raw = false;
     TeaToken token = make_token(scanner, type);
-	token.value = OBJECT_VAL(teaO_copy_string(T, (const char*)bytes.values, bytes.count));
+	token.value = OBJECT_VAL(tea_obj_copy_string(T, (const char*)bytes.values, bytes.count));
 	tea_free_bytes(T, &bytes);
 
 	return token;
 }
 
-void teaS_backtrack(TeaScanner* scanner)
+void tea_scanner_backtrack(TeaScanner* scanner)
 {
     scanner->current--;
 }
 
-TeaToken teaS_scan_token(TeaScanner* scanner)
+TeaToken tea_scanner_token(TeaScanner* scanner)
 {
     if(skip_whitespace(scanner))
     {

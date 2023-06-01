@@ -34,12 +34,12 @@ static void file_closed(TeaState* T)
 
 static void file_path(TeaState* T)
 {
-    teaV_push(T, OBJECT_VAL(get_file(T)->path));
+    tea_vm_push(T, OBJECT_VAL(get_file(T)->path));
 }
 
 static void file_type(TeaState* T)
 {
-    teaV_push(T, OBJECT_VAL(get_file(T)->type));
+    tea_vm_push(T, OBJECT_VAL(get_file(T)->type));
 }
 
 static void file_write(TeaState* T)
@@ -120,7 +120,7 @@ static void file_read(TeaState* T)
 
     contents = TEA_GROW_ARRAY(T, char, contents, current_size, total_read_bytes + 1);
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, contents, total_read_bytes)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, contents, total_read_bytes)));
 }
 
 static void file_readline(TeaState* T)
@@ -158,7 +158,7 @@ static void file_readline(TeaState* T)
             line[line_length] = '\0';
             line = TEA_GROW_ARRAY(T, char, line, current_size, line_length + 1);
 
-            teaV_push(T, OBJECT_VAL(teaO_take_string(T, line, line_length)));
+            tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, line, line_length)));
             return;
         }
     }

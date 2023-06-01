@@ -67,6 +67,6 @@ typedef struct TeaState
 #define TEA_THROW(T) (longjmp(T->error_jump->buf, 1))
 #define TEA_TRY(T) (setjmp(T->error_jump->buf))
 
-TeaObjectClass* teaE_get_class(TeaState* T, TeaValue value);
+TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value);
 
 #endif

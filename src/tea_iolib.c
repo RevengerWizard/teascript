@@ -13,11 +13,11 @@
 
 static void create_stdfile(TeaState* T, FILE* f, const char* name, const char* mode)
 {
-    TeaObjectFile* file = teaO_new_file(T, teaO_new_literal(T, ""), teaO_new_string(T, mode));
+    TeaObjectFile* file = tea_obj_new_file(T, teaO_new_literal(T, ""), teaO_new_string(T, mode));
     file->file = f;
     file->is_open = -1;
 
-    teaV_push(T, OBJECT_VAL(file));
+    tea_vm_push(T, OBJECT_VAL(file));
     tea_set_key(T, 0, name);
 }
 

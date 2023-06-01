@@ -15,7 +15,7 @@
 
 static void string_len(TeaState* T)
 {
-    tea_push_number(T, teaU_length(AS_STRING(T->base[0])));
+    tea_push_number(T, tea_utf_length(AS_STRING(T->base[0])));
 }
 
 static void string_constructor(TeaState* T)
@@ -42,7 +42,7 @@ static void string_upper(TeaState* T)
     }
     temp[len] = '\0';
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, temp, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len)));
 }
 
 static void string_lower(TeaState* T)
@@ -60,7 +60,7 @@ static void string_lower(TeaState* T)
     }
     temp[len] = '\0';
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, temp, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len)));
 }
 
 static void rev(char* str, int len)
@@ -108,7 +108,7 @@ static void string_reverse(TeaState* T)
     char* reversed = TEA_ALLOCATE(T, char, len + 1);
     strcpy(reversed, string);
     rev(reversed, len);
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, reversed, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, reversed, len)));
 }
 
 static void string_split(TeaState* T)
@@ -231,7 +231,7 @@ static void string_title(TeaState* T)
     }
     temp[len] = '\0';
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, temp, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len)));
 }
 
 static void string_contains(TeaState* T)
@@ -298,7 +298,7 @@ static void string_leftstrip(TeaState* T)
     memcpy(temp, string + count, len - count);
     temp[len - count] = '\0';
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, temp, len - count)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len - count)));
 }
 
 static void string_rightstrip(TeaState* T)
@@ -329,7 +329,7 @@ static void string_rightstrip(TeaState* T)
     memcpy(temp, string, length + 1);
     temp[length + 1] = '\0';
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, temp, length + 1)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, length + 1)));
 }
 
 static void string_strip(TeaState* T)
@@ -449,7 +449,7 @@ static void string_replace(TeaState* T)
     }
     strcpy(q, string);
 
-    teaV_push(T, OBJECT_VAL(teaO_take_string(T, result, result_size)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, result, result_size)));
 }
 
 static void string_iterate(TeaState* T)
@@ -499,7 +499,7 @@ static void string_iteratorvalue(TeaState* T)
 
 	int index = tea_check_number(T, 1);
 
-    teaV_push(T, OBJECT_VAL(teaU_code_point_at(T, AS_STRING(T->base[0]), index)));
+    tea_vm_push(T, OBJECT_VAL(tea_utf_code_point_at(T, AS_STRING(T->base[0]), index)));
 }
 
 static const TeaClass string_class[] = {

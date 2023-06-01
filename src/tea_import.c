@@ -18,13 +18,13 @@ static const TeaReg modules[] = {
     { NULL, NULL }
 };
 
-void teaI_import_native_module(TeaState* T, int index)
+void tea_import_native_module(TeaState* T, int index)
 {
     tea_push_cfunction(T, modules[index].fn);
     tea_call(T, 0);
 }
 
-int teaI_find_native_module(char* name, int length)
+int tea_find_native_module(char* name, int length)
 {
     for(int i = 0; modules[i].name != NULL; i++) 
     {
