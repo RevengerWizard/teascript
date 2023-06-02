@@ -19,7 +19,7 @@ PLATS = mingw
 
 TEA_A = libtea.a
 CORE_O = tea_api.o tea_chunk.o tea_compiler.o tea_core.o tea_debug.o \
-    tea_do.o tea_gc.o tea_import.o tea_memory.o tea_object.o tea_scanner.o \
+    tea_do.o tea_gc.o tea_import.o tea_memory.o tea_object.o tea_map.o tea_scanner.o \
     tea_state.o tea_table.o tea_utf.o tea_util.o tea_value.o tea_vm.o
 LIB_O = tea_fileclass.o tea_listclass.o tea_mapclass.o tea_rangeclass.o \
     tea_stringclass.o tea_iolib.o tea_oslib.o tea_randomlib.o tea_mathlib.o \

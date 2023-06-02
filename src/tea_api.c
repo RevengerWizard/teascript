@@ -6,6 +6,7 @@
 #include "tea.h"
 
 #include "tea_state.h"
+#include "tea_map.h"
 #include "tea_vm.h"
 #include "tea_do.h"
 
@@ -286,7 +287,7 @@ TEA_API void tea_new_list(TeaState* T)
 
 TEA_API void tea_new_map(TeaState* T)
 {
-    tea_vm_push(T, OBJECT_VAL(tea_obj_new_map(T)));
+    tea_vm_push(T, OBJECT_VAL(tea_map_new(T)));
 }
 
 TEA_API void tea_push_cfunction(TeaState* T, TeaCFunction fn)
@@ -416,7 +417,7 @@ TEA_API void tea_set_field(TeaState* T, int map)
             case OBJ_MAP:
             {
                 TeaObjectMap* map = AS_MAP(object);
-                tea_obj_map_set(T, map, key, item);
+                tea_map_set(T, map, key, item);
                 break;
             }
         }
@@ -445,7 +446,7 @@ TEA_API void tea_set_key(TeaState* T, int map, const char* key)
             {
                 TeaObjectMap* map = AS_MAP(object);
                 TeaValue key = tea_vm_peek(T, 0);
-                tea_obj_map_set(T, map, key, item);
+                tea_map_set(T, map, key, item);
                 break;
             }
             case OBJ_CLASS:

@@ -1,6 +1,6 @@
 tea_api.o: tea_api.c tea.h tea_conf.h tea_state.h tea_def.h tea_value.h \
  tea_array.h tea_object.h tea_memory.h tea_chunk.h tea_opcodes.h \
- tea_table.h tea_vm.h tea_do.h
+ tea_table.h tea_map.h tea_vm.h tea_do.h
 tea_chunk.o: tea_chunk.c tea_chunk.h tea_def.h tea_value.h tea_array.h \
  tea_opcodes.h tea_memory.h tea_state.h tea.h tea_conf.h tea_object.h \
  tea_table.h tea_vm.h
@@ -34,9 +34,12 @@ tea_listclass.o: tea_listclass.c tea.h tea_conf.h tea_vm.h tea_state.h \
  tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
  tea_opcodes.h tea_table.h tea_core.h
 tea_loadlib.o: tea_loadlib.c tea.h tea_conf.h
+tea_map.o: tea_map.c tea_map.h tea_object.h tea.h tea_conf.h tea_def.h \
+ tea_memory.h tea_value.h tea_array.h tea_chunk.h tea_opcodes.h \
+ tea_table.h
 tea_mapclass.o: tea_mapclass.c tea_vm.h tea_state.h tea.h tea_conf.h \
  tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
- tea_opcodes.h tea_table.h tea_core.h
+ tea_opcodes.h tea_table.h tea_core.h tea_map.h
 tea_mathlib.o: tea_mathlib.c tea.h tea_conf.h tea_import.h tea_core.h \
  tea_state.h tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h \
  tea_chunk.h tea_opcodes.h tea_table.h
@@ -45,7 +48,7 @@ tea_memory.o: tea_memory.c tea.h tea_conf.h tea_def.h tea_memory.h \
  tea_opcodes.h tea_table.h
 tea_object.o: tea_object.c tea_memory.h tea_value.h tea_def.h tea_array.h \
  tea_object.h tea.h tea_conf.h tea_chunk.h tea_opcodes.h tea_table.h \
- tea_state.h tea_vm.h
+ tea_map.h tea_state.h tea_vm.h
 tea_oslib.o: tea_oslib.c tea.h tea_conf.h tea_import.h tea_core.h \
  tea_state.h tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h \
  tea_chunk.h tea_opcodes.h tea_table.h
@@ -85,5 +88,5 @@ tea_value.o: tea_value.c tea_object.h tea.h tea_conf.h tea_def.h \
  tea_table.h
 tea_vm.o: tea_vm.c tea_def.h tea_compiler.h tea_scanner.h tea_state.h \
  tea.h tea_conf.h tea_value.h tea_array.h tea_object.h tea_memory.h \
- tea_chunk.h tea_opcodes.h tea_table.h tea_token.h tea_debug.h tea_vm.h \
- tea_util.h tea_utf.h tea_import.h tea_do.h
+ tea_chunk.h tea_opcodes.h tea_table.h tea_token.h tea_debug.h tea_map.h \
+ tea_vm.h tea_util.h tea_utf.h tea_import.h tea_do.h

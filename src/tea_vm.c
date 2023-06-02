@@ -12,6 +12,7 @@
 #include "tea_compiler.h"
 #include "tea_debug.h"
 #include "tea_object.h"
+#include "tea_map.h"
 #include "tea_memory.h"
 #include "tea_vm.h"
 #include "tea_util.h"
@@ -227,7 +228,7 @@ static void in_(TeaState* T, TeaValue object, TeaValue value)
                 TeaValue _;
 
                 tea_vm_pop(T, 2);
-                tea_vm_push(T, BOOL_VAL(tea_obj_map_get(map, value, &_)));
+                tea_vm_push(T, BOOL_VAL(tea_map_get(map, value, &_)));
                 return;
             }
             default:
@@ -310,7 +311,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
 
             TeaValue value;
             tea_vm_pop(T, 2);
-            if(tea_obj_map_get(map, index_value, &value))
+            if(tea_map_get(map, index_value, &value))
             {
                 tea_vm_push(T, value);
                 return;
@@ -404,14 +405,14 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
 
             if(assign)
             {
-                tea_obj_map_set(T, map, index_value, item_value);
+                tea_map_set(T, map, index_value, item_value);
                 tea_vm_pop(T, 3);
                 tea_vm_push(T, item_value);
             }
             else
             {
                 TeaValue map_value;
-                if(!tea_obj_map_get(map, index_value, &map_value))
+                if(!tea_map_get(map, index_value, &map_value))
                 {
                     tea_vm_runtime_error(T, "Key does not exist within the map");
                 }
@@ -517,7 +518,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
             TeaObjectMap* map = AS_MAP(receiver);
 
             TeaValue value;
-            if(tea_obj_map_get(map, OBJECT_VAL(name), &value))
+            if(tea_map_get(map, OBJECT_VAL(name), &value))
             {
                 if(dopop)
                 {
@@ -585,7 +586,7 @@ static void set_property(TeaState* T, TeaObjectString* name, TeaValue receiver, 
             case OBJ_MAP:
             {
                 TeaObjectMap* map = AS_MAP(receiver);
-                tea_obj_map_set(T, map, OBJECT_VAL(name), item);
+                tea_map_set(T, map, OBJECT_VAL(name), item);
                 tea_vm_pop(T, 2);
                 tea_vm_push(T, item);
                 return;
@@ -1140,7 +1141,7 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(ENUM):
             {
                 uint8_t item_count = READ_BYTE();
-                TeaObjectMap* enum_ = tea_obj_new_map(T);
+                TeaObjectMap* enum_ = tea_map_new(T);
 
                 PUSH(OBJECT_VAL(enum_));
 
@@ -1161,7 +1162,7 @@ void tea_vm_run(TeaState* T)
                         counter = num;
                     }
 
-                    tea_obj_map_set(T, enum_, name, value);
+                    tea_map_set(T, enum_, name, value);
 
                     counter++;
                 }
@@ -1174,7 +1175,7 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(MAP):
             {
                 uint8_t item_count = READ_BYTE();
-                TeaObjectMap* map = tea_obj_new_map(T);
+                TeaObjectMap* map = tea_map_new(T);
 
                 PUSH(OBJECT_VAL(map));
 
@@ -1185,7 +1186,7 @@ void tea_vm_run(TeaState* T)
                         RUNTIME_ERROR("Map key isn't hashable");
                     }
 
-                    tea_obj_map_set(T, map, PEEK(i), PEEK(i - 1));
+                    tea_map_set(T, map, PEEK(i), PEEK(i - 1));
                 }
 
                 T->top -= item_count * 2 + 1;
@@ -1319,7 +1320,7 @@ void tea_vm_run(TeaState* T)
                     TeaObjectMap* m2 = AS_MAP(PEEK(0));
                     TeaObjectMap* m1 = AS_MAP(PEEK(1));
 
-                    tea_obj_map_add_all(T, m2, m1);
+                    tea_map_add_all(T, m2, m1);
 
                     DROP(2);
 

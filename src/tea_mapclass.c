@@ -5,6 +5,7 @@
 
 #include "tea_vm.h"
 #include "tea_core.h"
+#include "tea_map.h"
 
 static void map_len(TeaState* T)
 {
@@ -45,9 +46,7 @@ static void map_clear(TeaState* T)
     tea_ensure_min_args(T, count, 1);
 
     TeaObjectMap* map = AS_MAP(T->base[0]);
-    map->items = NULL;
-    map->capacity = 0;
-    map->count = 0;
+    tea_map_clear(T, map);
 }
 
 static void map_contains(TeaState* T)
@@ -63,7 +62,7 @@ static void map_contains(TeaState* T)
     }
     
     TeaValue _;
-    tea_push_bool(T, tea_obj_map_get(map, T->base[1], &_));
+    tea_push_bool(T, tea_map_get(map, T->base[1], &_));
 }
 
 static void map_delete(TeaState* T)
@@ -77,12 +76,12 @@ static void map_delete(TeaState* T)
     {
         tea_error(T, "Map key isn't hashable");
     }
-    else if(!tea_obj_map_get(map, T->base[1], &_))
+    else if(!tea_map_get(map, T->base[1], &_))
     {
         tea_error(T, "No such key in the map");
     }
 
-    tea_obj_map_delete(T, map, T->base[1]);
+    tea_map_delete(T, map, T->base[1]);
 }
 
 static void map_copy(TeaState* T)
@@ -98,7 +97,7 @@ static void map_copy(TeaState* T)
     for(int i = 0; i < map->capacity; i++)
     {
         if(map->items[i].empty) continue;
-        tea_obj_map_set(T, new, map->items[i].key, map->items[i].value);
+        tea_map_set(T, new, map->items[i].key, map->items[i].value);
     }
 }
 

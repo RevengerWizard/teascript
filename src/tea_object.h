@@ -211,12 +211,6 @@ TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectC
 TeaObjectClosure* tea_obj_new_closure(TeaState* T, TeaObjectFunction* function);
 TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot);
 
-TeaObjectMap* tea_obj_new_map(TeaState* T);
-bool tea_obj_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value);
-bool tea_obj_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
-bool tea_obj_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key);
-void tea_obj_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to);
-
 TeaObjectList* tea_obj_new_list(TeaState* T);
 
 #define teaO_new_literal(T, s) (tea_obj_copy_string(T, "" s, (sizeof(s)/sizeof(char))-1))
