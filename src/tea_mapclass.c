@@ -82,7 +82,7 @@ static void map_delete(TeaState* T)
         tea_error(T, "No such key in the map");
     }
 
-    tea_obj_map_delete(map, T->base[1]);
+    tea_obj_map_delete(T, map, T->base[1]);
 }
 
 static void map_copy(TeaState* T)

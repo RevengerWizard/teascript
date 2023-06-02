@@ -328,36 +328,41 @@ bool tea_obj_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
 
 #define MAP_MAX_LOAD 0.75
 
+static void adjust_map_size(TeaState* T, TeaObjectMap* map, int capacity)
+{
+    TeaMapItem* items = TEA_ALLOCATE(T, TeaMapItem, capacity);
+    for(int i = 0; i < capacity; i++)
+    {
+        items[i].key = NULL_VAL;
+        items[i].value = NULL_VAL;
+        items[i].empty = true;
+    }
+
+    map->count = 0;
+    for(int i = 0; i < map->capacity; i++)
+    {
+        TeaMapItem* item = &map->items[i];
+        if(item->empty)
+            continue;
+
+        TeaMapItem* dest = find_map_entry(items, capacity, item->key);
+        dest->key = item->key;
+        dest->value = item->value;
+        dest->empty = false;
+        map->count++;
+    }
+
+    TEA_FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
+    map->items = items;
+    map->capacity = capacity;
+}
+
 bool tea_obj_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
 {
     if(map->count + 1 > map->capacity * MAP_MAX_LOAD)
     {
         int capacity = TEA_GROW_CAPACITY(map->capacity);
-        TeaMapItem* items = TEA_ALLOCATE(T, TeaMapItem, capacity);
-        for(int i = 0; i < capacity; i++)
-        {
-            items[i].key = NULL_VAL;
-            items[i].value = NULL_VAL;
-            items[i].empty = true;
-        }
-
-        map->count = 0;
-        for(int i = 0; i < map->capacity; i++)
-        {
-            TeaMapItem* item = &map->items[i];
-            if(item->empty)
-                continue;
-
-            TeaMapItem* dest = find_map_entry(items, capacity, item->key);
-            dest->key = item->key;
-            dest->value = item->value;
-            dest->empty = false;
-            map->count++;
-        }
-
-        TEA_FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
-        map->items = items;
-        map->capacity = capacity;
+        adjust_map_size(T, map, capacity);
     }
 
     TeaMapItem* item = find_map_entry(map->items, map->capacity, key);
@@ -373,7 +378,7 @@ bool tea_obj_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue valu
     return is_new_key;
 }
 
-bool tea_obj_map_delete(TeaObjectMap* map, TeaValue key)
+bool tea_obj_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key)
 {
     if(map->count == 0)
         return false;
@@ -387,6 +392,23 @@ bool tea_obj_map_delete(TeaObjectMap* map, TeaValue key)
     item->key = NULL_VAL;
     item->value = BOOL_VAL(true);
     item->empty = true;
+
+    map->count--;
+
+    if(map->count == 0)
+    {
+        TEA_FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
+        map->items = NULL;
+        map->capacity = 0;
+        map->count = 0;
+    }
+    else if(map->capacity > 16 && map->count < map->capacity / 2 * MAP_MAX_LOAD);
+    {
+        uint32_t capacity = map->capacity / 2;
+        if(capacity < 16) capacity = 16;
+
+        adjust_map_size(T, map, capacity);
+    }
 
     return true;
 }

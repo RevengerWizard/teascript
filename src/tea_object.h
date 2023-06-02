@@ -214,7 +214,7 @@ TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot);
 TeaObjectMap* tea_obj_new_map(TeaState* T);
 bool tea_obj_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value);
 bool tea_obj_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
-bool tea_obj_map_delete(TeaObjectMap* map, TeaValue key);
+bool tea_obj_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key);
 void tea_obj_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to);
 
 TeaObjectList* tea_obj_new_list(TeaState* T);
