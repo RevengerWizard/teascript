@@ -8,6 +8,9 @@
 #include <string.h>
 #include <math.h>
 
+#define tea_vm_c
+#define TEA_CORE
+
 #include "tea_def.h"
 #include "tea_compiler.h"
 #include "tea_debug.h"

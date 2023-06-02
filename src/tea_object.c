@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#define tea_object_c
+#define TEA_CORE
+
 #include "tea_memory.h"
 #include "tea_object.h"
 #include "tea_map.h"

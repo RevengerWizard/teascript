@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define tea_table_c
+#define TEA_CORE
+
 #include "tea_gc.h"
 #include "tea_memory.h"
 #include "tea_object.h"

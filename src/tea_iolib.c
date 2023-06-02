@@ -5,6 +5,9 @@
 
 #include "stdio.h"
 
+#define tea_iolib_c
+#define TEA_LIB
+
 #include "tea.h"
 
 #include "tea_import.h"

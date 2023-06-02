@@ -5,6 +5,11 @@
 ** gcc -O2 -std=c99 -o onetea onetea.c -lm
 */
 
+#define onetea_c
+#define TEA_CORE
+
+#include "tea.h"
+
 #include "tea_api.c"
 #include "tea_chunk.c"
 #include "tea_compiler.c"

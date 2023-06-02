@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define tea_compiler_c
+#define TEA_CORE
+
 #include "tea_def.h"
 #include "tea_state.h"
 #include "tea_compiler.h"

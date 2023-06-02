@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define tea_oslib_c
+#define TEA_LIB
+
 #include "tea.h"
 
 #include "tea_import.h"

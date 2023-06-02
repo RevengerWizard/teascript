@@ -3,6 +3,9 @@
 ** C API functions for Teascript
 */
 
+#define tea_api_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #include "tea_state.h"

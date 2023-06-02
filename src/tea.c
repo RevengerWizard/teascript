@@ -9,6 +9,8 @@
 #include <stdbool.h>
 #include <signal.h>
 
+#define tea_c
+
 #include "tea.h"
 
 static TeaState* global = NULL;

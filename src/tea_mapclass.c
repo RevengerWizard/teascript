@@ -3,6 +3,9 @@
 ** Teascript map class
 */
 
+#define tea_mapclass_c
+#define TEA_CORE
+
 #include "tea_vm.h"
 #include "tea_core.h"
 #include "tea_map.h"

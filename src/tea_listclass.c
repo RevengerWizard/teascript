@@ -5,6 +5,9 @@
 
 #include <math.h>
 
+#define tea_listclass_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #include "tea_vm.h"

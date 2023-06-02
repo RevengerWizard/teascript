@@ -6,6 +6,9 @@
 #include <string.h>
 #include <math.h>
 
+#define tea_mathlib_c
+#define TEA_LIB
+
 #include "tea.h"
 
 #include "tea_import.h"

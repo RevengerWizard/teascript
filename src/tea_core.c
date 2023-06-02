@@ -9,6 +9,9 @@
 #include <ctype.h>
 #include <math.h>
 
+#define tea_core_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #include "tea_vm.h"

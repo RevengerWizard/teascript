@@ -8,6 +8,9 @@
 #include <string.h>
 #include <errno.h>
 
+#define tea_scanner_c
+#define TEA_CORE
+
 #include "tea_def.h"
 #include "tea_value.h"
 #include "tea_scanner.h"

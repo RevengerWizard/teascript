@@ -3,8 +3,8 @@
 ** Configuration file for Teascript
 */
 
-#ifndef TEA_CONFIG_H
-#define TEA_CONFIG_H
+#ifndef TEA_CONF_H
+#define TEA_CONF_H
 
 #define str(a) str_(a)
 #define str_(a) #a

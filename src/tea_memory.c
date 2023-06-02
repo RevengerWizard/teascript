@@ -5,6 +5,9 @@
 
 #include <stdlib.h>
 
+#define tea_memory_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #include "tea_def.h"

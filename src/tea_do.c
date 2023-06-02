@@ -6,6 +6,9 @@
 #include <setjmp.h>
 #include <stdlib.h>
 
+#define tea_do_c
+#define TEA_CORE
+
 #include "tea_def.h"
 #include "tea_do.h"
 #include "tea_vm.h"

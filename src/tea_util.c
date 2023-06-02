@@ -1,4 +1,4 @@
- /*
+/*
 ** tea_util.c
 ** Teascript utility functions
 */
@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define tea_util_c
+#define TEA_CORE
 
 #include "tea_util.h"
 #include "tea_state.h"

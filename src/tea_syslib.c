@@ -16,6 +16,9 @@
 #include <sys/utsname.h>
 #endif
 
+#define tea_syslib_c
+#define TEA_LIB
+
 #include "tea.h"
 
 #include "tea_import.h"

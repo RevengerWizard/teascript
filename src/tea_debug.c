@@ -5,6 +5,9 @@
 
 #include <stdio.h>
 
+#define tea_debug_c
+#define TEA_CORE
+
 #include "tea_debug.h"
 #include "tea_object.h"
 #include "tea_value.h"

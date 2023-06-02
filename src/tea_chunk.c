@@ -3,6 +3,9 @@
 ** Teascript chunks
 */
 
+#define tea_chunk_c
+#define TEA_CORE
+
 #include "tea_chunk.h"
 #include "tea_memory.h"
 #include "tea_state.h"

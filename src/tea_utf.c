@@ -3,6 +3,9 @@
 ** UTF-8 functions for Teascript
 */
 
+#define tea_utf_c
+#define TEA_CORE
+
 #include "tea_utf.h"
 #include "tea_object.h"
 

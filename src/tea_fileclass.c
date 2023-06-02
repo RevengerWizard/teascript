@@ -10,6 +10,9 @@
 #include <errno.h>
 #include <math.h>
 
+#define tea_fileclass_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #include "tea_vm.h"

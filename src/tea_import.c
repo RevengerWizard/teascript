@@ -3,6 +3,9 @@
 ** Teascript import loading
 */
 
+#define tea_import_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #include "tea_state.h"

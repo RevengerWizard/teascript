@@ -7,6 +7,9 @@
 #include <windows.h>
 #endif
 
+#define tea_loadlib_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #if defined(TEA_USE_DLOPEN)

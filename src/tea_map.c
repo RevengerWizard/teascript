@@ -3,6 +3,9 @@
 ** Teascript map implementation
 */
 
+#define tea_map_c
+#define TEA_CORE
+
 #include "tea_map.h"
 
 TeaObjectMap* tea_map_new(TeaState* T)

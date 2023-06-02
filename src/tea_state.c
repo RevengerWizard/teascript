@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define tea_state_c
+#define TEA_CORE
+
 #include "tea_state.h"
 #include "tea_core.h"
 #include "tea_vm.h"

@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define tea_timelib_c
+#define TEA_LIB
+
 #include "tea.h"
 
 #include "tea_import.h"

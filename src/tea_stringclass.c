@@ -6,6 +6,9 @@
 #include <string.h>
 #include <ctype.h>
 
+#define tea_stringclass_c
+#define TEA_CORE
+
 #include "tea.h"
 
 #include "tea_vm.h"

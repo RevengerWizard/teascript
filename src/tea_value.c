@@ -9,6 +9,9 @@
 #include <errno.h>
 #include <math.h>
 
+#define tea_value_c
+#define TEA_CORE
+
 #include "tea_object.h"
 #include "tea_memory.h"
 #include "tea_value.h"
