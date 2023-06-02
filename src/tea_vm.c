@@ -1661,18 +1661,19 @@ void tea_vm_run(TeaState* T)
                 TeaObjectString* file_name = READ_STRING();
                 TeaValue module_value;
 
-                // If we have imported this file already, skip
-                if(tea_table_get(&T->modules, file_name, &module_value)) 
-                {
-                    T->last_module = AS_MODULE(module_value);
-                    PUSH(NULL_VAL);
-                    DISPATCH();
-                }
-
                 char path[PATH_MAX];
                 if(!teaZ_resolve_path(ci->closure->function->module->path->chars, file_name->chars, path))
                 {
                     RUNTIME_ERROR("Could not open file \"%s\"", file_name->chars);
+                }
+                TeaObjectString* path_obj = teaO_new_string(T, path);
+
+                // If we have imported this file already, skip
+                if(tea_table_get(&T->modules, path_obj, &module_value)) 
+                {
+                    T->last_module = AS_MODULE(module_value);
+                    PUSH(NULL_VAL);
+                    DISPATCH();
                 }
 
                 char* source = teaZ_read_file(T, path);
@@ -1682,7 +1683,6 @@ void tea_vm_run(TeaState* T)
                     RUNTIME_ERROR("Could not open file \"%s\"", file_name->chars);
                 }
 
-                TeaObjectString* path_obj = tea_obj_copy_string(T, path, strlen(path));
                 TeaObjectModule* module = tea_obj_new_module(T, path_obj);
                 module->path = teaZ_dirname(T, path, strlen(path));
                 T->last_module = module;
