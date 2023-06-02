@@ -1,0 +1,10 @@
+var map = {}
+
+for(var i in 0..101) 
+{
+    map[i] = i
+
+    if(i >= 10) map.delete(i - 10)
+}
+
+print(map.len) // expect: 10
