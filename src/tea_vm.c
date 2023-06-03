@@ -1734,16 +1734,21 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(IMPORT_NATIVE):
             {
-                int index = READ_BYTE();
-                TeaObjectString* file_name = READ_STRING();
+                TeaObjectString* name = READ_STRING();
 
                 TeaValue module_val;
                 // If the module is already imported, skip
-                if(tea_table_get(&T->modules, file_name, &module_val))
+                if(tea_table_get(&T->modules, name, &module_val))
                 {
                     T->last_module = AS_MODULE(module_val);
                     PUSH(module_val);
                     DISPATCH();
+                }
+
+                int index = tea_find_native_module(name->chars, name->length);
+                if(index == -1) 
+                {
+                    RUNTIME_ERROR("Unknown module");
                 }
 
                 tea_import_native_module(T, index);
@@ -1756,7 +1761,7 @@ void tea_vm_run(TeaState* T)
                     teaD_precall(T, module, 0);
                     READ_FRAME();
 
-                    tea_table_get(&T->modules, file_name, &module);
+                    tea_table_get(&T->modules, name, &module);
                     T->last_module = AS_MODULE(module);
                 }
 

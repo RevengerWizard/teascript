@@ -2415,25 +2415,16 @@ static void import_statement(TeaCompiler* compiler)
         uint8_t import_name = identifier_constant(compiler, &compiler->parser->previous);
         declare_variable(compiler, &compiler->parser->previous);
 
-        int index = tea_find_native_module((char*)compiler->parser->previous.start, compiler->parser->previous.length);
-
-        if(index == -1) 
-        {
-            error(compiler, "Unknown module");
-        }
-
         if(match(compiler, TOKEN_AS)) 
         {
             uint8_t import_alias = parse_variable(compiler, "Expect import alias");
-            emit_argued(compiler, OP_IMPORT_NATIVE, index);
-            emit_op(compiler, import_alias);
+
+            emit_argued(compiler, OP_IMPORT_NATIVE, import_name);
             define_variable(compiler, import_alias, false);
         }
         else
         {
-            emit_argued(compiler, OP_IMPORT_NATIVE, index);
-            emit_op(compiler, import_name);
-
+            emit_argued(compiler, OP_IMPORT_NATIVE, import_name);
             define_variable(compiler, import_name, false);
         }
 
@@ -2506,14 +2497,7 @@ static void from_import_statement(TeaCompiler* compiler)
         consume(compiler, TOKEN_NAME, "Expect import identifier");
         uint8_t import_name = identifier_constant(compiler, &compiler->parser->previous);
 
-        int index = tea_find_native_module((char*)compiler->parser->previous.start, compiler->parser->previous.length);
-
         consume(compiler, TOKEN_IMPORT, "Expect 'import' after identifier");
-
-        if(index == -1) 
-        {
-            error(compiler, "Unknown module");
-        }
 
         uint8_t variables[255];
         TeaToken tokens[255];
@@ -2533,8 +2517,7 @@ static void from_import_statement(TeaCompiler* compiler)
         } 
         while(match(compiler, TOKEN_COMMA));
 
-        emit_argued(compiler, OP_IMPORT_NATIVE, index);
-        emit_byte(compiler, import_name);
+        emit_argued(compiler, OP_IMPORT_NATIVE, import_name);
         emit_op(compiler, OP_POP);
 
         emit_op(compiler, OP_IMPORT_NATIVE_VARIABLE);
