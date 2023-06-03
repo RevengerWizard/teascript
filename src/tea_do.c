@@ -27,12 +27,8 @@ void tea_do_realloc_ci(TeaState* T, int new_size)
     TeaCallInfo* old_ci = T->base_ci;
     T->base_ci = TEA_GROW_ARRAY(T, TeaCallInfo, T->base_ci, T->ci_size, new_size);
     T->ci_size = new_size;
-
-    if(old_ci != T->base_ci)
-    {
-        T->ci = (T->ci - old_ci) + T->base_ci;
-        T->end_ci = T->base_ci + T->ci_size - 1;
-    }
+    T->ci = (T->ci - old_ci) + T->base_ci;
+    T->end_ci = T->base_ci + T->ci_size - 1;
 }
 
 void tea_do_grow_ci(TeaState* T)
