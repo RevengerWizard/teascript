@@ -1,0 +1,10 @@
+var module = "outer"
+
+if(true)
+{
+    from "module.tea" import module     // expect: ran module
+
+    print(module) // expect: from module
+}
+
+print(module) // expect: outer

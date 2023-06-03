@@ -1,0 +1,12 @@
+from "a.tea" import a
+from "b.tea" import b
+
+// Shared module should only run once:
+// expect: a
+// expect: shared
+// expect: a done
+// expect: b
+// expect: b done
+
+print(a)    // expect: a shared
+print(b)    // expect: b shared
