@@ -9,6 +9,10 @@ RANLIB = ranlib
 RM = del
 LIBS = -lm $(MYLIBS)
 
+SYSCFLAGS =
+SYSLDFLAGS =
+SYSLIBS =
+
 MYCFLAGS =
 MYLDFLAGS =
 MYLIBS =
@@ -55,6 +59,10 @@ depend:
 
 # Convenience targets for popular platforms
 ALL = all
+
+dev:
+	$(MAKE) $(ALL_O)
+	$(MAKE) $(TEA_T)
 
 none:
 	@echo "Please choose a platform:"

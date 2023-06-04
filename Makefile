@@ -1,4 +1,4 @@
-# Teascript Makefile
+# Teascript top level Makefile
 
 PLAT = none
 
