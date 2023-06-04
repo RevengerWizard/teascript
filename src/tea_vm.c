@@ -307,7 +307,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
         case OBJ_MAP:
         {
             TeaObjectMap* map = AS_MAP(subscript_value);
-            if(!tea_obj_isvalidkey(index_value))
+            if(!tea_map_validkey(index_value))
             {
                 tea_vm_runtime_error(T, "Map key isn't hashable");
             }
@@ -401,7 +401,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
         case OBJ_MAP:
         {
             TeaObjectMap* map = AS_MAP(subscript_value);
-            if(!tea_obj_isvalidkey(index_value))
+            if(!tea_map_validkey(index_value))
             {
                 tea_vm_runtime_error(T, "Map key isn't hashable");
             }
@@ -1184,7 +1184,7 @@ void tea_vm_run(TeaState* T)
 
                 for(int i = item_count * 2; i > 0; i -= 2)
                 {
-                    if(!tea_obj_isvalidkey(PEEK(i)))
+                    if(!tea_map_validkey(PEEK(i)))
                     {
                         RUNTIME_ERROR("Map key isn't hashable");
                     }

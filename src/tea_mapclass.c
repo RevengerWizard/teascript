@@ -59,7 +59,7 @@ static void map_contains(TeaState* T)
 
     TeaObjectMap* map = AS_MAP(T->base[0]);
 
-    if(!tea_obj_isvalidkey(T->base[1]))
+    if(!tea_map_validkey(T->base[1]))
     {
         tea_error(T, "Map key isn't hashable");
     }
@@ -75,7 +75,7 @@ static void map_delete(TeaState* T)
 
     TeaObjectMap* map = AS_MAP(T->base[0]);
     TeaValue _;
-    if(!tea_obj_isvalidkey(T->base[1]))
+    if(!tea_map_validkey(T->base[1]))
     {
         tea_error(T, "Map key isn't hashable");
     }

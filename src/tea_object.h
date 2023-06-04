@@ -236,12 +236,6 @@ static inline bool tea_obj_istype(TeaValue value, TeaObjectType type)
     return IS_OBJECT(value) && AS_OBJECT(value)->type == type;
 }
 
-static inline bool tea_obj_isvalidkey(TeaValue value)
-{
-    return IS_NULL(value) || IS_BOOL(value) || IS_NUMBER(value) ||
-    IS_STRING(value);
-}
-
 static inline bool tea_obj_falsey(TeaValue value)
 {
     return  IS_NULL(value) || 

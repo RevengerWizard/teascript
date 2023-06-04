@@ -2034,6 +2034,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_METHOD:
         case OP_EXTENSION_METHOD:
         case OP_IMPORT_STRING:
+        case OP_IMPORT_NAME:
         case OP_LIST:
         case OP_UNPACK_LIST:
         case OP_ENUM:
@@ -2051,7 +2052,6 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_LOOP:
         case OP_INVOKE:
         case OP_SUPER:
-        case OP_IMPORT_NAME:
             return 2;
         case OP_CLOSURE: 
         {
