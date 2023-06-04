@@ -10,7 +10,7 @@
 #include "tea_state.h"
 #include "tea_vm.h"
 
-TeaObjectString* tea_string_allocate(TeaState* T, char* chars, int length, uint32_t hash)
+static TeaObjectString* string_allocate(TeaState* T, char* chars, int length, uint32_t hash)
 {
     TeaObjectString* string = ALLOCATE_OBJECT(T, TeaObjectString, OBJ_STRING);
     string->length = length;
@@ -24,7 +24,7 @@ TeaObjectString* tea_string_allocate(TeaState* T, char* chars, int length, uint3
     return string;
 }
 
-uint32_t tea_string_hash(const char* key, int length)
+static uint32_t string_hash(const char* key, int length)
 {
     uint32_t hash = 2166136261u;
     for(int i = 0; i < length; i++)
@@ -37,7 +37,7 @@ uint32_t tea_string_hash(const char* key, int length)
 
 TeaObjectString* tea_string_take(TeaState* T, char* chars, int length)
 {
-    uint32_t hash = tea_string_hash(chars, length);
+    uint32_t hash = string_hash(chars, length);
 
     TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
     if(interned != NULL)
@@ -46,12 +46,12 @@ TeaObjectString* tea_string_take(TeaState* T, char* chars, int length)
         return interned;
     }
 
-    return tea_string_allocate(T, chars, length, hash);
+    return string_allocate(T, chars, length, hash);
 }
 
 TeaObjectString* tea_string_copy(TeaState* T, const char* chars, int length)
 {
-    uint32_t hash = tea_string_hash(chars, length);
+    uint32_t hash = string_hash(chars, length);
 
     TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
     if(interned != NULL)
@@ -61,5 +61,5 @@ TeaObjectString* tea_string_copy(TeaState* T, const char* chars, int length)
     memcpy(heap_chars, chars, length);
     heap_chars[length] = '\0';
 
-    return tea_string_allocate(T, heap_chars, length, hash);
+    return string_allocate(T, heap_chars, length, hash);
 }
