@@ -9,6 +9,7 @@
 #include "tea.h"
 
 #include "tea_state.h"
+#include "tea_string.h"
 #include "tea_map.h"
 #include "tea_vm.h"
 #include "tea_do.h"
@@ -241,7 +242,7 @@ TEA_API void tea_push_number(TeaState* T, double n)
 
 TEA_API const char* tea_push_lstring(TeaState* T, const char* s, int len)
 {
-    TeaObjectString* string = (len == 0) ? teaO_new_literal(T, "") : tea_obj_copy_string(T, s, len);
+    TeaObjectString* string = (len == 0) ? tea_string_literal(T, "") : tea_string_copy(T, s, len);
     tea_vm_push(T, OBJECT_VAL(string));
 
     return string->chars;
@@ -249,7 +250,7 @@ TEA_API const char* tea_push_lstring(TeaState* T, const char* s, int len)
 
 TEA_API const char* tea_push_string(TeaState* T, const char* s)
 {
-    TeaObjectString* string = teaO_new_string(T, s);
+    TeaObjectString* string = tea_string_new(T, s);
     tea_vm_push(T, OBJECT_VAL(string));
 
     return string->chars;
@@ -272,7 +273,7 @@ TEA_API const char* tea_push_fstring(TeaState* T, const char* fmt, ...)
     char* s = format(T, fmt, args, &len);
     va_end(args);
 
-    TeaObjectString* string = tea_obj_take_string(T, (char*)s, len);
+    TeaObjectString* string = tea_string_take(T, (char*)s, len);
     tea_vm_push(T, OBJECT_VAL(string));
 
     return string->chars;
@@ -324,7 +325,7 @@ static void set_class(TeaState* T, const TeaClass* k)
 
 TEA_API void tea_create_class(TeaState* T, const char* name, const TeaClass* klass)
 {
-    tea_vm_push(T, OBJECT_VAL(tea_obj_new_class(T, teaO_new_string(T, name), NULL)));
+    tea_vm_push(T, OBJECT_VAL(tea_obj_new_class(T, tea_string_new(T, name), NULL)));
     if(klass != NULL)
     {
         set_class(T, klass);
@@ -349,8 +350,8 @@ static void set_module(TeaState* T, const TeaModule* m)
 
 TEA_API void tea_create_module(TeaState* T, const char* name, const TeaModule* module)
 {
-    TeaObjectModule* mod = tea_obj_new_module(T, teaO_new_string(T, name));
-    mod->path = teaO_new_string(T, name);
+    TeaObjectModule* mod = tea_obj_new_module(T, tea_string_new(T, name));
+    mod->path = tea_string_new(T, name);
 
     tea_vm_push(T, OBJECT_VAL(mod));
     if(module != NULL)

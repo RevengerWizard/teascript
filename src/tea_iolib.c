@@ -10,13 +10,14 @@
 
 #include "tea.h"
 
+#include "tea_string.h"
 #include "tea_import.h"
 #include "tea_core.h"
 #include "tea_vm.h"
 
 static void create_stdfile(TeaState* T, FILE* f, const char* name, const char* mode)
 {
-    TeaObjectFile* file = tea_obj_new_file(T, teaO_new_literal(T, ""), teaO_new_string(T, mode));
+    TeaObjectFile* file = tea_obj_new_file(T, tea_string_literal(T, ""), tea_string_new(T, mode));
     file->file = f;
     file->is_open = -1;
 

@@ -12,6 +12,7 @@
 #include "tea_state.h"
 #include "tea_core.h"
 #include "tea_vm.h"
+#include "tea_string.h"
 #include "tea_util.h"
 #include "tea_do.h"
 #include "tea_gc.h"
@@ -70,8 +71,8 @@ TEA_API TeaState* tea_open()
     tea_table_init(&T->globals);
     tea_table_init(&T->constants);
     tea_table_init(&T->strings);
-    T->constructor_string = teaO_new_literal(T, "constructor");
-    T->repl_string = teaO_new_literal(T, "_");
+    T->constructor_string = tea_string_literal(T, "constructor");
+    T->repl_string = tea_string_literal(T, "_");
     T->repl = false;
     tea_open_core(T);
     return T;
@@ -118,7 +119,7 @@ TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value)
 
 TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, const char* source)
 {
-    TeaObjectString* name = teaO_new_string(T, module_name);
+    TeaObjectString* name = tea_string_new(T, module_name);
     tea_vm_push(T, OBJECT_VAL(name));
     TeaObjectModule* module = tea_obj_new_module(T, name);
     tea_vm_pop(T, 1);

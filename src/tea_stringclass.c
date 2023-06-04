@@ -15,6 +15,7 @@
 #include "tea_memory.h"
 #include "tea_core.h"
 #include "tea_utf.h"
+#include "tea_string.h"
 
 static void string_len(TeaState* T)
 {
@@ -45,7 +46,7 @@ static void string_upper(TeaState* T)
     }
     temp[len] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, temp, len)));
 }
 
 static void string_lower(TeaState* T)
@@ -63,7 +64,7 @@ static void string_lower(TeaState* T)
     }
     temp[len] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, temp, len)));
 }
 
 static void rev(char* str, int len)
@@ -111,7 +112,7 @@ static void string_reverse(TeaState* T)
     char* reversed = TEA_ALLOCATE(T, char, len + 1);
     strcpy(reversed, string);
     rev(reversed, len);
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, reversed, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, reversed, len)));
 }
 
 static void string_split(TeaState* T)
@@ -234,7 +235,7 @@ static void string_title(TeaState* T)
     }
     temp[len] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, temp, len)));
 }
 
 static void string_contains(TeaState* T)
@@ -301,7 +302,7 @@ static void string_leftstrip(TeaState* T)
     memcpy(temp, string + count, len - count);
     temp[len - count] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, len - count)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, temp, len - count)));
 }
 
 static void string_rightstrip(TeaState* T)
@@ -332,7 +333,7 @@ static void string_rightstrip(TeaState* T)
     memcpy(temp, string, length + 1);
     temp[length + 1] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, temp, length + 1)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, temp, length + 1)));
 }
 
 static void string_strip(TeaState* T)
@@ -452,7 +453,7 @@ static void string_replace(TeaState* T)
     }
     strcpy(q, string);
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, result, result_size)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, result, result_size)));
 }
 
 static void string_iterate(TeaState* T)

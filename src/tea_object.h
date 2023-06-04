@@ -205,27 +205,22 @@ typedef struct
     TeaValue method;
 } TeaObjectBoundMethod;
 
+TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
+
 TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
 TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass);
 TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
+
+TeaObjectNative* tea_obj_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn);
+TeaObjectFunction* tea_obj_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots);
 TeaObjectClosure* tea_obj_new_closure(TeaState* T, TeaObjectFunction* function);
 TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot);
 
 TeaObjectList* tea_obj_new_list(TeaState* T);
 
-#define teaO_new_literal(T, s) (tea_obj_copy_string(T, "" s, (sizeof(s)/sizeof(char))-1))
-#define teaO_new_string(T, s) (tea_obj_copy_string(T, s, strlen(s)))
-
-TeaObjectString* tea_obj_take_string(TeaState* T, char* chars, int length);
-TeaObjectString* tea_obj_copy_string(TeaState* T, const char* chars, int length);
-
-TeaObjectNative* tea_obj_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn);
-TeaObjectFunction* tea_obj_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots);
 TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name);
 TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
 TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step);
-
-TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
 
 TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value);
 bool tea_obj_equal(TeaValue a, TeaValue b);

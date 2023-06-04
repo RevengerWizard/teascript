@@ -16,6 +16,7 @@
 #include "tea_debug.h"
 #include "tea_object.h"
 #include "tea_map.h"
+#include "tea_string.h"
 #include "tea_memory.h"
 #include "tea_vm.h"
 #include "tea_util.h"
@@ -671,7 +672,7 @@ static void concatenate(TeaState* T)
     memcpy(chars + a->length, b->chars, b->length);
     chars[length] = '\0';
 
-    TeaObjectString* result = tea_obj_take_string(T, chars, length);
+    TeaObjectString* result = tea_string_take(T, chars, length);
     tea_vm_pop(T, 2);
     tea_vm_push(T, OBJECT_VAL(result));
 }
@@ -694,7 +695,7 @@ static void repeat(TeaState* T)
 
     if(n <= 0)
     {
-        TeaObjectString* s = teaO_new_literal(T, "");
+        TeaObjectString* s = tea_string_literal(T, "");
         tea_vm_pop(T, 2);
         tea_vm_push(T, OBJECT_VAL(s));
         return;
@@ -717,7 +718,7 @@ static void repeat(TeaState* T)
     }
     *p = '\0';
 
-    TeaObjectString* result = tea_obj_take_string(T, chars, strlen(chars));
+    TeaObjectString* result = tea_string_take(T, chars, strlen(chars));
     tea_vm_pop(T, 2);
     tea_vm_push(T, OBJECT_VAL(result));
 }
@@ -1670,7 +1671,7 @@ void tea_vm_run(TeaState* T)
                 {
                     RUNTIME_ERROR("Could not open file \"%s\"", file_name->chars);
                 }
-                TeaObjectString* path_obj = teaO_new_string(T, path);
+                TeaObjectString* path_obj = tea_string_new(T, path);
 
                 // If we have imported this file already, skip
                 if(tea_table_get(&T->modules, path_obj, &module_value)) 

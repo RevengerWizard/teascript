@@ -8,6 +8,7 @@
 
 #include "tea_utf.h"
 #include "tea_object.h"
+#include "tea_string.h"
 
 int tea_utf_decode_bytes(uint8_t byte)
 {
@@ -179,7 +180,7 @@ TeaObjectString* tea_utf_code_point_at(TeaState* T, TeaObjectString* string, uin
 		bytes[0] = string->chars[index];
 		bytes[1] = '\0';
 
-		return tea_obj_copy_string(T, bytes, 1);
+		return tea_string_copy(T, bytes, 1);
 	}
 
 	return tea_utf_from_code_point(T, code_point);
@@ -192,7 +193,7 @@ TeaObjectString* tea_utf_from_code_point(TeaState* T, int value)
 
 	tea_utf_encode(value, (uint8_t*) bytes);
 
-	return tea_obj_copy_string(T, bytes, length);
+	return tea_string_copy(T, bytes, length);
 }
 
 TeaObjectString* tea_utf_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count, int step) 
@@ -220,7 +221,7 @@ TeaObjectString* tea_utf_from_range(TeaState* T, TeaObjectString* source, int st
 		}
 	}
 
-	return tea_obj_copy_string(T, bytes, length);
+	return tea_string_copy(T, bytes, length);
 }
 
 int tea_utf_char_offset(char* str, int index) 

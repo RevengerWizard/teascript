@@ -13,6 +13,7 @@
 #include "tea_vm.h"
 #include "tea_memory.h"
 #include "tea_core.h"
+#include "tea_string.h"
 
 static void list_len(TeaState* T)
 {
@@ -460,7 +461,7 @@ static void list_join(TeaState* T)
     string[length] = '\0';
     tea_pop(T, 2);
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, string, length)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, string, length)));
 }
 
 static void list_copy(TeaState* T)

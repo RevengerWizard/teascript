@@ -17,6 +17,7 @@
 
 #include "tea_vm.h"
 #include "tea_memory.h"
+#include "tea_string.h"
 #include "tea_core.h"
 
 static TeaObjectFile* get_file(TeaState* T)
@@ -123,7 +124,7 @@ static void file_read(TeaState* T)
 
     contents = TEA_GROW_ARRAY(T, char, contents, current_size, total_read_bytes + 1);
 
-    tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, contents, total_read_bytes)));
+    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, contents, total_read_bytes)));
 }
 
 static void file_readline(TeaState* T)
@@ -161,7 +162,7 @@ static void file_readline(TeaState* T)
             line[line_length] = '\0';
             line = TEA_GROW_ARRAY(T, char, line, current_size, line_length + 1);
 
-            tea_vm_push(T, OBJECT_VAL(tea_obj_take_string(T, line, line_length)));
+            tea_vm_push(T, OBJECT_VAL(tea_string_take(T, line, line_length)));
             return;
         }
     }

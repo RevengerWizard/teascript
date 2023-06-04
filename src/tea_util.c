@@ -11,6 +11,7 @@
 #define TEA_CORE
 
 #include "tea_util.h"
+#include "tea_string.h"
 #include "tea_state.h"
 #include "tea_memory.h"
 
@@ -46,7 +47,7 @@ TeaObjectString* teaZ_dirname(TeaState* T, char* path, int len)
 {
     if(!len) 
     {
-        return teaO_new_literal(T, ".");
+        return tea_string_literal(T, ".");
     }
 
     char* sep = path + len;
@@ -77,12 +78,12 @@ TeaObjectString* teaZ_dirname(TeaState* T, char* path, int len)
 
     if(sep == path && !IS_DIR_SEPARATOR(*sep)) 
     {
-        return teaO_new_literal(T, ".");
+        return tea_string_literal(T, ".");
     }
 
     len = sep - path + 1;
 
-    return tea_obj_copy_string(T, path, len);
+    return tea_string_copy(T, path, len);
 }
 
 bool teaZ_resolve_path(char* directory, char* path, char* ret) 

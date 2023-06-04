@@ -13,6 +13,7 @@
 #include "tea_memory.h"
 #include "tea_object.h"
 #include "tea_map.h"
+#include "tea_string.h"
 #include "tea_table.h"
 #include "tea_value.h"
 #include "tea_state.h"
@@ -153,7 +154,7 @@ TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass)
     return instance;
 }
 
-static TeaObjectString* allocate_string(TeaState* T, char* chars, int length, uint32_t hash)
+/*static TeaObjectString* allocate_string(TeaState* T, char* chars, int length, uint32_t hash)
 {
     TeaObjectString* string = ALLOCATE_OBJECT(T, TeaObjectString, OBJ_STRING);
     string->length = length;
@@ -178,7 +179,7 @@ static uint32_t hash_string(const char* key, int length)
     return hash;
 }
 
-TeaObjectString* tea_obj_take_string(TeaState* T, char* chars, int length)
+TeaObjectString* tea_string_take(TeaState* T, char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
     TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
@@ -191,7 +192,7 @@ TeaObjectString* tea_obj_take_string(TeaState* T, char* chars, int length)
     return allocate_string(T, chars, length, hash);
 }
 
-TeaObjectString* tea_obj_copy_string(TeaState* T, const char* chars, int length)
+TeaObjectString* tea_string_copy(TeaState* T, const char* chars, int length)
 {
     uint32_t hash = hash_string(chars, length);
     TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
@@ -203,7 +204,7 @@ TeaObjectString* tea_obj_copy_string(TeaState* T, const char* chars, int length)
     heap_chars[length] = '\0';
 
     return allocate_string(T, heap_chars, length, hash);
-}
+}*/
 
 TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot)
 {
@@ -218,15 +219,15 @@ TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot)
 static TeaObjectString* function_tostring(TeaState* T, TeaObjectFunction* function)
 {
     if(function->name == NULL)
-        return teaO_new_literal(T, "<script>");
+        return tea_string_literal(T, "<script>");
 
-    return teaO_new_literal(T, "<function>");
+    return tea_string_literal(T, "<function>");
 }
 
 static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
 {
     if(list->items.count == 0)
-        return teaO_new_literal(T, "[]");
+        return tea_string_literal(T, "[]");
 
     int size = 50;
     
@@ -288,13 +289,13 @@ static TeaObjectString* list_tostring(TeaState* T, TeaObjectList* list)
 
     string = TEA_GROW_ARRAY(T, char, string, size, length + 1);
 
-    return tea_obj_take_string(T, string, length);
+    return tea_string_take(T, string, length);
 }
 
 static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
 {
     if(map->count == 0)
-        return teaO_new_literal(T, "{}");
+        return tea_string_literal(T, "{}");
         
     int count = 0;
     int size = 50;
@@ -411,7 +412,7 @@ static TeaObjectString* map_tostring(TeaState* T, TeaObjectMap* map)
 
     string = TEA_GROW_ARRAY(T, char, string, size, length + 1);
 
-    return tea_obj_take_string(T, string, length);
+    return tea_string_take(T, string, length);
 }
 
 static TeaObjectString* range_tostring(TeaState* T, TeaObjectRange* range)
@@ -423,7 +424,7 @@ static TeaObjectString* range_tostring(TeaState* T, TeaObjectRange* range)
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "%s...%s", start, end);
 
-    return tea_obj_take_string(T, string, len);
+    return tea_string_take(T, string, len);
 }
 
 static TeaObjectString* module_tostring(TeaState* T, TeaObjectModule* module)
@@ -432,7 +433,7 @@ static TeaObjectString* module_tostring(TeaState* T, TeaObjectModule* module)
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s module>", module->name->chars);
 
-    return tea_obj_take_string(T, string, len);
+    return tea_string_take(T, string, len);
 }
 
 static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
@@ -441,7 +442,7 @@ static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s>", klass->name->chars);
 
-    return tea_obj_take_string(T, string, len);
+    return tea_string_take(T, string, len);
 }
 
 static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instance)
@@ -450,7 +451,7 @@ static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instan
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s instance>", instance->klass->name->chars);
 
-    return tea_obj_take_string(T, string, len);
+    return tea_string_take(T, string, len);
 }
 
 TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value)
@@ -458,18 +459,18 @@ TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value)
     switch(OBJECT_TYPE(value))
     {
         case OBJ_FILE:
-            return teaO_new_literal(T, "<file>");
+            return tea_string_literal(T, "<file>");
         case OBJ_BOUND_METHOD:
-            return teaO_new_literal(T, "<method>");
+            return tea_string_literal(T, "<method>");
         case OBJ_NATIVE:
         {
             switch(AS_NATIVE(value)->type)
             {
                 case NATIVE_PROPERTY:
-                    return teaO_new_literal(T, "<property>");
+                    return tea_string_literal(T, "<property>");
                 case NATIVE_FUNCTION: 
                 case NATIVE_METHOD: 
-                    return teaO_new_literal(T, "<function>");
+                    return tea_string_literal(T, "<function>");
             }
         }
         case OBJ_FUNCTION:
@@ -491,11 +492,11 @@ TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value)
         case OBJ_STRING:
             return AS_STRING(value);
         case OBJ_UPVALUE:
-            return teaO_new_literal(T, "<upvalue>");
+            return tea_string_literal(T, "<upvalue>");
         default:
             break;
     }
-    return teaO_new_literal(T, "unknown");
+    return tea_string_literal(T, "unknown");
 }
 
 static bool range_equals(TeaObjectRange* a, TeaObjectRange* b)

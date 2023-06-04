@@ -13,6 +13,7 @@
 #define TEA_CORE
 
 #include "tea_object.h"
+#include "tea_string.h"
 #include "tea_memory.h"
 #include "tea_value.h"
 
@@ -133,11 +134,11 @@ TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value)
 #ifdef TEA_NAN_TAGGING
     if(IS_BOOL(value))
     {
-        return AS_BOOL(value) ? teaO_new_literal(T, "true") : teaO_new_literal(T, "false");
+        return AS_BOOL(value) ? tea_string_literal(T, "true") : tea_string_literal(T, "false");
     }
     else if(IS_NULL(value))
     {
-        return teaO_new_literal(T, "null");
+        return tea_string_literal(T, "null");
     }
     else if(IS_NUMBER(value))
     {
@@ -151,9 +152,9 @@ TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value)
     switch(value.type)
     {
         case VAL_BOOL:
-            return AS_BOOL(value) ? teaO_new_literal(T, "true") : teaO_new_literal(T, "false");
+            return AS_BOOL(value) ? tea_string_literal(T, "true") : tea_string_literal(T, "false");
         case VAL_NULL:
-            return teaO_new_literal(T, "null");
+            return tea_string_literal(T, "null");
         case VAL_NUMBER:
             return tea_value_number_tostring(T, AS_NUMBER(value));
         case VAL_OBJECT:
@@ -162,21 +163,21 @@ TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value)
             break;
     }
 #endif
-    return teaO_new_literal(T, "unknown");
+    return tea_string_literal(T, "unknown");
 }
 
 TeaObjectString* tea_value_number_tostring(TeaState* T, double number)
 {
-    if(isnan(number)) return teaO_new_literal(T, "nan");
+    if(isnan(number)) return tea_string_literal(T, "nan");
     if(isinf(number))
     {
         if(number > 0.0)
         {
-            return teaO_new_literal(T, "infinity");
+            return tea_string_literal(T, "infinity");
         }
         else
         {
-            return teaO_new_literal(T, "-infinity");
+            return tea_string_literal(T, "-infinity");
         }
     }
 
@@ -184,5 +185,5 @@ TeaObjectString* tea_value_number_tostring(TeaState* T, double number)
     char* string = TEA_ALLOCATE(T, char, length + 1);
     snprintf(string, length + 1, TEA_NUMBER_FMT, number);
 
-    return tea_obj_take_string(T, string, length);
+    return tea_string_take(T, string, length);
 }

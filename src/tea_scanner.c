@@ -14,6 +14,7 @@
 #include "tea_def.h"
 #include "tea_value.h"
 #include "tea_scanner.h"
+#include "tea_string.h"
 #include "tea_utf.h"
 
 void tea_scanner_init(TeaState* T, TeaScanner* scanner, const char* source)
@@ -721,7 +722,7 @@ static TeaToken multistring(TeaScanner* scanner)
     count -= (offset > count) ? count : offset;
 
     TeaToken token = make_token(scanner, TOKEN_STRING);
-	token.value = OBJECT_VAL(tea_obj_copy_string(T, (const char*)bytes.values, bytes.count));
+	token.value = OBJECT_VAL(tea_string_copy(T, (const char*)bytes.values, bytes.count));
 	tea_free_bytes(T, &bytes);
 
 	return token;
@@ -842,7 +843,7 @@ static TeaToken string(TeaScanner* scanner, bool interpolation)
 
     scanner->raw = false;
     TeaToken token = make_token(scanner, type);
-	token.value = OBJECT_VAL(tea_obj_copy_string(T, (const char*)bytes.values, bytes.count));
+	token.value = OBJECT_VAL(tea_string_copy(T, (const char*)bytes.values, bytes.count));
 	tea_free_bytes(T, &bytes);
 
 	return token;
