@@ -362,18 +362,16 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
             return constant_instruction("OP_METHOD", chunk, offset);
         case OP_EXTENSION_METHOD:
             return constant_instruction("OP_EXTENSION_METHOD", chunk, offset);
-        case OP_IMPORT:
-            return constant_instruction("OP_IMPORT", chunk, offset);
-        case OP_IMPORT_VARIABLE:
-            return simple_instruction("OP_IMPORT_VARIABLE", offset);
+        case OP_IMPORT_STRING:
+            return constant_instruction("OP_IMPORT_STRING", chunk, offset);
+        case OP_IMPORT_NAME:
+            return native_import_instruction("OP_IMPORT_NAME", chunk, offset);
         case OP_IMPORT_FROM:
             return import_from_instruction("OP_IMPORT_FROM", chunk, offset);
+        case OP_IMPORT_VARIABLE:
+            return simple_instruction("OP_IMPORT_VARIABLE", offset);
         case OP_IMPORT_END:
             return simple_instruction("OP_IMPORT_END", offset);
-        case OP_IMPORT_NATIVE:
-            return native_import_instruction("OP_IMPORT_NATIVE", chunk, offset);
-        case OP_IMPORT_NATIVE_VARIABLE:
-            return native_from_import_instruction("OP_IMPORT_NATIVE_VARIABLE", chunk, offset);
         case OP_END:
             return simple_instruction("OP_END", offset);
         default:

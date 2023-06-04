@@ -20,6 +20,7 @@
 #include "tea_import.c"
 #include "tea_memory.c"
 #include "tea_object.c"
+#include "tea_map.c"
 #include "tea_scanner.c"
 #include "tea_state.c"
 #include "tea_table.c"

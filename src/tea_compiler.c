@@ -2033,7 +2033,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_CALL:
         case OP_METHOD:
         case OP_EXTENSION_METHOD:
-        case OP_IMPORT:
+        case OP_IMPORT_STRING:
         case OP_LIST:
         case OP_UNPACK_LIST:
         case OP_ENUM:
@@ -2051,14 +2051,8 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_LOOP:
         case OP_INVOKE:
         case OP_SUPER:
-        case OP_IMPORT_NATIVE:
+        case OP_IMPORT_NAME:
             return 2;
-        case OP_IMPORT_NATIVE_VARIABLE: 
-        {
-            int arg_count = code[ip + 2];
-
-            return 2 + arg_count;
-        }
         case OP_CLOSURE: 
         {
             int constant = code[ip + 1];
@@ -2392,7 +2386,7 @@ static void import_statement(TeaCompiler* compiler)
     {
         int import_constant = make_constant(compiler, OBJECT_VAL(tea_obj_copy_string(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
 
-        emit_argued(compiler, OP_IMPORT, import_constant);
+        emit_argued(compiler, OP_IMPORT_STRING, import_constant);
         emit_op(compiler, OP_POP);
 
         if(match(compiler, TOKEN_AS)) 
@@ -2419,12 +2413,12 @@ static void import_statement(TeaCompiler* compiler)
         {
             uint8_t import_alias = parse_variable(compiler, "Expect import alias");
 
-            emit_argued(compiler, OP_IMPORT_NATIVE, import_name);
+            emit_argued(compiler, OP_IMPORT_NAME, import_name);
             define_variable(compiler, import_alias, false);
         }
         else
         {
-            emit_argued(compiler, OP_IMPORT_NATIVE, import_name);
+            emit_argued(compiler, OP_IMPORT_NAME, import_name);
             define_variable(compiler, import_name, false);
         }
 
@@ -2444,7 +2438,7 @@ static void from_import_statement(TeaCompiler* compiler)
         int import_constant = make_constant(compiler, OBJECT_VAL(tea_obj_copy_string(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
 
         consume(compiler, TOKEN_IMPORT, "Expect 'import' after import path");
-        emit_argued(compiler, OP_IMPORT, import_constant);
+        emit_argued(compiler, OP_IMPORT_STRING, import_constant);
         emit_op(compiler, OP_POP);
 
         uint8_t variables[255];
@@ -2517,11 +2511,10 @@ static void from_import_statement(TeaCompiler* compiler)
         } 
         while(match(compiler, TOKEN_COMMA));
 
-        emit_argued(compiler, OP_IMPORT_NATIVE, import_name);
+        emit_argued(compiler, OP_IMPORT_NAME, import_name);
         emit_op(compiler, OP_POP);
 
-        emit_op(compiler, OP_IMPORT_NATIVE_VARIABLE);
-        emit_bytes(compiler, import_name, var_count);
+        emit_argued(compiler, OP_IMPORT_FROM, var_count);
 
         for(int i = 0; i < var_count; i++) 
         {

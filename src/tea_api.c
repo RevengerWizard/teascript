@@ -349,7 +349,10 @@ static void set_module(TeaState* T, const TeaModule* m)
 
 TEA_API void tea_create_module(TeaState* T, const char* name, const TeaModule* module)
 {
-    tea_vm_push(T, OBJECT_VAL(tea_obj_new_module(T, teaO_new_string(T, name))));
+    TeaObjectModule* mod = tea_obj_new_module(T, teaO_new_string(T, name));
+    mod->path = teaO_new_string(T, name);
+
+    tea_vm_push(T, OBJECT_VAL(mod));
     if(module != NULL)
     {
         set_module(T, module);

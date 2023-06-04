@@ -1660,7 +1660,7 @@ void tea_vm_run(TeaState* T)
                 DROP(1);
                 DISPATCH();
             }
-            CASE_CODE(IMPORT):
+            CASE_CODE(IMPORT_STRING):
             {
                 TeaObjectString* file_name = READ_STRING();
                 TeaValue module_value;
@@ -1703,36 +1703,7 @@ void tea_vm_run(TeaState* T)
 
                 DISPATCH();
             }
-            CASE_CODE(IMPORT_VARIABLE):
-            {
-                PUSH(OBJECT_VAL(T->last_module));
-                DISPATCH();
-            }
-            CASE_CODE(IMPORT_FROM):
-            {
-                int var_count = READ_BYTE();
-
-                for(int i = 0; i < var_count; i++) 
-                {
-                    TeaValue module_variable;
-                    TeaObjectString* variable = READ_STRING();
-
-                    if(!tea_table_get(&T->last_module->values, variable, &module_variable)) 
-                    {
-                        RUNTIME_ERROR("%s can't be found in module %s", variable->chars, T->last_module->name->chars);
-                    }
-
-                    PUSH(module_variable);
-                }
-
-                DISPATCH();
-            }
-            CASE_CODE(IMPORT_END):
-            {
-                T->last_module = ci->closure->function->module;
-                DISPATCH();
-            }
-            CASE_CODE(IMPORT_NATIVE):
+            CASE_CODE(IMPORT_NAME):
             {
                 TeaObjectString* name = READ_STRING();
 
@@ -1754,6 +1725,7 @@ void tea_vm_run(TeaState* T)
                 tea_import_native_module(T, index);
                 TeaValue module = T->top[-1];
                 //printf("::: MOD %s\n", tea_value_type(module));
+                T->last_module = AS_MODULE(module);
                 
                 if(IS_CLOSURE(module)) 
                 {
@@ -1767,32 +1739,33 @@ void tea_vm_run(TeaState* T)
 
                 DISPATCH();
             }
-            CASE_CODE(IMPORT_NATIVE_VARIABLE):
+            CASE_CODE(IMPORT_FROM):
             {
-                TeaObjectString* file_name = READ_STRING();
                 int var_count = READ_BYTE();
-
-                TeaObjectModule* module;
-
-                TeaValue module_val;
-                if(tea_table_get(&T->modules, file_name, &module_val)) 
-                {
-                    module = AS_MODULE(module_val);
-                } 
 
                 for(int i = 0; i < var_count; i++) 
                 {
+                    TeaValue module_variable;
                     TeaObjectString* variable = READ_STRING();
 
-                    TeaValue module_variable;
-                    if(!tea_table_get(&module->values, variable, &module_variable)) 
+                    if(!tea_table_get(&T->last_module->values, variable, &module_variable)) 
                     {
-                        RUNTIME_ERROR("%s can't be found in module %s", variable->chars, module->name->chars);
+                        RUNTIME_ERROR("%s can't be found in module %s", variable->chars, T->last_module->name->chars);
                     }
 
                     PUSH(module_variable);
                 }
 
+                DISPATCH();
+            }
+            CASE_CODE(IMPORT_VARIABLE):
+            {
+                PUSH(OBJECT_VAL(T->last_module));
+                DISPATCH();
+            }
+            CASE_CODE(IMPORT_END):
+            {
+                T->last_module = ci->closure->function->module;
                 DISPATCH();
             }
             CASE_CODE(END):
