@@ -125,7 +125,7 @@ TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, c
     tea_vm_pop(T, 1);
 
     tea_vm_push(T, OBJECT_VAL(module));
-    module->path = teaZ_get_directory(T, (char*)module_name);
+    module->path = tea_util_get_directory(T, (char*)module_name);
     tea_vm_pop(T, 1);
     
     int status = teaD_protected_compiler(T, module, source);

@@ -15,7 +15,7 @@
 #include "tea_state.h"
 #include "tea_memory.h"
 
-char* teaZ_read_file(TeaState* T, const char* path) 
+char* tea_util_read_file(TeaState* T, const char* path) 
 {
     FILE* file = fopen(path, "rb");
     if(file == NULL) 
@@ -43,7 +43,7 @@ char* teaZ_read_file(TeaState* T, const char* path)
     return buffer;
 }
 
-TeaObjectString* teaZ_dirname(TeaState* T, char* path, int len) 
+TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len) 
 {
     if(!len) 
     {
@@ -86,7 +86,7 @@ TeaObjectString* teaZ_dirname(TeaState* T, char* path, int len)
     return tea_string_copy(T, path, len);
 }
 
-bool teaZ_resolve_path(char* directory, char* path, char* ret) 
+bool tea_util_resolve_path(char* directory, char* path, char* ret) 
 {
     char buf[PATH_MAX];
     if(*path == DIR_SEPARATOR)
@@ -110,14 +110,14 @@ bool teaZ_resolve_path(char* directory, char* path, char* ret)
     return true;
 }
 
-TeaObjectString* teaZ_get_directory(TeaState* T, char* source) 
+TeaObjectString* tea_util_get_directory(TeaState* T, char* source) 
 {
     char res[PATH_MAX];
-    if(!teaZ_resolve_path(".", source, res)) 
+    if(!tea_util_resolve_path(".", source, res)) 
     {
         tea_vm_runtime_error(T, "Unable to resolve path '%s'", source);
         exit(1);
     }
 
-    return teaZ_dirname(T, res, strlen(res));
+    return tea_util_dirname(T, res, strlen(res));
 }

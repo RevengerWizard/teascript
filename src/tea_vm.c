@@ -1667,7 +1667,7 @@ void tea_vm_run(TeaState* T)
                 TeaValue module_value;
 
                 char path[PATH_MAX];
-                if(!teaZ_resolve_path(ci->closure->function->module->path->chars, file_name->chars, path))
+                if(!tea_util_resolve_path(ci->closure->function->module->path->chars, file_name->chars, path))
                 {
                     RUNTIME_ERROR("Could not open file \"%s\"", file_name->chars);
                 }
@@ -1681,7 +1681,7 @@ void tea_vm_run(TeaState* T)
                     DISPATCH();
                 }
 
-                char* source = teaZ_read_file(T, path);
+                char* source = tea_util_read_file(T, path);
 
                 if(source == NULL) 
                 {
@@ -1689,7 +1689,7 @@ void tea_vm_run(TeaState* T)
                 }
 
                 TeaObjectModule* module = tea_obj_new_module(T, path_obj);
-                module->path = teaZ_dirname(T, path, strlen(path));
+                module->path = tea_util_dirname(T, path, strlen(path));
                 T->last_module = module;
 
                 int status = teaD_protected_compiler(T, module, source);
