@@ -2004,7 +2004,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_NEGATE:
         case OP_CLOSE_UPVALUE:
         case OP_RETURN:
-        case OP_IMPORT_VARIABLE:
+        case OP_IMPORT_ALIAS:
         case OP_IMPORT_END:
         case OP_END:
         case OP_BAND:
@@ -2042,6 +2042,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_MAP:
         case OP_MULTI_CASE:
             return 1;
+        case OP_IMPORT_VARIABLE:
         case OP_UNPACK_REST_LIST:
         case OP_DEFINE_OPTIONAL:
         case OP_COMPARE_JUMP:
@@ -2061,11 +2062,6 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
 
             // There is one byte for the constant, then two for each upvalue
             return 1 + (loaded_fn->upvalue_count * 2);
-        }
-        case OP_IMPORT_FROM: 
-        {
-            // 1 + amount of variables imported
-            return 1 + code[ip + 1];
         }
     }
 
@@ -2393,7 +2389,7 @@ static void import_statement(TeaCompiler* compiler)
         if(match(compiler, TOKEN_AS)) 
         {
             uint8_t import_name = parse_variable(compiler, "Expect import alias");
-            emit_op(compiler, OP_IMPORT_VARIABLE);
+            emit_op(compiler, OP_IMPORT_ALIAS);
             define_variable(compiler, import_name, false);
         }
 
@@ -2441,51 +2437,6 @@ static void from_import_statement(TeaCompiler* compiler)
         consume(compiler, TOKEN_IMPORT, "Expect 'import' after import path");
         emit_argued(compiler, OP_IMPORT_STRING, import_constant);
         emit_op(compiler, OP_POP);
-
-        uint8_t variables[255];
-        TeaToken tokens[255];
-        int var_count = 0;
-
-        do 
-        {
-            consume(compiler, TOKEN_NAME, "Expect variable name");
-            tokens[var_count] = compiler->parser->previous;
-            variables[var_count] = identifier_constant(compiler, &compiler->parser->previous);
-            var_count++;
-
-            if(var_count > 255) 
-            {
-                error(compiler, "Cannot have more than 255 variables");
-            }
-        } 
-        while(match(compiler, TOKEN_COMMA));
-
-        emit_argued(compiler, OP_IMPORT_FROM, var_count);
-
-        for(int i = 0; i < var_count; i++) 
-        {
-            emit_byte(compiler, variables[i]);
-        }
-
-        // This needs to be two separate loops as we need
-        // all the variables popped before defining
-        if(compiler->scope_depth == 0) 
-        {
-            for(int i = var_count - 1; i >= 0; i--) 
-            {
-                define_variable(compiler, variables[i], false);
-            }
-        } 
-        else 
-        {
-            for(int i = 0; i < var_count; i++) 
-            {
-                declare_variable(compiler, &tokens[i]);
-                define_variable(compiler, 0, false);
-            }
-        }
-
-        emit_op(compiler, OP_IMPORT_END);
     }
     else
     {
@@ -2494,52 +2445,40 @@ static void from_import_statement(TeaCompiler* compiler)
 
         consume(compiler, TOKEN_IMPORT, "Expect 'import' after identifier");
 
-        uint8_t variables[255];
-        TeaToken tokens[255];
-        int var_count = 0;
-
-        do 
-        {
-            consume(compiler, TOKEN_NAME, "Expect variable name");
-            tokens[var_count] = compiler->parser->previous;
-            variables[var_count] = identifier_constant(compiler, &compiler->parser->previous);
-            var_count++;
-
-            if(var_count > 255) 
-            {
-                error(compiler, "Cannot have more than 255 variables");
-            }
-        } 
-        while(match(compiler, TOKEN_COMMA));
-
         emit_argued(compiler, OP_IMPORT_NAME, import_name);
         emit_op(compiler, OP_POP);
-
-        emit_argued(compiler, OP_IMPORT_FROM, var_count);
-
-        for(int i = 0; i < var_count; i++) 
-        {
-            emit_byte(compiler, variables[i]);
-        }
-
-        if(compiler->scope_depth == 0) 
-        {
-            for(int i = var_count - 1; i >= 0; i--) 
-            {
-                define_variable(compiler, variables[i], false);
-            }
-        } 
-        else 
-        {
-            for(int i = 0; i < var_count; i++) 
-            {
-                declare_variable(compiler, &tokens[i]);
-                define_variable(compiler, 0, false);
-            }
-        }
-
-        emit_op(compiler, OP_IMPORT_END);
     }
+
+    int var_count = 0;
+
+    do 
+    {
+        consume(compiler, TOKEN_NAME, "Expect variable name");
+        TeaToken var_token = compiler->parser->previous;
+        uint8_t var_constant = identifier_constant(compiler, &var_token);
+        
+        uint8_t slot;
+        if(match(compiler, TOKEN_AS))
+        {
+            slot = parse_variable(compiler, "Expect variable name");
+        }
+        else
+        {
+            slot = parse_variable_at(compiler, var_token);
+        }
+
+        emit_argued(compiler, OP_IMPORT_VARIABLE, var_constant);
+        define_variable(compiler, slot, false);
+
+        var_count++;
+        if(var_count > 255) 
+        {
+            error(compiler, "Cannot have more than 255 variables");
+        }
+    } 
+    while(match(compiler, TOKEN_COMMA));
+
+    emit_op(compiler, OP_IMPORT_END);
 }
 
 static void while_statement(TeaCompiler* compiler)

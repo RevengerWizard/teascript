@@ -123,17 +123,6 @@ static int invoke_instruction(const char* name, TeaChunk* chunk, int offset)
     return offset + 3;
 }
 
-static int import_from_instruction(const char* name, TeaChunk* chunk, int offset)
-{
-    uint8_t constant = chunk->code[offset + 1];
-    uint8_t arg_count = chunk->code[offset + 2];
-    printf("%-16s %4d '", name, constant);
-    tea_debug_print_value(chunk->constants.values[constant]);
-    printf("'\n");
-
-    return offset + 1 + arg_count;
-}
-
 static int native_import_instruction(const char* name, TeaChunk* chunk, int offset)
 {
     uint8_t module = chunk->code[offset + 2];
@@ -142,17 +131,6 @@ static int native_import_instruction(const char* name, TeaChunk* chunk, int offs
     printf("'\n");
 
     return offset + 3;
-}
-
-static int native_from_import_instruction(const char* name, TeaChunk* chunk, int offset)
-{
-    uint8_t module = chunk->code[offset + 1];
-    uint8_t arg_count = chunk->code[offset + 2];
-    printf("%-16s '", name);
-    tea_debug_print_value(chunk->constants.values[module]);
-    printf("'\n");
-
-    return offset + 2 + arg_count;
 }
 
 static int simple_instruction(const char* name, int offset)
@@ -366,10 +344,10 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
             return constant_instruction("OP_IMPORT_STRING", chunk, offset);
         case OP_IMPORT_NAME:
             return native_import_instruction("OP_IMPORT_NAME", chunk, offset);
-        case OP_IMPORT_FROM:
-            return import_from_instruction("OP_IMPORT_FROM", chunk, offset);
         case OP_IMPORT_VARIABLE:
-            return simple_instruction("OP_IMPORT_VARIABLE", offset);
+            return constant_instruction("OP_IMPORT_VARIABLE", chunk, offset);
+        case OP_IMPORT_ALIAS:
+            return simple_instruction("OP_IMPORT_ALIAS", offset);
         case OP_IMPORT_END:
             return simple_instruction("OP_IMPORT_END", offset);
         case OP_END:

@@ -1740,26 +1740,20 @@ void tea_vm_run(TeaState* T)
 
                 DISPATCH();
             }
-            CASE_CODE(IMPORT_FROM):
+            CASE_CODE(IMPORT_VARIABLE):
             {
-                int var_count = READ_BYTE();
+                TeaObjectString* variable = READ_STRING();
 
-                for(int i = 0; i < var_count; i++) 
+                TeaValue module_variable;
+                if(!tea_table_get(&T->last_module->values, variable, &module_variable)) 
                 {
-                    TeaValue module_variable;
-                    TeaObjectString* variable = READ_STRING();
-
-                    if(!tea_table_get(&T->last_module->values, variable, &module_variable)) 
-                    {
-                        RUNTIME_ERROR("%s can't be found in module %s", variable->chars, T->last_module->name->chars);
-                    }
-
-                    PUSH(module_variable);
+                    RUNTIME_ERROR("%s can't be found in module %s", variable->chars, T->last_module->name->chars);
                 }
 
+                PUSH(module_variable);
                 DISPATCH();
             }
-            CASE_CODE(IMPORT_VARIABLE):
+            CASE_CODE(IMPORT_ALIAS):
             {
                 PUSH(OBJECT_VAL(T->last_module));
                 DISPATCH();
