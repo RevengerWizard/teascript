@@ -60,10 +60,6 @@ depend:
 # Convenience targets for popular platforms
 ALL = all
 
-dev:
-	$(MAKE) $(ALL_O)
-	$(MAKE) $(TEA_T)
-
 none:
 	@echo "Please choose a platform:"
 	@echo "   $(PLATS)"
