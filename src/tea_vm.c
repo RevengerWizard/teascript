@@ -24,35 +24,6 @@
 #include "tea_import.h"
 #include "tea_do.h"
 
-void tea_vm_runtime_error(TeaState* T, const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
-    fputs("\n", stderr);
-
-    for(TeaCallInfo* ci = T->ci - 1; ci >= T->base_ci; ci--)
-    {
-        // Skip stack trace for C functions
-        if(ci->closure == NULL) continue;
-
-        TeaObjectFunction* function = ci->closure->function;
-        size_t instruction = ci->ip - function->chunk.code - 1;
-        fprintf(stderr, "[line %d] in ", tea_chunk_getline(&function->chunk, instruction));
-        if(function->name == NULL)
-        {
-            fprintf(stderr, "script\n");
-        }
-        else
-        {
-            fprintf(stderr, "%s()\n", function->name->chars);
-        }
-    }
-
-    tea_do_throw(T, TEA_RUNTIME_ERROR);
-}
-
 static void invoke_from_class(TeaState* T, TeaObjectClass* klass, TeaObjectString* name, int arg_count)
 {
     TeaValue method;
@@ -721,6 +692,35 @@ static void repeat(TeaState* T)
     TeaObjectString* result = tea_string_take(T, chars, strlen(chars));
     tea_vm_pop(T, 2);
     tea_vm_push(T, OBJECT_VAL(result));
+}
+
+void tea_vm_runtime_error(TeaState* T, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputs("\n", stderr);
+
+    for(TeaCallInfo* ci = T->ci - 1; ci >= T->base_ci; ci--)
+    {
+        // Skip stack trace for C functions
+        if(ci->closure == NULL) continue;
+
+        TeaObjectFunction* function = ci->closure->function;
+        size_t instruction = ci->ip - function->chunk.code - 1;
+        fprintf(stderr, "[line %d] in ", tea_chunk_getline(&function->chunk, instruction));
+        if(function->name == NULL)
+        {
+            fprintf(stderr, "script\n");
+        }
+        else
+        {
+            fprintf(stderr, "%s()\n", function->name->chars);
+        }
+    }
+
+    tea_do_throw(T, TEA_RUNTIME_ERROR);
 }
 
 void tea_vm_run(TeaState* T)
@@ -1664,7 +1664,6 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(IMPORT_STRING):
             {
                 TeaObjectString* file_name = READ_STRING();
-                TeaValue module_value;
 
                 char path[PATH_MAX];
                 if(!tea_util_resolve_path(ci->closure->function->module->path->chars, file_name->chars, path))
@@ -1674,6 +1673,7 @@ void tea_vm_run(TeaState* T)
                 TeaObjectString* path_obj = tea_string_new(T, path);
 
                 // If we have imported this file already, skip
+                TeaValue module_value;
                 if(tea_table_get(&T->modules, path_obj, &module_value)) 
                 {
                     T->last_module = AS_MODULE(module_value);
@@ -1708,8 +1708,8 @@ void tea_vm_run(TeaState* T)
             {
                 TeaObjectString* name = READ_STRING();
 
-                TeaValue module_val;
                 // If the module is already imported, skip
+                TeaValue module_val;
                 if(tea_table_get(&T->modules, name, &module_val))
                 {
                     T->last_module = AS_MODULE(module_val);
@@ -1727,17 +1727,6 @@ void tea_vm_run(TeaState* T)
                 TeaValue module = T->top[-1];
                 //printf("::: MOD %s\n", tea_value_type(module));
                 T->last_module = AS_MODULE(module);
-                
-                if(IS_CLOSURE(module)) 
-                {
-                    STORE_FRAME;
-                    teaD_precall(T, module, 0);
-                    READ_FRAME();
-
-                    tea_table_get(&T->modules, name, &module);
-                    T->last_module = AS_MODULE(module);
-                }
-
                 DISPATCH();
             }
             CASE_CODE(IMPORT_VARIABLE):
