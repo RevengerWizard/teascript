@@ -3,6 +3,10 @@
 PLAT = none
 
 CC = gcc
+
+CDEBUG =
+#CDEBUG = -O0 -g
+
 CFLAGS = -O2 $(MYCFLAGS)
 AR = ar rcu
 RANLIB = ranlib
@@ -16,10 +20,11 @@ SYSLIBS =
 MYCFLAGS =
 MYLDFLAGS =
 MYLIBS =
+MYOBJS =
 
 # end of user settings
 
-PLATS = mingw
+PLATS = generic linux macosx mingw
 
 TEA_A = libtea.a
 CORE_O = tea_api.o tea_chunk.o tea_compiler.o tea_core.o tea_debug.o \
@@ -28,6 +33,7 @@ CORE_O = tea_api.o tea_chunk.o tea_compiler.o tea_core.o tea_debug.o \
 LIB_O = tea_fileclass.o tea_listclass.o tea_mapclass.o tea_rangeclass.o \
     tea_stringclass.o tea_iolib.o tea_oslib.o tea_randomlib.o tea_mathlib.o \
     tea_syslib.o tea_timelib.o
+BASE_O = $(CORE_O) $(LIB_O) $(MYOBJS)
 
 TEA_T = tea
 TEA_O = tea.o
@@ -44,8 +50,8 @@ o: $(ALL_O)
 
 a: $(ALL_A)
 
-$(TEA_A): $(CORE_O) $(LIB_O)
-	$(AR) $@ $(CORE_O) $(LIB_O)
+$(TEA_A): $(BASE_O)
+	$(AR) $@ $(BASE_O)
 	$(RANLIB) $@
 
 $(TEA_T): $(TEA_O) $(TEA_A)
@@ -64,13 +70,20 @@ none:
 	@echo "Please choose a platform:"
 	@echo "   $(PLATS)"
 
+generic: $(ALL)
+
+linux:
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX" SYSLIBS="-Wl,-E -ldl -lreadline"
+
+macosx:
+	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_MACOSX" SYSLIBS="-lreadline" CC=cc
+
 mingw:
 	$(MAKE) "TEA_A=tea.dll" "TEA_T=tea.exe" \
 	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
 	"MYCFLAGS=-DTEA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" tea.exe
-	$(MAKE) a
 
-.PHONY: all $(PLATS) default o a clean depend echo none
+.PHONY: all $(PLATS) default o a clean depend none
 
 # do not modify
 

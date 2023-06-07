@@ -2,15 +2,10 @@
 
 PLAT = none
 
-PLATS = mingw
-
-all:	$(PLAT)
+PLATS = generic linux macosx mingw
 
 $(PLATS) clean:
 	$(MAKE) -C src $@
-
-%:
-	$(MAKE) -C src $(MAKECMDGOALS)
 
 none:
 	@echo "Please do"
@@ -18,4 +13,4 @@ none:
 	@echo "where PLATFORM is one of these:"
 	@echo "   $(PLATS)"
 
-.PHONY: all $(PLATS)
+.PHONY: $(PLATS) clean
