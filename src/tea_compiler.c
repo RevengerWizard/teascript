@@ -13,6 +13,7 @@
 #include "tea_def.h"
 #include "tea_state.h"
 #include "tea_compiler.h"
+#include "tea_func.h"
 #include "tea_string.h"
 #include "tea_gc.h"
 #include "tea_scanner.h"
@@ -247,7 +248,7 @@ static void init_compiler(TeaParser* parser, TeaCompiler* compiler, TeaCompiler*
 
     parser->T->compiler = compiler;
 
-    compiler->function = tea_obj_new_function(parser->T, type, parser->module, compiler->slot_count);
+    compiler->function = tea_func_new_function(parser->T, type, parser->module, compiler->slot_count);
 
     if(type != TYPE_SCRIPT)
     {

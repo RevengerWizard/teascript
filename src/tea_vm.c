@@ -15,11 +15,11 @@
 #include "tea_compiler.h"
 #include "tea_debug.h"
 #include "tea_object.h"
+#include "tea_func.h"
 #include "tea_map.h"
 #include "tea_string.h"
 #include "tea_memory.h"
 #include "tea_vm.h"
-#include "tea_util.h"
 #include "tea_utf.h"
 #include "tea_import.h"
 #include "tea_do.h"
@@ -518,7 +518,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 TeaValue value;
                 if(tea_table_get(&type->methods, name, &value)) 
                 {
-                    if(IS_NATIVE_PROPERTY(value))
+                    if(IS_NATIVE(value) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
                     {
                         teaD_precall(T, value, 0);
                     }
@@ -580,47 +580,6 @@ static void set_property(TeaState* T, TeaObjectString* name, TeaValue receiver, 
     }
 
     tea_vm_runtime_error(T, "Cannot set property on type %s", tea_value_type(receiver));
-}
-
-static TeaObjectUpvalue* capture_upvalue(TeaState* T, TeaValue* local)
-{
-    TeaObjectUpvalue* prev_upvalue = NULL;
-    TeaObjectUpvalue* upvalue = T->open_upvalues;
-    while(upvalue != NULL && upvalue->location > local)
-    {
-        prev_upvalue = upvalue;
-        upvalue = upvalue->next;
-    }
-
-    if(upvalue != NULL && upvalue->location == local)
-    {
-        return upvalue;
-    }
-
-    TeaObjectUpvalue* created_upvalue = tea_obj_new_upvalue(T, local);
-    created_upvalue->next = upvalue;
-
-    if(prev_upvalue == NULL)
-    {
-        T->open_upvalues = created_upvalue;
-    }
-    else
-    {
-        prev_upvalue->next = created_upvalue;
-    }
-
-    return created_upvalue;
-}
-
-static void close_upvalues(TeaState* T, TeaValue* last)
-{
-    while(T->open_upvalues != NULL && T->open_upvalues->location >= last)
-    {
-        TeaObjectUpvalue* upvalue = T->open_upvalues;
-        upvalue->closed = *upvalue->location;
-        upvalue->location = &upvalue->closed;
-        T->open_upvalues = upvalue->next;
-    }
 }
 
 static void define_method(TeaState* T, TeaObjectString* name)
@@ -1558,7 +1517,7 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(CLOSURE):
             {
                 TeaObjectFunction* function = AS_FUNCTION(READ_CONSTANT());
-                TeaObjectClosure* closure = tea_obj_new_closure(T, function);
+                TeaObjectClosure* closure = tea_func_new_closure(T, function);
                 PUSH(OBJECT_VAL(closure));
                 
                 for(int i = 0; i < closure->upvalue_count; i++)
@@ -1567,7 +1526,7 @@ void tea_vm_run(TeaState* T)
                     uint8_t index = READ_BYTE();
                     if(is_local)
                     {
-                        closure->upvalues[i] = capture_upvalue(T, base + index);
+                        closure->upvalues[i] = tea_func_capture_upvalue(T, base + index);
                     }
                     else
                     {
@@ -1578,14 +1537,14 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(CLOSE_UPVALUE):
             {
-                close_upvalues(T, T->top - 1);
+                tea_func_close_upvalues(T, T->top - 1);
                 DROP(1);
                 DISPATCH();
             }
             CASE_CODE(RETURN):
             {
                 TeaValue result = POP();
-                close_upvalues(T, base);
+                tea_func_close_upvalues(T, base);
                 STORE_FRAME;
                 T->ci--;
                 if(T->ci == T->base_ci)
@@ -1663,70 +1622,18 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(IMPORT_STRING):
             {
-                TeaObjectString* file_name = READ_STRING();
-
-                char path[PATH_MAX];
-                if(!tea_util_resolve_path(ci->closure->function->module->path->chars, file_name->chars, path))
-                {
-                    RUNTIME_ERROR("Could not open file \"%s\"", file_name->chars);
-                }
-                TeaObjectString* path_obj = tea_string_new(T, path);
-
-                // If we have imported this file already, skip
-                TeaValue module_value;
-                if(tea_table_get(&T->modules, path_obj, &module_value)) 
-                {
-                    T->last_module = AS_MODULE(module_value);
-                    PUSH(NULL_VAL);
-                    DISPATCH();
-                }
-
-                char* source = tea_util_read_file(T, path);
-
-                if(source == NULL) 
-                {
-                    RUNTIME_ERROR("Could not open file \"%s\"", file_name->chars);
-                }
-
-                TeaObjectModule* module = tea_obj_new_module(T, path_obj);
-                module->path = tea_util_dirname(T, path, strlen(path));
-                T->last_module = module;
-
-                int status = teaD_protected_compiler(T, module, source);
-                TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
-
-                if(status != 0)
-                    tea_do_throw(T, TEA_COMPILE_ERROR);
-
+                TeaObjectString* path_name = READ_STRING();
                 STORE_FRAME;
-                teaD_precall(T, T->top[-1], 0);
+                tea_import_string(T, ci->closure->function->module->path, path_name);
                 READ_FRAME();
-
                 DISPATCH();
             }
             CASE_CODE(IMPORT_NAME):
             {
                 TeaObjectString* name = READ_STRING();
-
-                // If the module is already imported, skip
-                TeaValue module_val;
-                if(tea_table_get(&T->modules, name, &module_val))
-                {
-                    T->last_module = AS_MODULE(module_val);
-                    PUSH(module_val);
-                    DISPATCH();
-                }
-
-                int index = tea_find_native_module(name->chars, name->length);
-                if(index == -1) 
-                {
-                    RUNTIME_ERROR("Unknown module");
-                }
-
-                tea_import_native_module(T, index);
-                TeaValue module = T->top[-1];
-                //printf("::: MOD %s\n", tea_value_type(module));
-                T->last_module = AS_MODULE(module);
+                STORE_FRAME;
+                tea_import_name(T, name);
+                READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(IMPORT_VARIABLE):

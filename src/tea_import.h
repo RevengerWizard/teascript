@@ -6,7 +6,8 @@
 #ifndef TEA_IMPORT_H
 #define TEA_IMPORT_H
 
-#include "tea.h"
+#include "tea_state.h"
+#include "tea_object.h"
 
 #define TEA_MATH_MODULE "math"
 void tea_import_math(TeaState* T);
@@ -28,5 +29,7 @@ void tea_import_random(TeaState* T);
 
 void tea_import_native_module(TeaState* T, int index);
 int tea_find_native_module(char* name, int length);
+void tea_import_string(TeaState* T, TeaObjectString* mod, TeaObjectString* path_name);
+void tea_import_name(TeaState* T, TeaObjectString* name);
 
 #endif

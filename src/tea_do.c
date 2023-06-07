@@ -11,6 +11,7 @@
 
 #include "tea_def.h"
 #include "tea_do.h"
+#include "tea_func.h"
 #include "tea_vm.h"
 #include "tea_compiler.h"
 #include "tea_debug.h"
@@ -308,7 +309,7 @@ static void f_compiler(TeaState* T, void* ud)
     c = (struct PCompiler*)(ud);
 
     function = tea_compile(T, c->module, c->source);
-    closure = tea_obj_new_closure(T, function);
+    closure = tea_func_new_closure(T, function);
     tea_vm_push(T, OBJECT_VAL(closure));
 }
 

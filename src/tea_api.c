@@ -10,6 +10,7 @@
 
 #include "tea_state.h"
 #include "tea_string.h"
+#include "tea_func.h"
 #include "tea_map.h"
 #include "tea_vm.h"
 #include "tea_do.h"
@@ -296,7 +297,7 @@ TEA_API void tea_new_map(TeaState* T)
 
 TEA_API void tea_push_cfunction(TeaState* T, TeaCFunction fn)
 {
-    TeaObjectNative* native = tea_obj_new_native(T, NATIVE_FUNCTION, fn);
+    TeaObjectNative* native = tea_func_new_native(T, NATIVE_FUNCTION, fn);
     tea_vm_push(T, OBJECT_VAL(native));
 }
 
@@ -312,11 +313,11 @@ static void set_class(TeaState* T, const TeaClass* k)
         {
             if(strcmp(k->type, "method") == 0)
             {
-                tea_vm_push(T, OBJECT_VAL(tea_obj_new_native(T, NATIVE_METHOD, k->fn)));
+                tea_vm_push(T, OBJECT_VAL(tea_func_new_native(T, NATIVE_METHOD, k->fn)));
             }
             else if(strcmp(k->type, "property") == 0)
             {
-                tea_vm_push(T, OBJECT_VAL(tea_obj_new_native(T, NATIVE_PROPERTY, k->fn)));
+                tea_vm_push(T, OBJECT_VAL(tea_func_new_native(T, NATIVE_PROPERTY, k->fn)));
             }
         }
         tea_set_key(T, 0, k->name);

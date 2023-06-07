@@ -44,10 +44,6 @@
 #define AS_STRING(value) ((TeaObjectString*)AS_OBJECT(value))
 #define AS_CSTRING(value) (((TeaObjectString*)AS_OBJECT(value))->chars)
 
-#define IS_NATIVE_FUNCTION(value) ((IS_NATIVE(value)) && AS_NATIVE(value)->type == NATIVE_FUNCTION)
-#define IS_NATIVE_METHOD(value) ((IS_NATIVE(value)) && AS_NATIVE(value)->type == NATIVE_METHOD)
-#define IS_NATIVE_PROPERTY(value) ((IS_NATIVE(value)) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
-
 #define ALLOCATE_OBJECT(T, type, object_type) (type*)tea_obj_allocate(T, sizeof(type), object_type)
 
 typedef enum
@@ -210,11 +206,6 @@ TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
 TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
 TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass);
 TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
-
-TeaObjectNative* tea_obj_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn);
-TeaObjectFunction* tea_obj_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots);
-TeaObjectClosure* tea_obj_new_closure(TeaState* T, TeaObjectFunction* function);
-TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot);
 
 TeaObjectList* tea_obj_new_list(TeaState* T);
 

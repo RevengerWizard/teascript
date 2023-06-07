@@ -35,33 +35,42 @@ TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type)
     return object;
 }
 
-TeaObjectNative* tea_obj_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn)
+TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method)
 {
-    TeaObjectNative* native = ALLOCATE_OBJECT(T, TeaObjectNative, OBJ_NATIVE);
-    native->type = type;
-    native->fn = fn;
+    TeaObjectBoundMethod* bound = ALLOCATE_OBJECT(T, TeaObjectBoundMethod, OBJ_BOUND_METHOD);
+    bound->receiver = receiver;
+    bound->method = method;
 
-    return native;
+    return bound;
 }
 
-TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step)
+TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass)
 {
-    TeaObjectRange* range = ALLOCATE_OBJECT(T, TeaObjectRange, OBJ_RANGE);
-    range->start = start;
-    range->end = end;
-    range->step = step;
+    TeaObjectInstance* instance = ALLOCATE_OBJECT(T, TeaObjectInstance, OBJ_INSTANCE);
+    instance->klass = klass;
+    tea_table_init(&instance->fields);
 
-    return range;
+    return instance;
 }
 
-TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type)
+TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass)
 {
-    TeaObjectFile* file = ALLOCATE_OBJECT(T, TeaObjectFile, OBJ_FILE);
-    file->path = path;
-    file->type = type;
-    file->is_open = true;
+    TeaObjectClass* klass = ALLOCATE_OBJECT(T, TeaObjectClass, OBJ_CLASS);
+    klass->name = name;
+    klass->super = superclass;
+    klass->constructor = NULL_VAL;
+    tea_table_init(&klass->statics);
+    tea_table_init(&klass->methods);
 
-    return file;
+    return klass;
+}
+
+TeaObjectList* tea_obj_new_list(TeaState* T)
+{
+    TeaObjectList* list = ALLOCATE_OBJECT(T, TeaObjectList, OBJ_LIST);
+    tea_init_value_array(&list->items);
+
+    return list;
 }
 
 TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name)
@@ -84,84 +93,24 @@ TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name)
     return module;
 }
 
-TeaObjectList* tea_obj_new_list(TeaState* T)
+TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type)
 {
-    TeaObjectList* list = ALLOCATE_OBJECT(T, TeaObjectList, OBJ_LIST);
-    tea_init_value_array(&list->items);
+    TeaObjectFile* file = ALLOCATE_OBJECT(T, TeaObjectFile, OBJ_FILE);
+    file->path = path;
+    file->type = type;
+    file->is_open = true;
 
-    return list;
+    return file;
 }
 
-TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method)
+TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step)
 {
-    TeaObjectBoundMethod* bound = ALLOCATE_OBJECT(T, TeaObjectBoundMethod, OBJ_BOUND_METHOD);
-    bound->receiver = receiver;
-    bound->method = method;
+    TeaObjectRange* range = ALLOCATE_OBJECT(T, TeaObjectRange, OBJ_RANGE);
+    range->start = start;
+    range->end = end;
+    range->step = step;
 
-    return bound;
-}
-
-TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass)
-{
-    TeaObjectClass* klass = ALLOCATE_OBJECT(T, TeaObjectClass, OBJ_CLASS);
-    klass->name = name;
-    klass->super = superclass;
-    klass->constructor = NULL_VAL;
-    tea_table_init(&klass->statics);
-    tea_table_init(&klass->methods);
-
-    return klass;
-}
-
-TeaObjectClosure* tea_obj_new_closure(TeaState* T, TeaObjectFunction* function)
-{
-    TeaObjectUpvalue** upvalues = TEA_ALLOCATE(T, TeaObjectUpvalue*, function->upvalue_count);
-    for(int i = 0; i < function->upvalue_count; i++)
-    {
-        upvalues[i] = NULL;
-    }
-
-    TeaObjectClosure* closure = ALLOCATE_OBJECT(T, TeaObjectClosure, OBJ_CLOSURE);
-    closure->function = function;
-    closure->upvalues = upvalues;
-    closure->upvalue_count = function->upvalue_count;
-
-    return closure;
-}
-
-TeaObjectFunction* tea_obj_new_function(TeaState* T, TeaFunctionType type, TeaObjectModule* module, int max_slots)
-{
-    TeaObjectFunction* function = ALLOCATE_OBJECT(T, TeaObjectFunction, OBJ_FUNCTION);
-    function->arity = 0;
-    function->arity_optional = 0;
-    function->variadic = 0;
-    function->upvalue_count = 0;
-    function->max_slots = max_slots;
-    function->type = type;
-    function->name = NULL;
-    function->module = module;
-    tea_chunk_init(&function->chunk);
-
-    return function;
-}
-
-TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass)
-{
-    TeaObjectInstance* instance = ALLOCATE_OBJECT(T, TeaObjectInstance, OBJ_INSTANCE);
-    instance->klass = klass;
-    tea_table_init(&instance->fields);
-
-    return instance;
-}
-
-TeaObjectUpvalue* tea_obj_new_upvalue(TeaState* T, TeaValue* slot)
-{
-    TeaObjectUpvalue* upvalue = ALLOCATE_OBJECT(T, TeaObjectUpvalue, OBJ_UPVALUE);
-    upvalue->closed = NULL_VAL;
-    upvalue->location = slot;
-    upvalue->next = NULL;
-
-    return upvalue;
+    return range;
 }
 
 static TeaObjectString* function_tostring(TeaState* T, TeaObjectFunction* function)
