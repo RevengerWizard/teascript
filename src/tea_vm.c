@@ -1101,40 +1101,6 @@ void tea_vm_run(TeaState* T)
 
                 DISPATCH();
             }
-            CASE_CODE(ENUM):
-            {
-                uint8_t item_count = READ_BYTE();
-                TeaObjectMap* enum_ = tea_map_new(T);
-
-                PUSH(OBJECT_VAL(enum_));
-
-                double counter = 0;
-
-                for(int i = item_count * 2; i > 0; i -= 2)
-                {
-                    TeaValue name = PEEK(i);
-                    TeaValue value = PEEK(i - 1);
-
-                    if(IS_NULL(value))
-                    {
-                        value = NUMBER_VAL(counter);
-                    }
-                    else if(IS_NUMBER(value))
-                    {
-                        double num = AS_NUMBER(value);
-                        counter = num;
-                    }
-
-                    tea_map_set(T, enum_, name, value);
-
-                    counter++;
-                }
-
-                T->top -= item_count * 2 + 1;
-
-                PUSH(OBJECT_VAL(enum_));
-                DISPATCH();
-            }
             CASE_CODE(MAP):
             {
                 uint8_t item_count = READ_BYTE();

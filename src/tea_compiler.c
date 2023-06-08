@@ -1915,51 +1915,6 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
     match(compiler, TOKEN_SEMICOLON);
 }
 
-static void enum_declaration(TeaCompiler* compiler)
-{
-    uint8_t global = parse_variable(compiler, "Expect enum name");
-
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' after enum declaration");
-    int item_count = 0;
-    if(!check(compiler, TOKEN_RIGHT_BRACE))
-    {
-        do
-        {
-            if(check(compiler, TOKEN_RIGHT_BRACE))
-            {
-                // Traling comma case
-                break;
-            }
-
-            consume(compiler, TOKEN_NAME, "Expect enum property");
-            emit_constant(compiler, OBJECT_VAL(tea_string_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length)));
-
-            if(match(compiler, TOKEN_EQUAL))
-            {
-                expression(compiler);
-            }
-            else
-            {
-                null(compiler, false);
-            }
-
-            if(item_count == UINT8_COUNT)
-            {
-                error(compiler, "Cannot have more than 256 items in an enum");
-            }
-            item_count++;
-        }
-        while(match(compiler, TOKEN_COMMA));
-    }
-
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect closing '}'");
-
-    emit_argued(compiler, OP_ENUM, item_count);
-
-    define_variable(compiler, global, false);
-    match(compiler, TOKEN_SEMICOLON);
-}
-
 static void expression_statement(TeaCompiler* compiler)
 {
     expression(compiler);
@@ -2039,7 +1994,6 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_IMPORT_NAME:
         case OP_LIST:
         case OP_UNPACK_LIST:
-        case OP_ENUM:
         case OP_MAP:
         case OP_MULTI_CASE:
             return 1;
@@ -2638,10 +2592,6 @@ static void declaration(TeaCompiler* compiler)
     else if(match(compiler, TOKEN_VAR))
     {
         var_declaration(compiler, false);
-    }
-    else if(match(compiler, TOKEN_ENUM))
-    {
-        enum_declaration(compiler);
     }
     else
     {
