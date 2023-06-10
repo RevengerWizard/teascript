@@ -66,7 +66,7 @@ static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name
     TeaObjectString* file = NULL;
     size_t l;
 
-    const char* exts[] = { ".tea" };
+    const char* exts[] = { ".tea", /* .tbc, .dll, .so, */ "/init.tea" };
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     for(int i = 0; i < n; i++) 
@@ -80,7 +80,6 @@ static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name
         {
             if(readable(path))
             {
-                //printf("PATH %s\n", path);
                 file = tea_string_copy(T, path, strlen(path));
                 TEA_FREE_ARRAY(T, char, filename, l + 1);
                 break;
