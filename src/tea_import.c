@@ -61,15 +61,9 @@ static bool readable(const char* filename)
     return false;
 }
 
-static TeaObjectString* resolve_filename(TeaState* T, char* module, char* path_name)
+static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name)
 {
-    char path[PATH_MAX];
-    if(!tea_util_resolve_path(module, path_name, path))
-    {
-        tea_vm_error(T, "Could not resolve path \"%s\"", path_name);
-    }
-
-    char* file = NULL;
+    TeaObjectString* file = NULL;
     size_t l;
 
     const char* exts[] = { ".tea" };
@@ -77,28 +71,34 @@ static TeaObjectString* resolve_filename(TeaState* T, char* module, char* path_n
 
     for(int i = 0; i < n; i++) 
     {
-        l = strlen(path) + strlen(exts[i]);
-        char* filename = TEA_ALLOCATE(T, char, l + 1); // path length + extension length + null terminator
-        sprintf(filename, "%s%s", path, exts[i]);
+        l = strlen(path_name) + strlen(exts[i]);
+        char* filename = TEA_ALLOCATE(T, char, l + 1);
+        sprintf(filename, "%s%s", path_name, exts[i]);
 
-        if(readable(filename))
+        char path[PATH_MAX];
+        if(tea_util_resolve_path(dir, filename, path))
         {
-            file = filename;
-            break;
+            if(readable(path))
+            {
+                //printf("PATH %s\n", path);
+                file = tea_string_copy(T, path, strlen(path));
+                TEA_FREE_ARRAY(T, char, filename, l + 1);
+                break;
+            }
         }
 
         TEA_FREE_ARRAY(T, char, filename, l + 1);
     }
 
     if(!file)
-        tea_vm_error(T, "File \"%s\" not found", path_name);
+        tea_vm_error(T, "Could not resolve path \"%s\"", path_name);
 
-    return tea_string_take(T, file, l);
+    return file;
 }
 
-void tea_import_relative(TeaState* T, TeaObjectString* mod, TeaObjectString* path_name)
+void tea_import_relative(TeaState* T, TeaObjectString* dir, TeaObjectString* path_name)
 {
-    TeaObjectString* path = resolve_filename(T, mod->chars, path_name->chars);
+    TeaObjectString* path = resolve_filename(T, dir->chars, path_name->chars);
 
     TeaValue v;
     if(tea_table_get(&T->modules, path, &v)) 

@@ -89,14 +89,8 @@ TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len)
 bool tea_util_resolve_path(char* directory, char* path, char* ret) 
 {
     char buf[PATH_MAX];
-    if(*path == DIR_SEPARATOR)
-    {
-        snprintf(buf, PATH_MAX, "%s", path);
-    }
-    else
-    {
-        snprintf(buf, PATH_MAX, "%s%c%s", directory, DIR_SEPARATOR, path);
-    }
+
+    snprintf(buf, PATH_MAX, "%s%c%s", directory, DIR_SEPARATOR, path);
 
 #ifdef _WIN32
     _fullpath(ret, buf, PATH_MAX);
