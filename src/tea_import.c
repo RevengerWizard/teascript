@@ -24,17 +24,17 @@ static const TeaReg modules[] = {
     { NULL, NULL }
 };
 
-void tea_import_native_module(TeaState* T, int index)
+static void call_native_module(TeaState* T, int index)
 {
     tea_push_cfunction(T, modules[index].fn);
     tea_call(T, 0);
 }
 
-int tea_find_native_module(char* name, int length)
+static int find_native_module(char* name, int length)
 {
     for(int i = 0; modules[i].name != NULL; i++) 
     {
-        if(strncmp(modules[i].name, name, length) == 0 && length == strlen(modules[i].name)) 
+        if(strncmp(modules[i].name, name, length) == 0) 
         {
             return i;
         }
@@ -43,33 +43,80 @@ int tea_find_native_module(char* name, int length)
     return -1;
 }
 
-void tea_import_string(TeaState* T, TeaObjectString* mod, TeaObjectString* path_name)
+static bool get_filename_ext(const char* filename, const char* ext) 
+{
+    const char* dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return false;
+    return (strcmp(dot, ext) == 0);
+}
+
+static bool readable(const char* filename)
+{
+    FILE* file = fopen(filename, "r");
+    if(file)
+    {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
+static TeaObjectString* resolve_filename(TeaState* T, char* module, char* path_name)
 {
     char path[PATH_MAX];
-    if(!tea_util_resolve_path(mod->chars, path_name->chars, path))
+    if(!tea_util_resolve_path(module, path_name, path))
     {
-        tea_vm_runtime_error(T, "Could not open file \"%s\"", path_name->chars);
+        tea_vm_error(T, "Could not resolve path \"%s\"", path_name);
     }
-    TeaObjectString* path_obj = tea_string_new(T, path);
 
-    // If we have imported this file already, skip
-    TeaValue module_value;
-    if(tea_table_get(&T->modules, path_obj, &module_value)) 
+    char* file = NULL;
+    size_t l;
+
+    const char* exts[] = { ".tea" };
+    const int n = sizeof(exts) / sizeof(exts[0]);
+
+    for(int i = 0; i < n; i++) 
     {
-        T->last_module = AS_MODULE(module_value);
+        l = strlen(path) + strlen(exts[i]);
+        char* filename = TEA_ALLOCATE(T, char, l + 1); // path length + extension length + null terminator
+        sprintf(filename, "%s%s", path, exts[i]);
+
+        if(readable(filename))
+        {
+            file = filename;
+            break;
+        }
+
+        TEA_FREE_ARRAY(T, char, filename, l + 1);
+    }
+
+    if(!file)
+        tea_vm_error(T, "File \"%s\" not found", path_name);
+
+    return tea_string_take(T, file, l);
+}
+
+void tea_import_relative(TeaState* T, TeaObjectString* mod, TeaObjectString* path_name)
+{
+    TeaObjectString* path = resolve_filename(T, mod->chars, path_name->chars);
+
+    TeaValue v;
+    if(tea_table_get(&T->modules, path, &v)) 
+    {
+        T->last_module = AS_MODULE(v);
         tea_vm_push(T, NULL_VAL);
         return;
     }
 
-    char* source = tea_util_read_file(T, path);
+    char* source = tea_util_read_file(T, path->chars);
 
     if(source == NULL) 
     {
-        tea_vm_runtime_error(T, "Could not open file \"%s\"", path_name->chars);
+        tea_vm_error(T, "Could not read \"%s\"", path_name->chars);
     }
 
-    TeaObjectModule* module = tea_obj_new_module(T, path_obj);
-    module->path = tea_util_dirname(T, path, strlen(path));
+    TeaObjectModule* module = tea_obj_new_module(T, path);
+    module->path = tea_util_dirname(T, path->chars, path->length);
     T->last_module = module;
 
     int status = teaD_protected_compiler(T, module, source);
@@ -81,25 +128,23 @@ void tea_import_string(TeaState* T, TeaObjectString* mod, TeaObjectString* path_
     teaD_precall(T, T->top[-1], 0);
 }
 
-void tea_import_name(TeaState* T, TeaObjectString* name)
+void tea_import_logical(TeaState* T, TeaObjectString* name)
 {
-    // If we have imported this file already, skip
-    TeaValue module_val;
-    if(tea_table_get(&T->modules, name, &module_val))
+    TeaValue v;
+    if(tea_table_get(&T->modules, name, &v))
     {
-        T->last_module = AS_MODULE(module_val);
-        tea_vm_push(T, module_val);
+        T->last_module = AS_MODULE(v);
+        tea_vm_push(T, v);
         return;
     }
 
-    int index = tea_find_native_module(name->chars, name->length);
+    int index = find_native_module(name->chars, name->length);
     if(index == -1) 
     {
-        tea_vm_runtime_error(T, "Unknown module");
+        tea_vm_error(T, "Unknown module \"%s\"", name->chars);
     }
 
-    tea_import_native_module(T, index);
+    call_native_module(T, index);
     TeaValue module = T->top[-1];
-    //printf("::: MOD %s\n", tea_value_type(module));
     T->last_module = AS_MODULE(module);
 }

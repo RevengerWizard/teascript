@@ -40,7 +40,7 @@ void tea_do_grow_ci(TeaState* T)
     }
     if(T->ci_size > TEA_MAX_CALLS)
     {
-        tea_vm_runtime_error(T, "Stack overflow");
+        tea_vm_error(T, "Stack overflow");
     }
 }
 
@@ -95,7 +95,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
         }
         else
         {
-            tea_vm_runtime_error(T, "Expected %d arguments, but got %d", closure->function->arity, arg_count);
+            tea_vm_error(T, "Expected %d arguments, but got %d", closure->function->arity, arg_count);
         }
     }
     else if(arg_count > closure->function->arity + closure->function->arity_optional)
@@ -118,7 +118,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
         }
         else
         {
-            tea_vm_runtime_error(T, "Expected %d arguments, but got %d", closure->function->arity + closure->function->arity_optional, arg_count);
+            tea_vm_error(T, "Expected %d arguments, but got %d", closure->function->arity + closure->function->arity_optional, arg_count);
         }
     }
     else if(closure->function->variadic)
@@ -192,7 +192,7 @@ void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
                 }
                 else if(arg_count != 0)
                 {
-                    tea_vm_runtime_error(T, "Expected 0 arguments but got %d", arg_count);
+                    tea_vm_error(T, "Expected 0 arguments but got %d", arg_count);
                 }
                 return;
             }
@@ -207,7 +207,7 @@ void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
         }
     }
 
-    tea_vm_runtime_error(T, "%s is not callable", tea_value_type(callee));
+    tea_vm_error(T, "%s is not callable", tea_value_type(callee));
 }
 
 struct PCall

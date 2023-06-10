@@ -1,8 +1,8 @@
 var module = "from here"
 var c = "value c"
 
-from "module.tea" import a, module as another, b    // expect: ran module
-from "module.tea" import c as other
+from "module" import a, module as another, b    // expect: ran module
+from "module" import c as other
 
 print(module)   // expect: from here
 print(another)  // expect: from module

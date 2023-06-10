@@ -602,5 +602,5 @@ TEA_API void tea_error(TeaState* T, const char* fmt, ...)
     vsnprintf(msg, len + 1, fmt, args);
     va_end(args);
 
-    tea_vm_runtime_error(T, msg);
+    tea_vm_error(T, msg);
 }

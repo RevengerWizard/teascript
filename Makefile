@@ -4,7 +4,7 @@ PLAT = none
 
 PLATS = generic linux macosx mingw
 
-$(PLATS) clean:
+$(PLATS) all clean:
 	$(MAKE) -C src $@
 
 none:
@@ -13,4 +13,4 @@ none:
 	@echo "where PLATFORM is one of these:"
 	@echo "   $(PLATS)"
 
-.PHONY: $(PLATS) clean
+.PHONY: all $(PLATS) clean

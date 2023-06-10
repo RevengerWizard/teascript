@@ -27,9 +27,7 @@ void tea_import_io(TeaState* T);
 #define TEA_RANDOM_MODULE "random"
 void tea_import_random(TeaState* T);
 
-void tea_import_native_module(TeaState* T, int index);
-int tea_find_native_module(char* name, int length);
-void tea_import_string(TeaState* T, TeaObjectString* mod, TeaObjectString* path_name);
-void tea_import_name(TeaState* T, TeaObjectString* name);
+void tea_import_relative(TeaState* T, TeaObjectString* mod, TeaObjectString* path_name);
+void tea_import_logical(TeaState* T, TeaObjectString* name);
 
 #endif

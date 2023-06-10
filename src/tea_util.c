@@ -55,7 +55,7 @@ TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len)
     /* trailing slashes */
     while(sep != path) 
     {
-        if(0 == IS_DIR_SEPARATOR (*sep))
+        if(0 == IS_DIR_SEPARATOR(*sep))
             break;
         sep--;
     }
@@ -63,7 +63,7 @@ TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len)
     /* first found */
     while(sep != path) 
     {
-        if(IS_DIR_SEPARATOR (*sep))
+        if(IS_DIR_SEPARATOR(*sep))
             break;
         sep--;
     }
@@ -71,7 +71,7 @@ TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len)
     /* trim again */
     while(sep != path) 
     {
-        if(0 == IS_DIR_SEPARATOR (*sep))
+        if(0 == IS_DIR_SEPARATOR(*sep))
             break;
         sep--;
     }
@@ -115,7 +115,7 @@ TeaObjectString* tea_util_get_directory(TeaState* T, char* source)
     char res[PATH_MAX];
     if(!tea_util_resolve_path(".", source, res)) 
     {
-        tea_vm_runtime_error(T, "Unable to resolve path '%s'", source);
+        tea_vm_error(T, "Unable to resolve path '%s'", source);
         exit(1);
     }
 

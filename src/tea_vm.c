@@ -29,7 +29,7 @@ static void invoke_from_class(TeaState* T, TeaObjectClass* klass, TeaObjectStrin
     TeaValue method;
     if(!tea_table_get(&klass->methods, name, &method))
     {
-        tea_vm_runtime_error(T, "Undefined method '%s'", name->chars);
+        tea_vm_error(T, "Undefined method '%s'", name->chars);
     }
 
     teaD_precall(T, method, arg_count);
@@ -39,7 +39,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
 {
     if(!IS_OBJECT(receiver))
     {
-        tea_vm_runtime_error(T, "Only objects have methods, %s given", tea_value_type(receiver));
+        tea_vm_error(T, "Only objects have methods, %s given", tea_value_type(receiver));
     }
 
     switch(OBJECT_TYPE(receiver))
@@ -55,7 +55,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
                 return;
             }
 
-            tea_vm_runtime_error(T, "Undefined variable '%s' in '%s' module", name->chars, module->name->chars);
+            tea_vm_error(T, "Undefined variable '%s' in '%s' module", name->chars, module->name->chars);
         }
         case OBJ_INSTANCE:
         {
@@ -75,7 +75,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
                 return;
             }
 
-            tea_vm_runtime_error(T, "Undefined property '%s'", name->chars);
+            tea_vm_error(T, "Undefined property '%s'", name->chars);
         }
         case OBJ_CLASS:
         {
@@ -85,14 +85,14 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
             {
                 if(IS_NATIVE(method) || AS_CLOSURE(method)->function->type != TYPE_STATIC) 
                 {
-                    tea_vm_runtime_error(T, "'%s' is not static. Only static methods can be invoked directly from a class", name->chars);
+                    tea_vm_error(T, "'%s' is not static. Only static methods can be invoked directly from a class", name->chars);
                 }
 
                 teaD_precall(T, method, arg_count);
                 return;
             }
 
-            tea_vm_runtime_error(T, "Undefined method '%s'", name->chars);
+            tea_vm_error(T, "Undefined method '%s'", name->chars);
         }
         default:
         {
@@ -106,7 +106,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
                     return;
                 }
 
-                tea_vm_runtime_error(T, "%s has no method %s()", tea_obj_type(receiver), name->chars);
+                tea_vm_error(T, "%s has no method %s()", tea_obj_type(receiver), name->chars);
             }
         }
     }
@@ -117,7 +117,7 @@ static bool bind_method(TeaState* T, TeaObjectClass* klass, TeaObjectString* nam
     TeaValue method;
     if(!tea_table_get(&klass->methods, name, &method))
     {
-        tea_vm_runtime_error(T, "Undefined method '%s'", name->chars);
+        tea_vm_error(T, "Undefined method '%s'", name->chars);
     }
 
     TeaObjectBoundMethod* bound = tea_obj_new_bound_method(T, tea_vm_peek(T, 0), method);
@@ -211,14 +211,14 @@ static void in_(TeaState* T, TeaValue object, TeaValue value)
         }
     }
 
-    tea_vm_runtime_error(T, "%s is not an iterable", tea_value_type(object));
+    tea_vm_error(T, "%s is not an iterable", tea_value_type(object));
 }
 
 static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_value)
 {
     if(!IS_OBJECT(subscript_value))
     {
-        tea_vm_runtime_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
+        tea_vm_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
     }
 
     switch(OBJECT_TYPE(subscript_value))
@@ -227,7 +227,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
         {
             if(!IS_NUMBER(index_value)) 
             {
-                tea_vm_runtime_error(T, "Range index must be a number");
+                tea_vm_error(T, "Range index must be a number");
             }
 
             TeaObjectRange* range = AS_RANGE(subscript_value);
@@ -249,13 +249,13 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
                 return;
             }
 
-            tea_vm_runtime_error(T, "Range index out of bounds");
+            tea_vm_error(T, "Range index out of bounds");
         }
         case OBJ_LIST:
         {
             if(!IS_NUMBER(index_value)) 
             {
-                tea_vm_runtime_error(T, "List index must be a number");
+                tea_vm_error(T, "List index must be a number");
             }
 
             TeaObjectList* list = AS_LIST(subscript_value);
@@ -274,14 +274,14 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
                 return;
             }
 
-            tea_vm_runtime_error(T, "List index out of bounds");
+            tea_vm_error(T, "List index out of bounds");
         }
         case OBJ_MAP:
         {
             TeaObjectMap* map = AS_MAP(subscript_value);
             if(!tea_map_validkey(index_value))
             {
-                tea_vm_runtime_error(T, "Map key isn't hashable");
+                tea_vm_error(T, "Map key isn't hashable");
             }
 
             TeaValue value;
@@ -292,13 +292,13 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
                 return;
             }
 
-            tea_vm_runtime_error(T, "Key does not exist within map");
+            tea_vm_error(T, "Key does not exist within map");
         }
         case OBJ_STRING:
         {
             if(!IS_NUMBER(index_value)) 
             {
-                tea_vm_runtime_error(T, "String index must be a number (got %s)", tea_value_type(index_value));
+                tea_vm_error(T, "String index must be a number (got %s)", tea_value_type(index_value));
             }
 
             TeaObjectString* string = AS_STRING(subscript_value);
@@ -319,20 +319,20 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
                 return;
             }
 
-            tea_vm_runtime_error(T, "String index out of bounds");
+            tea_vm_error(T, "String index out of bounds");
         }
         default:
             break;
     }
     
-    tea_vm_runtime_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
+    tea_vm_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
 }
 
 static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_value, TeaValue subscript_value, bool assign)
 {
     if(!IS_OBJECT(subscript_value))
     {
-        tea_vm_runtime_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
+        tea_vm_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
     }
 
     switch(OBJECT_TYPE(subscript_value))
@@ -341,7 +341,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
         {
             if(!IS_NUMBER(index_value)) 
             {
-                tea_vm_runtime_error(T, "List index must be a number (got %s)", tea_value_type(index_value));
+                tea_vm_error(T, "List index must be a number (got %s)", tea_value_type(index_value));
             }
 
             TeaObjectList* list = AS_LIST(subscript_value);
@@ -368,14 +368,14 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
                 return;
             }
 
-            tea_vm_runtime_error(T, "List index out of bounds");
+            tea_vm_error(T, "List index out of bounds");
         }
         case OBJ_MAP:
         {
             TeaObjectMap* map = AS_MAP(subscript_value);
             if(!tea_map_validkey(index_value))
             {
-                tea_vm_runtime_error(T, "Map key isn't hashable");
+                tea_vm_error(T, "Map key isn't hashable");
             }
 
             if(assign)
@@ -389,7 +389,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
                 TeaValue map_value;
                 if(!tea_map_get(map, index_value, &map_value))
                 {
-                    tea_vm_runtime_error(T, "Key does not exist within the map");
+                    tea_vm_error(T, "Key does not exist within the map");
                 }
                 T->top[-1] = map_value;
                 tea_vm_push(T, item_value);
@@ -400,14 +400,14 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
             break;
     }
 
-    tea_vm_runtime_error(T, "%s does not support item assignment", tea_value_type(subscript_value));
+    tea_vm_error(T, "%s does not support item assignment", tea_value_type(subscript_value));
 }
 
 static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, bool dopop)
 {
     if(!IS_OBJECT(receiver))
     {
-        tea_vm_runtime_error(T, "Only objects have properties");
+        tea_vm_error(T, "Only objects have properties");
     }
 
     switch(OBJECT_TYPE(receiver))
@@ -446,7 +446,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 klass = klass->super;
             }
 
-            tea_vm_runtime_error(T, "'%s' instance has no property: '%s'", instance->klass->name->chars, name->chars);
+            tea_vm_error(T, "'%s' instance has no property: '%s'", instance->klass->name->chars, name->chars);
         }
         case OBJ_CLASS:
         {
@@ -469,7 +469,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 klass = klass->super;
             }
 
-            tea_vm_runtime_error(T, "'%s' class has no property: '%s'.", klass_store->name->chars, name->chars);
+            tea_vm_error(T, "'%s' class has no property: '%s'.", klass_store->name->chars, name->chars);
         }
         case OBJ_MODULE:
         {
@@ -486,7 +486,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 return;
             }
 
-            tea_vm_runtime_error(T, "'%s' module has no property: '%s'", module->name->chars, name->chars);
+            tea_vm_error(T, "'%s' module has no property: '%s'", module->name->chars, name->chars);
         }
         case OBJ_MAP:
         {
@@ -507,7 +507,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 goto try;
             }
             
-            tea_vm_runtime_error(T, "map has no property: '%s'", name->chars);
+            tea_vm_error(T, "map has no property: '%s'", name->chars);
         }
         default:
         {
@@ -533,7 +533,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
             break;
         }
     }
-    tea_vm_runtime_error(T, "%s has no property '%s'", tea_obj_type(receiver), name->chars);
+    tea_vm_error(T, "%s has no property '%s'", tea_obj_type(receiver), name->chars);
 }
 
 static void set_property(TeaState* T, TeaObjectString* name, TeaValue receiver, TeaValue item)
@@ -579,7 +579,7 @@ static void set_property(TeaState* T, TeaObjectString* name, TeaValue receiver, 
         }
     }
 
-    tea_vm_runtime_error(T, "Cannot set property on type %s", tea_value_type(receiver));
+    tea_vm_error(T, "Cannot set property on type %s", tea_value_type(receiver));
 }
 
 static void define_method(TeaState* T, TeaObjectString* name)
@@ -653,7 +653,7 @@ static void repeat(TeaState* T)
     tea_vm_push(T, OBJECT_VAL(result));
 }
 
-void tea_vm_runtime_error(TeaState* T, const char* format, ...)
+void tea_vm_error(TeaState* T, const char* format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -717,7 +717,7 @@ void tea_vm_run(TeaState* T)
     do \
     { \
         STORE_FRAME; \
-        tea_vm_runtime_error(T, __VA_ARGS__); \
+        tea_vm_error(T, __VA_ARGS__); \
         READ_FRAME(); \
         DISPATCH(); \
     } \
@@ -1590,7 +1590,7 @@ void tea_vm_run(TeaState* T)
             {
                 TeaObjectString* path_name = READ_STRING();
                 STORE_FRAME;
-                tea_import_string(T, ci->closure->function->module->path, path_name);
+                tea_import_relative(T, ci->closure->function->module->path, path_name);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1598,7 +1598,7 @@ void tea_vm_run(TeaState* T)
             {
                 TeaObjectString* name = READ_STRING();
                 STORE_FRAME;
-                tea_import_name(T, name);
+                tea_import_logical(T, name);
                 READ_FRAME();
                 DISPATCH();
             }
