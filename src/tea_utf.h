@@ -16,8 +16,8 @@ int tea_utf_length(TeaObjectString* string);
 int tea_utf_decode(const uint8_t* bytes, uint32_t length);
 int tea_utf_encode(int value, uint8_t* bytes);
 
-TeaObjectString* tea_utf_code_point_at(TeaState* T, TeaObjectString* string, uint32_t index);
-TeaObjectString* tea_utf_from_code_point(TeaState* T, int value);
+TeaObjectString* tea_utf_codepoint_at(TeaState* T, TeaObjectString* string, uint32_t index);
+TeaObjectString* tea_utf_from_codepoint(TeaState* T, int value);
 TeaObjectString* tea_utf_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count, int step);
 
 int tea_utf_char_offset(char* str, int index);

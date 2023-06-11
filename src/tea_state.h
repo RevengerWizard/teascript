@@ -59,7 +59,7 @@ typedef struct TeaState
     struct tea_longjmp* error_jump;
     TeaCFunction panic;
     int argc;
-    const char** argv;
+    char** argv;
     bool repl;
     int nccalls;
 } TeaState;

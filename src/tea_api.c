@@ -48,13 +48,13 @@ TEA_API void tea_set_repl(TeaState* T, int b)
     T->repl = b;
 }
 
-TEA_API void tea_set_argv(TeaState* T, int argc, const char** argv)
+TEA_API void tea_set_argv(TeaState* T, int argc, char** argv)
 {
     T->argc = argc;
     T->argv = argv;
 }
 
-TEA_API const char** tea_get_argv(TeaState* T, int* argc)
+TEA_API char** tea_get_argv(TeaState* T, int* argc)
 {
     if(argc != NULL)
     {

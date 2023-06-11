@@ -32,7 +32,7 @@ static void invoke_from_class(TeaState* T, TeaObjectClass* klass, TeaObjectStrin
         tea_vm_error(T, "Undefined method '%s'", name->chars);
     }
 
-    teaD_precall(T, method, arg_count);
+    tea_do_precall(T, method, arg_count);
 }
 
 static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int arg_count)
@@ -51,7 +51,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
             TeaValue value;
             if(tea_table_get(&module->values, name, &value)) 
             {
-                teaD_precall(T, value, arg_count);
+                tea_do_precall(T, value, arg_count);
                 return;
             }
 
@@ -65,13 +65,13 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
             if(tea_table_get(&instance->fields, name, &value))
             {
                 T->top[-arg_count - 1] = value;
-                teaD_precall(T, value, arg_count);
+                tea_do_precall(T, value, arg_count);
                 return;
             }
 
             if(tea_table_get(&instance->klass->methods, name, &value)) 
             {
-                teaD_precall(T, value, arg_count);
+                tea_do_precall(T, value, arg_count);
                 return;
             }
 
@@ -88,7 +88,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
                     tea_vm_error(T, "'%s' is not static. Only static methods can be invoked directly from a class", name->chars);
                 }
 
-                teaD_precall(T, method, arg_count);
+                tea_do_precall(T, method, arg_count);
                 return;
             }
 
@@ -102,7 +102,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
                 TeaValue value;
                 if(tea_table_get(&type->methods, name, &value)) 
                 {
-                    teaD_precall(T, value, arg_count);
+                    tea_do_precall(T, value, arg_count);
                     return;
                 }
 
@@ -314,7 +314,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
             if(index >= 0 && index < string->length)
             {
                 tea_vm_pop(T, 2);
-                TeaObjectString* c = tea_utf_code_point_at(T, string, tea_utf_char_offset(string->chars, index));
+                TeaObjectString* c = tea_utf_codepoint_at(T, string, tea_utf_char_offset(string->chars, index));
                 tea_vm_push(T, OBJECT_VAL(c));
                 return;
             }
@@ -520,7 +520,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 {
                     if(IS_NATIVE(value) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
                     {
-                        teaD_precall(T, value, 0);
+                        tea_do_precall(T, value, 0);
                     }
                     else
                     {
@@ -818,8 +818,8 @@ void tea_vm_run(TeaState* T)
                     tea_table_set(T, &T->globals, T->repl_string, value);
                     TeaObjectString* string = tea_value_tostring(T, value);
                     PUSH(OBJECT_VAL(string));
-                    tea_write_string(string->chars, string->length);
-                    tea_write_line();
+                    fwrite(string->chars, sizeof(char), string->length, stdout);
+                    putchar('\n');
                     DROP(1);
                 }
                 DROP(1);
@@ -1457,7 +1457,7 @@ void tea_vm_run(TeaState* T)
             {
                 int arg_count = READ_BYTE();
                 STORE_FRAME;
-                teaD_precall(T, PEEK(arg_count), arg_count);
+                tea_do_precall(T, PEEK(arg_count), arg_count);
                 READ_FRAME();
                 DISPATCH();
             }

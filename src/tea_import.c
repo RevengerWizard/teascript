@@ -89,15 +89,16 @@ static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name
         TEA_FREE_ARRAY(T, char, filename, l + 1);
     }
 
-    if(!file)
-        tea_vm_error(T, "Could not resolve path \"%s\"", path_name);
-
     return file;
 }
 
 void tea_import_relative(TeaState* T, TeaObjectString* dir, TeaObjectString* path_name)
 {
     TeaObjectString* path = resolve_filename(T, dir->chars, path_name->chars);
+    if(path == NULL)
+    {
+        tea_vm_error(T, "Could not resolve path \"%s\"", path_name->chars);
+    }
 
     TeaValue v;
     if(tea_table_get(&T->modules, path, &v)) 
@@ -118,13 +119,13 @@ void tea_import_relative(TeaState* T, TeaObjectString* dir, TeaObjectString* pat
     module->path = tea_util_dirname(T, path->chars, path->length);
     T->last_module = module;
 
-    int status = teaD_protected_compiler(T, module, source);
+    int status = tea_do_protected_compiler(T, module, source);
     TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
 
     if(status != 0)
         tea_do_throw(T, TEA_COMPILE_ERROR);
 
-    teaD_precall(T, T->top[-1], 0);
+    tea_do_precall(T, T->top[-1], 0);
 }
 
 void tea_import_logical(TeaState* T, TeaObjectString* name)

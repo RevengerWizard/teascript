@@ -25,7 +25,7 @@ static void core_print(TeaState* T)
     int count = tea_get_top(T);
     if(count == 0)
     {
-        tea_write_line();
+        putchar('\n');
         tea_push_null(T);
         return;
     }
@@ -34,13 +34,14 @@ static void core_print(TeaState* T)
     {
         int len;
         const char* string = tea_to_lstring(T, i, &len);
-        if(i > 0)
-            tea_write_string("\t", 1);
-        tea_write_string(string, len);
+        if(i)
+            putchar('\t');
+
+        fwrite(string, sizeof(char), len, stdout);
         tea_pop(T, 1);
     }
 
-    tea_write_line();
+    putchar('\n');
     tea_push_null(T);
 }
 
@@ -52,7 +53,7 @@ static void core_input(TeaState* T)
     {
         int len;
         const char* prompt = tea_check_lstring(T, 0, &len);
-        tea_write_string(prompt, len);
+        fwrite(prompt, sizeof(char), len, stdout);
     }
 
     uint64_t current_size = 128;
@@ -154,7 +155,7 @@ static void core_chr(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     int n = tea_check_number(T, 0);
-    tea_vm_push(T, OBJECT_VAL(tea_utf_from_code_point(T, n)));
+    tea_vm_push(T, OBJECT_VAL(tea_utf_from_codepoint(T, n)));
 }
 
 static void core_ord(TeaState* T)

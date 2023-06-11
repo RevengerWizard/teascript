@@ -169,7 +169,7 @@ static void callc(TeaState* T, TeaObjectNative* native, int arg_count)
     tea_vm_push(T, res);
 }
 
-void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
+void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
 {
     if(IS_OBJECT(callee))
     {
@@ -179,7 +179,7 @@ void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
             {
                 TeaObjectBoundMethod* bound = AS_BOUND_METHOD(callee);
                 T->top[-arg_count - 1] = bound->receiver;
-                teaD_precall(T, bound->method, arg_count);
+                tea_do_precall(T, bound->method, arg_count);
                 return;
             }
             case OBJ_CLASS:
@@ -188,7 +188,7 @@ void teaD_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
                 T->top[-arg_count - 1] = OBJECT_VAL(tea_obj_new_instance(T, klass));
                 if(!IS_NULL(klass->constructor)) 
                 {
-                    teaD_precall(T, klass->constructor, arg_count);
+                    tea_do_precall(T, klass->constructor, arg_count);
                 }
                 else if(arg_count != 0)
                 {
@@ -229,7 +229,7 @@ void tea_do_call(TeaState* T, TeaValue func, int arg_count)
         puts("C stack overflow");
         tea_do_throw(T, TEA_RUNTIME_ERROR);
     }
-    teaD_precall(T, func, arg_count);
+    tea_do_precall(T, func, arg_count);
 
     if(IS_CLOSURE(func))
     {
@@ -257,7 +257,7 @@ int tea_do_pcall(TeaState* T, TeaValue func, int arg_count)
     struct PCall c;
     c.func = func;
     c.arg_count = arg_count;
-    status = teaD_runprotected(T, f_call, &c);
+    status = tea_do_runprotected(T, f_call, &c);
     if(status != 0)
     {
         T->top = T->base = T->stack;
@@ -282,7 +282,7 @@ void tea_do_throw(TeaState* T, int code)
     }
 }
 
-int teaD_runprotected(TeaState* T, TeaPFunction f, void* ud)
+int tea_do_runprotected(TeaState* T, TeaPFunction f, void* ud)
 {
     struct tea_longjmp tj;
     tj.status = 0;
@@ -313,12 +313,12 @@ static void f_compiler(TeaState* T, void* ud)
     tea_vm_push(T, OBJECT_VAL(closure));
 }
 
-int teaD_protected_compiler(TeaState* T, TeaObjectModule* module, const char* source)
+int tea_do_protected_compiler(TeaState* T, TeaObjectModule* module, const char* source)
 {
     struct PCompiler c;
     int status;
     c.module = module;
     c.source = source;
-    status = teaD_runprotected(T, f_compiler, &c);
+    status = tea_do_runprotected(T, f_compiler, &c);
     return status;
 }

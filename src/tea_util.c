@@ -33,8 +33,7 @@ char* tea_util_read_file(TeaState* T, const char* path)
     if(bytesRead < file_size) 
     {
         TEA_FREE_ARRAY(T, char, buffer, file_size + 1);
-        fprintf(stderr, "Could not read file \"%s\"\n", path);
-        exit(74);
+        tea_vm_error(T, "Could not read file \"%s\"", path);
     }
 
     buffer[bytesRead] = '\0';
@@ -110,7 +109,6 @@ TeaObjectString* tea_util_get_directory(TeaState* T, char* source)
     if(!tea_util_resolve_path(".", source, res)) 
     {
         tea_vm_error(T, "Unable to resolve path '%s'", source);
-        exit(1);
     }
 
     return tea_util_dirname(T, res, strlen(res));

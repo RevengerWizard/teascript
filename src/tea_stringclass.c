@@ -503,7 +503,7 @@ static void string_iteratorvalue(TeaState* T)
 
 	int index = tea_check_number(T, 1);
 
-    tea_vm_push(T, OBJECT_VAL(tea_utf_code_point_at(T, AS_STRING(T->base[0]), index)));
+    tea_vm_push(T, OBJECT_VAL(tea_utf_codepoint_at(T, AS_STRING(T->base[0]), index)));
 }
 
 static const TeaClass string_class[] = {

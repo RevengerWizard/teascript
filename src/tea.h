@@ -74,8 +74,8 @@ typedef enum
 
 TEA_API TeaState* tea_open();
 TEA_API void tea_close(TeaState* T);
-TEA_API void tea_set_argv(TeaState* T, int argc, const char** argv);
-TEA_API const char** tea_get_argv(TeaState* T, int* argc);
+TEA_API void tea_set_argv(TeaState* T, int argc, char** argv);
+TEA_API char** tea_get_argv(TeaState* T, int* argc);
 
 TEA_API TeaCFunction tea_atpanic(TeaState* T, TeaCFunction panicf);
 
@@ -171,15 +171,6 @@ TEA_API void tea_error(TeaState* T, const char* fmt, ...);
 #define tea_ensure_max_args(T, count, n) tea_check_args(T, ((count) > n), "Expected %d argument, got %d", (n), (count))
 
 #define tea_register(T, n, f) (tea_push_cfunction(T, (f)), tea_set_global(T, (n)))
-
-#define tea_write_string(s, l)   (fwrite((s), sizeof(char), (l), stdout))
-#define tea_write_literal(s) \
-    (fwrite((s), sizeof(char), (sizeof(s)/sizeof(char))-1, stdout))
-
-#define tea_write_line()    (tea_write_string("\n", 1), fflush(stdout))
-#define tea_write_version() (tea_write_literal("teascript v" TEA_VERSION), tea_write_line())
-#define tea_write_error(s) \
-    (fprintf(stderr, (s)), fflush(stderr))
 
 #define tea_is_nonenull(T, n) (tea_type(T, (n)) <= 0)
 #define tea_is_none(T, n) (tea_type(T, (n)) == TEA_TYPE_NONE)

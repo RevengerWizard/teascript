@@ -58,7 +58,7 @@ static void sys_sleep(TeaState* T)
 static void init_argv(TeaState* T)
 {
     int argc;
-    const char** argv = tea_get_argv(T, &argc);
+    char** argv = tea_get_argv(T, &argc);
 
     tea_new_list(T);
 
