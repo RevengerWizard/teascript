@@ -195,7 +195,7 @@ bool tea_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key)
 
     // Place a tombstone in the entry
     item->key = NULL_VAL;
-    item->value = BOOL_VAL(true);
+    item->value = TRUE_VAL;
     item->empty = true;
 
     map->count--;
@@ -204,7 +204,7 @@ bool tea_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key)
     {
         tea_map_clear(T, map);
     }
-    else if(map->capacity > 16 && map->count < map->capacity / 2 * MAP_MAX_LOAD);
+    else if(map->count - 1 < map->capacity * MAP_MAX_LOAD)
     {
         uint32_t capacity = map->capacity / 2;
         if(capacity < 16) capacity = 16;

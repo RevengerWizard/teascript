@@ -504,19 +504,19 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
             }
             else
             {
-                goto try;
+                goto retry;
             }
             
             tea_vm_error(T, "map has no property: '%s'", name->chars);
         }
         default:
+        retry:
         {
-            try:
-            TeaObjectClass* type = tea_state_get_class(T, receiver);
-            if(type != NULL)
+            TeaObjectClass* klass = tea_state_get_class(T, receiver);
+            if(klass != NULL)
             {
                 TeaValue value;
-                if(tea_table_get(&type->methods, name, &value)) 
+                if(tea_table_get(&klass->methods, name, &value)) 
                 {
                     if(IS_NATIVE(value) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
                     {
@@ -533,6 +533,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
             break;
         }
     }
+
     tea_vm_error(T, "%s has no property '%s'", tea_obj_type(receiver), name->chars);
 }
 
