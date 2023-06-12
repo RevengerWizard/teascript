@@ -60,6 +60,7 @@ typedef struct TeaState
     TeaCFunction panic;
     int argc;
     char** argv;
+    int argf;
     bool repl;
     int nccalls;
 } TeaState;

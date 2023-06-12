@@ -48,19 +48,11 @@ TEA_API void tea_set_repl(TeaState* T, int b)
     T->repl = b;
 }
 
-TEA_API void tea_set_argv(TeaState* T, int argc, char** argv)
+TEA_API void tea_set_argv(TeaState* T, int argc, char** argv, int argf)
 {
     T->argc = argc;
     T->argv = argv;
-}
-
-TEA_API char** tea_get_argv(TeaState* T, int* argc)
-{
-    if(argc != NULL)
-    {
-        *argc = T->argc;
-    }
-    return T->argv;
+    T->argf = argf;
 }
 
 TEA_API TeaCFunction tea_atpanic(TeaState* T, TeaCFunction panicf)

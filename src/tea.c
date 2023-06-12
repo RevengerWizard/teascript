@@ -216,7 +216,6 @@ int main(int argc, char** argv)
         fprintf(stderr, "Cannot create state: not enough memory");
         return EXIT_FAILURE;
     }
-    tea_set_argv(T, argc, argv);
 
     int status;
     int flags = 0;
@@ -226,6 +225,9 @@ int main(int argc, char** argv)
         print_usage();
         return 0;
     }
+
+    tea_set_argv(T, argc, argv, script);
+
     if(flags & flag_v)
         print_version();
     if((status = run_args(T, argv, script)) > 1)

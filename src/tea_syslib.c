@@ -57,14 +57,15 @@ static void sys_sleep(TeaState* T)
 
 static void init_argv(TeaState* T)
 {
-    int argc;
-    char** argv = tea_get_argv(T, &argc);
+    int argc = T->argc;
+    char** argv = T->argv;
+    int argf = T->argf;
 
     tea_new_list(T);
 
-    for(int i = 1; i < argc; i++)
+    for(int i = 0; i < argc - argf; i++)
     {
-        tea_push_string(T, argv[i]);
+        tea_push_string(T, argv[i + argf]);
         tea_add_item(T, 1);
     }
     tea_set_key(T, 0, "argv");

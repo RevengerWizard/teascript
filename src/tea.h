@@ -74,8 +74,7 @@ typedef enum
 
 TEA_API TeaState* tea_open();
 TEA_API void tea_close(TeaState* T);
-TEA_API void tea_set_argv(TeaState* T, int argc, char** argv);
-TEA_API char** tea_get_argv(TeaState* T, int* argc);
+TEA_API void tea_set_argv(TeaState* T, int argc, char** argv, int start);
 
 TEA_API TeaCFunction tea_atpanic(TeaState* T, TeaCFunction panicf);
 
