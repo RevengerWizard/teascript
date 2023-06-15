@@ -43,13 +43,13 @@ void tea_chunk_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line)
     chunk->code[chunk->count] = byte;
     chunk->count++;
 
-    // See if we're still on the same line
+    /* See if we're still on the same line */
     if(chunk->line_count > 0 && chunk->lines[chunk->line_count - 1].line == line) 
     {
         return;
     }
 
-    // Append a new LineStart
+    /* Append a new LineStart */
     if(chunk->line_capacity < chunk->line_count + 1)
     {
         int old_capacity = chunk->line_capacity;

@@ -401,7 +401,7 @@ TEA_API void tea_add_item(TeaState* T, int list)
 
 TEA_API void tea_get_field(TeaState* T, int map)
 {
-    //TeaValue value = tea_vm_peek(T, map);
+
 }
 
 TEA_API void tea_set_field(TeaState* T, int map)

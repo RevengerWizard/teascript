@@ -73,7 +73,7 @@ static void core_input(TeaState* T)
         }
     }
 
-    // If length has changed, shrink
+    /* If length has changed, shrink */
     if(length != current_size) 
     {
         line = TEA_GROW_ARRAY(T, char, line, current_size, length + 1);
@@ -203,7 +203,7 @@ static void core_bin(TeaState* T)
 
     buffer[i] = '\0';
 
-    // Reverse the buffer to get the binary representation in the correct order
+    /* Reverse the buffer to get the binary representation in the correct order */
     char temp;
     for(int j = 0; j < (i - 2) / 2; j++) 
     {

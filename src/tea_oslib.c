@@ -122,7 +122,7 @@ static inline const char* os_name()
 
 static void init_env(TeaState* T)
 {
-    // This is not a portable feature on all the C compilers
+    /* This is not a portable feature on all the C compilers */
     extern char** environ;
 
     tea_new_list(T);

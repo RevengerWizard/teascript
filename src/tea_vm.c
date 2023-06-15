@@ -233,10 +233,10 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
             TeaObjectRange* range = AS_RANGE(subscript_value);
             double index = AS_NUMBER(index_value);
 
-            // Calculate the length of the range
+            /* Calculate the length of the range */
             double len = (range->end - range->start) / range->step;
 
-            // Allow negative indexes
+            /* Allow negative indexes */
             if(index < 0)
             {
                 index = len + index;
@@ -261,7 +261,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
             TeaObjectList* list = AS_LIST(subscript_value);
             int index = AS_NUMBER(index_value);
 
-            // Allow negative indexes
+            /* Allow negative indexes */
             if(index < 0)
             {
                 index = list->items.count + index;
@@ -305,7 +305,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
             int index = AS_NUMBER(index_value);
             int real_length = tea_utf_length(string);
 
-            // Allow negative indexes
+            /* Allow negative indexes */
             if(index < 0)
             {
                 index = real_length + index;
@@ -421,7 +421,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
             {
                 if(dopop)
                 {
-                    tea_vm_pop(T, 1); // Instance
+                    tea_vm_pop(T, 1); /* Instance */
                 }
                 tea_vm_push(T, value);
                 return;
@@ -437,7 +437,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 {
                     if(dopop)
                     {
-                        tea_vm_pop(T, 1); // Instance
+                        tea_vm_pop(T, 1); /* Instance */
                     }
                     tea_vm_push(T, value);
                     return;
@@ -460,7 +460,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 {
                     if(dopop)
                     {
-                        tea_vm_pop(T, 1); // Class
+                        tea_vm_pop(T, 1); /* Class */
                     }
                     tea_vm_push(T, value);
                     return;
@@ -480,7 +480,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
             {
                 if(dopop)
                 {
-                    tea_vm_pop(T, 1); // Module
+                    tea_vm_pop(T, 1); /* Module */
                 }
                 tea_vm_push(T, value);
                 return;
@@ -664,7 +664,7 @@ void tea_vm_error(TeaState* T, const char* format, ...)
 
     for(TeaCallInfo* ci = T->ci - 1; ci >= T->base_ci; ci--)
     {
-        // Skip stack trace for C functions
+        /* Skip stack trace for C functions */
         if(ci->closure == NULL) continue;
 
         TeaObjectFunction* function = ci->closure->function;
@@ -886,9 +886,10 @@ void tea_vm_run(TeaState* T)
                 int arity_optional = READ_BYTE();
                 int arg_count = T->top - base - arity_optional - 1;
 
-                // Temp array while we shuffle the stack
-                // Cannot have more than 255 args to a function, so
-                // we can define this with a constant limit
+                /* Temp array while we shuffle the stack
+                ** Cannot have more than 255 args to a function, so
+                ** we can define this with a constant limit
+                */
                 TeaValue values[255];
                 int index;
 
@@ -904,10 +905,10 @@ void tea_vm_run(TeaState* T)
                     PUSH(values[index - i]);
                 }
 
-                // Calculate how many "default" values are required
+                /* Calculate how many "default" values are required */
                 int remaining = arity + arity_optional - arg_count;
 
-                // Push any "default" values back onto the stack
+                /* Push any "default" values back onto the stack */
                 for(int i = remaining; i > 0; i--)
                 {
                     PUSH(values[i - 1]);
@@ -991,12 +992,12 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(LIST):
             {
-                // Stack before: [item1, item2, ..., itemN] and after: [list]
                 uint8_t item_count = READ_BYTE();
                 TeaObjectList* list = tea_obj_new_list(T);
 
-                PUSH(OBJECT_VAL(list)); // So list isn't sweeped by GC when appending the list
-                // Add items to list
+                PUSH(OBJECT_VAL(list));
+
+                /* Add items to list */
                 for(int i = item_count; i > 0; i--)
                 {
                     if(IS_RANGE(PEEK(i)))
@@ -1028,7 +1029,7 @@ void tea_vm_run(TeaState* T)
                     }
                 }
                 
-                // Pop items from stack
+                /* Pop items from stack */
                 T->top -= item_count + 1;
 
                 PUSH(OBJECT_VAL(list));
@@ -1126,7 +1127,6 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(SUBSCRIPT):
             {
-                // Stack before: [list, index] and after: [index(list, index)]
                 TeaValue index = PEEK(0);
                 TeaValue list = PEEK(1);
                 STORE_FRAME;
@@ -1135,7 +1135,6 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(SUBSCRIPT_STORE):
             {
-                // Stack before list: [list, index, item] and after: [item]
                 TeaValue item = PEEK(0);
                 TeaValue index = PEEK(1);
                 TeaValue list = PEEK(2);
@@ -1145,7 +1144,6 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(SUBSCRIPT_PUSH):
             {
-                // Stack before list: [list, index, item] and after: [item]
                 TeaValue item = PEEK(0);
                 TeaValue index = PEEK(1);
                 TeaValue list = PEEK(2);
@@ -1165,7 +1163,7 @@ void tea_vm_run(TeaState* T)
 
                 if(!IS_INSTANCE(instance))
                 {
-                    DROP(2); // Drop the instance and class
+                    DROP(2); /* Drop the instance and class */
                     PUSH(FALSE_VAL);
                     DISPATCH();
                 }
@@ -1185,7 +1183,7 @@ void tea_vm_run(TeaState* T)
                     instance_klass = (TeaObjectClass*)instance_klass->super;
                 }
                 
-                DROP(2); // Drop the instance and class
+                DROP(2); /* Drop the instance and class */
                 PUSH(BOOL_VAL(found));
 
                 DISPATCH();

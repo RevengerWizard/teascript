@@ -52,7 +52,7 @@ static void list_remove(TeaState* T)
             }
             tea_pop(T, 1);
 
-            // If we have found the value, shuffle the array
+            /* If we have found the value, shuffle the array */
             if(found) 
             {
                 tea_get_item(T, 0, i + 1);
@@ -60,7 +60,7 @@ static void list_remove(TeaState* T)
             }
         }
 
-        // Check if it's the last element
+        /* Check if it's the last element */
         tea_get_item(T, 0, len - 1);
         if(!found && tea_equals(T, 1, 2)) 
         {
@@ -167,7 +167,7 @@ static void list_extend(TeaState* T)
     tea_check_list(T, 1);
     int len = tea_len(T, 1);
 
-    // list index 0, list index 1
+    /* list index 0, list index 1 */
     for(int i = 0; i < len; i++) 
     {
         tea_get_item(T, 1, i);
@@ -452,7 +452,7 @@ static void list_join(TeaState* T)
     }
 
     tea_get_item(T, 0, len - 1);
-    // Outside the loop as we do not want the append the delimiter on the last element
+    /* Outside the loop as we do not want the append the delimiter on the last element */
     output = (char*)tea_to_lstring(T, count, &element_len);
 
     string = TEA_GROW_ARRAY(T, char, string, length, length + element_len + 1);
@@ -575,14 +575,14 @@ static void list_reduce(TeaState* T)
     }
 
     int i = 0;
-    tea_get_item(T, 0, i++);    // pivot item
+    tea_get_item(T, 0, i++);    /* pivot item */
     for(; i < len; i++) 
     {
         tea_push_value(T, 1);
-        tea_push_value(T, -2);      // push pivot
+        tea_push_value(T, -2);      /* push pivot */
         tea_get_item(T, 0, i);
         tea_call(T, 2);
-        tea_replace(T, -2);     // replace pivot with newer item
+        tea_replace(T, -2);     /* replace pivot with newer item */
     }
 }
 
@@ -613,7 +613,7 @@ static void list_iterate(TeaState* T)
 
     int len = tea_len(T, 0);
 
-    // If we're starting the iteration, return the first index.
+    /* If we're starting the iteration, return the first index */
     if(tea_is_null(T, 1))
     {
         if(len == 0)
@@ -632,14 +632,14 @@ static void list_iterate(TeaState* T)
     }
 
     int index = tea_get_number(T, 1);
-    // Stop if we're out of bounds
+    /* Stop if we're out of bounds */
     if(index < 0 || index >= len - 1)
     {
         tea_push_null(T);
         return;
     }
 
-    // Otherwise, move to the next index
+    /* Otherwise, move to the next index */
     tea_push_number(T, index + 1);
 }
 

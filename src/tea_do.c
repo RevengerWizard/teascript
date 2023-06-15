@@ -88,7 +88,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
     {
         if((arg_count + closure->function->variadic) == closure->function->arity)
         {
-            // add missing variadic param ([])
+            /* add missing variadic param ([]) */
             TeaObjectList* list = tea_obj_new_list(T);
             tea_vm_push(T, OBJECT_VAL(list));
             arg_count++;
@@ -103,7 +103,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
         if(closure->function->variadic)
         {
             int arity = closure->function->arity + closure->function->arity_optional;
-            // +1 for the variadic param itself
+            /* +1 for the variadic param itself */
             int varargs = arg_count - arity + 1;
             TeaObjectList* list = tea_obj_new_list(T);
             tea_vm_push(T, OBJECT_VAL(list));
@@ -111,7 +111,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
             {
                 tea_write_value_array(T, &list->items, tea_vm_peek(T, i));
             }
-            // +1 for the list pushed earlier on the stack
+            /* +1 for the list pushed earlier on the stack */
             T->top -= varargs + 1;
             tea_vm_push(T, OBJECT_VAL(list));
             arg_count = arity;
@@ -123,7 +123,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
     }
     else if(closure->function->variadic)
     {
-        // last argument is the variadic arg
+        /* last argument is the variadic arg */
         TeaObjectList* list = tea_obj_new_list(T);
         tea_vm_push(T, OBJECT_VAL(list));
         tea_write_value_array(T, &list->items, tea_vm_peek(T, 1));
@@ -203,7 +203,7 @@ void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
                 callc(T, AS_NATIVE(callee), arg_count);
                 return;
             default:
-                break; // Non-callable object type
+                break; /* Non-callable object type */
         }
     }
 

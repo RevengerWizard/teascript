@@ -69,26 +69,26 @@ static void string_lower(TeaState* T)
 
 static void rev(char* str, int len)
 {
-    // this assumes that str is valid UTF-8
+    /* this assumes that str is valid UTF-8 */
     char* scanl, *scanr, *scanr2, c;
 
-    // first reverse the string
+    /* first reverse the string */
     for(scanl = str, scanr = str + len; scanl < scanr;)
         c = *scanl, *scanl++ = *--scanr, *scanr = c;
 
-    // then scan all bytes and reverse each multibyte character
+    /* then scan all bytes and reverse each multibyte character */
     for(scanl = scanr = str; (c = *scanr++);)
     {
-        if((c & 0x80) == 0) // ASCII char
+        if((c & 0x80) == 0) /* ASCII char */
             scanl = scanr;
         else if((c & 0xc0) == 0xc0)
-        { // start of multibyte
+        { /* start of multibyte */
             scanr2 = scanr;
             switch(scanr - scanl)
             {
                 case 4:
-                    c = *scanl, *scanl++ = *--scanr, *scanr = c; // fallthrough
-                case 3:                                          // fallthrough
+                    c = *scanl, *scanl++ = *--scanr, *scanr = c; /* fallthrough */
+                case 3:                                          /* fallthrough */
                 case 2:
                     c = *scanl, *scanl++ = *--scanr, *scanr = c;
             }
@@ -324,8 +324,8 @@ static void string_rightstrip(TeaState* T)
         }
     }
 
-    // If characters were stripped resize the buffer
-    if(length + 1 != l) 
+    /* If characters were stripped resize the buffer */
+    if(length + 1 != l)
     {
         temp = TEA_GROW_ARRAY(T, char, temp, l + 1, length + 2);
     }
@@ -440,7 +440,7 @@ static void string_replace(TeaState* T)
 
     char* result = TEA_ALLOCATE(T, char, result_size + 1);
 
-    // Perform the replacement
+    /* Perform the replacement */
     char* q = result;
     for(const char* p = string; (p = strstr(p, search)); p += slen)
     {

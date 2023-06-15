@@ -88,7 +88,7 @@ bool tea_value_equal(TeaValue a, TeaValue b)
         case VAL_OBJECT:
             return AS_OBJECT(a) == AS_OBJECT(b);
         default:
-            return false; // Unreachable
+            return false; /* Unreachable */
     }
 #endif
 }

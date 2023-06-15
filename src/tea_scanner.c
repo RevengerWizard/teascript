@@ -19,7 +19,7 @@
 
 void tea_scanner_init(TeaState* T, TeaScanner* scanner, const char* source)
 {
-    // Skip the UTF-8 BOM if there is one
+    /* Skip the UTF-8 BOM if there is one */
     if(strncmp(source, "\xEF\xBB\xBF", 3) == 0) source += 3;
 
     scanner->T = T;
@@ -128,7 +128,7 @@ static bool skip_whitespace(TeaScanner* scanner)
             }
             case '#':
             {
-                // Ignore shebang on first line
+                /* Ignore shebang on first line */
                 if(scanner->line == 1 && peek_next(scanner) == '!')
                 {
                     skip_line_comment(scanner);
@@ -379,7 +379,7 @@ static TeaToken make_number_token(TeaScanner* scanner, bool strip, bool is_hex, 
         char* buffer = TEA_ALLOCATE(scanner->T, char, len + 1);
         char* current = buffer;
 
-        // Strip it of any underscores
+        /* Strip it of any underscores */
         for(int i = 0; i < len; i++)
         {
             char c = scanner->start[i];
@@ -573,10 +573,10 @@ static TeaToken number(TeaScanner* scanner)
         }
     }
 
-    // Look for a fractional part
+    /* Look for a fractional part */
     if(peek(scanner) == '.' && is_digit(peek_next(scanner)))
     {
-        // Consume the "."
+        /* Consume the "." */
         advance_char(scanner);
         last = false;
 
@@ -659,7 +659,7 @@ static TeaToken multistring(TeaScanner* scanner)
     TeaBytes bytes;
     tea_init_bytes(&bytes);
 
-    // Consume second and third quote
+    /* Consume second and third quote */
     advance_char(scanner);
     advance_char(scanner);
 
@@ -690,14 +690,16 @@ static TeaToken multistring(TeaScanner* scanner)
         bool whitespace = c == ' ' || c == '\t';
         skip_end = c == '\n' || whitespace ? skip_end : -1;
 
-        // If we haven't seen a newline or other character yet, 
-        // and still seeing whitespace, count the characters 
-        // as skippable till we know otherwise
+        /* If we haven't seen a newline or other character yet, 
+        ** and still seeing whitespace, count the characters 
+        ** as skippable till we know otherwise 
+        */
         bool skippable = skip_start != -1 && whitespace && first_newline == -1;
         skip_start = skippable ? bytes.count + 1 : skip_start;
         
-        // We've counted leading whitespace till we hit something else, 
-        // but it's not a newline, so we reset skipStart since we need these characters
+        /* We've counted leading whitespace till we hit something else, 
+        ** but it's not a newline, so we reset skipStart since we need these characters
+        */
         if(first_newline == -1 && !whitespace && c != '\n') skip_start = -1;
 
         if(c == '\0' || c1 == '\0' || c2 == '\0')
@@ -709,7 +711,7 @@ static TeaToken multistring(TeaScanner* scanner)
         tea_write_bytes(T, &bytes, c);
     }
 
-    //consume the second and third quote
+    /* consume the second and third quote */
     advance_char(scanner);
     advance_char(scanner);
 

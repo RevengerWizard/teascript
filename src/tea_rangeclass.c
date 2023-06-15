@@ -49,14 +49,14 @@ static void range_iterate(TeaState* T)
     double start, end;
     tea_check_range(T, 0, &start, &end, NULL);
 
-    // Empty range
+    /* Empty range */
     if(start == end)
     {
         tea_push_null(T);
         return;
     }
 
-    // Start the iteration
+    /* Start the iteration */
     if(tea_is_null(T, 1))
     {
         tea_push_number(T, start);
@@ -70,7 +70,7 @@ static void range_iterate(TeaState* T)
 
     int iterator = tea_get_number(T, 1);
 
-    // Iterate towards [end] from [start]
+    /* Iterate towards [end] from [start] */
     if(start < end)
     {
         iterator++;

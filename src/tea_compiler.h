@@ -12,23 +12,23 @@
 typedef enum
 {
     PREC_NONE,
-    PREC_ASSIGNMENT, // =
-    PREC_OR,         // or
-    PREC_AND,        // and
-    PREC_EQUALITY,   // == !=
-    PREC_IS,         // is
-    PREC_COMPARISON, // < > <= >=
-    PREC_BOR,        // |
-    PREC_BXOR,       // ^
-    PREC_BAND,       // &
-    PREC_SHIFT,      // << >>
-    PREC_RANGE,      // .. ...
-    PREC_TERM,       // + -
-    PREC_FACTOR,     // * /
-    PREC_INDICES,    // **
-    PREC_UNARY,      // not ! - ~
-    PREC_SUBSCRIPT,  // []
-    PREC_CALL,       // . ()
+    PREC_ASSIGNMENT, /*  =  */
+    PREC_OR,         /*  or  */
+    PREC_AND,        /*  and  */
+    PREC_EQUALITY,   /*  == !=  */
+    PREC_IS,         /*  is  */
+    PREC_COMPARISON, /*  < > <= >=  */
+    PREC_BOR,        /*  |  */
+    PREC_BXOR,       /*  ^  */
+    PREC_BAND,       /*  &  */
+    PREC_SHIFT,      /*  << >>  */
+    PREC_RANGE,      /*  .. ...  */
+    PREC_TERM,       /*  + -  */
+    PREC_FACTOR,     /*  * /  */
+    PREC_INDICES,    /*  **  */
+    PREC_UNARY,      /*  not ! - ~  */
+    PREC_SUBSCRIPT,  /*  []  */
+    PREC_CALL,       /*  . ()  */
     PREC_PRIMARY
 } TeaPrecedence;
 

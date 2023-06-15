@@ -28,12 +28,13 @@ void tea_map_clear(TeaState* T, TeaObjectMap* map)
 
 static inline uint32_t hash_bits(uint64_t hash)
 {
-    // From v8's ComputeLongHash() which in turn cites:
-    // Thomas Wang, Integer Hash Functions.
-    // http://www.concentric.net/~Ttwang/tech/inthash.htm
-    hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
+    /* From v8's ComputeLongHash() which in turn cites:
+    ** Thomas Wang, Integer Hash Functions.
+    ** http://www.concentric.net/~Ttwang/tech/inthash.htm
+    */
+    hash = ~hash + (hash << 18);  /* hash = (hash << 18) - hash - 1; */
     hash = hash ^ (hash >> 31);
-    hash = hash * 21;  // hash = (hash + (hash << 2)) + (hash << 4);
+    hash = hash * 21;  /* hash = (hash + (hash << 2)) + (hash << 4); */
     hash = hash ^ (hash >> 11);
     hash = hash + (hash << 6);
     hash = hash ^ (hash >> 22);
@@ -65,7 +66,7 @@ static uint32_t hash_value(TeaValue value)
 #ifdef TEA_NAN_TAGGING
     if(IS_OBJECT(value)) return hash_object(AS_OBJECT(value));
 
-    // Hash the raw bits of the unboxed value
+    /* Hash the raw bits of the unboxed value */
     return hash_bits(value);
 #else
     switch(value.type)
@@ -93,12 +94,12 @@ static TeaMapItem* map_find_entry(TeaMapItem* items, int capacity, TeaValue key)
         {
             if(IS_NULL(item->value))
             {
-                // Empty item
+                /* Empty item */
                 return tombstone != NULL ? tombstone : item;
             }
             else
             {
-                // We found a tombstone
+                /* We found a tombstone */
                 if(tombstone == NULL)
                     tombstone = item;
             }
@@ -109,7 +110,7 @@ static TeaMapItem* map_find_entry(TeaMapItem* items, int capacity, TeaValue key)
         else if(tea_value_equal(item->key, key))
 #endif
         {
-            // We found the key
+            /* We found the key */
             return item;
         }
 
@@ -188,12 +189,12 @@ bool tea_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key)
     if(map->count == 0)
         return false;
 
-    // Find the entry
+    /* Find the entry */
     TeaMapItem* item = map_find_entry(map->items, map->capacity, key);
     if(item->empty)
         return false;
 
-    // Place a tombstone in the entry
+    /* Place a tombstone in the entry */
     item->key = NULL_VAL;
     item->value = TRUE_VAL;
     item->empty = true;

@@ -40,19 +40,19 @@ static TeaEntry* find_entry(TeaEntry* entries, int capacity, TeaObjectString* ke
         {
             if(IS_NULL(entry->value))
             {
-                // Empty entry
+                /* Empty entry */
                 return tombstone != NULL ? tombstone : entry;
             }
             else
             {
-                // We found a tombstone
+                /* We found a tombstone */
                 if(tombstone == NULL)
                     tombstone = entry;
             }
         }
         else if(entry->key == key)
         {
-            // We found the key
+            /* We found the key */
             return entry;
         }
 
@@ -126,12 +126,12 @@ bool tea_table_delete(TeaTable* table, TeaObjectString* key)
     if(table->count == 0)
         return false;
 
-    // Find the entry.
+    /* Find the entry */
     TeaEntry* entry = find_entry(table->entries, table->capacity, key);
     if(entry->key == NULL)
         return false;
 
-    // Place a tombstone in the entry.
+    /* Place a tombstone in the entry */
     entry->key = NULL;
     entry->value = BOOL_VAL(true);
 
@@ -161,13 +161,13 @@ TeaObjectString* tea_table_find_string(TeaTable* table, const char* chars, int l
         TeaEntry* entry = &table->entries[index];
         if(entry->key == NULL)
         {
-            // Stop if we find an empty non-tombstone entry.
+            /* Stop if we find an empty non-tombstone entry */
             if (IS_NULL(entry->value))
                 return NULL;
         }
         else if(entry->key->length == length && entry->key->hash == hash && memcmp(entry->key->chars, chars, length) == 0)
         {
-            // We found it.
+            /* We found it */
             return entry->key;
         }
 

@@ -48,7 +48,7 @@ static void sys_sleep(TeaState* T)
     if(stop >= 1)
         sleep(stop);
 
-    // 1000000 = 1 second
+    /* 1000000 = 1 second */
     usleep(fmod(stop, 1) * 1000000);
 #endif
 

@@ -154,7 +154,7 @@ static void file_readline(TeaState* T)
         }
         else
         {
-            // Remove newline char
+            /* Remove newline char */
             if(line[line_length - 1] == '\n') 
             {
                 line_length--;

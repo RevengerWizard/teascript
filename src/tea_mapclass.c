@@ -116,10 +116,10 @@ static void map_iterate(TeaState* T)
         return;
     }
 
-    // If we're starting the iteration, start at the first used entry
+    /* If we're starting the iteration, start at the first used entry */
     int index = 0;
 
-    // Otherwise, start one past the last entry we stopped at
+    /* Otherwise, start one past the last entry we stopped at */
     if(!tea_is_null(T, 1))
     {
         if(!tea_is_number(T, 1))
@@ -140,11 +140,11 @@ static void map_iterate(TeaState* T)
             return;
         }
 
-        // Advance the iterator
+        /* Advance the iterator */
         index++;
     }
 
-    // Find a used entry, if any
+    /* Find a used entry, if any */
     for(; index < map->capacity; index++)
     {
         if (!map->items[index].empty)
@@ -154,7 +154,7 @@ static void map_iterate(TeaState* T)
         }
     }
 
-    // If we get here, walked all of the entries
+    /* If we get here, walked all of the entries */
     tea_push_null(T);
 }
 
