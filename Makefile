@@ -2,7 +2,7 @@
 
 PLAT = none
 
-PLATS = generic linux macosx mingw
+PLATS = generic linux macosx mingw emscripten
 
 $(PLATS) all clean:
 	$(MAKE) -C src $@

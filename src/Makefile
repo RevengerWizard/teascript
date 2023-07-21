@@ -24,7 +24,7 @@ MYOBJS =
 
 # end of user settings
 
-PLATS = generic linux macosx mingw
+PLATS = generic linux macosx mingw emscripten
 
 TEA_A = libtea.a
 CORE_O = tea_api.o tea_chunk.o tea_compiler.o tea_core.o tea_debug.o \
@@ -82,6 +82,11 @@ mingw:
 	$(MAKE) "TEA_A=tea.dll" "TEA_T=tea.exe" \
 	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
 	"MYCFLAGS=-DTEA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" tea.exe
+
+emscripten:
+	$(MAKE) "CC=emcc" "AR=emar rcu" "RANLIB=emranlib" \
+	"CFLAGS=-O2 $(MYCFLAGS) --closure=1" "LDFLAGS=" \
+	"TEA_T=tea.js" tea.js
 
 .PHONY: all $(PLATS) default o a clean depend none
 
