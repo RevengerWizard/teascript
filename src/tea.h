@@ -142,6 +142,8 @@ TEA_API void tea_check_range(TeaState* T, int index, double* start, double* end,
 TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len);
 TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int* len);
 
+TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char* const options[]);
+
 TEA_API void tea_collect_garbage(TeaState* T);
 TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, const char* source);
 

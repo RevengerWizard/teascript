@@ -578,6 +578,19 @@ TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int
         return tea_check_lstring(T, index, len);
 }
 
+TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char* const options[])
+{
+    const char* name = (def) ? tea_opt_string(T, index, def) : tea_check_string(T, index);
+    for(int i = 0; options[i]; i++)
+    {
+        if(strcmp(options[i], name) == 0)
+            return i;
+    }
+
+    tea_error(T, "Invalid option '%s'", name);
+    return 0;
+}
+
 TEA_API void tea_call(TeaState* T, int n)
 {
     TeaValue func = T->top[-n - 1];
