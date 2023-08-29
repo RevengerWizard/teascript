@@ -312,7 +312,7 @@ static void set_class(TeaState* T, const TeaClass* k)
                 tea_vm_push(T, OBJECT_VAL(tea_func_new_native(T, NATIVE_PROPERTY, k->fn)));
             }
         }
-        tea_set_key(T, 0, k->name);
+        tea_set_key(T, -2, k->name);
     }
 }
 
@@ -337,7 +337,7 @@ static void set_module(TeaState* T, const TeaModule* m)
         {
             tea_push_cfunction(T, m->fn);
         }
-        tea_set_key(T, 0, m->name);
+        tea_set_key(T, -2, m->name);
     }
 }
 
