@@ -9,6 +9,7 @@
 #define TEA_LIB
 
 #include "tea.h"
+#include "tealib.h"
 
 #include "tea_string.h"
 #include "tea_import.h"
@@ -32,7 +33,7 @@ static const TeaModule io_module[] = {
     { NULL, NULL }
 };
 
-void tea_import_io(TeaState* T)
+TEAMOD_API void tea_import_io(TeaState* T)
 {
     tea_create_module(T, TEA_IO_MODULE, io_module);
     create_stdfile(T, stdout, "stdout", "w");

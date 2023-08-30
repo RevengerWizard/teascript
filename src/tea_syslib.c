@@ -20,6 +20,7 @@
 #define TEA_LIB
 
 #include "tea.h"
+#include "tealib.h"
 
 #include "tea_import.h"
 #include "tea_core.h"
@@ -105,7 +106,7 @@ static const TeaModule sys_module[] = {
     { NULL, NULL }
 };
 
-void tea_import_sys(TeaState* T)
+TEAMOD_API void tea_import_sys(TeaState* T)
 {
     tea_create_module(T, TEA_SYS_MODULE, sys_module);
     tea_push_string(T, byteorder());

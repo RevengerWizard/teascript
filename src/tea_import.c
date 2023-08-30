@@ -7,12 +7,14 @@
 #define TEA_CORE
 
 #include "tea.h"
+#include "tealib.h"
 
 #include "tea_state.h"
 #include "tea_import.h"
 #include "tea_util.h"
 #include "tea_string.h"
 #include "tea_do.h"
+#include "tea_loadlib.h"
 
 static const TeaReg modules[] = {
     { TEA_MATH_MODULE, tea_import_math },
@@ -66,7 +68,7 @@ static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name
     TeaObjectString* file = NULL;
     size_t l;
 
-    const char* exts[] = { ".tea", /* .tbc, .dll, .so, */ "/init.tea" };
+    const char* exts[] = { ".tea", /* ".tbc",*/ ".dll", /*".so",*/ "/init.tea" };
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     for(int i = 0; i < n; i++) 
@@ -139,12 +141,30 @@ void tea_import_logical(TeaState* T, TeaObjectString* name)
     }
 
     int index = find_native_module(name->chars, name->length);
-    if(index == -1) 
+    if(index != -1) 
     {
-        tea_vm_error(T, "Unknown module \"%s\"", name->chars);
+        call_native_module(T, index);
+    }
+    else
+    {
+        TeaObjectString* module = resolve_filename(T, ".", name->chars);
+        if(get_filename_ext(module->chars, ".dll"))
+        {
+            const char* symname = tea_push_fstring(T, TEA_POF "%s", name->chars);
+
+            void* lib = tea_ll_load(T, module->chars);
+            TeaCFunction fn = tea_ll_sym(T, lib, symname);
+            T->top--;
+
+            tea_push_cfunction(T, fn);
+            tea_call(T, 0);
+        }
+        else
+        {
+            tea_vm_error(T, "Unknown module \"%s\"", name->chars);
+        }
     }
 
-    call_native_module(T, index);
     TeaValue module = T->top[-1];
     T->last_module = AS_MODULE(module);
 }

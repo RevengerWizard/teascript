@@ -10,6 +10,7 @@
 #define TEA_LIB
 
 #include "tea.h"
+#include "tealib.h"
 
 #include "tea_import.h"
 #include "tea_core.h"
@@ -286,7 +287,7 @@ static const TeaModule math_module[] =
     { NULL, NULL }
 };
 
-void tea_import_math(TeaState* T)
+TEAMOD_API void tea_import_math(TeaState* T)
 {
     tea_create_module(T, TEA_MATH_MODULE, math_module);
     tea_push_number(T, PI);

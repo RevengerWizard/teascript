@@ -10,6 +10,7 @@
 #define TEA_LIB
 
 #include "tea.h"
+#include "tealib.h"
 
 #include "tea_import.h"
 #include "tea_core.h"
@@ -34,7 +35,7 @@ static const TeaModule time_module[] = {
     { NULL, NULL }
 };
 
-void tea_import_time(TeaState* T)
+TEAMOD_API void tea_import_time(TeaState* T)
 {
     tea_create_module(T, TEA_TIME_MODULE, time_module);
 }

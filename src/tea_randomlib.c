@@ -11,6 +11,7 @@
 #define TEA_LIB
 
 #include "tea.h"
+#include "tealib.h"
 
 #include "tea_import.h"
 #include "tea_core.h"
@@ -103,7 +104,7 @@ static const TeaModule random_module[] = {
     { NULL, NULL },
 };
 
-void tea_import_random(TeaState* T)
+TEAMOD_API void tea_import_random(TeaState* T)
 {
     srand(time(NULL));
     tea_create_module(T, TEA_RANDOM_MODULE, random_module);

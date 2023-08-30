@@ -10,7 +10,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "tea_conf.h"
+#include "teaconf.h"
 
 #define TEA_REPOSITORY "https://github.com/RevengerWizard/teascript"
 
@@ -184,9 +184,5 @@ TEA_API void tea_error(TeaState* T, const char* fmt, ...);
 #define tea_is_map(T, n) (tea_type(T, (n)) == TEA_TYPE_MAP)
 #define tea_is_function(T, n) (tea_type(T, (n)) == TEA_TYPE_FUNCTION)
 #define tea_is_file(T, n) (tea_type(T, (n)) == TEA_TYPE_FILE)
-
-#ifndef TEA_NUMBER_FMT
-#define TEA_NUMBER_FMT		"%.16g"
-#endif
 
 #endif
