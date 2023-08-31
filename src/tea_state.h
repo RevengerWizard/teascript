@@ -58,6 +58,8 @@ typedef struct TeaState
     TeaObject** gray_stack;
     struct tea_longjmp* error_jump;
     TeaCFunction panic;
+    TeaAlloc frealloc;
+    void* ud;
     int argc;
     char** argv;
     int argf;

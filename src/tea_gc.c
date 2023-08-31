@@ -35,7 +35,7 @@ void tea_gc_mark_object(TeaState* T, TeaObject* object)
     if(T->gray_capacity < T->gray_count + 1)
     {
         T->gray_capacity = TEA_GROW_CAPACITY(T->gray_capacity);
-        T->gray_stack = (TeaObject**)realloc(T->gray_stack, sizeof(TeaObject*) * T->gray_capacity);
+        T->gray_stack = (TeaObject**)((*T->frealloc)(T->ud, T->gray_stack, 0, sizeof(TeaObject*) * T->gray_capacity));
 
         if(T->gray_stack == NULL)
             exit(1);

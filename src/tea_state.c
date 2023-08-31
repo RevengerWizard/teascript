@@ -19,7 +19,7 @@
 
 static void free_state(TeaState* T)
 {
-    free(T);
+    (*T->frealloc)(T->ud, T, sizeof(*T), 0);
 }
 
 static void free_stack(TeaState* T)
@@ -42,23 +42,42 @@ static void init_stack(TeaState* T)
     T->open_upvalues = NULL;
 }
 
-static void default_panic(TeaState* T)
+static void panic(TeaState* T)
 {
-    puts("panic");
+    fputs("PANIC: unprotected error in call to Teascript API", stderr);
+    fputc('\n', stderr);
+    fflush(stderr);
 }
 
-TEA_API TeaState* tea_open()
+static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
 {
-    TeaState* T = (TeaState*)malloc(sizeof(*T));
+    (void)ud; 
+    (void)osize;
+    if(nsize == 0)
+    {
+        free(ptr);
+        return NULL;
+    }
+
+    return realloc(ptr, nsize);
+}
+
+TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
+{
+    TeaState* T;
+    f = f ? f : t_alloc;
+    T = (TeaState*)((*f)(ud, NULL, 0, sizeof(*T)));
     if(T == NULL) 
         return T;
+    T->frealloc = f;
+    T->ud = ud;
     T->error_jump = NULL;
     T->objects = NULL;
     T->last_module = NULL;
     T->bytes_allocated = 0;
     T->next_gc = 1024 * 1024;
     init_stack(T);
-    T->panic = default_panic;
+    T->panic = panic;
     T->gray_stack = NULL;
     T->gray_count = 0;
     T->gray_capacity = 0;

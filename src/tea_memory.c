@@ -14,6 +14,7 @@
 #include "tea_memory.h"
 #include "tea_state.h"
 #include "tea_array.h"
+#include "tea_do.h"
 
 void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_size)
 {
@@ -35,16 +36,10 @@ void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_si
         }
     }
 
-    if(new_size == 0)
-    {
-        free(pointer);
-        return NULL;
-    }
+    void* block = (*T->frealloc)(T->ud, pointer, old_size, new_size);
 
-    void* result = realloc(pointer, new_size);
-
-    if(result == NULL)
+    if(block == NULL && new_size > 0)
         exit(1);
 
-    return result;
+    return block;
 }

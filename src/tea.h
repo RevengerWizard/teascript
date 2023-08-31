@@ -32,6 +32,8 @@ typedef struct TeaState TeaState;
 
 typedef void (*TeaCFunction)(TeaState* T);
 
+typedef void* (*TeaAlloc)(void* ud, void* ptr, size_t osize, size_t nsize);
+
 typedef struct TeaReg
 {
     const char* name;
@@ -72,12 +74,17 @@ typedef enum
     TEA_TYPE_FILE,
 } TeaType;
 
-TEA_API TeaState* tea_open();
+#define tea_open()  tea_new_state(NULL, NULL)
+
+TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud);
 TEA_API void tea_close(TeaState* T);
 TEA_API void tea_set_argv(TeaState* T, int argc, char** argv, int argf);
 TEA_API void tea_set_repl(TeaState* T, bool b);
 
 TEA_API TeaCFunction tea_atpanic(TeaState* T, TeaCFunction panicf);
+
+TEA_API TeaAlloc tea_get_allocf(TeaState* T, void** ud);
+TEA_API void tea_set_allocf(TeaState* T, TeaAlloc f, void* ud);
 
 TEA_API int tea_get_top(TeaState* T);
 TEA_API void tea_set_top(TeaState* T, int index);

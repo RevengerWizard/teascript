@@ -55,6 +55,20 @@ TEA_API void tea_set_argv(TeaState* T, int argc, char** argv, int argf)
     T->argf = argf;
 }
 
+TEA_API TeaAlloc tea_get_allocf(TeaState* T, void** ud)
+{
+    TeaAlloc f;
+    if(ud) *ud = T->ud;
+    f = T->frealloc;
+    return f;
+}
+
+TEA_API void tea_set_allocf(TeaState* T, TeaAlloc f, void* ud)
+{
+    if(f) T->frealloc = f;
+    if(ud) T->ud = ud;
+}
+
 TEA_API TeaCFunction tea_atpanic(TeaState* T, TeaCFunction panicf)
 {
     TeaCFunction old = T->panic;
