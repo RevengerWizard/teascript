@@ -148,6 +148,12 @@ void tea_import_logical(TeaState* T, TeaObjectString* name)
     else
     {
         TeaObjectString* module = resolve_filename(T, ".", name->chars);
+        if(module == NULL)
+        {
+            tea_vm_error(T, "Unknown module \"%s\"", name->chars);
+        }
+
+        printf("dll %s\n", module->chars);
         if(get_filename_ext(module->chars, ".dll"))
         {
             const char* symname = tea_push_fstring(T, TEA_POF "%s", name->chars);

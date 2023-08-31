@@ -407,8 +407,8 @@ TEA_API void tea_get_field(TeaState* T, int map)
 TEA_API void tea_set_field(TeaState* T, int map)
 {
     TeaValue object = index2value(T, map);
-    TeaValue item = tea_vm_peek(T, 1);
-    TeaValue key = tea_vm_peek(T, 2);
+    TeaValue item = tea_vm_peek(T, 0);
+    TeaValue key = tea_vm_peek(T, 1);
 
     if(IS_OBJECT(object))
     {
