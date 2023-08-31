@@ -75,10 +75,9 @@ typedef enum
 TEA_API TeaState* tea_open();
 TEA_API void tea_close(TeaState* T);
 TEA_API void tea_set_argv(TeaState* T, int argc, char** argv, int argf);
+TEA_API void tea_set_repl(TeaState* T, bool b);
 
 TEA_API TeaCFunction tea_atpanic(TeaState* T, TeaCFunction panicf);
-
-TEA_API void tea_set_repl(TeaState* T, int b);
 
 TEA_API int tea_get_top(TeaState* T);
 TEA_API void tea_set_top(TeaState* T, int index);
@@ -91,7 +90,7 @@ TEA_API int tea_type(TeaState* T, int index);
 TEA_API const char* tea_type_name(TeaState* T, int index);
 
 TEA_API double tea_get_number(TeaState* T, int index);
-TEA_API int tea_get_bool(TeaState* T, int index);
+TEA_API bool tea_get_bool(TeaState* T, int index);
 TEA_API void tea_get_range(TeaState* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_get_lstring(TeaState* T, int index, int* len);
 
@@ -104,7 +103,7 @@ TEA_API int tea_equals(TeaState* T, int index1, int index2);
 TEA_API void tea_pop(TeaState* T, int n);
 
 TEA_API void tea_push_null(TeaState* T);
-TEA_API void tea_push_bool(TeaState* T, int b);
+TEA_API void tea_push_bool(TeaState* T, bool b);
 TEA_API void tea_push_number(TeaState* T, double n);
 TEA_API const char* tea_push_lstring(TeaState* T, const char* s, int len);
 TEA_API const char* tea_push_string(TeaState* T, const char* s);
@@ -137,7 +136,7 @@ TEA_API int tea_check_type(TeaState* T, int index, int type);
 
 TEA_API void tea_check_any(TeaState* T, int index);
 TEA_API double tea_check_number(TeaState* T, int index);
-TEA_API int tea_check_bool(TeaState* T, int index);
+TEA_API bool tea_check_bool(TeaState* T, int index);
 TEA_API void tea_check_range(TeaState* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len);
 TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int* len);

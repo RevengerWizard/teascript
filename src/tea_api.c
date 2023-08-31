@@ -43,7 +43,7 @@ static TeaValue* index2stack(TeaState* T, int index)
     }
 }
 
-TEA_API void tea_set_repl(TeaState* T, int b)
+TEA_API void tea_set_repl(TeaState* T, bool b)
 {
     T->repl = b;
 }
@@ -155,7 +155,7 @@ TEA_API double tea_get_number(TeaState* T, int index)
     return AS_NUMBER(index2value(T, index));
 }
 
-TEA_API int tea_get_bool(TeaState* T, int index)
+TEA_API bool tea_get_bool(TeaState* T, int index)
 {
     return AS_BOOL(index2value(T, index));
 }
@@ -223,7 +223,7 @@ TEA_API void tea_push_null(TeaState* T)
     tea_vm_push(T, NULL_VAL);
 }
 
-TEA_API void tea_push_bool(TeaState* T, int b)
+TEA_API void tea_push_bool(TeaState* T, bool b)
 {
     tea_vm_push(T, BOOL_VAL(b));
 }
@@ -520,7 +520,7 @@ TEA_API int tea_check_type(TeaState* T, int index, int type)
     }
 }
 
-TEA_API int tea_check_bool(TeaState* T, int index)
+TEA_API bool tea_check_bool(TeaState* T, int index)
 {
     TeaValue value = index2value(T, index);
     if(!IS_BOOL(value))
