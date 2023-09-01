@@ -415,7 +415,26 @@ TEA_API void tea_add_item(TeaState* T, int list)
 
 TEA_API void tea_get_field(TeaState* T, int map)
 {
+    TeaValue object = index2value(T, map);
+    TeaValue key = tea_vm_peek(T, 0);
 
+    if(IS_OBJECT(object))
+    {
+        switch(OBJECT_TYPE(object))
+        {
+            case OBJ_MAP:
+            {
+                TeaObjectMap* map = AS_MAP(object);
+                TeaValue v;
+                if(tea_map_get(map, key, &v))
+                {
+                    T->top--;
+                    tea_vm_push(T, v);
+                }
+                break;
+            }
+        }
+    }
 }
 
 TEA_API void tea_set_field(TeaState* T, int map)
@@ -477,6 +496,43 @@ TEA_API void tea_set_key(TeaState* T, int map, const char* key)
         }
     }
     tea_pop(T, 2);
+}
+
+TEA_API void tea_get_key(TeaState* T, int map, const char* key)
+{
+    TeaValue object = index2value(T, map);
+
+    tea_push_string(T, key);
+    if(IS_OBJECT(object))
+    {
+        switch(OBJECT_TYPE(object))
+        {
+            case OBJ_MODULE:
+            {
+                TeaObjectModule* module = AS_MODULE(object);
+                TeaObjectString* string = AS_STRING(tea_vm_peek(T, 0));
+                TeaValue v;
+                if(tea_table_get(&module->values, string, &v))
+                {
+                    T->top--;
+                    tea_vm_push(T, v);
+                }
+                break;
+            }
+            case OBJ_MAP:
+            {
+                TeaObjectMap* map = AS_MAP(object);
+                TeaValue key = tea_vm_peek(T, 0);
+                TeaValue v;
+                if(tea_map_get(map, key, &v))
+                {
+                    T->top--;
+                    tea_vm_push(T, v);
+                }
+                break;
+            }
+        }
+    }
 }
 
 TEA_API int tea_get_global(TeaState* T, const char* name)

@@ -134,20 +134,19 @@ TEA_API void tea_get_field(TeaState* T, int map);
 TEA_API void tea_set_field(TeaState* T, int map);
 
 TEA_API void tea_set_key(TeaState* T, int map, const char* key);
+TEA_API void tea_get_key(TeaState* T, int map, const char* key);
 
 TEA_API int tea_get_global(TeaState* T, const char* name);
 TEA_API void tea_set_global(TeaState* T, const char* name);
 TEA_API void tea_set_funcs(TeaState* T, const TeaReg* reg);
 
 TEA_API int tea_check_type(TeaState* T, int index, int type);
-
 TEA_API void tea_check_any(TeaState* T, int index);
 TEA_API double tea_check_number(TeaState* T, int index);
 TEA_API bool tea_check_bool(TeaState* T, int index);
 TEA_API void tea_check_range(TeaState* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len);
 TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int* len);
-
 TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char* const options[]);
 
 TEA_API void tea_collect_garbage(TeaState* T);
