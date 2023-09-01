@@ -17,6 +17,7 @@
 
 #define OBJECT_TYPE(value) (AS_OBJECT(value)->type)
 
+#define IS_USERDATA(value) tea_obj_istype(value, OBJ_USERDATA)
 #define IS_NATIVE(value) tea_obj_istype(value, OBJ_NATIVE)
 #define IS_RANGE(value) tea_obj_istype(value, OBJ_RANGE)
 #define IS_FILE(value) tea_obj_istype(value, OBJ_FILE)
@@ -30,6 +31,7 @@
 #define IS_INSTANCE(value) tea_obj_istype(value, OBJ_INSTANCE)
 #define IS_STRING(value) tea_obj_istype(value, OBJ_STRING)
 
+#define AS_USERDATA(value) ((TeaObjectUserdata*)AS_OBJECT(value))
 #define AS_NATIVE(value) ((TeaObjectNative*)AS_OBJECT(value))
 #define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
 #define AS_FILE(value) ((TeaObjectFile*)AS_OBJECT(value))
@@ -48,6 +50,7 @@
 
 typedef enum
 {
+    OBJ_USERDATA,
     OBJ_STRING,
     OBJ_RANGE,
     OBJ_FUNCTION,
@@ -143,6 +146,13 @@ struct TeaObjectString
 typedef struct
 {
     TeaObject obj;
+    void* data;
+    size_t size;
+} TeaObjectUserdata;
+
+typedef struct
+{
+    TeaObject obj;
     TeaValueArray items;
 } TeaObjectList;
 
@@ -206,6 +216,8 @@ TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
 TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
 TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass);
 TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
+
+TeaObjectUserdata* tea_obj_new_userdata(TeaState* T, size_t size);
 
 TeaObjectList* tea_obj_new_list(TeaState* T);
 

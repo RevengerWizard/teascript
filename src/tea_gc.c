@@ -147,6 +147,11 @@ static void blacken_object(TeaState* T, TeaObject* object)
             tea_gc_mark_value(T, ((TeaObjectUpvalue*)object)->closed);
             break;
         }
+        case OBJ_USERDATA:
+        {
+            TeaObjectUserdata* ud = (TeaObjectUserdata*)object;
+            break;
+        }
         case OBJ_NATIVE:
         case OBJ_STRING:
         case OBJ_RANGE:
@@ -247,6 +252,16 @@ static void free_object(TeaState* T, TeaObject* object)
         case OBJ_NATIVE:
         {
             TEA_FREE(T, TeaObjectNative, object);
+            break;
+        }
+        case OBJ_USERDATA:
+        {
+            TeaObjectUserdata* ud = (TeaObjectUserdata*)object;
+            if(ud->size > 0)
+            {
+                tea_mem_realloc(T, ud->data, ud->size, 0);
+            }
+            TEA_FREE(T, TeaObjectUserdata, object);
             break;
         }
     }

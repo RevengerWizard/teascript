@@ -65,6 +65,24 @@ TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectC
     return klass;
 }
 
+TeaObjectUserdata* tea_obj_new_userdata(TeaState* T, size_t size)
+{
+    TeaObjectUserdata* ud = ALLOCATE_OBJECT(T, TeaObjectUserdata, OBJ_USERDATA);
+    
+    if(size > 0)
+    {
+        ud->data = tea_mem_realloc(T, NULL, 0, size);
+    }
+    else
+    {
+        ud->data = NULL;
+    }
+    
+    ud->size = size;
+
+    return ud;
+}
+
 TeaObjectList* tea_obj_new_list(TeaState* T)
 {
     TeaObjectList* list = ALLOCATE_OBJECT(T, TeaObjectList, OBJ_LIST);
@@ -477,6 +495,8 @@ const char* tea_obj_type(TeaValue a)
 {
     switch(OBJECT_TYPE(a))
     {
+        case OBJ_USERDATA:
+            return "userdata";
         case OBJ_UPVALUE:
             return "upvalue";
         case OBJ_FILE:
