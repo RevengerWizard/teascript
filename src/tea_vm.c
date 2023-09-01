@@ -456,7 +456,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
             while(klass != NULL) 
             {
                 TeaValue value;
-                if(tea_table_get(&klass->statics, name, &value) || tea_table_get(&klass->methods, name, &value))
+                if(tea_table_get(&klass->statics, name, &value))
                 {
                     if(dopop)
                     {
@@ -1346,7 +1346,7 @@ void tea_vm_run(TeaState* T)
             {
                 uint16_t offset = READ_SHORT();
                 
-                if(tea_obj_falsey(PEEK(0)))
+                if(tea_obj_isfalse(PEEK(0)))
                 {
                     ip += offset;
                 }
@@ -1361,7 +1361,7 @@ void tea_vm_run(TeaState* T)
             {
                 uint16_t offset = READ_SHORT();
                 
-                if(tea_obj_falsey(PEEK(0)))
+                if(tea_obj_isfalse(PEEK(0)))
                 {
                     DROP(1);
                 }
@@ -1374,7 +1374,7 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(NOT):
             {
-                PUSH(BOOL_VAL(tea_obj_falsey(POP())));
+                PUSH(BOOL_VAL(tea_obj_isfalse(POP())));
                 DISPATCH();
             }
             CASE_CODE(NEGATE):
@@ -1431,7 +1431,7 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(JUMP_IF_FALSE):
             {
                 uint16_t offset = READ_SHORT();
-                if(tea_obj_falsey(PEEK(0)))
+                if(tea_obj_isfalse(PEEK(0)))
                 {
                     ip += offset;
                 }

@@ -107,13 +107,13 @@ static void core_open(TeaState* T)
     tea_vm_push(T, OBJECT_VAL(file));
 }
 
-static void core_fassert(TeaState* T)
+static void core_assert(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
-    if(tea_falsey(T, 0))
+    if(!tea_to_bool(T, 0))
     {
-        tea_error(T, "%s", tea_get_string(T, 1));
+        tea_error(T, "%s", tea_opt_string(T, 1, "assertion failed!"));
     }
     tea_push_value(T, 0);
 }
@@ -146,8 +146,9 @@ static void core_interpret(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     TeaState* T1 = tea_open();
-    tea_interpret(T1, "interpret", tea_check_string(T, 0));
+    tea_interpret(T1, "<interpret>", tea_check_string(T, 0));
     tea_close(T1);
+    tea_push_null(T);
 }
 
 static void core_chr(TeaState* T)
@@ -242,7 +243,7 @@ static const TeaReg globals[] = {
     { "print", core_print },
     { "input", core_input },
     { "open", core_open },
-    { "assert", core_fassert },
+    { "assert", core_assert },
     { "error", core_error },
     { "typeof", core_type },
     { "gc", core_gc },

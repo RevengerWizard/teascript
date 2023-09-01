@@ -258,7 +258,7 @@ int tea_do_pcall(TeaState* T, TeaValue func, int arg_count)
     c.func = func;
     c.arg_count = arg_count;
     status = tea_do_runprotected(T, f_call, &c);
-    if(status != 0)
+    if(status != TEA_OK)
     {
         T->top = T->base = T->stack;
         T->ci = T->base_ci;

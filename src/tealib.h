@@ -21,6 +21,4 @@ TEAMOD_API void tea_import_io(TeaState* T);
 #define TEA_RANDOM_MODULE "random"
 TEAMOD_API void tea_import_random(TeaState* T);
 
-TEAMOD_API void tea_open_mods(TeaState* T, const TeaReg* mods);
-
 #endif

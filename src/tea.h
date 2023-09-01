@@ -72,6 +72,7 @@ typedef enum
     TEA_TYPE_LIST,
     TEA_TYPE_MAP,
     TEA_TYPE_FILE,
+    TEA_TYPE_USERDATA,
 } TeaType;
 
 #define tea_open()  tea_new_state(NULL, NULL)
@@ -101,7 +102,9 @@ TEA_API bool tea_get_bool(TeaState* T, int index);
 TEA_API void tea_get_range(TeaState* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_get_lstring(TeaState* T, int index, int* len);
 
-TEA_API int tea_falsey(TeaState* T, int index);
+TEA_API bool tea_is_cfunction(TeaState* T, int index);
+
+TEA_API bool tea_to_bool(TeaState* T, int index);
 TEA_API double tea_to_numberx(TeaState* T, int index, int* is_num);
 TEA_API const char* tea_to_lstring(TeaState* T, int index, int* len);
 
@@ -115,6 +118,7 @@ TEA_API void tea_push_number(TeaState* T, double n);
 TEA_API const char* tea_push_lstring(TeaState* T, const char* s, int len);
 TEA_API const char* tea_push_string(TeaState* T, const char* s);
 TEA_API const char* tea_push_fstring(TeaState* T, const char* fmt, ...);
+TEA_API const char* tea_push_vfstring(TeaState* T, const char* fmt, va_list args);
 TEA_API void tea_push_range(TeaState* T, double start, double end, double step);
 TEA_API void tea_push_cfunction(TeaState* T, TeaCFunction fn);
 
@@ -136,7 +140,7 @@ TEA_API void tea_set_field(TeaState* T, int map);
 TEA_API void tea_set_key(TeaState* T, int map, const char* key);
 TEA_API void tea_get_key(TeaState* T, int map, const char* key);
 
-TEA_API int tea_get_global(TeaState* T, const char* name);
+TEA_API bool tea_get_global(TeaState* T, const char* name);
 TEA_API void tea_set_global(TeaState* T, const char* name);
 TEA_API void tea_set_funcs(TeaState* T, const TeaReg* reg);
 
@@ -146,6 +150,7 @@ TEA_API double tea_check_number(TeaState* T, int index);
 TEA_API bool tea_check_bool(TeaState* T, int index);
 TEA_API void tea_check_range(TeaState* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len);
+TEA_API double tea_opt_number(TeaState* T, int index, double def);
 TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int* len);
 TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char* const options[]);
 
@@ -157,7 +162,6 @@ TEA_API void tea_call(TeaState* T, int n);
 TEA_API void tea_error(TeaState* T, const char* fmt, ...);
 
 #define tea_get_string(T, index) (tea_get_lstring(T, (index), NULL))
-#define tea_truthy(T, index) (!tea_falsey(T, (index)))
 #define tea_to_number(T, index) (tea_to_numberx(T, (index), NULL))
 #define tea_to_string(T, index) (tea_to_lstring(T, (index), NULL))
 

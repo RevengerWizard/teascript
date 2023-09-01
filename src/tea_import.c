@@ -124,7 +124,7 @@ void tea_import_relative(TeaState* T, TeaObjectString* dir, TeaObjectString* pat
     int status = tea_do_protected_compiler(T, module, source);
     TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
 
-    if(status != 0)
+    if(status != TEA_OK)
         tea_do_throw(T, TEA_COMPILE_ERROR);
 
     tea_do_precall(T, T->top[-1], 0);

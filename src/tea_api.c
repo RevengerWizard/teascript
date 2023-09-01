@@ -142,7 +142,9 @@ TEA_API int tea_type(TeaState* T, int index)
                 return TEA_TYPE_RANGE;
             case OBJ_LIST:
                 return TEA_TYPE_LIST;
+            case OBJ_FUNCTION:
             case OBJ_CLOSURE:
+            case OBJ_NATIVE:
                 return TEA_TYPE_FUNCTION;
             case OBJ_MAP:
                 return TEA_TYPE_MAP;
@@ -152,6 +154,8 @@ TEA_API int tea_type(TeaState* T, int index)
                 return TEA_TYPE_FILE;
             case OBJ_MODULE:
                 return TEA_TYPE_MODULE;
+            case OBJ_USERDATA:
+                return TEA_TYPE_USERDATA;
             default:;
         }
     }
@@ -201,9 +205,16 @@ TEA_API const char* tea_get_lstring(TeaState* T, int index, int* len)
     return string->chars;
 }
 
-TEA_API int tea_falsey(TeaState* T, int index)
+TEA_API bool tea_is_cfunction(TeaState* T, int index)
 {
-    return tea_obj_falsey(index2value(T, index));
+    TeaValue v = index2value(T, index);
+    return IS_NATIVE(v);
+}
+
+TEA_API bool tea_to_bool(TeaState* T, int index)
+{
+    TeaValue v = index2value(T, index);
+    return !tea_obj_isfalse(v);
 }
 
 TEA_API double tea_to_numberx(TeaState* T, int index, int* is_num)
@@ -279,6 +290,17 @@ TEA_API const char* tea_push_fstring(TeaState* T, const char* fmt, ...)
     int len;
     char* s = format(T, fmt, args, &len);
     va_end(args);
+
+    TeaObjectString* string = tea_string_take(T, (char*)s, len);
+    tea_vm_push(T, OBJECT_VAL(string));
+
+    return string->chars;
+}
+
+TEA_API const char* tea_push_vfstring(TeaState* T, const char* fmt, va_list args)
+{
+    int len;
+    char* s = format(T, fmt, args, &len);
 
     TeaObjectString* string = tea_string_take(T, (char*)s, len);
     tea_vm_push(T, OBJECT_VAL(string));
@@ -535,11 +557,11 @@ TEA_API void tea_get_key(TeaState* T, int map, const char* key)
     }
 }
 
-TEA_API int tea_get_global(TeaState* T, const char* name)
+TEA_API bool tea_get_global(TeaState* T, const char* name)
 {
     tea_push_string(T, name);
     TeaValue _;
-    int b = tea_table_get(&T->globals, AS_STRING(tea_vm_peek(T, 0)), &_);
+    bool b = tea_table_get(&T->globals, AS_STRING(tea_vm_peek(T, 0)), &_);
     tea_pop(T, 1);
     if(b)
     {
@@ -634,6 +656,11 @@ TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len)
         expected(T, "string", index);
     }
     return tea_get_lstring(T, index, len);
+}
+
+TEA_API double tea_opt_number(TeaState* T, int index, double def)
+{
+    return tea_is_nonenull(T, (index)) ? (def) : tea_check_number(T, (index));
 }
 
 TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int* len)
