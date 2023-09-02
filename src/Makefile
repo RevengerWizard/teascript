@@ -73,10 +73,10 @@ none:
 generic: $(ALL)
 
 linux:
-	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_LINUX" SYSLIBS="-Wl,-E -ldl -lreadline"
+	$(MAKE) $(ALL) SYSCFLAGS="-DTEA_USE_LINUX" SYSLIBS="-Wl,-E -ldl -lreadline"
 
 macosx:
-	$(MAKE) $(ALL) SYSCFLAGS="-DLUA_USE_MACOSX" SYSLIBS="-lreadline" CC=cc
+	$(MAKE) $(ALL) SYSCFLAGS="-DTEA_USE_MACOSX" SYSLIBS="-lreadline" CC=cc
 
 mingw:
 	$(MAKE) "TEA_A=tea.dll" "TEA_T=tea.exe" \

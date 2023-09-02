@@ -17,6 +17,7 @@
 #include "tea_debug.c"
 #include "tea_do.c"
 #include "tea_gc.c"
+#include "tea_loadlib.c"
 #include "tea_import.c"
 #include "tea_memory.c"
 #include "tea_func.c"
