@@ -130,10 +130,19 @@ TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value)
             case OBJ_STRING: return T->string_class;
             case OBJ_RANGE: return T->range_class;
             case OBJ_FILE: return T->file_class;
-            default:;
+            default: return NULL;
         }
     }
     return NULL;
+}
+
+bool tea_state_isclass(TeaState* T, TeaObjectClass* klass)
+{
+    return (klass == T->list_class ||
+           klass == T->map_class ||
+           klass == T->string_class ||
+           klass == T->range_class ||
+           klass == T->file_class);
 }
 
 TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, const char* source)

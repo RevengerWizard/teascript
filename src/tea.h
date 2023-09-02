@@ -75,8 +75,6 @@ typedef enum
     TEA_TYPE_USERDATA,
 } TeaType;
 
-#define tea_open()  tea_new_state(NULL, NULL)
-
 TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud);
 TEA_API void tea_close(TeaState* T);
 TEA_API void tea_set_argv(TeaState* T, int argc, char** argv, int argf);
@@ -171,6 +169,8 @@ TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, c
 TEA_API void tea_call(TeaState* T, int n);
 
 TEA_API void tea_error(TeaState* T, const char* fmt, ...);
+
+#define tea_open()  tea_new_state(NULL, NULL)
 
 #define tea_get_string(T, index) (tea_get_lstring(T, (index), NULL))
 #define tea_to_number(T, index) (tea_to_numberx(T, (index), NULL))

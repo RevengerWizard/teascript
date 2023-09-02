@@ -71,5 +71,6 @@ typedef struct TeaState
 #define TEA_TRY(T) (setjmp(T->error_jump->buf))
 
 TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value);
+bool tea_state_isclass(TeaState* T, TeaObjectClass* klass);
 
 #endif

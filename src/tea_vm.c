@@ -1556,6 +1556,11 @@ void tea_vm_run(TeaState* T)
                 }
 
                 TeaObjectClass* superclass = AS_CLASS(super);
+                if(tea_state_isclass(T, superclass))
+                {
+                    RUNTIME_ERROR("Cannot inherit from built-in type %s", superclass->name->chars);
+                }
+
                 TeaObjectClass* klass = AS_CLASS(PEEK(0));
                 if(klass == superclass)
                 {
