@@ -524,8 +524,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                     }
                     else
                     {
-                        tea_vm_pop(T, 1);
-                        tea_vm_push(T, value);
+                        bind_method(T, klass, name);
                     }
                     return;
                 }
