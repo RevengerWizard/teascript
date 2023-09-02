@@ -118,6 +118,13 @@ TEA_API void tea_replace(TeaState* T, int index)
     T->top--;
 }
 
+TEA_API void tea_copy(TeaState* T, int from_index, int to_index)
+{
+    TeaValue* from = index2stack(T, from_index);
+    TeaValue* to = index2stack(T, to_index);
+    *to = *(from);
+}
+
 TEA_API void tea_push_value(TeaState* T, int index)
 {
     TeaValue value = index2value(T, index);
@@ -233,6 +240,28 @@ TEA_API const char* tea_to_lstring(TeaState* T, int index, int* len)
     return string->chars;
 }
 
+TEA_API TeaCFunction tea_to_cfunction(TeaState* T, int index)
+{
+    TeaValue v = index2value(T, index);
+    TeaCFunction f = NULL;
+
+    if(IS_NATIVE(v))
+        f = AS_NATIVE(v)->fn;
+
+    return f;
+}
+
+TEA_API void* tea_to_userdata(TeaState* T, int index)
+{
+    TeaValue v = index2value(T, index);
+    void* data = NULL;
+
+    if(IS_USERDATA(v))
+        data = AS_USERDATA(v)->data;
+
+    return data;
+}
+
 TEA_API int tea_equals(TeaState* T, int index1, int index2)
 {
     return tea_value_equal(index2value(T, index1), index2value(T, index2));
@@ -246,6 +275,16 @@ TEA_API void tea_pop(TeaState* T, int n)
 TEA_API void tea_push_null(TeaState* T)
 {
     tea_vm_push(T, NULL_VAL);
+}
+
+TEA_API void tea_push_true(TeaState* T)
+{
+    tea_vm_push(T, TRUE_VAL);
+}
+
+TEA_API void tea_push_false(TeaState* T)
+{
+    tea_vm_push(T, FALSE_VAL);
 }
 
 TEA_API void tea_push_bool(TeaState* T, bool b)
@@ -321,6 +360,14 @@ TEA_API void tea_new_list(TeaState* T)
 TEA_API void tea_new_map(TeaState* T)
 {
     tea_vm_push(T, OBJECT_VAL(tea_map_new(T)));
+}
+
+TEA_API void* tea_new_userdata(TeaState* T, size_t size)
+{
+    TeaObjectUserdata* ud = tea_obj_new_userdata(T, size);
+    tea_vm_push(T, OBJECT_VAL(ud));
+    
+    return ud->data;
 }
 
 TEA_API void tea_push_cfunction(TeaState* T, TeaCFunction fn)
@@ -599,6 +646,18 @@ TEA_API void tea_set_funcs(TeaState* T, const TeaReg* reg)
     set_globals(T, reg);
 }
 
+TEA_API bool tea_has_module(TeaState* T, const char* module)
+{
+    TeaObjectString* modname = tea_string_new(T, module);
+    tea_vm_push(T, OBJECT_VAL(modname));
+
+    TeaValue _;
+    bool found = tea_table_get(&T->modules, modname, &_);
+    tea_pop(T, 1);
+
+    return found;
+}
+
 static void expected(TeaState* T, const char* type, int index)
 {
     tea_error(T, "Expected %s, got %s", type, tea_type_name(T, index));
@@ -656,6 +715,21 @@ TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len)
         expected(T, "string", index);
     }
     return tea_get_lstring(T, index, len);
+}
+
+TEA_API void* tea_check_userdata(TeaState* T, int index)
+{
+    TeaValue value = index2value(T, index);
+    if(!IS_USERDATA(value))
+    {
+        expected(T, "userdata", index);
+    }
+    return AS_USERDATA(value)->data;
+}
+
+TEA_API bool tea_opt_bool(TeaState* T, int index, bool def)
+{
+    return tea_is_nonenull(T, (index)) ? (def) : tea_check_bool(T, (index));
 }
 
 TEA_API double tea_opt_number(TeaState* T, int index, double def)

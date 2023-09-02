@@ -148,10 +148,6 @@ static void blacken_object(TeaState* T, TeaObject* object)
             break;
         }
         case OBJ_USERDATA:
-        {
-            TeaObjectUserdata* ud = (TeaObjectUserdata*)object;
-            break;
-        }
         case OBJ_NATIVE:
         case OBJ_STRING:
         case OBJ_RANGE:
@@ -343,7 +339,7 @@ static void sweep(TeaState* T)
     }
 }
 
-TEA_API void tea_collect_garbage(TeaState* T)
+TEA_API void tea_gc(TeaState* T)
 {
 #ifdef TEA_DEBUG_LOG_GC
     printf("-- gc begin\n");

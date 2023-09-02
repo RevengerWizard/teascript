@@ -27,12 +27,12 @@ void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_si
     if(new_size > old_size)
     {
 #ifdef TEA_DEBUG_STRESS_GC
-        tea_collect_garbage(T);
+        tea_gc(T);
 #endif
 
         if(T->bytes_allocated > T->next_gc)
         {
-            tea_collect_garbage(T);
+            tea_gc(T);
         }
     }
 

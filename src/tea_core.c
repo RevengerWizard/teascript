@@ -137,7 +137,7 @@ static void core_gc(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 0);
-    tea_collect_garbage(T);
+    tea_gc(T);
     tea_push_null(T);
 }
 
