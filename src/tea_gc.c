@@ -18,6 +18,8 @@
 #include "tea_debug.h"
 #endif
 
+#define GC_HEAP_GROW_FACTOR 2
+
 void tea_gc_mark_object(TeaState* T, TeaObject* object)
 {
     if(object == NULL)

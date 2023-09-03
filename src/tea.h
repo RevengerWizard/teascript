@@ -164,7 +164,9 @@ TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int
 TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char* const options[]);
 
 TEA_API void tea_gc(TeaState* T);
+
 TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, const char* source);
+TEA_API TeaInterpretResult tea_dofile(TeaState* T, const char* path);
 
 TEA_API void tea_call(TeaState* T, int n);
 

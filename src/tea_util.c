@@ -29,14 +29,14 @@ char* tea_util_read_file(TeaState* T, const char* path)
 
     char* buffer = TEA_ALLOCATE(T, char, file_size + 1);
 
-    size_t bytesRead = fread(buffer, sizeof(char), file_size, file);
-    if(bytesRead < file_size) 
+    size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
+    if(bytes_read < file_size) 
     {
         TEA_FREE_ARRAY(T, char, buffer, file_size + 1);
         tea_vm_error(T, "Could not read file \"%s\"", path);
     }
 
-    buffer[bytesRead] = '\0';
+    buffer[bytes_read] = '\0';
 
     fclose(file);
     return buffer;

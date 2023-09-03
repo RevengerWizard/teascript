@@ -14,6 +14,7 @@
 #include "tea_map.h"
 #include "tea_vm.h"
 #include "tea_do.h"
+#include "tea_util.h"
 
 static TeaValue index2value(TeaState* T, int index)
 {
@@ -426,8 +427,9 @@ static void set_module(TeaState* T, const TeaModule* m)
 
 TEA_API void tea_create_module(TeaState* T, const char* name, const TeaModule* module)
 {
-    TeaObjectModule* mod = tea_obj_new_module(T, tea_string_new(T, name));
-    mod->path = tea_string_new(T, name);
+    TeaObjectString* modname = tea_string_new(T, name);
+    TeaObjectModule* mod = tea_obj_new_module(T, modname);
+    mod->path = modname;
 
     tea_vm_push(T, OBJECT_VAL(mod));
     if(module != NULL)
@@ -766,6 +768,18 @@ TEA_API void tea_call(TeaState* T, int n)
 {
     TeaValue func = T->top[-n - 1];
     tea_do_call(T, func, n);
+}
+
+TEA_API TeaInterpretResult tea_dofile(TeaState* T, const char* path)
+{
+    char* source = tea_util_read_file(T, path);
+    if(source == NULL)
+        return TEA_MEMORY_ERROR;
+
+    TeaInterpretResult status = tea_interpret(T, path, source);
+    TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
+
+    return status;
 }
 
 TEA_API void tea_error(TeaState* T, const char* fmt, ...)

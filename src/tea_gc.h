@@ -8,8 +8,6 @@
 
 #include "tea_state.h"
 
-#define GC_HEAP_GROW_FACTOR 2
-
 void tea_gc_mark_object(TeaState* T, TeaObject* object);
 void tea_gc_mark_value(TeaState* T, TeaValue value);
 
