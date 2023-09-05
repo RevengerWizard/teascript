@@ -101,6 +101,7 @@ TEA_API bool tea_get_bool(TeaState* T, int index);
 TEA_API void tea_get_range(TeaState* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_get_lstring(TeaState* T, int index, int* len);
 
+TEA_API bool tea_is_object(TeaState* T, int index);
 TEA_API bool tea_is_cfunction(TeaState* T, int index);
 
 TEA_API bool tea_to_bool(TeaState* T, int index);
@@ -156,6 +157,7 @@ TEA_API double tea_check_number(TeaState* T, int index);
 TEA_API bool tea_check_bool(TeaState* T, int index);
 TEA_API void tea_check_range(TeaState* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len);
+TEA_API TeaCFunction tea_check_cfunction(TeaState* T, int index);
 TEA_API void* tea_check_userdata(TeaState* T, int index);
 
 TEA_API bool tea_opt_bool(TeaState* T, int index, bool def);

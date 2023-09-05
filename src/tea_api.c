@@ -213,6 +213,12 @@ TEA_API const char* tea_get_lstring(TeaState* T, int index, int* len)
     return string->chars;
 }
 
+TEA_API bool tea_is_object(TeaState* T, int index)
+{
+    TeaValue v = index2value(T, index);
+    return IS_OBJECT(v);
+}
+
 TEA_API bool tea_is_cfunction(TeaState* T, int index)
 {
     TeaValue v = index2value(T, index);
@@ -717,6 +723,16 @@ TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len)
         expected(T, "string", index);
     }
     return tea_get_lstring(T, index, len);
+}
+
+TEA_API TeaCFunction tea_check_cfunction(TeaState* T, int index)
+{
+    TeaValue value = index2value(T, index);
+    if(!IS_NATIVE(value))
+    {
+        expected(T, "cfunction", index);
+    }
+    return AS_NATIVE(value)->fn;
 }
 
 TEA_API void* tea_check_userdata(TeaState* T, int index)

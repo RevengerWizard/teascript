@@ -67,8 +67,8 @@ typedef struct TeaState
     int nccalls;
 } TeaState;
 
-#define TEA_THROW(T) (longjmp(T->error_jump->buf, 1))
-#define TEA_TRY(T) (setjmp(T->error_jump->buf))
+#define TEA_THROW(T)    (longjmp(T->error_jump->buf, 1))
+#define TEA_TRY(T, c, a)    if(setjmp((c)->buf) == 0) { a }
 
 TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value);
 bool tea_state_isclass(TeaState* T, TeaObjectClass* klass);

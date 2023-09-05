@@ -273,7 +273,7 @@ void tea_do_throw(TeaState* T, int code)
     if(T->error_jump)
     {
         T->error_jump->status = code;
-        longjmp(T->error_jump->buf, 1);
+        TEA_THROW(T);
     }
     else
     {
@@ -284,13 +284,16 @@ void tea_do_throw(TeaState* T, int code)
 
 int tea_do_runprotected(TeaState* T, TeaPFunction f, void* ud)
 {
+    int old_nccalls = T->nccalls;
     struct tea_longjmp tj;
-    tj.status = 0;
+    tj.status = TEA_OK;
     tj.previous = T->error_jump;
     T->error_jump = &tj;
-    if(setjmp(tj.buf) == 0)
+    TEA_TRY(T, &tj,
         (*f)(T, ud);
+    );
     T->error_jump = tj.previous;
+    T->nccalls = old_nccalls;
     return tj.status;
 }
 

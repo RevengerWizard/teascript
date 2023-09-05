@@ -27,9 +27,17 @@
 
 static void sys_exit(TeaState* T)
 {
-    int count = tea_get_top(T);
-    count == 0 ? exit(1) : exit(tea_check_number(T, 0));
-    tea_push_null(T);
+    int status;
+    if(tea_is_bool(T, 0))
+    {
+        status = (tea_to_bool(T, 0) ? EXIT_SUCCESS : EXIT_FAILURE);
+    }
+    else
+    {
+        status = (int)tea_opt_number(T, 0, EXIT_SUCCESS);
+    }
+    tea_close(T);
+    exit(status);
 }
 
 static void sys_sleep(TeaState* T)

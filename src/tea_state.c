@@ -38,11 +38,9 @@ static void init_stack(TeaState* T)
     T->ci_size = BASIC_CI_SIZE;
     T->ci = T->base_ci;
     T->end_ci = T->base_ci + T->ci_size - 1;
-    T->nccalls = 0;
-    T->open_upvalues = NULL;
 }
 
-static void panic(TeaState* T)
+static void t_panic(TeaState* T)
 {
     fputs("PANIC: unprotected error in call to Teascript API", stderr);
     fputc('\n', stderr);
@@ -72,12 +70,17 @@ TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
     T->frealloc = f;
     T->ud = ud;
     T->error_jump = NULL;
+    T->nccalls = 0;
     T->objects = NULL;
     T->last_module = NULL;
     T->bytes_allocated = 0;
     T->next_gc = 1024 * 1024;
-    init_stack(T);
-    T->panic = panic;
+    T->panic = t_panic;
+    T->argc = 0;
+    T->argv = NULL;
+    T->argf = 0;
+    T->repl = false;
+    T->open_upvalues = NULL;
     T->gray_stack = NULL;
     T->gray_count = 0;
     T->gray_capacity = 0;
@@ -86,13 +89,13 @@ TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
     T->map_class = NULL;
     T->file_class = NULL;
     T->range_class = NULL;
+    init_stack(T);
     tea_table_init(&T->modules);
     tea_table_init(&T->globals);
     tea_table_init(&T->constants);
     tea_table_init(&T->strings);
     T->constructor_string = tea_string_literal(T, "constructor");
     T->repl_string = tea_string_literal(T, "_");
-    T->repl = false;
     tea_open_core(T);
     return T;
 }
