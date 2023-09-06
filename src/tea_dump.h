@@ -12,7 +12,7 @@
 
 #include "tea_object.h"
 
-void tea_dump(TeaState* T, TeaObjectModule* module, FILE* file);
-TeaObjectModule* tea_undump(TeaState* T, const char* name, FILE* file);
+void tea_dump(TeaState* T, TeaObjectFunction* f, FILE* file);
+TeaObjectClosure* tea_undump(TeaState* T, const char* name, FILE* file);
 
 #endif

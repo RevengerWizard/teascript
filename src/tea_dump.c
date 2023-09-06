@@ -3,6 +3,9 @@
 ** Teascript bytecode saving
 */
 
+#define tea_dump_c
+#define TEA_CORE
+
 #include <stdio.h>
 
 #include "tea_dump.h"
@@ -58,6 +61,7 @@ static void dump_int(TeaDumpState* D, int x)
 
 static void dump_number(TeaDumpState* D, double n)
 {
+    printf("NUM %.16g\n", n);
     dump_var(D, n);
 }
 
@@ -80,7 +84,7 @@ static void dump_chunk(TeaDumpState* D, TeaChunk* chunk)
 {
     dump_int(D, chunk->count);
     dump_vector(D, chunk->code, chunk->count);
-    dump_vector(D, chunk->lines, chunk->count);
+    /*dump_vector(D, chunk->lines, chunk->count);*/
 }
 
 static void dump_function(TeaDumpState* D, TeaObjectFunction* f);
@@ -141,11 +145,11 @@ static void dump_header(TeaDumpState* D)
     dump_byte(D, TEA_BYTECODE_FORMAT);
 }
 
-void tea_dump(TeaState* T, TeaObjectModule* module, FILE* file)
+void tea_dump(TeaState* T, TeaObjectFunction* f, FILE* file)
 {
     TeaDumpState D;
     D.T = T;
     D.file = file;
     dump_header(&D);
-    /*dump_function(&D, f);*/
+    dump_function(&D, f);
 }

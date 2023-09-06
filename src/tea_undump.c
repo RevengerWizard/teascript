@@ -3,12 +3,20 @@
 ** Teascript bytecode loading
 */
 
+#define tea_undump_c
+#define TEA_CORE
+
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "tea.h"
+
+#include "tea_string.h"
+#include "tea_func.h"
 #include "tea_dump.h"
 #include "tea_object.h"
 #include "tea_state.h"
+#include "tea_do.h"
 
 typedef struct
 {
@@ -20,18 +28,16 @@ typedef struct
 /* error function for malformed bytecode files */
 static void error(TeaLoadState* S, const char* message)
 {
-    fprintf(stderr, "%s bad binary format: %s", message);
-    exit(1);
+    fprintf(stderr, "bad binary format: %s", message);
+    fputs("\n", stderr);
+    tea_do_throw(S->T, TEA_COMPILE_ERROR);
 }
 
 #define load_vector(S, b, n) load_block(S, b, (n) * sizeof((b)[0]))
 
 static void load_block(TeaLoadState* S, void* b, size_t size)
 {
-    if(fread(b, size, 1, S->file) != 0)
-    {
-        error(S, "truncated chunk");
-    }
+    fread(b, size, 1, S->file);
 }
 
 #define load_var(S, x) load_vector(S, &x, 1)
@@ -77,7 +83,7 @@ static double load_number(TeaLoadState* S)
 }
 
 /* load nullable string */
-static TeaObjectString* load_null_string(TeaLoadState* S, TeaObjectFunction* f)
+static TeaObjectString* load_null_string(TeaLoadState* S)
 {
     TeaState* T = S->T;
     TeaObjectString* s;
@@ -90,15 +96,15 @@ static TeaObjectString* load_null_string(TeaLoadState* S, TeaObjectFunction* f)
     {
         char* buff = TEA_ALLOCATE(T, char, size);
         load_vector(S, buff, size);
-        s = tea_take_string(T, buff, size);
+        s = tea_string_take(T, buff, size);
     }
     return s;
 }
 
 /* load non nullable string */
-static TeaObjectString* load_string(TeaLoadState* S, TeaObjectFunction* f)
+static TeaObjectString* load_string(TeaLoadState* S)
 {
-    TeaObjectString* s = load_null_string(S, f);
+    TeaObjectString* s = load_null_string(S);
     if(s == NULL)
         error(S, "bad constant string");
     return s;
@@ -114,8 +120,8 @@ static void load_chunk(TeaLoadState* S, TeaChunk* chunk)
     chunk->capacity = count;
     load_vector(S, chunk->code, chunk->count);
 
-    chunk->lines = TEA_ALLOCATE(T, int, count);
-    load_vector(S, chunk->lines, chunk->count);
+    /*chunk->lines = TEA_ALLOCATE(T, int, count);
+    load_vector(S, chunk->lines, chunk->count);*/
 }
 
 static TeaObjectFunction* load_function(TeaLoadState* S);
@@ -144,7 +150,7 @@ static void load_constants(TeaLoadState* S, TeaObjectFunction* f)
             {
                 case OBJ_STRING:
                 {
-                    chunk->constants.values[i] = OBJECT_VAL(load_string(S, f));
+                    chunk->constants.values[i] = OBJECT_VAL(load_string(S));
                     break;
                 }
                 case OBJ_FUNCTION:
@@ -162,8 +168,8 @@ static void load_constants(TeaLoadState* S, TeaObjectFunction* f)
 static TeaObjectFunction* load_function(TeaLoadState* S)
 {
     TeaState* T = S->T;
-    TeaObjectFunction* f = tea_new_function(T, 0, NULL, 0);
-    f->name = load_null_string(S, f);
+    TeaObjectFunction* f = tea_func_new_function(T, 0, NULL, 0);
+    f->name = load_null_string(S);
     f->arity = load_int(S);
     f->arity_optional = load_int(S);
     f->variadic = load_int(S);
@@ -172,12 +178,13 @@ static TeaObjectFunction* load_function(TeaLoadState* S)
     f->type = load_byte(S);
     load_chunk(S, &f->chunk);
     load_constants(S, f);
+    return f;
 }
 
 static void check_literal(TeaLoadState* S, const char* str, const char* message)
 {
     char buff[sizeof(TEA_SIGNATURE)];
-    int len = strlen(buff);
+    size_t len = strlen(str);
     load_vector(S, buff, len);
     if(memcmp(str, buff, len) != 0)
         error(S, message);
@@ -185,7 +192,7 @@ static void check_literal(TeaLoadState* S, const char* str, const char* message)
 
 static void check_header(TeaLoadState* S)
 {
-    check_literal(S, &TEA_SIGNATURE[1], "not a binary chunk");
+    check_literal(S, TEA_SIGNATURE, "not a binary chunk");
     uint8_t major, minor, patch;
     major = load_byte(S);
     minor = load_byte(S);
@@ -196,7 +203,7 @@ static void check_header(TeaLoadState* S)
         error(S, "format mismatch");
 }
 
-TeaObjectModule* tea_undump(TeaState* T, const char* name, FILE* file)
+TeaObjectClosure* tea_undump(TeaState* T, const char* name, FILE* file)
 {
     TeaLoadState S;
     S.T = T;
@@ -204,5 +211,6 @@ TeaObjectModule* tea_undump(TeaState* T, const char* name, FILE* file)
     S.name = name;
     check_header(&S);
     TeaObjectFunction* f = load_function(&S);
-    return NULL;
+    TeaObjectClosure* cl = tea_func_new_closure(T, f);
+    return cl;
 }
