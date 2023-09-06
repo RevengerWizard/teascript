@@ -4,6 +4,8 @@ A nice and calm dynamically typed programming language.
 
 It tries to mix the familiarity of Javascript, the simplicity of Python and the ease of use of Lua's C API.
 
+You can now try Teascript [in your browser](https://revengerwizard.github.io/wasm-tea)
+
 ## Building
 
 Teascript doesn't have any external dependencies, you'll need just gcc and make
