@@ -6,9 +6,6 @@
 #ifndef TEACONF_H
 #define TEACONF_H
 
-#define str(a) str_(a)
-#define str_(a) #a
-
 #if defined(TEA_BUILD_DLL)
 
 #if defined(TEA_CORE) || defined(TEA_LIB)

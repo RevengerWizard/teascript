@@ -1,0 +1,21 @@
+from math import floor
+from io import stdout
+
+var n = 5
+var buff = ""
+
+for(var i in 1..n+1)
+{
+    for(var j in 0..n-i+1)
+        buff += " "
+    var c = 1
+    for(var j in 1..i+1)
+    {
+        buff += " "
+        buff += string(c)
+        c = floor(c * (i - j) / j)
+    }
+    buff += "\n"
+}
+
+stdout.write(buff)

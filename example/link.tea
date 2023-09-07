@@ -1,0 +1,38 @@
+function link(value, next)
+{
+    return function(method)
+    {
+        if(method == "value") return value
+        if(method == "next") return next
+        print("Unknown method " + method)
+    }
+}
+
+function traverse(n, fn)
+{
+    fn(n)
+    if(n("next") != null)
+    {
+        return traverse(n("next"), fn)
+    }
+
+    return n
+}
+
+function print_value(n)
+{
+    print(n("value"))
+}
+
+function empty(n) {}
+
+function print_tail(n)
+{
+    var tail = traverse(n, empty)
+    print(tail("value"))
+}
+
+var list = link(1, link(2, link(3, link(4, link(5, null)))))
+
+traverse(list, print_value)
+print_tail(list)
