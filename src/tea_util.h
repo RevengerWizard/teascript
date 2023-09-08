@@ -36,9 +36,9 @@
 #define IS_DIR_SEPARATOR(c) (c == DIR_SEPARATOR)
 #endif
 
-char* tea_util_read_file(TeaState* T, const char* path);
-TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len);
-bool tea_util_resolve_path(char* directory, char* path, char* ret);
-TeaObjectString* tea_util_get_directory(TeaState* T, char* source);
+TEA_FUNC char* tea_util_read_file(TeaState* T, const char* path);
+TEA_FUNC TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len);
+TEA_FUNC bool tea_util_resolve_path(char* directory, char* path, char* ret);
+TEA_FUNC TeaObjectString* tea_util_get_directory(TeaState* T, char* source);
 
 #endif

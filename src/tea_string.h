@@ -13,7 +13,7 @@
 #define tea_string_literal(T, s) (tea_string_copy(T, "" s, (sizeof(s)/sizeof(char))-1))
 #define tea_string_new(T, s) (tea_string_copy(T, s, strlen(s)))
 
-TeaObjectString* tea_string_take(TeaState* T, char* chars, int length);
-TeaObjectString* tea_string_copy(TeaState* T, const char* chars, int length);
+TEA_FUNC TeaObjectString* tea_string_take(TeaState* T, char* chars, int length);
+TEA_FUNC TeaObjectString* tea_string_copy(TeaState* T, const char* chars, int length);
 
 #endif

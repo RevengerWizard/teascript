@@ -33,10 +33,10 @@ typedef struct
     TeaLineStart* lines;
 } TeaChunk;
 
-void tea_chunk_init(TeaChunk* chunk);
-void tea_chunk_free(TeaState* T, TeaChunk* chunk);
-void tea_chunk_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line);
-int tea_chunk_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value);
-int tea_chunk_getline(TeaChunk* chunk, int instruction);
+TEA_FUNC void tea_chunk_init(TeaChunk* chunk);
+TEA_FUNC void tea_chunk_free(TeaState* T, TeaChunk* chunk);
+TEA_FUNC void tea_chunk_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line);
+TEA_FUNC int tea_chunk_add_constant(TeaState* T, TeaChunk* chunk, TeaValue value);
+TEA_FUNC int tea_chunk_getline(TeaChunk* chunk, int instruction);
 
 #endif

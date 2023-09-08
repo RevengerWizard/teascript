@@ -211,23 +211,23 @@ typedef struct
     TeaValue method;
 } TeaObjectBoundMethod;
 
-TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
+TEA_FUNC TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
 
-TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
-TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass);
-TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
+TEA_FUNC TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
+TEA_FUNC TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass);
+TEA_FUNC TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
 
-TeaObjectUserdata* tea_obj_new_userdata(TeaState* T, size_t size);
+TEA_FUNC TeaObjectUserdata* tea_obj_new_userdata(TeaState* T, size_t size);
 
-TeaObjectList* tea_obj_new_list(TeaState* T);
+TEA_FUNC TeaObjectList* tea_obj_new_list(TeaState* T);
 
-TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name);
-TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
-TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step);
+TEA_FUNC TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name);
+TEA_FUNC TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
+TEA_FUNC TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step);
 
-TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value);
-bool tea_obj_equal(TeaValue a, TeaValue b);
-const char* tea_obj_type(TeaValue a);
+TEA_FUNC TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value);
+TEA_FUNC bool tea_obj_equal(TeaValue a, TeaValue b);
+TEA_FUNC const char* tea_obj_type(TeaValue a);
 
 static inline bool tea_obj_istype(TeaValue value, TeaObjectType type)
 {

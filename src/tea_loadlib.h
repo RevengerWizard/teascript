@@ -10,8 +10,8 @@
 
 #define TEA_POF "tea_import_"
 
-void tea_ll_unload(void* lib);
-void* tea_ll_load(TeaState* T, const char* path);
-TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym);
+TEA_FUNC void tea_ll_unload(void* lib);
+TEA_FUNC void* tea_ll_load(TeaState* T, const char* path);
+TEA_FUNC TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym);
 
 #endif

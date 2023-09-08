@@ -20,20 +20,20 @@
 
 typedef void (*TeaPFunction)(TeaState* T, void* ud);
 
-void tea_do_realloc_ci(TeaState* T, int new_size);
-void tea_do_grow_ci(TeaState* T);
+TEA_FUNC void tea_do_realloc_ci(TeaState* T, int new_size);
+TEA_FUNC void tea_do_grow_ci(TeaState* T);
 
-void tea_do_realloc_stack(TeaState* T, int new_size);
-void tea_do_grow_stack(TeaState* T, int needed);
+TEA_FUNC void tea_do_realloc_stack(TeaState* T, int new_size);
+TEA_FUNC void tea_do_grow_stack(TeaState* T, int needed);
 
-void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count);
-void tea_do_call(TeaState* T, TeaValue func, int arg_count);
-int tea_do_pcall(TeaState* T, TeaValue func, int arg_count);
+TEA_FUNC void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count);
+TEA_FUNC void tea_do_call(TeaState* T, TeaValue func, int arg_count);
+TEA_FUNC int tea_do_pcall(TeaState* T, TeaValue func, int arg_count);
 
-void tea_do_throw(TeaState* T, int code);
+TEA_FUNC void tea_do_throw(TeaState* T, int code);
 
-int tea_do_runprotected(TeaState* T, TeaPFunction f, void* ud);
+TEA_FUNC int tea_do_runprotected(TeaState* T, TeaPFunction f, void* ud);
 
-int tea_do_protected_compiler(TeaState* T, TeaObjectModule* module, const char* source);
+TEA_FUNC int tea_do_protected_compiler(TeaState* T, TeaObjectModule* module, const char* source);
 
 #endif

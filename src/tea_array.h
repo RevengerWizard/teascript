@@ -17,10 +17,10 @@
 		type* values; \
 	} name; \
     \
-	void tea_init_##shr(name* array); \
-	void tea_write_##shr(TeaState* T, name* array, type value); \
-	void tea_fill_##shr(TeaState* T, name* array, type value, int count); \
-	void tea_free_##shr(TeaState* T, name* array);
+	TEA_FUNC void tea_init_##shr(name* array); \
+	TEA_FUNC void tea_write_##shr(TeaState* T, name* array, type value); \
+	TEA_FUNC void tea_fill_##shr(TeaState* T, name* array, type value, int count); \
+	TEA_FUNC void tea_free_##shr(TeaState* T, name* array);
 
 #define DEFINE_ARRAY(name, type, shr) \
 	void tea_init_##shr(name* array) \

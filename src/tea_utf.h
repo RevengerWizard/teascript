@@ -9,17 +9,17 @@
 #include "tea_def.h"
 #include "tea_value.h"
 
-int tea_utf_decode_bytes(uint8_t byte);
-int tea_utf_encode_bytes(int value);
+TEA_FUNC int tea_utf_decode_bytes(uint8_t byte);
+TEA_FUNC int tea_utf_encode_bytes(int value);
 
-int tea_utf_length(TeaObjectString* string);
-int tea_utf_decode(const uint8_t* bytes, uint32_t length);
-int tea_utf_encode(int value, uint8_t* bytes);
+TEA_FUNC int tea_utf_length(TeaObjectString* string);
+TEA_FUNC int tea_utf_decode(const uint8_t* bytes, uint32_t length);
+TEA_FUNC int tea_utf_encode(int value, uint8_t* bytes);
 
-TeaObjectString* tea_utf_codepoint_at(TeaState* T, TeaObjectString* string, uint32_t index);
-TeaObjectString* tea_utf_from_codepoint(TeaState* T, int value);
-TeaObjectString* tea_utf_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count, int step);
+TEA_FUNC TeaObjectString* tea_utf_codepoint_at(TeaState* T, TeaObjectString* string, uint32_t index);
+TEA_FUNC TeaObjectString* tea_utf_from_codepoint(TeaState* T, int value);
+TEA_FUNC TeaObjectString* tea_utf_from_range(TeaState* T, TeaObjectString* source, int start, uint32_t count, int step);
 
-int tea_utf_char_offset(char* str, int index);
+TEA_FUNC int tea_utf_char_offset(char* str, int index);
 
 #endif

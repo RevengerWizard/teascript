@@ -96,7 +96,7 @@ typedef struct
     TeaPrecedence precedence;
 } TeaParseRule;
 
-TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char* source);
-void tea_compiler_mark_roots(TeaState* T, TeaCompiler* compiler);
+TEA_FUNC TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char* source);
+TEA_FUNC void tea_compiler_mark_roots(TeaState* T, TeaCompiler* compiler);
 
 #endif

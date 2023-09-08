@@ -10,6 +10,13 @@
 
 #include "tea.h"
 
+#include "tea_def.h"
+
+#undef TEA_FUNC
+#undef TEA_DATA
+#define TEA_FUNC    static
+#define TEA_DATA    /* empty */
+
 #include "tea_api.c"
 #include "tea_chunk.c"
 #include "tea_compiler.c"
@@ -17,8 +24,8 @@
 #include "tea_debug.c"
 #include "tea_do.c"
 #include "tea_gc.c"
-#include "tea_loadlib.c"
 #include "tea_import.c"
+#include "tea_loadlib.c"
 #include "tea_memory.c"
 #include "tea_func.c"
 #include "tea_string.c"
@@ -37,6 +44,7 @@
 #include "tea_mapclass.c"
 #include "tea_rangeclass.c"
 #include "tea_stringclass.c"
+
 #include "tea_iolib.c"
 #include "tea_oslib.c"
 #include "tea_randomlib.c"

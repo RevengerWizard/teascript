@@ -28,4 +28,7 @@
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 
+#define TEA_FUNC    extern
+#define TEA_DATA    extern
+
 #endif

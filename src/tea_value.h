@@ -113,12 +113,12 @@ typedef struct
 DECLARE_ARRAY(TeaValueArray, TeaValue, value_array)
 DECLARE_ARRAY(TeaBytes, uint8_t, bytes)
 
-const char* tea_value_type(TeaValue a);
-bool tea_value_equal(TeaValue a, TeaValue b);
-double tea_value_tonumber(TeaValue value, int* x);
-TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value);
-TeaObjectString* tea_value_number_tostring(TeaState* T, double number);
+TEA_FUNC const char* tea_value_type(TeaValue a);
+TEA_FUNC bool tea_value_equal(TeaValue a, TeaValue b);
+TEA_FUNC double tea_value_tonumber(TeaValue value, int* x);
+TEA_FUNC TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value);
+TEA_FUNC TeaObjectString* tea_value_number_tostring(TeaState* T, double number);
 
-extern const char *const tea_value_typenames[];
+TEA_DATA const char *const tea_value_typenames[];
 
 #endif

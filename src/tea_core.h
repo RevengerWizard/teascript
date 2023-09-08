@@ -23,6 +23,6 @@ void tea_open_string(TeaState* T);
 #define TEA_RANGE_CLASS "range"
 void tea_open_range(TeaState* T);
 
-void tea_open_core(TeaState* T);
+TEA_FUNC void tea_open_core(TeaState* T);
 
 #endif

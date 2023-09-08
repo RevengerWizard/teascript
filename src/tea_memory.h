@@ -26,6 +26,6 @@
 #define TEA_FREE_ARRAY(T, type, pointer, old_count) \
     tea_mem_realloc(T, pointer, sizeof(type) * (old_count), 0)
 
-void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_size);
+TEA_FUNC void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_size);
 
 #endif

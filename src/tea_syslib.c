@@ -7,15 +7,6 @@
 #include <math.h>
 #include <time.h>
 
-#ifdef _WIN32
-#include <direct.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <unistd.h>
-#include <sys/utsname.h>
-#endif
-
 #define tea_syslib_c
 #define TEA_LIB
 
@@ -38,30 +29,6 @@ static void sys_exit(TeaState* T)
     }
     tea_close(T);
     exit(status);
-}
-
-static void sys_sleep(TeaState* T)
-{
-    int count = tea_get_top(T);
-    tea_ensure_min_args(T, count, 1);
-
-    double stop = tea_check_number(T, 0);
-#ifdef _WIN32
-    Sleep(stop * 1000);
-#elif _POSIX_C_SOURCE >= 199309L
-    struct timespec ts;
-    ts.tv_sec = stop;
-    ts.tv_nsec = fmod(stop, 1) * 1000000000;
-    nanosleep(&ts, NULL);
-#else
-    if(stop >= 1)
-        sleep(stop);
-
-    /* 1000000 = 1 second */
-    usleep(fmod(stop, 1) * 1000000);
-#endif
-
-    tea_push_null(T);
 }
 
 static void init_argv(TeaState* T)
@@ -106,7 +73,6 @@ static const char* byteorder()
 }
 
 static const TeaModule sys_module[] = {
-    { "sleep", sys_sleep },
     { "exit", sys_exit },
     { "argv", NULL },
     { "version", NULL },
