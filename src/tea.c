@@ -79,7 +79,7 @@ static void repl(TeaState* T)
             goto line;
         }
 
-        tea_interpret(T, "<stdin>", line);
+        tea_interpret(T, "=<stdin>", line);
     }
 }
 
@@ -155,7 +155,7 @@ static int run_args(TeaState* T, char** argv, int n)
                 if(*chunk == '\0')
                     chunk = argv[++i];
 
-                int status = tea_interpret(T, "<stdin>", chunk);
+                int status = tea_interpret(T, "=<stdin>", chunk);
                 if(status == TEA_COMPILE_ERROR)
                 {
                     return 65;

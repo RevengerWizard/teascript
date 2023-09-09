@@ -31,7 +31,12 @@ static TeaChunk* current_chunk(TeaCompiler* compiler)
 
 static void error_at(TeaCompiler* compiler, TeaToken* token, const char* message)
 {
-    fprintf(stderr, "File %s, [line %d] Error", compiler->parser->module->name->chars, token->line);
+    char* module_name = compiler->parser->module->name->chars;
+    char c = module_name[0];
+    int off = 0;
+    if(c == '?' || c == '=') off++;
+
+    fprintf(stderr, "File %s, [line %d] Error", module_name + off, token->line);
 
     if(token->type == TOKEN_EOF)
     {
