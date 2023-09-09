@@ -1,15 +1,15 @@
 /*
-** tea_scanner.h
-** Teascript scanner
+** tea_lexer.h
+** Teascript lexer
 */
 
-#ifndef TEA_SCANNER_H
-#define TEA_SCANNER_H
+#ifndef TEA_LEXER_H
+#define TEA_LEXER_H
 
 #include "tea_state.h"
 #include "tea_token.h"
 
-typedef struct TeaScanner
+typedef struct TeaLexer
 {
     TeaState* T;
     const char* start;
@@ -19,11 +19,11 @@ typedef struct TeaScanner
     int braces[4];
     int num_braces;
     bool raw;
-} TeaScanner;
+} TeaLexer;
 
-TEA_FUNC void tea_scanner_init(TeaState* T, TeaScanner* scanner, const char* source);
-TEA_FUNC void tea_scanner_backtrack(TeaScanner* scanner);
-TEA_FUNC TeaToken tea_scanner_token(TeaScanner* scanner);
+TEA_FUNC void tea_lex_init(TeaState* T, TeaLexer* lex, const char* source);
+TEA_FUNC void tea_lex_backtrack(TeaLexer* lex);
+TEA_FUNC TeaToken tea_lex_token(TeaLexer* lex);
 
 static inline bool is_alpha(char c)
 {

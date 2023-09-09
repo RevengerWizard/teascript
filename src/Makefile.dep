@@ -7,7 +7,7 @@ tea_chunk.o: tea_chunk.c tea_chunk.h tea_def.h tea_value.h tea_array.h \
  tea_table.h tea_vm.h
 tea_compiler.o: tea_compiler.c tea_def.h tea_state.h tea.h teaconf.h \
  tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
- tea_opcodes.h tea_table.h tea_compiler.h tea_scanner.h tea_token.h \
+ tea_opcodes.h tea_table.h tea_compiler.h tea_lexer.h tea_token.h \
  tea_func.h tea_string.h tea_gc.h tea_import.h tea_do.h
 tea_core.o: tea_core.c tea.h teaconf.h tea_vm.h tea_state.h tea_def.h \
  tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
@@ -17,8 +17,8 @@ tea_debug.o: tea_debug.c tea_debug.h tea_chunk.h tea_def.h tea_value.h \
  tea_table.h tea_state.h
 tea_do.o: tea_do.c tea_def.h tea_do.h tea_state.h tea.h teaconf.h \
  tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
- tea_opcodes.h tea_table.h tea_func.h tea_vm.h tea_compiler.h \
- tea_scanner.h tea_token.h tea_debug.h
+ tea_opcodes.h tea_table.h tea_func.h tea_vm.h tea_compiler.h tea_lexer.h \
+ tea_token.h tea_debug.h
 tea_dump.o: tea_dump.c tea_dump.h tea.h teaconf.h tea_object.h tea_def.h \
  tea_memory.h tea_value.h tea_array.h tea_chunk.h tea_opcodes.h \
  tea_table.h tea_state.h
@@ -30,7 +30,7 @@ tea_func.o: tea_func.c tea_state.h tea.h teaconf.h tea_def.h tea_value.h \
  tea_table.h tea_vm.h
 tea_gc.o: tea_gc.c tea_state.h tea.h teaconf.h tea_def.h tea_value.h \
  tea_array.h tea_object.h tea_memory.h tea_chunk.h tea_opcodes.h \
- tea_table.h tea_gc.h tea_compiler.h tea_scanner.h tea_token.h
+ tea_table.h tea_gc.h tea_compiler.h tea_lexer.h tea_token.h
 tea_import.o: tea_import.c tea.h teaconf.h tealib.h tea_state.h tea_def.h \
  tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
  tea_opcodes.h tea_table.h tea_import.h tea_util.h tea_vm.h tea_string.h \
@@ -38,6 +38,9 @@ tea_import.o: tea_import.c tea.h teaconf.h tealib.h tea_state.h tea_def.h \
 tea_iolib.o: tea_iolib.c tea.h teaconf.h tealib.h tea_string.h \
  tea_object.h tea_def.h tea_memory.h tea_value.h tea_array.h tea_chunk.h \
  tea_opcodes.h tea_table.h tea_import.h tea_state.h tea_core.h tea_vm.h
+tea_lexer.o: tea_lexer.c tea_def.h tea_value.h tea_array.h tea_lexer.h \
+ tea_state.h tea.h teaconf.h tea_object.h tea_memory.h tea_chunk.h \
+ tea_opcodes.h tea_table.h tea_token.h tea_string.h tea_utf.h
 tea_listclass.o: tea_listclass.c tea.h teaconf.h tea_vm.h tea_state.h \
  tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
  tea_opcodes.h tea_table.h tea_core.h tea_string.h
@@ -66,9 +69,6 @@ tea_randomlib.o: tea_randomlib.c tea.h teaconf.h tealib.h tea_import.h \
 tea_rangeclass.o: tea_rangeclass.c tea.h teaconf.h tea_vm.h tea_state.h \
  tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
  tea_opcodes.h tea_table.h tea_core.h
-tea_scanner.o: tea_scanner.c tea_def.h tea_value.h tea_array.h \
- tea_scanner.h tea_state.h tea.h teaconf.h tea_object.h tea_memory.h \
- tea_chunk.h tea_opcodes.h tea_table.h tea_token.h tea_string.h tea_utf.h
 tea_state.o: tea_state.c tea_state.h tea.h teaconf.h tea_def.h \
  tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
  tea_opcodes.h tea_table.h tea_core.h tea_vm.h tea_string.h tea_util.h \
@@ -88,9 +88,9 @@ tea_table.o: tea_table.c tea_gc.h tea_state.h tea.h teaconf.h tea_def.h \
 tea_timelib.o: tea_timelib.c tea.h teaconf.h tealib.h tea_import.h \
  tea_state.h tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h \
  tea_chunk.h tea_opcodes.h tea_table.h tea_core.h
-tea_undump.o: tea_undump.c tea.h teaconf.h tea_func.h tea_object.h \
+tea_undump.o: tea_undump.c tea.h teaconf.h tea_string.h tea_object.h \
  tea_def.h tea_memory.h tea_value.h tea_array.h tea_chunk.h tea_opcodes.h \
- tea_table.h tea_dump.h tea_state.h tea_do.h
+ tea_table.h tea_func.h tea_dump.h tea_state.h tea_do.h
 tea_utf.o: tea_utf.c tea_utf.h tea_def.h tea_value.h tea_array.h \
  tea_object.h tea.h teaconf.h tea_memory.h tea_chunk.h tea_opcodes.h \
  tea_table.h tea_string.h
@@ -100,7 +100,7 @@ tea_util.o: tea_util.c tea_util.h tea_vm.h tea_state.h tea.h teaconf.h \
 tea_value.o: tea_value.c tea_object.h tea.h teaconf.h tea_def.h \
  tea_memory.h tea_value.h tea_array.h tea_chunk.h tea_opcodes.h \
  tea_table.h tea_string.h
-tea_vm.o: tea_vm.c tea_def.h tea_compiler.h tea_scanner.h tea_state.h \
- tea.h teaconf.h tea_value.h tea_array.h tea_object.h tea_memory.h \
- tea_chunk.h tea_opcodes.h tea_table.h tea_token.h tea_debug.h tea_func.h \
- tea_map.h tea_string.h tea_vm.h tea_utf.h tea_import.h tea_do.h
+tea_vm.o: tea_vm.c tea_def.h tea_compiler.h tea_lexer.h tea_state.h tea.h \
+ teaconf.h tea_value.h tea_array.h tea_object.h tea_memory.h tea_chunk.h \
+ tea_opcodes.h tea_table.h tea_token.h tea_debug.h tea_func.h tea_map.h \
+ tea_string.h tea_vm.h tea_utf.h tea_import.h tea_do.h

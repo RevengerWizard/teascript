@@ -6,7 +6,7 @@
 #ifndef TEA_COMPILER_H
 #define TEA_COMPILER_H
 
-#include "tea_scanner.h"
+#include "tea_lexer.h"
 #include "tea_object.h"
 
 typedef enum
@@ -50,7 +50,7 @@ typedef struct
 typedef struct
 {
     TeaState* T;
-    TeaScanner scanner;
+    TeaLexer lex;
     TeaToken current;
     TeaToken previous;
     TeaObjectModule* module;

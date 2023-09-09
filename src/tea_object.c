@@ -93,12 +93,16 @@ TeaObjectList* tea_obj_new_list(TeaState* T)
 
 TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name)
 {
+    char c = name->chars[0];
+    if(c == '?') goto ignore;
+
     TeaValue module_val;
     if(tea_table_get(&T->modules, name, &module_val)) 
     {
         return AS_MODULE(module_val);
     }
 
+    ignore:
     TeaObjectModule* module = ALLOCATE_OBJECT(T, TeaObjectModule, OBJ_MODULE);
     tea_table_init(&module->values);
     module->name = name;

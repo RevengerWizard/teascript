@@ -16,7 +16,7 @@
 #include "tea_func.h"
 #include "tea_string.h"
 #include "tea_gc.h"
-#include "tea_scanner.h"
+#include "tea_lexer.h"
 #include "tea_import.h"
 #include "tea_do.h"
 
@@ -61,13 +61,13 @@ static void error_at_current(TeaCompiler* compiler, const char* message)
     error_at(compiler, &compiler->parser->current, message);
 }
 
-static void advance(TeaCompiler* compiler)
+static void next(TeaCompiler* compiler)
 {
     compiler->parser->previous = compiler->parser->current;
 
     while(true)
     {
-        compiler->parser->current = tea_scanner_token(&compiler->parser->scanner);
+        compiler->parser->current = tea_lex_token(&compiler->parser->lex);
         if(compiler->parser->current.type != TOKEN_ERROR)
             break;
 
@@ -80,7 +80,7 @@ static void recede(TeaCompiler* compiler)
 {
     for(int i = 0; i < compiler->parser->current.length; i++)
     {
-        tea_scanner_backtrack(&compiler->parser->scanner);
+        tea_lex_backtrack(&compiler->parser->lex);
     }
 }
 
@@ -88,7 +88,7 @@ static void consume(TeaCompiler* compiler, TeaTokenType type, const char* messag
 {
     if(compiler->parser->current.type == type)
     {
-        advance(compiler);
+        next(compiler);
         return;
     }
 
@@ -104,7 +104,7 @@ static bool match(TeaCompiler* compiler, TeaTokenType type)
 {
     if(!check(compiler, type))
         return false;
-    advance(compiler);
+    next(compiler);
     return true;
 }
 
@@ -1337,7 +1337,7 @@ static TeaParseRule rules[] = {
 
 static void parse_precedence(TeaCompiler* compiler, TeaPrecedence precedence)
 {
-    advance(compiler);
+    next(compiler);
     TeaParseFn prefix_rule = get_rule(compiler->parser->previous.type)->prefix;
     if(prefix_rule == NULL)
     {
@@ -1349,7 +1349,7 @@ static void parse_precedence(TeaCompiler* compiler, TeaPrecedence precedence)
 
     while(precedence <= get_rule(compiler->parser->current.type)->precedence)
     {
-        advance(compiler);
+        next(compiler);
         TeaParseFn infix_rule = get_rule(compiler->parser->previous.type)->infix;
         infix_rule(compiler, can_assign);
     }
@@ -1533,13 +1533,13 @@ static void grouping(TeaCompiler* compiler, bool can_assign)
         }
         else
         {
-            TeaScanner* scanner = &compiler->parser->scanner;
+            TeaLexer* lex = &compiler->parser->lex;
 
-			scanner->current = start;
-			scanner->line = line;
+			lex->current = start;
+			lex->line = line;
 
-			compiler->parser->current = tea_scanner_token(scanner);
-			advance(compiler);
+			compiler->parser->current = tea_lex_token(lex);
+			next(compiler);
         }
     }
 
@@ -1851,8 +1851,6 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
                 }
                 while(match(compiler, TOKEN_COMMA));
             }
-            match(compiler, TOKEN_SEMICOLON);
-
             return;
         }
     }
@@ -1912,13 +1910,11 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
             define_variable(compiler, 0, constant);
         }
     }
-    match(compiler, TOKEN_SEMICOLON);
 }
 
 static void expression_statement(TeaCompiler* compiler)
 {
     expression(compiler);
-    match(compiler, TOKEN_SEMICOLON);
     if(compiler->parser->T->repl && compiler->type == TYPE_SCRIPT)
     {
         emit_op(compiler, OP_POP_REPL);
@@ -2327,7 +2323,6 @@ static void return_statement(TeaCompiler* compiler)
         }
 
         expression(compiler);
-        match(compiler, TOKEN_SEMICOLON);
         emit_op(compiler, OP_RETURN);
     }
 }
@@ -2538,7 +2533,6 @@ static void multiple_assignment(TeaCompiler* compiler)
     {
         error(compiler, "Not enough values to assign to");
     }
-    match(compiler, TOKEN_SEMICOLON);
     
     finish:
     for(int i = var_count - 1; i >= 0; i--)
@@ -2601,7 +2595,11 @@ static void declaration(TeaCompiler* compiler)
 
 static void statement(TeaCompiler* compiler)
 {
-    if(match(compiler, TOKEN_FOR))
+    if(check(compiler, TOKEN_SEMICOLON))
+    {
+        next(compiler);
+    }
+    else if(match(compiler, TOKEN_FOR))
     {
         for_statement(compiler);
     }
@@ -2658,12 +2656,12 @@ static void statement(TeaCompiler* compiler)
 }
 
 #ifdef TEA_DEBUG_TOKENS
-static void tea_scan_all(TeaScanner* scanner, const char* source)
+static void tea_lex_all(TeaLexer* lex, const char* source)
 {
     int line = -1;
     while(true)
     {
-        TeaToken token = tea_scanner_token(scanner);
+        TeaToken token = tea_lex_token(lex);
         if(token.line != line)
         {
             printf("%4d ", token.line);
@@ -2677,7 +2675,7 @@ static void tea_scan_all(TeaScanner* scanner, const char* source)
 
         if(token.type == TOKEN_EOF) break;
     }
-    tea_scanner_init(scanner->T, scanner, source);
+    tea_lex_init(lex->T, lex, source);
 }
 #endif
 
@@ -2687,19 +2685,19 @@ TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char*
     parser.T = T;
     parser.module = module;
 
-    TeaScanner scanner;
-    tea_scanner_init(T, &scanner, source);
+    TeaLexer lex;
+    tea_lex_init(T, &lex, source);
 
 #ifdef TEA_DEBUG_TOKENS
-    tea_scan_all(&scanner, source);
+    tea_lex_all(&lex, source);
 #endif
 
-    parser.scanner = scanner;
+    parser.lex = lex;
 
     TeaCompiler compiler;
     init_compiler(&parser, &compiler, NULL, TYPE_SCRIPT);
 
-    advance(&compiler);
+    next(&compiler);
 
     while(!match(&compiler, TOKEN_EOF))
     {

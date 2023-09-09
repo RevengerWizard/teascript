@@ -31,7 +31,7 @@
 #include "tea_string.c"
 #include "tea_map.c"
 #include "tea_object.c"
-#include "tea_scanner.c"
+#include "tea_lexer.c"
 #include "tea_state.c"
 #include "tea_table.c"
 #include "tea_utf.c"
