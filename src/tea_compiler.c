@@ -1140,7 +1140,14 @@ static void super_(TeaCompiler* compiler, bool can_assign)
         error(compiler, "Can't use 'super' in a class with no superclass");
     }
 
-    /* constructor super */
+    /* super */
+    if(!check(compiler, TOKEN_LEFT_PAREN) && !check(compiler, TOKEN_DOT))
+    {
+        named_variable(compiler, synthetic_token("super"), false);
+        return;
+    }
+
+    /* super() -> super.constructor() */
     if(match(compiler, TOKEN_LEFT_PAREN))
     {
         TeaToken token = synthetic_token("constructor");
@@ -1154,6 +1161,7 @@ static void super_(TeaCompiler* compiler, bool can_assign)
         return;
     }
 
+    /* super.name */
     consume(compiler, TOKEN_DOT, "Expect '.' after 'super'");
     consume(compiler, TOKEN_NAME, "Expect superclass method name");
     uint8_t name = identifier_constant(compiler, &compiler->parser->previous);
@@ -1162,6 +1170,7 @@ static void super_(TeaCompiler* compiler, bool can_assign)
 
     if(match(compiler, TOKEN_LEFT_PAREN))
     {
+        /* super.name() */
         uint8_t arg_count = argument_list(compiler);
         named_variable(compiler, synthetic_token("super"), false);
         emit_argued(compiler, OP_SUPER, name);
@@ -1169,6 +1178,7 @@ static void super_(TeaCompiler* compiler, bool can_assign)
     }
     else
     {
+        /* super.name */
         named_variable(compiler, synthetic_token("super"), false);
         emit_argued(compiler, OP_GET_SUPER, name);
     }

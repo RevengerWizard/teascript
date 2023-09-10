@@ -2,16 +2,18 @@
 
 PLAT = none
 
-CC = gcc
+CC = gcc -std=gnu99
 
 CDEBUG =
 #CDEBUG = -O0 -g
 
-CFLAGS = -O2 $(MYCFLAGS)
+CFLAGS = -O2 $(SYSCFLAGS) $(MYCFLAGS)
+LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
+LIBS = -lm $(SYSLIBS) $(MYLIBS)
+
 AR = ar rcu
 RANLIB = ranlib
 RM = del
-LIBS = -lm $(MYLIBS)
 
 SYSCFLAGS =
 SYSLDFLAGS =
@@ -44,6 +46,7 @@ ALL_O = $(CORE_O) $(LIB_O) $(TEA_O)
 ALL_T = $(TEA_A) $(TEA_T)
 ALL_A = $(TEA_A)
 
+# Targets start here
 default: $(PLAT)
 
 all: $(ALL_T)
@@ -57,13 +60,23 @@ $(TEA_A): $(BASE_O)
 	$(RANLIB) $@
 
 $(TEA_T): $(TEA_O) $(TEA_A)
-	$(CC) -o $@ $(MYLDFLAGS) $(TEA_O) $(TEA_A) $(LIBS)
+	$(CC) -o $@ $(LDFLAGS) $(TEA_O) $(TEA_A) $(LIBS)
 
 clean:
 	$(RM) $(ALL_T) $(ALL_O)
 
 depend:
 	@$(CC) $(CFLAGS) -MM tea_*.c > Makefile.dep
+
+echo:
+	@echo "PLAT= $(PLAT)"
+	@echo "CC= $(CC)"
+	@echo "CFLAGS= $(CFLAGS)"
+	@echo "LDFLAGS= $(LDFLAGS)"
+	@echo "LIBS= $(LIBS)"
+	@echo "AR= $(AR)"
+	@echo "RANLIB= $(RANLIB)"
+	@echo "RM= $(RM)"
 
 # Convenience targets for popular platforms
 ALL = all
@@ -90,7 +103,7 @@ emscripten:
 	"CFLAGS=-O2 $(MYCFLAGS) --closure=1" "LDFLAGS=" \
 	"TEA_T=tea.js" tea.js
 
-.PHONY: all $(PLATS) default o a clean depend none
+.PHONY: all $(PLATS) default o a clean depend echo none
 
 # do not modify
 

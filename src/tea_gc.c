@@ -341,7 +341,7 @@ static void sweep(TeaState* T)
     }
 }
 
-TEA_API void tea_gc(TeaState* T)
+void tea_gc_collect(TeaState* T)
 {
 #ifdef TEA_DEBUG_LOG_GC
     printf("-- gc begin\n");

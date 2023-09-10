@@ -14,6 +14,7 @@
 #include "tea_map.h"
 #include "tea_vm.h"
 #include "tea_do.h"
+#include "tea_gc.h"
 #include "tea_util.h"
 
 static TeaValue index2value(TeaState* T, int index)
@@ -780,6 +781,16 @@ TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char
     return 0;
 }
 
+TEA_API int tea_gc(TeaState* T)
+{
+    size_t before = T->bytes_allocated;
+    tea_gc_collect(T);
+    size_t collected = before - T->bytes_allocated;
+
+    /* GC values are expressed in Kbytes: #bytes/2^10 */
+    return collected >> 10;
+}
+
 TEA_API void tea_call(TeaState* T, int n)
 {
     TeaValue func = T->top[-n - 1];
@@ -790,7 +801,7 @@ TEA_API TeaInterpretResult tea_dofile(TeaState* T, const char* path)
 {
     char* source = tea_util_read_file(T, path);
     if(source == NULL)
-        return TEA_MEMORY_ERROR;
+        return TEA_FILE_ERROR;
 
     TeaInterpretResult status = tea_interpret(T, path, source);
     TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);

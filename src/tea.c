@@ -96,6 +96,14 @@ static int handle_script(TeaState* T, char** argv)
     {
         return 70;
     }
+    if(result == TEA_FILE_ERROR)
+    {
+        fputs("tea: ", stderr);
+        fprintf(stderr, "Cannot open '%s': No such file or directory", path);
+        fputc('\n', stderr);
+        fflush(stderr);
+        return 75;
+    }
     return result;
 }
 

@@ -4,6 +4,8 @@ class B : A
 {
     method() 
     {
-        super
-    }   // expect error
+        print(super)    // expect: <A>
+    }
 }
+
+B().method()

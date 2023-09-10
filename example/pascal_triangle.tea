@@ -12,7 +12,7 @@ for(var i in 1..n+1)
     for(var j in 1..i+1)
     {
         buff += " "
-        buff += string(c)
+        buff += String(c)
         c = floor(c * (i - j) / j)
     }
     buff += "\n"
