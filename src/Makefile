@@ -4,10 +4,13 @@ PLAT = none
 
 CC = gcc -std=gnu99
 
-CDEBUG =
-#CDEBUG = -O0 -g
+CCDEBUG =
+#CCDEBUG = -O0 -g
 
-CFLAGS = -O2 $(SYSCFLAGS) $(MYCFLAGS)
+CCOPT = -O2
+CCWARN = 
+
+CFLAGS = $(CCOPT) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS = -lm $(SYSLIBS) $(MYLIBS)
 
@@ -87,6 +90,9 @@ none:
 
 generic: $(ALL)
 
+onetea:
+	$(CC) -O2 -o onetea onetea.c -lm
+
 linux:
 	$(MAKE) $(ALL) SYSCFLAGS="-DTEA_USE_LINUX" SYSLIBS="-Wl,-E -ldl -lreadline"
 
@@ -103,7 +109,7 @@ emscripten:
 	"CFLAGS=-O2 $(MYCFLAGS) --closure=1" "LDFLAGS=" \
 	"TEA_T=tea.js" tea.js
 
-.PHONY: all $(PLATS) default o a clean depend echo none
+.PHONY: all onetea $(PLATS) default o a clean depend echo none
 
 # do not modify
 

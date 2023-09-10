@@ -11,6 +11,9 @@ $(PLATS) clean:
 
 all: $(PLAT)
 
+onetea:
+	$(MAKE) -C src onetea
+
 none:
 	@echo "Please do"
 	@echo "   make PLATFORM"
@@ -24,4 +27,4 @@ test:
 echo:
 	@$(MAKE) -C src -s echo
 
-.PHONY: all $(PLATS) clean test echo
+.PHONY: all onetea $(PLATS) clean test echo

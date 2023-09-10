@@ -2,7 +2,7 @@
 ** onetea.c
 ** Teascript core, libraries and interpreter in a single file
 **
-** gcc -O2 -std=c99 -o onetea onetea.c -lm
+** gcc -std=c99 -O2 -o onetea onetea.c -lm
 */
 
 #define onetea_c
