@@ -86,17 +86,17 @@ static void repl(TeaState* T)
 static int handle_script(TeaState* T, char** argv)
 {
     char* path  = argv[0];
-    TeaInterpretResult result = tea_dofile(T, path);
+    TeaStatus status = tea_dofile(T, path);
 
-    if(result == TEA_COMPILE_ERROR)
+    if(status == TEA_COMPILE_ERROR)
     {
         return 65;
     }
-    if(result == TEA_RUNTIME_ERROR)
+    if(status == TEA_RUNTIME_ERROR)
     {
         return 70;
     }
-    if(result == TEA_FILE_ERROR)
+    if(status == TEA_FILE_ERROR)
     {
         fputs("tea: ", stderr);
         fprintf(stderr, "Cannot open '%s': No such file or directory", path);
@@ -104,7 +104,7 @@ static int handle_script(TeaState* T, char** argv)
         fflush(stderr);
         return 75;
     }
-    return result;
+    return status;
 }
 
 #define notail(x)   { if ((x)[2] != '\0') return -1; }

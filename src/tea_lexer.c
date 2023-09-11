@@ -789,6 +789,7 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
                     case '\'': tea_write_bytes(T, &bytes, '\''); break;
                     case '\\': tea_write_bytes(T, &bytes, '\\'); break;
                     case '0': tea_write_bytes(T, &bytes, '\0'); break;
+                    case '{': tea_write_bytes(T, &bytes, '{'); break;
                     case 'a': tea_write_bytes(T, &bytes, '\a'); break;
                     case 'b': tea_write_bytes(T, &bytes, '\b'); break;
                     case 'f': tea_write_bytes(T, &bytes, '\f'); break;
@@ -887,13 +888,13 @@ TeaToken tea_lex_token(TeaLexer* lex)
             return octal_number(lex);
         }
     }
-    else if(c == 'r')
+    else if(c == 'r' || c == 'f')
     {
         if(peek(lex) == '"' || peek(lex) == '\'')
         {
-            lex->raw = true;
+            lex->raw = (c == 'r');
             lex->string = advance_char(lex);
-            return string(lex, false);
+            return string(lex, c == 'f');
         }
     }
 
@@ -1009,7 +1010,7 @@ TeaToken tea_lex_token(TeaLexer* lex)
             {
                 return multistring(lex);
             }
-            return string(lex, true);
+            return string(lex, false);
         }
     }
 

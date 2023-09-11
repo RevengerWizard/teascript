@@ -781,6 +781,17 @@ TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char
     return 0;
 }
 
+TEA_API void tea_importf(TeaState* T, const char* mod, TeaCFunction openf, bool glb)
+{
+    tea_push_cfunction(T, openf);
+    tea_push_string(T, mod);
+    tea_call(T, 1);
+    if(glb)
+    {
+        tea_set_global(T, mod);
+    }
+}
+
 TEA_API int tea_gc(TeaState* T)
 {
     size_t before = T->bytes_allocated;
@@ -797,13 +808,13 @@ TEA_API void tea_call(TeaState* T, int n)
     tea_do_call(T, func, n);
 }
 
-TEA_API TeaInterpretResult tea_dofile(TeaState* T, const char* path)
+TEA_API TeaStatus tea_dofile(TeaState* T, const char* path)
 {
     char* source = tea_util_read_file(T, path);
     if(source == NULL)
         return TEA_FILE_ERROR;
 
-    TeaInterpretResult status = tea_interpret(T, path, source);
+    TeaStatus status = tea_interpret(T, path, source);
     TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
 
     return status;

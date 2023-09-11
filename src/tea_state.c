@@ -148,7 +148,7 @@ bool tea_state_isclass(TeaState* T, TeaObjectClass* klass)
            klass == T->file_class);
 }
 
-TEA_API TeaInterpretResult tea_interpret(TeaState* T, const char* module_name, const char* source)
+TEA_API TeaStatus tea_interpret(TeaState* T, const char* module_name, const char* source)
 {
     TeaObjectString* name = tea_string_new(T, module_name);
     tea_vm_push(T, OBJECT_VAL(name));
