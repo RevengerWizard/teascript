@@ -1,0 +1,47 @@
+
+- [ ] package manager
+- [ ] benchmarks
+- [ ] notebooks
+- [x] C API
+- [x] C modules
+- [ ] bytecode files
+- [ ] comment the source code
+- [ ] optional types
+- [ ] decorators
+- [ ] pattern matching
+- [ ] longs
+- [ ] coroutines
+- [ ] async/await
+- [x] core classes
+- [ ] warnings
+- [ ] spread operator
+- [ ] splice
+- [ ] slice
+- [ ] try/catch
+- [ ] register based bytecode
+- [ ] implicit string concatenation
+- [ ] delete keyword?
+- [x] wasm interpreter
+- [ ] better error messages
+
+- [ ] ffi
+- [ ] http
+- [ ] socket
+- [ ] websocket
+- [ ] json
+- [ ] html
+- [ ] csv
+- [ ] yaml
+- [ ] toml
+- [ ] date
+- [ ] path
+- [ ] xml
+- [ ] zip
+- [ ] crypto
+- [ ] hash
+- [ ] base64
+- [ ] ini
+- [ ] gif
+- [ ] cffi
+
+- [ ] Decimal

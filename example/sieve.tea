@@ -1,0 +1,28 @@
+function sieve(n)
+{
+    var prime = []
+    for(var i in 0..n+1)
+    {
+        prime.add(true)
+    }
+    var p = 2
+    while(p * p <= n)
+    {
+        if(prime[p] == true)
+        {
+            for(var i = p * p; i < n + 1; i += p)
+            {
+                prime[i] = false
+            }
+        }
+        p++
+    }
+    for(var p in 2..n+1)
+    {
+        if(prime[p])
+            print(p)
+    }
+}
+
+var n = 50
+sieve(n)

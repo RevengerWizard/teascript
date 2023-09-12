@@ -1,0 +1,19 @@
+from math import floor
+
+var tree_height = 5
+var trunk_char = '|'
+var leaf_char = '*'
+
+for(var i in 1..tree_height+1)
+{
+    var num_leaf_chars = 2 * i - 1
+    var num_spaces = tree_height - i
+    print(" " * num_spaces + leaf_char * num_leaf_chars)
+}
+
+var trunk_height = floor(tree_height / 2)
+for(var i in 0..trunk_height)
+{
+    var num_spaces = tree_height - 1
+    print(" " * num_spaces + trunk_char)
+}

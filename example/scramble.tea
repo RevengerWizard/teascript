@@ -1,0 +1,11 @@
+from random import shuffle
+
+function scramble(word)
+{
+    var l = word.split("")
+    shuffle(l)
+    return l.join("")
+}
+
+var s
+while((s = scramble("worlde")) != "worlde") print(s)

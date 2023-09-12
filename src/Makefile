@@ -106,7 +106,7 @@ mingw:
 
 emscripten:
 	$(MAKE) "CC=emcc" "AR=emar rcu" "RANLIB=emranlib" \
-	"CFLAGS=-O2 $(MYCFLAGS) --closure=1" "LDFLAGS=" \
+	"CFLAGS=-O2 $(MYCFLAGS) --closure=1" "TEA_A=libtea.bc" "LDFLAGS=" \
 	"TEA_T=tea.js" tea.js
 
 .PHONY: all onetea $(PLATS) default o a clean depend echo none

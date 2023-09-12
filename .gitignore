@@ -4,5 +4,6 @@
 *.dll
 *.js
 *.wasm
+*.bc
 .vscode
 tea.tea

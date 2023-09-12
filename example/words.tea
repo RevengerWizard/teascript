@@ -1,0 +1,25 @@
+import random
+
+var size = 4
+
+function generate_words(num_words)
+{
+    var consonants = "bcdfghjklmnpqrstvwxyz"
+    var vowels = "aeiou"
+    var words = []
+    for(var i in Range(num_words))
+    {
+        var word = ""
+        for(var j in Range(size))
+        {
+            if(j % 2 == 0)
+                word += random.choice(consonants.split(''))
+            else
+                word += random.choice(vowels.split(''))
+        }
+        words.add(word)
+    }
+    return words
+}
+
+print(generate_words(5))
