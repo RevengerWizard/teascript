@@ -34,7 +34,7 @@ static void error_at(TeaCompiler* compiler, TeaToken* token, const char* message
     char* module_name = compiler->parser->module->name->chars;
     char c = module_name[0];
     int off = 0;
-    if(c == '?' || c == '=') off++;
+    if(c == '?' || c == '=') off = 1;
 
     fprintf(stderr, "File %s, [line %d] Error", module_name + off, token->line);
 

@@ -653,83 +653,6 @@ static bool read_unicode_escape(TeaLexer* lex, TeaBytes* bytes, int length)
     return false;
 }
 
-static TeaToken multistring(TeaLexer* lex)
-{
-    TeaState* T = lex->T;
-    TeaBytes bytes;
-    tea_init_bytes(&bytes);
-
-    /* Consume second and third quote */
-    advance_char(lex);
-    advance_char(lex);
-
-    int skip_start = 0;
-    int first_newline = -1;
-
-    int skip_end = -1;
-    int last_newline = -1;
-
-    while(true)
-    {
-        char c = advance_char(lex);
-        char c1 = peek(lex);
-        char c2 = peek_next(lex);
-
-        if(c == '\r') continue;
-
-        if(c == '\n')
-        {
-            last_newline = bytes.count;
-            skip_end = last_newline;
-            first_newline = first_newline == -1 ? bytes.count : first_newline;
-        }
-
-        char s = lex->string;
-        if(c == s && c1 == s && c2 == s) break;
-    
-        bool whitespace = c == ' ' || c == '\t';
-        skip_end = c == '\n' || whitespace ? skip_end : -1;
-
-        /* If we haven't seen a newline or other character yet, 
-        ** and still seeing whitespace, count the characters 
-        ** as skippable till we know otherwise 
-        */
-        bool skippable = skip_start != -1 && whitespace && first_newline == -1;
-        skip_start = skippable ? bytes.count + 1 : skip_start;
-        
-        /* We've counted leading whitespace till we hit something else, 
-        ** but it's not a newline, so we reset skipStart since we need these characters
-        */
-        if(first_newline == -1 && !whitespace && c != '\n') skip_start = -1;
-
-        if(c == '\0' || c1 == '\0' || c2 == '\0')
-        {
-            tea_free_bytes(T, &bytes);
-            return error_token(lex, "Unterminated string");
-        }
-    
-        tea_write_bytes(T, &bytes, c);
-    }
-
-    /* consume the second and third quote */
-    advance_char(lex);
-    advance_char(lex);
-
-    int offset = 0;
-    int count = bytes.count;
-
-    if(first_newline != -1 && skip_start == first_newline) offset = first_newline + 1;
-    if(last_newline != -1 && skip_end == last_newline) count = last_newline;
-
-    count -= (offset > count) ? count : offset;
-
-    TeaToken token = make_token(lex, TOKEN_STRING);
-	token.value = OBJECT_VAL(tea_string_copy(T, (const char*)bytes.values, bytes.count));
-	tea_free_bytes(T, &bytes);
-
-	return token;
-}
-
 static TeaToken string(TeaLexer* lex, bool interpolation)
 {
     TeaState* T = lex->T;
@@ -996,20 +919,12 @@ TeaToken tea_lex_token(TeaLexer* lex)
         case '>': return match_tokens(lex, '=', '>', TOKEN_GREATER_EQUAL, TOKEN_GREATER_GREATER, TOKEN_GREATER);
         case '"':
         {
-            char s = lex->string = '"';
-            if(peek(lex) == s && peek_next(lex) == s)
-            {
-                return multistring(lex);
-            }
-            return string(lex, true);
+            lex->string = '"';
+            return string(lex, false);
         }
         case '\'':
         {
-            char s = lex->string = '\'';
-            if(peek(lex) == s && peek_next(lex) == s)
-            {
-                return multistring(lex);
-            }
+            lex->string = '\'';
             return string(lex, false);
         }
     }

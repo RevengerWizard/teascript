@@ -101,6 +101,8 @@ static void adjust_capacity(TeaState* T, TeaTable* table, int capacity)
     table->capacity = capacity;
 }
 
+#define TABLE_MAX_LOAD 0.75
+
 bool tea_table_set(TeaState* T, TeaTable* table, TeaObjectString* key, TeaValue value)
 {
     if(table->count + 1 > table->capacity * TABLE_MAX_LOAD)
