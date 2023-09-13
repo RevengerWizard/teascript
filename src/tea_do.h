@@ -26,7 +26,7 @@ TEA_FUNC void tea_do_grow_ci(TeaState* T);
 TEA_FUNC void tea_do_realloc_stack(TeaState* T, int new_size);
 TEA_FUNC void tea_do_grow_stack(TeaState* T, int needed);
 
-TEA_FUNC void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count);
+TEA_FUNC bool tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count);
 TEA_FUNC void tea_do_call(TeaState* T, TeaValue func, int arg_count);
 TEA_FUNC int tea_do_pcall(TeaState* T, TeaValue func, int arg_count);
 

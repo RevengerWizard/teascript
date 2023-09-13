@@ -18,6 +18,7 @@
 #include "tea_value.h"
 #include "tea_state.h"
 #include "tea_vm.h"
+#include "tea_do.h"
 
 TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type)
 {
@@ -367,6 +368,23 @@ static TeaObjectString* class_tostring(TeaState* T, TeaObjectClass* klass)
 
 static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instance)
 {
+    TeaValue tostring;
+    TeaObjectString* _tostring = tea_string_literal(T, "tostring");
+    if(tea_table_get(&instance->klass->methods, _tostring, &tostring))
+    {
+        TeaObjectBoundMethod* bound = tea_obj_new_bound_method(T, OBJECT_VAL(instance), tostring);
+        tea_vm_push(T, OBJECT_VAL(bound));
+        tea_call(T, 0);
+
+        TeaValue result = tea_vm_pop(T, 1);
+        if(!IS_STRING(result))
+        {
+            tea_error(T, "'tostring' must return a string");
+        }
+
+        return AS_STRING(result);
+    }
+
     int len = snprintf(NULL, 0, "<%s instance>", instance->klass->name->chars);
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "<%s instance>", instance->klass->name->chars);

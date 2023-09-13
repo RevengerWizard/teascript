@@ -169,7 +169,7 @@ static void callc(TeaState* T, TeaObjectNative* native, int arg_count)
     tea_vm_push(T, res);
 }
 
-void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
+bool tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
 {
     if(IS_OBJECT(callee))
     {
@@ -179,8 +179,7 @@ void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
             {
                 TeaObjectBoundMethod* bound = AS_BOUND_METHOD(callee);
                 T->top[-arg_count - 1] = bound->receiver;
-                tea_do_precall(T, bound->method, arg_count);
-                return;
+                return tea_do_precall(T, bound->method, arg_count);
             }
             case OBJ_CLASS:
             {
@@ -188,20 +187,20 @@ void tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
                 T->top[-arg_count - 1] = OBJECT_VAL(tea_obj_new_instance(T, klass));
                 if(!IS_NULL(klass->constructor)) 
                 {
-                    tea_do_precall(T, klass->constructor, arg_count);
+                    return tea_do_precall(T, klass->constructor, arg_count);
                 }
                 else if(arg_count != 0)
                 {
                     tea_vm_error(T, "Expected 0 arguments but got %d", arg_count);
                 }
-                return;
+                return false;
             }
             case OBJ_CLOSURE:
                 callt(T, AS_CLOSURE(callee), arg_count);
-                return;
+                return true;
             case OBJ_NATIVE:
                 callc(T, AS_NATIVE(callee), arg_count);
-                return;
+                return false;
             default:
                 break; /* Non-callable object type */
         }
@@ -229,9 +228,8 @@ void tea_do_call(TeaState* T, TeaValue func, int arg_count)
         puts("C stack overflow");
         tea_do_throw(T, TEA_RUNTIME_ERROR);
     }
-    tea_do_precall(T, func, arg_count);
 
-    if(IS_CLOSURE(func))
+    if(tea_do_precall(T, func, arg_count))
     {
         tea_vm_run(T);
     }

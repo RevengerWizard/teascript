@@ -38,7 +38,7 @@ static void core_print(TeaState* T)
             putchar('\t');
 
         fwrite(string, sizeof(char), len, stdout);
-        tea_pop(T, 1);
+        tea_pop(T, 2);  /* pop both value and value string */
     }
 
     putchar('\n');

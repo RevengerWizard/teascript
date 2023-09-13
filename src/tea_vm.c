@@ -69,13 +69,8 @@ static void invoke(TeaState* T, TeaValue receiver, TeaObjectString* name, int ar
                 return;
             }
 
-            if(tea_table_get(&instance->klass->methods, name, &value)) 
-            {
-                tea_do_precall(T, value, arg_count);
-                return;
-            }
-
-            tea_vm_error(T, "Undefined property '%s'", name->chars);
+            invoke_from_class(T, instance->klass, name, arg_count);
+            return;
         }
         case OBJ_CLASS:
         {
