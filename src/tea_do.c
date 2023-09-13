@@ -225,8 +225,7 @@ void tea_do_call(TeaState* T, TeaValue func, int arg_count)
 {
     if(++T->nccalls >= TEA_MAX_CCALLS)
     {
-        puts("C stack overflow");
-        tea_do_throw(T, TEA_RUNTIME_ERROR);
+        tea_vm_error(T, "C stack overflow");
     }
 
     if(tea_do_precall(T, func, arg_count))
