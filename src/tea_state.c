@@ -90,12 +90,12 @@ TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
     T->file_class = NULL;
     T->range_class = NULL;
     init_stack(T);
-    tea_table_init(&T->modules);
-    tea_table_init(&T->globals);
-    tea_table_init(&T->constants);
-    tea_table_init(&T->strings);
-    T->constructor_string = tea_string_literal(T, "constructor");
-    T->repl_string = tea_string_literal(T, "_");
+    tea_tab_init(&T->modules);
+    tea_tab_init(&T->globals);
+    tea_tab_init(&T->constants);
+    tea_tab_init(&T->strings);
+    T->constructor_string = tea_str_literal(T, "constructor");
+    T->repl_string = tea_str_literal(T, "_");
     tea_open_core(T);
     return T;
 }
@@ -106,12 +106,12 @@ TEA_API void tea_close(TeaState* T)
     T->repl_string = NULL;
     
     if(T->repl) 
-        tea_table_free(T, &T->constants);
+        tea_tab_free(T, &T->constants);
 
-    tea_table_free(T, &T->modules);
-    tea_table_free(T, &T->globals);
-    tea_table_free(T, &T->constants);
-    tea_table_free(T, &T->strings);
+    tea_tab_free(T, &T->modules);
+    tea_tab_free(T, &T->globals);
+    tea_tab_free(T, &T->constants);
+    tea_tab_free(T, &T->strings);
     free_stack(T);
     tea_gc_free_objects(T);
 
@@ -122,7 +122,7 @@ TEA_API void tea_close(TeaState* T)
     free_state(T);
 }
 
-TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value)
+TeaOClass* tea_state_get_class(TeaState* T, TeaValue value)
 {
     if(IS_OBJECT(value))
     {
@@ -139,7 +139,7 @@ TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value)
     return NULL;
 }
 
-bool tea_state_isclass(TeaState* T, TeaObjectClass* klass)
+bool tea_state_isclass(TeaState* T, TeaOClass* klass)
 {
     return (klass == T->list_class ||
            klass == T->map_class ||
@@ -150,9 +150,9 @@ bool tea_state_isclass(TeaState* T, TeaObjectClass* klass)
 
 TEA_API TeaStatus tea_interpret(TeaState* T, const char* module_name, const char* source)
 {
-    TeaObjectString* name = tea_string_new(T, module_name);
+    TeaOString* name = tea_str_new(T, module_name);
     tea_vm_push(T, OBJECT_VAL(name));
-    TeaObjectModule* module = tea_obj_new_module(T, name);
+    TeaOModule* module = tea_obj_new_module(T, name);
     tea_vm_pop(T, 1);
 
     char c = module_name[0];

@@ -63,9 +63,9 @@ static bool readable(const char* filename)
     return false;
 }
 
-static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name)
+static TeaOString* resolve_filename(TeaState* T, char* dir, char* path_name)
 {
-    TeaObjectString* file = NULL;
+    TeaOString* file = NULL;
     size_t l;
 
     const char* exts[] = { ".tea", /* ".tbc",*/ ".dll", /*".so",*/ "/init.tea" };
@@ -82,7 +82,7 @@ static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name
         {
             if(readable(path))
             {
-                file = tea_string_copy(T, path, strlen(path));
+                file = tea_str_copy(T, path, strlen(path));
                 TEA_FREE_ARRAY(T, char, filename, l + 1);
                 break;
             }
@@ -94,16 +94,16 @@ static TeaObjectString* resolve_filename(TeaState* T, char* dir, char* path_name
     return file;
 }
 
-void tea_import_relative(TeaState* T, TeaObjectString* dir, TeaObjectString* path_name)
+void tea_imp_relative(TeaState* T, TeaOString* dir, TeaOString* path_name)
 {
-    TeaObjectString* path = resolve_filename(T, dir->chars, path_name->chars);
+    TeaOString* path = resolve_filename(T, dir->chars, path_name->chars);
     if(path == NULL)
     {
         tea_vm_error(T, "Could not resolve path \"%s\"", path_name->chars);
     }
 
     TeaValue v;
-    if(tea_table_get(&T->modules, path, &v)) 
+    if(tea_tab_get(&T->modules, path, &v)) 
     {
         T->last_module = AS_MODULE(v);
         tea_vm_push(T, NULL_VAL);
@@ -117,7 +117,7 @@ void tea_import_relative(TeaState* T, TeaObjectString* dir, TeaObjectString* pat
         tea_vm_error(T, "Could not read \"%s\"", path_name->chars);
     }
 
-    TeaObjectModule* module = tea_obj_new_module(T, path);
+    TeaOModule* module = tea_obj_new_module(T, path);
     module->path = tea_util_dirname(T, path->chars, path->length);
     T->last_module = module;
 
@@ -130,10 +130,10 @@ void tea_import_relative(TeaState* T, TeaObjectString* dir, TeaObjectString* pat
     tea_do_precall(T, T->top[-1], 0);
 }
 
-void tea_import_logical(TeaState* T, TeaObjectString* name)
+void tea_imp_logical(TeaState* T, TeaOString* name)
 {
     TeaValue v;
-    if(tea_table_get(&T->modules, name, &v))
+    if(tea_tab_get(&T->modules, name, &v))
     {
         T->last_module = AS_MODULE(v);
         tea_vm_push(T, v);
@@ -147,7 +147,7 @@ void tea_import_logical(TeaState* T, TeaObjectString* name)
     }
     else
     {
-        TeaObjectString* module = resolve_filename(T, ".", name->chars);
+        TeaOString* module = resolve_filename(T, ".", name->chars);
         if(module == NULL)
         {
             tea_vm_error(T, "Unknown module \"%s\"", name->chars);

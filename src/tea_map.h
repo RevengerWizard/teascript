@@ -8,13 +8,13 @@
 
 #include "tea_object.h"
 
-TEA_FUNC TeaObjectMap* tea_map_new(TeaState* T);
+TEA_FUNC TeaOMap* tea_map_new(TeaState* T);
 
-TEA_FUNC void tea_map_clear(TeaState* T, TeaObjectMap* map);
-TEA_FUNC bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value);
-TEA_FUNC bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value);
-TEA_FUNC bool tea_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key);
-TEA_FUNC void tea_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to);
+TEA_FUNC void tea_map_clear(TeaState* T, TeaOMap* map);
+TEA_FUNC bool tea_map_set(TeaState* T, TeaOMap* map, TeaValue key, TeaValue value);
+TEA_FUNC bool tea_map_get(TeaOMap* map, TeaValue key, TeaValue* value);
+TEA_FUNC bool tea_map_delete(TeaState* T, TeaOMap* map, TeaValue key);
+TEA_FUNC void tea_map_add_all(TeaState* T, TeaOMap* from, TeaOMap* to);
 
 static inline bool tea_map_validkey(TeaValue value)
 {

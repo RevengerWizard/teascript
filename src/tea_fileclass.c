@@ -20,10 +20,10 @@
 #include "tea_string.h"
 #include "tea_core.h"
 
-static TeaObjectFile* get_file(TeaState* T)
+static TeaOFile* get_file(TeaState* T)
 {
     tea_check_file(T, 0);
-    TeaObjectFile* file = AS_FILE(T->base[0]);
+    TeaOFile* file = AS_FILE(T->base[0]);
     if(!file->is_open)
     {
         tea_error(T, "Attempt to use a closed file");
@@ -51,7 +51,7 @@ static void file_write(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
 
-    TeaObjectFile* file = get_file(T);
+    TeaOFile* file = get_file(T);
 
     int len;
     const char* string = tea_check_lstring(T, 1, &len);
@@ -72,7 +72,7 @@ static void file_writeline(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
 
-    TeaObjectFile* file = get_file(T);
+    TeaOFile* file = get_file(T);
 
     int len;
     const char* string = tea_check_lstring(T, 1, &len);
@@ -96,7 +96,7 @@ static void file_read(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     
-    TeaObjectFile* file = get_file(T);
+    TeaOFile* file = get_file(T);
 
     if(strcmp(file->type->chars, "w") == 0)
     {
@@ -124,7 +124,7 @@ static void file_read(TeaState* T)
 
     contents = TEA_GROW_ARRAY(T, char, contents, current_size, total_read_bytes + 1);
 
-    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, contents, total_read_bytes)));
+    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, contents, total_read_bytes)));
 }
 
 static void file_readline(TeaState* T)
@@ -132,7 +132,7 @@ static void file_readline(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
 
-    TeaObjectFile* file = get_file(T);
+    TeaOFile* file = get_file(T);
 
     if(strcmp(file->type->chars, "w") == 0)
     {
@@ -162,7 +162,7 @@ static void file_readline(TeaState* T)
             line[line_length] = '\0';
             line = TEA_GROW_ARRAY(T, char, line, current_size, line_length + 1);
 
-            tea_vm_push(T, OBJECT_VAL(tea_string_take(T, line, line_length)));
+            tea_vm_push(T, OBJECT_VAL(tea_str_take(T, line, line_length)));
             return;
         }
     }
@@ -176,7 +176,7 @@ static void file_seek(TeaState* T)
     int count = tea_get_top(T);
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
 
-    TeaObjectFile* file = get_file(T);
+    TeaOFile* file = get_file(T);
 
     int seek_type = SEEK_SET;
     if(count == 3) 
@@ -219,7 +219,7 @@ static void file_close(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
 
-    TeaObjectFile* file = get_file(T);
+    TeaOFile* file = get_file(T);
 
     if(file->is_open == -1)
     {

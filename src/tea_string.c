@@ -10,15 +10,15 @@
 #include "tea_state.h"
 #include "tea_vm.h"
 
-static TeaObjectString* string_allocate(TeaState* T, char* chars, int length, uint32_t hash)
+static TeaOString* string_allocate(TeaState* T, char* chars, int length, uint32_t hash)
 {
-    TeaObjectString* string = ALLOCATE_OBJECT(T, TeaObjectString, OBJ_STRING);
+    TeaOString* string = ALLOCATE_OBJECT(T, TeaOString, OBJ_STRING);
     string->length = length;
     string->chars = chars;
     string->hash = hash;
 
     tea_vm_push(T, OBJECT_VAL(string));
-    tea_table_set(T, &T->strings, string, NULL_VAL);
+    tea_tab_set(T, &T->strings, string, NULL_VAL);
     tea_vm_pop(T, 1);
 
     return string;
@@ -35,11 +35,11 @@ static uint32_t string_hash(const char* key, int length)
     return hash;
 }
 
-TeaObjectString* tea_string_take(TeaState* T, char* chars, int length)
+TeaOString* tea_str_take(TeaState* T, char* chars, int length)
 {
     uint32_t hash = string_hash(chars, length);
 
-    TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
+    TeaOString* interned = tea_tab_findstr(&T->strings, chars, length, hash);
     if(interned != NULL)
     {
         TEA_FREE_ARRAY(T, char, chars, length + 1);
@@ -49,11 +49,11 @@ TeaObjectString* tea_string_take(TeaState* T, char* chars, int length)
     return string_allocate(T, chars, length, hash);
 }
 
-TeaObjectString* tea_string_copy(TeaState* T, const char* chars, int length)
+TeaOString* tea_str_copy(TeaState* T, const char* chars, int length)
 {
     uint32_t hash = string_hash(chars, length);
 
-    TeaObjectString* interned = tea_table_find_string(&T->strings, chars, length, hash);
+    TeaOString* interned = tea_tab_findstr(&T->strings, chars, length, hash);
     if(interned != NULL)
         return interned;
 

@@ -31,20 +31,20 @@
 #define IS_INSTANCE(value) tea_obj_istype(value, OBJ_INSTANCE)
 #define IS_STRING(value) tea_obj_istype(value, OBJ_STRING)
 
-#define AS_USERDATA(value) ((TeaObjectUserdata*)AS_OBJECT(value))
-#define AS_NATIVE(value) ((TeaObjectNative*)AS_OBJECT(value))
-#define AS_RANGE(value) ((TeaObjectRange*)AS_OBJECT(value))
-#define AS_FILE(value) ((TeaObjectFile*)AS_OBJECT(value))
-#define AS_MODULE(value) ((TeaObjectModule*)AS_OBJECT(value))
-#define AS_LIST(value) ((TeaObjectList*)AS_OBJECT(value))
-#define AS_MAP(value) ((TeaObjectMap*)AS_OBJECT(value))
-#define AS_BOUND_METHOD(value) ((TeaObjectBoundMethod*)AS_OBJECT(value))
-#define AS_CLASS(value) ((TeaObjectClass*)AS_OBJECT(value))
-#define AS_CLOSURE(value) ((TeaObjectClosure*)AS_OBJECT(value))
-#define AS_FUNCTION(value) ((TeaObjectFunction*)AS_OBJECT(value))
-#define AS_INSTANCE(value) ((TeaObjectInstance*)AS_OBJECT(value))
-#define AS_STRING(value) ((TeaObjectString*)AS_OBJECT(value))
-#define AS_CSTRING(value) (((TeaObjectString*)AS_OBJECT(value))->chars)
+#define AS_USERDATA(value) ((TeaOUserdata*)AS_OBJECT(value))
+#define AS_NATIVE(value) ((TeaONative*)AS_OBJECT(value))
+#define AS_RANGE(value) ((TeaORange*)AS_OBJECT(value))
+#define AS_FILE(value) ((TeaOFile*)AS_OBJECT(value))
+#define AS_MODULE(value) ((TeaOModule*)AS_OBJECT(value))
+#define AS_LIST(value) ((TeaOList*)AS_OBJECT(value))
+#define AS_MAP(value) ((TeaOMap*)AS_OBJECT(value))
+#define AS_BOUND_METHOD(value) ((TeaOBoundMethod*)AS_OBJECT(value))
+#define AS_CLASS(value) ((TeaOClass*)AS_OBJECT(value))
+#define AS_CLOSURE(value) ((TeaOClosure*)AS_OBJECT(value))
+#define AS_FUNCTION(value) ((TeaOFunction*)AS_OBJECT(value))
+#define AS_INSTANCE(value) ((TeaOInstance*)AS_OBJECT(value))
+#define AS_STRING(value) ((TeaOString*)AS_OBJECT(value))
+#define AS_CSTRING(value) (((TeaOString*)AS_OBJECT(value))->chars)
 
 #define ALLOCATE_OBJECT(T, type, object_type) (type*)tea_obj_allocate(T, sizeof(type), object_type)
 
@@ -88,24 +88,24 @@ typedef struct
     double start;
     double end;
     double step;
-} TeaObjectRange;
+} TeaORange;
 
-struct TeaObjectFile
+struct TeaOFile
 {
     TeaObject obj;
     FILE* file;
-    TeaObjectString* path;
-    TeaObjectString* type;
+    TeaOString* path;
+    TeaOString* type;
     int is_open;
 };
 
 typedef struct
 {
     TeaObject obj;
-    TeaObjectString* name;
-    TeaObjectString* path;
+    TeaOString* name;
+    TeaOString* path;
     TeaTable values;
-} TeaObjectModule;
+} TeaOModule;
 
 typedef struct
 {
@@ -117,9 +117,9 @@ typedef struct
     int max_slots;
     TeaChunk chunk;
     TeaFunctionType type;
-    TeaObjectString* name;
-    TeaObjectModule* module;
-} TeaObjectFunction;
+    TeaOString* name;
+    TeaOModule* module;
+} TeaOFunction;
 
 typedef enum
 {
@@ -133,9 +133,9 @@ typedef struct
     TeaObject obj;
     TeaNativeType type;
     TeaCFunction fn;
-} TeaObjectNative;
+} TeaONative;
 
-struct TeaObjectString
+struct TeaOString
 {
     TeaObject obj;
     int length;
@@ -148,13 +148,13 @@ typedef struct
     TeaObject obj;
     void* data;
     size_t size;
-} TeaObjectUserdata;
+} TeaOUserdata;
 
 typedef struct
 {
     TeaObject obj;
     TeaValueArray items;
-} TeaObjectList;
+} TeaOList;
 
 typedef struct 
 {
@@ -169,63 +169,63 @@ typedef struct
     int count;
     int capacity;
     TeaMapItem* items;
-} TeaObjectMap;
+} TeaOMap;
 
-typedef struct TeaObjectUpvalue
+typedef struct TeaOUpvalue
 {
     TeaObject obj;
     TeaValue* location;
     TeaValue closed;
-    struct TeaObjectUpvalue* next;
-} TeaObjectUpvalue;
+    struct TeaOUpvalue* next;
+} TeaOUpvalue;
 
 typedef struct
 {
     TeaObject obj;
-    TeaObjectFunction* function;
-    TeaObjectUpvalue** upvalues;
+    TeaOFunction* function;
+    TeaOUpvalue** upvalues;
     int upvalue_count;
-} TeaObjectClosure;
+} TeaOClosure;
 
-typedef struct TeaObjectClass
+typedef struct TeaOClass
 {
     TeaObject obj;
-    TeaObjectString* name;
-    struct TeaObjectClass* super;
+    TeaOString* name;
+    struct TeaOClass* super;
     TeaValue constructor;
     TeaTable statics;
     TeaTable methods;
-} TeaObjectClass;
+} TeaOClass;
 
 typedef struct
 {
     TeaObject obj;
-    TeaObjectClass* klass;
+    TeaOClass* klass;
     TeaTable fields;
-} TeaObjectInstance;
+} TeaOInstance;
 
 typedef struct
 {
     TeaObject obj;
     TeaValue receiver;
     TeaValue method;
-} TeaObjectBoundMethod;
+} TeaOBoundMethod;
 
 TEA_FUNC TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type);
 
-TEA_FUNC TeaObjectBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
-TEA_FUNC TeaObjectInstance* tea_obj_new_instance(TeaState* T, TeaObjectClass* klass);
-TEA_FUNC TeaObjectClass* tea_obj_new_class(TeaState* T, TeaObjectString* name, TeaObjectClass* superclass);
+TEA_FUNC TeaOBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method);
+TEA_FUNC TeaOInstance* tea_obj_new_instance(TeaState* T, TeaOClass* klass);
+TEA_FUNC TeaOClass* tea_obj_new_class(TeaState* T, TeaOString* name, TeaOClass* superclass);
 
-TEA_FUNC TeaObjectUserdata* tea_obj_new_userdata(TeaState* T, size_t size);
+TEA_FUNC TeaOUserdata* tea_obj_new_userdata(TeaState* T, size_t size);
 
-TEA_FUNC TeaObjectList* tea_obj_new_list(TeaState* T);
+TEA_FUNC TeaOList* tea_obj_new_list(TeaState* T);
 
-TEA_FUNC TeaObjectModule* tea_obj_new_module(TeaState* T, TeaObjectString* name);
-TEA_FUNC TeaObjectFile* tea_obj_new_file(TeaState* T, TeaObjectString* path, TeaObjectString* type);
-TEA_FUNC TeaObjectRange* tea_obj_new_range(TeaState* T, double start, double end, double step);
+TEA_FUNC TeaOModule* tea_obj_new_module(TeaState* T, TeaOString* name);
+TEA_FUNC TeaOFile* tea_obj_new_file(TeaState* T, TeaOString* path, TeaOString* type);
+TEA_FUNC TeaORange* tea_obj_new_range(TeaState* T, double start, double end, double step);
 
-TEA_FUNC TeaObjectString* tea_obj_tostring(TeaState* T, TeaValue value);
+TEA_FUNC TeaOString* tea_obj_tostring(TeaState* T, TeaValue value);
 TEA_FUNC bool tea_obj_equal(TeaValue a, TeaValue b);
 TEA_FUNC const char* tea_obj_type(TeaValue a);
 

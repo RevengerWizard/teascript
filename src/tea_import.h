@@ -9,7 +9,7 @@
 #include "tea_state.h"
 #include "tea_object.h"
 
-TEA_FUNC void tea_import_relative(TeaState* T, TeaObjectString* mod, TeaObjectString* path_name);
-TEA_FUNC void tea_import_logical(TeaState* T, TeaObjectString* name);
+TEA_FUNC void tea_imp_relative(TeaState* T, TeaOString* mod, TeaOString* path_name);
+TEA_FUNC void tea_imp_logical(TeaState* T, TeaOString* name);
 
 #endif

@@ -17,11 +17,11 @@ static void map_len(TeaState* T)
 
 static void map_keys(TeaState* T)
 {
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
 
     tea_new_list(T);
 
-    TeaObjectList* list = AS_LIST(T->base[1]);
+    TeaOList* list = AS_LIST(T->base[1]);
     for(int i = 0; i < map->capacity; i++)
     {
         if(map->items[i].empty) continue;
@@ -31,11 +31,11 @@ static void map_keys(TeaState* T)
 
 static void map_values(TeaState* T)
 {
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
 
     tea_new_list(T);
 
-    TeaObjectList* list = AS_LIST(T->base[1]);
+    TeaOList* list = AS_LIST(T->base[1]);
     for(int i = 0; i < map->capacity; i++)
     {
         if(map->items[i].empty) continue;
@@ -48,7 +48,7 @@ static void map_clear(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
 
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
     tea_map_clear(T, map);
 }
 
@@ -57,7 +57,7 @@ static void map_contains(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
 
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
 
     if(!tea_map_validkey(T->base[1]))
     {
@@ -73,7 +73,7 @@ static void map_delete(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
 
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
     TeaValue _;
     if(!tea_map_validkey(T->base[1]))
     {
@@ -92,11 +92,11 @@ static void map_copy(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
 
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
 
     tea_new_map(T);
 
-    TeaObjectMap* new = AS_MAP(T->base[1]);
+    TeaOMap* new = AS_MAP(T->base[1]);
     for(int i = 0; i < map->capacity; i++)
     {
         if(map->items[i].empty) continue;
@@ -109,7 +109,7 @@ static void map_iterate(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
 
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
     if(map->count == 0)
     {
         tea_push_null(T);
@@ -163,7 +163,7 @@ static void map_iteratorvalue(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
 
-    TeaObjectMap* map = AS_MAP(T->base[0]);
+    TeaOMap* map = AS_MAP(T->base[0]);
     int index = tea_check_number(T, 1);
 
     TeaMapItem* item = &map->items[index];

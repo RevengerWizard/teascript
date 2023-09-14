@@ -15,20 +15,20 @@
 #include "tea_table.h"
 #include "tea_value.h"
 
-void tea_table_init(TeaTable* table)
+void tea_tab_init(TeaTable* table)
 {
     table->count = 0;
     table->capacity = 0;
     table->entries = NULL;
 }
 
-void tea_table_free(TeaState* T, TeaTable* table)
+void tea_tab_free(TeaState* T, TeaTable* table)
 {
     TEA_FREE_ARRAY(T, TeaEntry, table->entries, table->capacity);
-    tea_table_init(table);
+    tea_tab_init(table);
 }
 
-static TeaEntry* find_entry(TeaEntry* entries, int capacity, TeaObjectString* key)
+static TeaEntry* find_entry(TeaEntry* entries, int capacity, TeaOString* key)
 {
     uint32_t index = key->hash & (capacity - 1);
     TeaEntry* tombstone = NULL;
@@ -60,7 +60,7 @@ static TeaEntry* find_entry(TeaEntry* entries, int capacity, TeaObjectString* ke
     }
 }
 
-bool tea_table_get(TeaTable* table, TeaObjectString* key, TeaValue* value)
+bool tea_tab_get(TeaTable* table, TeaOString* key, TeaValue* value)
 {
     if(table->count == 0)
         return false;
@@ -103,7 +103,7 @@ static void adjust_capacity(TeaState* T, TeaTable* table, int capacity)
 
 #define TABLE_MAX_LOAD 0.75
 
-bool tea_table_set(TeaState* T, TeaTable* table, TeaObjectString* key, TeaValue value)
+bool tea_tab_set(TeaState* T, TeaTable* table, TeaOString* key, TeaValue value)
 {
     if(table->count + 1 > table->capacity * TABLE_MAX_LOAD)
     {
@@ -123,7 +123,7 @@ bool tea_table_set(TeaState* T, TeaTable* table, TeaObjectString* key, TeaValue 
     return is_new_key;
 }
 
-bool tea_table_delete(TeaTable* table, TeaObjectString* key)
+bool tea_tab_delete(TeaTable* table, TeaOString* key)
 {
     if(table->count == 0)
         return false;
@@ -140,19 +140,19 @@ bool tea_table_delete(TeaTable* table, TeaObjectString* key)
     return true;
 }
 
-void tea_table_add_all(TeaState* T, TeaTable* from, TeaTable* to)
+void tea_tab_addall(TeaState* T, TeaTable* from, TeaTable* to)
 {
     for(int i = 0; i < from->capacity; i++)
     {
         TeaEntry* entry = &from->entries[i];
         if(entry->key != NULL)
         {
-            tea_table_set(T, to, entry->key, entry->value);
+            tea_tab_set(T, to, entry->key, entry->value);
         }
     }
 }
 
-TeaObjectString* tea_table_find_string(TeaTable* table, const char* chars, int length, uint32_t hash)
+TeaOString* tea_tab_findstr(TeaTable* table, const char* chars, int length, uint32_t hash)
 {
     if(table->count == 0)
         return NULL;
@@ -177,19 +177,19 @@ TeaObjectString* tea_table_find_string(TeaTable* table, const char* chars, int l
     }
 }
 
-void tea_table_remove_white(TeaTable* table)
+void tea_tab_remove_white(TeaTable* table)
 {
     for(int i = 0; i < table->capacity; i++)
     {
         TeaEntry* entry = &table->entries[i];
         if(entry->key != NULL && !entry->key->obj.is_marked)
         {
-            tea_table_delete(table, entry->key);
+            tea_tab_delete(table, entry->key);
         }
     }
 }
 
-void tea_table_mark(TeaState* T, TeaTable* table)
+void tea_tab_mark(TeaState* T, TeaTable* table)
 {
     for(int i = 0; i < table->capacity; i++)
     {

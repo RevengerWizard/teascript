@@ -81,7 +81,7 @@ static void core_input(TeaState* T)
     
     line[length] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, line, length)));
+    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, line, length)));
 }
 
 static void core_open(TeaState* T)
@@ -101,7 +101,7 @@ static void core_open(TeaState* T)
         tea_error(T, "Unable to open file '%s'", path);
     }
 
-    TeaObjectFile* file = tea_obj_new_file(T, tea_string_new(T, path), tea_string_new(T, type));
+    TeaOFile* file = tea_obj_new_file(T, tea_str_new(T, path), tea_str_new(T, type));
     file->file = fp;
 
     tea_vm_push(T, OBJECT_VAL(file));
@@ -177,7 +177,7 @@ static void core_hex(TeaState* T)
     char* string = TEA_ALLOCATE(T, char, len + 1);
     snprintf(string, len + 1, "0x%x", n);
 
-    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, string, len)));
+    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, string, len)));
 }
 
 static void core_bin(TeaState* T)

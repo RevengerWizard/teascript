@@ -769,7 +769,7 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
 
     lex->raw = false;
     TeaToken token = make_token(lex, type);
-	token.value = OBJECT_VAL(tea_string_copy(T, (const char*)bytes.values, bytes.count));
+	token.value = OBJECT_VAL(tea_str_copy(T, (const char*)bytes.values, bytes.count));
 	tea_free_bytes(T, &bytes);
 
 	return token;

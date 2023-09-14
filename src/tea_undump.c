@@ -83,10 +83,10 @@ static double load_number(TeaLoadState* S)
 }
 
 /* load nullable string */
-static TeaObjectString* load_null_string(TeaLoadState* S)
+static TeaOString* load_null_string(TeaLoadState* S)
 {
     TeaState* T = S->T;
-    TeaObjectString* s;
+    TeaOString* s;
     size_t size = load_size(S);
     if(size == 0)
     {
@@ -96,15 +96,15 @@ static TeaObjectString* load_null_string(TeaLoadState* S)
     {
         char* buff = TEA_ALLOCATE(T, char, size);
         load_vector(S, buff, size);
-        s = tea_string_take(T, buff, size);
+        s = tea_str_take(T, buff, size);
     }
     return s;
 }
 
 /* load non nullable string */
-static TeaObjectString* load_string(TeaLoadState* S)
+static TeaOString* load_string(TeaLoadState* S)
 {
-    TeaObjectString* s = load_null_string(S);
+    TeaOString* s = load_null_string(S);
     if(s == NULL)
         error(S, "bad constant string");
     return s;
@@ -124,9 +124,9 @@ static void load_chunk(TeaLoadState* S, TeaChunk* chunk)
     load_vector(S, chunk->lines, chunk->count);*/
 }
 
-static TeaObjectFunction* load_function(TeaLoadState* S);
+static TeaOFunction* load_function(TeaLoadState* S);
 
-static void load_constants(TeaLoadState* S, TeaObjectFunction* f)
+static void load_constants(TeaLoadState* S, TeaOFunction* f)
 {
     TeaState* T = S->T;
     TeaChunk* chunk = &f->chunk;
@@ -165,10 +165,10 @@ static void load_constants(TeaLoadState* S, TeaObjectFunction* f)
     }
 }
 
-static TeaObjectFunction* load_function(TeaLoadState* S)
+static TeaOFunction* load_function(TeaLoadState* S)
 {
     TeaState* T = S->T;
-    TeaObjectFunction* f = tea_func_new_function(T, 0, NULL, 0);
+    TeaOFunction* f = tea_func_new_function(T, 0, NULL, 0);
     f->name = load_null_string(S);
     f->arity = load_int(S);
     f->arity_optional = load_int(S);
@@ -203,14 +203,14 @@ static void check_header(TeaLoadState* S)
         error(S, "format mismatch");
 }
 
-TeaObjectClosure* tea_undump(TeaState* T, const char* name, FILE* file)
+TeaOClosure* tea_undump(TeaState* T, const char* name, FILE* file)
 {
     TeaLoadState S;
     S.T = T;
     S.file = file;
     S.name = name;
     check_header(&S);
-    TeaObjectFunction* f = load_function(&S);
-    TeaObjectClosure* cl = tea_func_new_closure(T, f);
+    TeaOFunction* f = load_function(&S);
+    TeaOClosure* cl = tea_func_new_closure(T, f);
     return cl;
 }

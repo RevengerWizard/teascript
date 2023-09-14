@@ -56,7 +56,7 @@ static void print_object(TeaValue object)
             break;
         case OBJ_STRING:
         {
-            TeaObjectString* string = AS_STRING(object);
+            TeaOString* string = AS_STRING(object);
             if(string->length > 40)
                 printf("<string>");
             else
@@ -317,10 +317,10 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
             offset++;
             uint8_t constant = chunk->code[offset++];
             printf("%-16s %4d ", "OP_CLOSURE", constant);
-            printf("%s", tea_value_tostring(T, chunk->constants.values[constant])->chars);
+            printf("%s", tea_val_tostring(T, chunk->constants.values[constant])->chars);
             printf("\n");
 
-            TeaObjectFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
+            TeaOFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
             for(int j = 0; j < function->upvalue_count; j++)
             {
                 int is_local = chunk->code[offset++];

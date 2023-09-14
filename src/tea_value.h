@@ -14,8 +14,8 @@
 typedef struct TeaState TeaState;
 typedef struct TeaCompiler TeaCompiler;
 typedef struct TeaObject TeaObject;
-typedef struct TeaObjectString TeaObjectString;
-typedef struct TeaObjectFile TeaObjectFile;
+typedef struct TeaOString TeaOString;
+typedef struct TeaOFile TeaOFile;
 
 #ifdef TEA_NAN_TAGGING
 
@@ -113,12 +113,12 @@ typedef struct
 DECLARE_ARRAY(TeaValueArray, TeaValue, value_array)
 DECLARE_ARRAY(TeaBytes, uint8_t, bytes)
 
-TEA_FUNC const char* tea_value_type(TeaValue a);
-TEA_FUNC bool tea_value_equal(TeaValue a, TeaValue b);
-TEA_FUNC double tea_value_tonumber(TeaValue value, int* x);
-TEA_FUNC TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value);
-TEA_FUNC TeaObjectString* tea_value_number_tostring(TeaState* T, double number);
+TEA_FUNC const char* tea_val_type(TeaValue a);
+TEA_FUNC bool tea_val_equal(TeaValue a, TeaValue b);
+TEA_FUNC double tea_val_tonumber(TeaValue value, int* x);
+TEA_FUNC TeaOString* tea_val_tostring(TeaState* T, TeaValue value);
+TEA_FUNC TeaOString* tea_val_number_tostring(TeaState* T, double number);
 
-TEA_DATA const char *const tea_value_typenames[];
+TEA_DATA const char *const tea_val_typenames[];
 
 #endif

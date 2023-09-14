@@ -53,7 +53,7 @@ typedef struct
     TeaLexer lex;
     TeaToken current;
     TeaToken previous;
-    TeaObjectModule* module;
+    TeaOModule* module;
 } TeaParser;
 
 typedef struct TeaClassCompiler
@@ -78,7 +78,7 @@ typedef struct TeaCompiler
     struct TeaCompiler* enclosing;
     TeaClassCompiler* klass;
     TeaLoop* loop;
-    TeaObjectFunction* function;
+    TeaOFunction* function;
     TeaFunctionType type;
     TeaLocal locals[UINT8_COUNT];
     int local_count;
@@ -96,7 +96,7 @@ typedef struct
     TeaPrecedence precedence;
 } TeaParseRule;
 
-TEA_FUNC TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char* source);
+TEA_FUNC TeaOFunction* tea_compile(TeaState* T, TeaOModule* module, const char* source);
 TEA_FUNC void tea_compiler_mark_roots(TeaState* T, TeaCompiler* compiler);
 
 #endif

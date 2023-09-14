@@ -66,7 +66,7 @@ static void random_shuffle(TeaState* T)
 
     tea_check_list(T, 0);
 
-    TeaObjectList* list = AS_LIST(T->base[0]);
+    TeaOList* list = AS_LIST(T->base[0]);
 
     if(list->items.count < 2)
     {

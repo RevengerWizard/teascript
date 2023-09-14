@@ -19,8 +19,8 @@
 
 typedef struct
 {
-    TeaObjectClosure* closure;
-    TeaObjectNative* native;
+    TeaOClosure* closure;
+    TeaONative* native;
     uint8_t* ip;
     TeaValue* base;
 } TeaCallInfo;
@@ -36,20 +36,20 @@ typedef struct TeaState
     TeaCallInfo* end_ci;
     TeaCallInfo* base_ci;
     int ci_size;
-    TeaObjectUpvalue* open_upvalues;
+    TeaOUpvalue* open_upvalues;
     TeaCompiler* compiler;
     TeaTable modules;
     TeaTable globals;
     TeaTable constants;
     TeaTable strings;
-    TeaObjectModule* last_module;
-    TeaObjectClass* string_class;
-    TeaObjectClass* list_class;
-    TeaObjectClass* map_class;
-    TeaObjectClass* file_class;
-    TeaObjectClass* range_class;
-    TeaObjectString* constructor_string;
-    TeaObjectString* repl_string;
+    TeaOModule* last_module;
+    TeaOClass* string_class;
+    TeaOClass* list_class;
+    TeaOClass* map_class;
+    TeaOClass* file_class;
+    TeaOClass* range_class;
+    TeaOString* constructor_string;
+    TeaOString* repl_string;
     TeaObject* objects;
     size_t bytes_allocated;
     size_t next_gc;
@@ -70,7 +70,7 @@ typedef struct TeaState
 #define TEA_THROW(T)    (longjmp(T->error_jump->buf, 1))
 #define TEA_TRY(T, c, a)    if(setjmp((c)->buf) == 0) { a }
 
-TEA_FUNC TeaObjectClass* tea_state_get_class(TeaState* T, TeaValue value);
-TEA_FUNC bool tea_state_isclass(TeaState* T, TeaObjectClass* klass);
+TEA_FUNC TeaOClass* tea_state_get_class(TeaState* T, TeaValue value);
+TEA_FUNC bool tea_state_isclass(TeaState* T, TeaOClass* klass);
 
 #endif

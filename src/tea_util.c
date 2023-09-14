@@ -42,11 +42,11 @@ char* tea_util_read_file(TeaState* T, const char* path)
     return buffer;
 }
 
-TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len) 
+TeaOString* tea_util_dirname(TeaState* T, char* path, int len) 
 {
     if(!len) 
     {
-        return tea_string_literal(T, ".");
+        return tea_str_literal(T, ".");
     }
 
     char* sep = path + len;
@@ -77,12 +77,12 @@ TeaObjectString* tea_util_dirname(TeaState* T, char* path, int len)
 
     if(sep == path && !IS_DIR_SEPARATOR(*sep)) 
     {
-        return tea_string_literal(T, ".");
+        return tea_str_literal(T, ".");
     }
 
     len = sep - path + 1;
 
-    return tea_string_copy(T, path, len);
+    return tea_str_copy(T, path, len);
 }
 
 bool tea_util_resolve_path(char* directory, char* path, char* ret) 
@@ -103,7 +103,7 @@ bool tea_util_resolve_path(char* directory, char* path, char* ret)
     return true;
 }
 
-TeaObjectString* tea_util_get_directory(TeaState* T, char* source) 
+TeaOString* tea_util_get_directory(TeaState* T, char* source) 
 {
     char res[PATH_MAX];
     if(!tea_util_resolve_path(".", source, res)) 

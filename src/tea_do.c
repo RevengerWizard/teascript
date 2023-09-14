@@ -53,7 +53,7 @@ static void correct_stack(TeaState* T, TeaValue* old_stack)
         ci->base = (ci->base - old_stack) + T->stack;
     }
 
-    for(TeaObjectUpvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+    for(TeaOUpvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
     {
         upvalue->location = (upvalue->location - old_stack) + T->stack;
     }
@@ -82,14 +82,14 @@ void tea_do_grow_stack(TeaState* T, int needed)
         tea_do_realloc_stack(T, T->stack_size + needed);
 }
 
-static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
+static void callt(TeaState* T, TeaOClosure* closure, int arg_count)
 {
     if(arg_count < closure->function->arity)
     {
         if((arg_count + closure->function->variadic) == closure->function->arity)
         {
             /* add missing variadic param ([]) */
-            TeaObjectList* list = tea_obj_new_list(T);
+            TeaOList* list = tea_obj_new_list(T);
             tea_vm_push(T, OBJECT_VAL(list));
             arg_count++;
         }
@@ -105,7 +105,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
             int arity = closure->function->arity + closure->function->arity_optional;
             /* +1 for the variadic param itself */
             int varargs = arg_count - arity + 1;
-            TeaObjectList* list = tea_obj_new_list(T);
+            TeaOList* list = tea_obj_new_list(T);
             tea_vm_push(T, OBJECT_VAL(list));
             for(int i = varargs; i > 0; i--)
             {
@@ -124,7 +124,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
     else if(closure->function->variadic)
     {
         /* last argument is the variadic arg */
-        TeaObjectList* list = tea_obj_new_list(T);
+        TeaOList* list = tea_obj_new_list(T);
         tea_vm_push(T, OBJECT_VAL(list));
         tea_write_value_array(T, &list->items, tea_vm_peek(T, 1));
         T->top -= 2;
@@ -141,7 +141,7 @@ static void callt(TeaState* T, TeaObjectClosure* closure, int arg_count)
     ci->base = T->top - arg_count - 1;
 }
 
-static void callc(TeaState* T, TeaObjectNative* native, int arg_count)
+static void callc(TeaState* T, TeaONative* native, int arg_count)
 {
     tea_do_grow_ci(T);
     teaD_checkstack(T, BASE_STACK_SIZE);
@@ -177,13 +177,13 @@ bool tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
         {
             case OBJ_BOUND_METHOD:
             {
-                TeaObjectBoundMethod* bound = AS_BOUND_METHOD(callee);
+                TeaOBoundMethod* bound = AS_BOUND_METHOD(callee);
                 T->top[-arg_count - 1] = bound->receiver;
                 return tea_do_precall(T, bound->method, arg_count);
             }
             case OBJ_CLASS:
             {
-                TeaObjectClass* klass = AS_CLASS(callee);
+                TeaOClass* klass = AS_CLASS(callee);
                 T->top[-arg_count - 1] = OBJECT_VAL(tea_obj_new_instance(T, klass));
                 if(!IS_NULL(klass->constructor)) 
                 {
@@ -206,7 +206,7 @@ bool tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
         }
     }
 
-    tea_vm_error(T, "'%s' is not callable", tea_value_type(callee));
+    tea_vm_error(T, "'%s' is not callable", tea_val_type(callee));
 }
 
 struct PCall
@@ -296,15 +296,15 @@ int tea_do_runprotected(TeaState* T, TeaPFunction f, void* ud)
 
 struct PCompiler
 {
-    TeaObjectModule* module;
+    TeaOModule* module;
     const char* source;
 };
 
 static void f_compiler(TeaState* T, void* ud)
 {
     struct PCompiler* c;
-    TeaObjectFunction* function;
-    TeaObjectClosure* closure;
+    TeaOFunction* function;
+    TeaOClosure* closure;
 
     c = (struct PCompiler*)(ud);
 
@@ -313,7 +313,7 @@ static void f_compiler(TeaState* T, void* ud)
     tea_vm_push(T, OBJECT_VAL(closure));
 }
 
-int tea_do_protected_compiler(TeaState* T, TeaObjectModule* module, const char* source)
+int tea_do_protected_compiler(TeaState* T, TeaOModule* module, const char* source)
 {
     struct PCompiler c;
     int status;

@@ -65,7 +65,7 @@ static void dump_number(TeaDumpState* D, double n)
     dump_var(D, n);
 }
 
-static void dump_string(TeaDumpState* D, TeaObjectString* string)
+static void dump_string(TeaDumpState* D, TeaOString* string)
 {
     if(string == NULL)
     {
@@ -87,7 +87,7 @@ static void dump_chunk(TeaDumpState* D, TeaChunk* chunk)
     /*dump_vector(D, chunk->lines, chunk->count);*/
 }
 
-static void dump_function(TeaDumpState* D, TeaObjectFunction* f);
+static void dump_function(TeaDumpState* D, TeaOFunction* f);
 
 static void dump_constants(TeaDumpState* D, TeaChunk* chunk)
 {
@@ -123,7 +123,7 @@ static void dump_constants(TeaDumpState* D, TeaChunk* chunk)
     }
 }
 
-static void dump_function(TeaDumpState* D, TeaObjectFunction* f)
+static void dump_function(TeaDumpState* D, TeaOFunction* f)
 {
     dump_string(D, f->name);
     dump_int(D, f->arity);
@@ -145,7 +145,7 @@ static void dump_header(TeaDumpState* D)
     dump_byte(D, TEA_BYTECODE_FORMAT);
 }
 
-void tea_dump(TeaState* T, TeaObjectFunction* f, FILE* file)
+void tea_dump(TeaState* T, TeaOFunction* f, FILE* file)
 {
     TeaDumpState D;
     D.T = T;

@@ -8,9 +8,9 @@
 
 #include "tea_map.h"
 
-TeaObjectMap* tea_map_new(TeaState* T)
+TeaOMap* tea_map_new(TeaState* T)
 {
-    TeaObjectMap* map = ALLOCATE_OBJECT(T, TeaObjectMap, OBJ_MAP);
+    TeaOMap* map = ALLOCATE_OBJECT(T, TeaOMap, OBJ_MAP);
     map->count = 0;
     map->capacity = 0;
     map->items = NULL;
@@ -18,7 +18,7 @@ TeaObjectMap* tea_map_new(TeaState* T)
     return map;
 }
 
-void tea_map_clear(TeaState* T, TeaObjectMap* map)
+void tea_map_clear(TeaState* T, TeaOMap* map)
 {
     TEA_FREE_ARRAY(T, TeaMapItem, map->items, map->capacity);
     map->items = NULL;
@@ -55,7 +55,7 @@ static uint32_t hash_object(TeaObject* object)
     switch(object->type)
     {
         case OBJ_STRING:
-            return ((TeaObjectString*)object)->hash;
+            return ((TeaOString*)object)->hash;
 
         default: return 0;
     }
@@ -107,7 +107,7 @@ static TeaMapItem* map_find_entry(TeaMapItem* items, int capacity, TeaValue key)
 #ifdef TEA_NAN_TAGGING
         else if(item->key == key)
 #else
-        else if(tea_value_equal(item->key, key))
+        else if(tea_val_equal(item->key, key))
 #endif
         {
             /* We found the key */
@@ -118,7 +118,7 @@ static TeaMapItem* map_find_entry(TeaMapItem* items, int capacity, TeaValue key)
     }
 }
 
-bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
+bool tea_map_get(TeaOMap* map, TeaValue key, TeaValue* value)
 {
     if(map->count == 0)
         return false;
@@ -134,7 +134,7 @@ bool tea_map_get(TeaObjectMap* map, TeaValue key, TeaValue* value)
 
 #define MAP_MAX_LOAD 0.75
 
-static void map_adjust_size(TeaState* T, TeaObjectMap* map, int capacity)
+static void map_adjust_size(TeaState* T, TeaOMap* map, int capacity)
 {
     TeaMapItem* items = TEA_ALLOCATE(T, TeaMapItem, capacity);
     for(int i = 0; i < capacity; i++)
@@ -163,7 +163,7 @@ static void map_adjust_size(TeaState* T, TeaObjectMap* map, int capacity)
     map->capacity = capacity;
 }
 
-bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
+bool tea_map_set(TeaState* T, TeaOMap* map, TeaValue key, TeaValue value)
 {
     if(map->count + 1 > map->capacity * MAP_MAX_LOAD)
     {
@@ -184,7 +184,7 @@ bool tea_map_set(TeaState* T, TeaObjectMap* map, TeaValue key, TeaValue value)
     return is_new_key;
 }
 
-bool tea_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key)
+bool tea_map_delete(TeaState* T, TeaOMap* map, TeaValue key)
 {
     if(map->count == 0)
         return false;
@@ -216,7 +216,7 @@ bool tea_map_delete(TeaState* T, TeaObjectMap* map, TeaValue key)
     return true;
 }
 
-void tea_map_add_all(TeaState* T, TeaObjectMap* from, TeaObjectMap* to)
+void tea_map_add_all(TeaState* T, TeaOMap* from, TeaOMap* to)
 {
     for(int i = 0; i < from->capacity; i++)
     {

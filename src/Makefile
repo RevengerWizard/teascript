@@ -7,7 +7,7 @@ CC = gcc -std=gnu99
 CCDEBUG =
 #CCDEBUG = -O0 -g
 
-CCOPT = -O0 -g
+CCOPT = -O2
 CCWARN = 
 
 CFLAGS = $(CCOPT) $(SYSCFLAGS) $(MYCFLAGS)

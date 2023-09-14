@@ -210,7 +210,7 @@ static uint8_t make_constant(TeaCompiler* compiler, TeaValue value)
 
 static void invoke_method(TeaCompiler* compiler, int args, const char* name)
 {
-    emit_argued(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_string_copy(compiler->parser->T, name, strlen(name)))));
+    emit_argued(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, name, strlen(name)))));
     emit_byte(compiler, args);
 }
 
@@ -257,7 +257,7 @@ static void init_compiler(TeaParser* parser, TeaCompiler* compiler, TeaCompiler*
 
     if(type != TYPE_SCRIPT)
     {
-        compiler->function->name = tea_string_copy(parser->T, parser->previous.start, parser->previous.length);
+        compiler->function->name = tea_str_copy(parser->T, parser->previous.start, parser->previous.length);
     }
 
     TeaLocal* local = &compiler->locals[0];
@@ -275,10 +275,10 @@ static void init_compiler(TeaParser* parser, TeaCompiler* compiler, TeaCompiler*
     }
 }
 
-static TeaObjectFunction* end_compiler(TeaCompiler* compiler)
+static TeaOFunction* end_compiler(TeaCompiler* compiler)
 {
     emit_return(compiler);
-    TeaObjectFunction* function = compiler->function;
+    TeaOFunction* function = compiler->function;
 
 #ifdef TEA_DEBUG_PRINT_CODE
     TeaState* T = compiler->parser->T;
@@ -343,7 +343,7 @@ static void grouping(TeaCompiler* compiler, bool can_assign);
 
 static uint8_t identifier_constant(TeaCompiler* compiler, TeaToken* name)
 {
-    return make_constant(compiler, OBJECT_VAL(tea_string_copy(compiler->parser->T, name->start, name->length)));
+    return make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, name->start, name->length)));
 }
 
 static bool identifiers_equal(TeaToken* a, TeaToken* b)
@@ -490,14 +490,14 @@ static void define_variable(TeaCompiler* compiler, uint8_t global, bool constant
         return;
     }
 
-    TeaObjectString* string = AS_STRING(current_chunk(compiler)->constants.values[global]);
+    TeaOString* string = AS_STRING(current_chunk(compiler)->constants.values[global]);
     if(constant) 
     {
-        tea_table_set(compiler->parser->T, &compiler->parser->T->constants, string, NULL_VAL);
+        tea_tab_set(compiler->parser->T, &compiler->parser->T->constants, string, NULL_VAL);
     }
     
     TeaValue value;
-    if(tea_table_get(&compiler->parser->T->globals, string, &value)) 
+    if(tea_tab_get(&compiler->parser->T->globals, string, &value)) 
     {
         emit_argued(compiler, OP_DEFINE_GLOBAL, global);
     } 
@@ -835,7 +835,7 @@ static void map(TeaCompiler* compiler, bool can_assign)
             }
             else if(match(compiler, TOKEN_NAME))
             {
-                emit_constant(compiler, OBJECT_VAL(tea_string_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length)));
+                emit_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length)));
                 consume(compiler, TOKEN_EQUAL, "Expected '=' after key name");
                 expression(compiler);
             }
@@ -992,9 +992,9 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
         case OP_SET_GLOBAL:
         case OP_SET_MODULE:
         {
-            TeaObjectString* string = AS_STRING(current_chunk(compiler)->constants.values[arg]);
+            TeaOString* string = AS_STRING(current_chunk(compiler)->constants.values[arg]);
             TeaValue _;
-            if(tea_table_get(&compiler->parser->T->constants, string, &_))
+            if(tea_tab_get(&compiler->parser->T->constants, string, &_))
             {
                 error(compiler, "Cannot assign to a constant");
             }
@@ -1036,9 +1036,9 @@ static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign
     else
     {
         arg = identifier_constant(compiler, &name);
-        TeaObjectString* string = tea_string_copy(compiler->parser->T, name.start, name.length);
+        TeaOString* string = tea_str_copy(compiler->parser->T, name.start, name.length);
         TeaValue value;
-        if(tea_table_get(&compiler->parser->T->globals, string, &value)) 
+        if(tea_tab_get(&compiler->parser->T->globals, string, &value)) 
         {
             get_op = OP_GET_GLOBAL;
             set_op = OP_SET_GLOBAL;
@@ -1640,16 +1640,16 @@ static void operator(TeaCompiler* compiler)
         i++;
     }
 
-    TeaObjectString* name = NULL;
+    TeaOString* name = NULL;
 
     if(compiler->parser->previous.type == TOKEN_LEFT_BRACKET)
     {
         consume(compiler, TOKEN_RIGHT_BRACKET, "Expected ']' after '[' operator method");
-        name = tea_string_literal(compiler->parser->T, "[]");
+        name = tea_str_literal(compiler->parser->T, "[]");
     } 
     else
     {
-        name = tea_string_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length);
+        name = tea_str_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length);
     }
 
     uint8_t constant = make_constant(compiler, OBJECT_VAL(name));
@@ -2024,7 +2024,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_CLOSURE: 
         {
             int constant = code[ip + 1];
-            TeaObjectFunction* loaded_fn = AS_FUNCTION(constants.values[constant]);
+            TeaOFunction* loaded_fn = AS_FUNCTION(constants.values[constant]);
 
             /* There is one byte for the constant, then two for each upvalue */
             return 1 + (loaded_fn->upvalue_count * 2);
@@ -2346,7 +2346,7 @@ static void import_statement(TeaCompiler* compiler)
 {
     if(match(compiler, TOKEN_STRING))
     {
-        int import_constant = make_constant(compiler, OBJECT_VAL(tea_string_copy(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
+        int import_constant = make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
 
         emit_argued(compiler, OP_IMPORT_STRING, import_constant);
         emit_op(compiler, OP_POP);
@@ -2397,7 +2397,7 @@ static void from_import_statement(TeaCompiler* compiler)
 {
     if(match(compiler, TOKEN_STRING))
     {
-        int import_constant = make_constant(compiler, OBJECT_VAL(tea_string_copy(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
+        int import_constant = make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
 
         consume(compiler, TOKEN_IMPORT, "Expect 'import' after import path");
         emit_argued(compiler, OP_IMPORT_STRING, import_constant);
@@ -2567,9 +2567,9 @@ static void multiple_assignment(TeaCompiler* compiler)
         else
         {
             arg = identifier_constant(compiler, &token);
-            TeaObjectString* string = tea_string_copy(compiler->parser->T, token.start, token.length);
+            TeaOString* string = tea_str_copy(compiler->parser->T, token.start, token.length);
             TeaValue value;
-            if(tea_table_get(&compiler->parser->T->globals, string, &value)) 
+            if(tea_tab_get(&compiler->parser->T->globals, string, &value)) 
             {
                 set_op = OP_SET_GLOBAL;
             } 
@@ -2694,7 +2694,7 @@ static void tea_lex_all(TeaLexer* lex, const char* source)
 }
 #endif
 
-TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char* source)
+TeaOFunction* tea_compile(TeaState* T, TeaOModule* module, const char* source)
 {
     TeaParser parser;
     parser.T = T;
@@ -2719,11 +2719,11 @@ TeaObjectFunction* tea_compile(TeaState* T, TeaObjectModule* module, const char*
         declaration(&compiler);
     }
 
-    TeaObjectFunction* function = end_compiler(&compiler);
+    TeaOFunction* function = end_compiler(&compiler);
 
     if(!T->repl) 
     {
-        tea_table_free(T, &T->constants);
+        tea_tab_free(T, &T->constants);
     }
 
     return function;

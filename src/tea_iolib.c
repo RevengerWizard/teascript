@@ -18,7 +18,7 @@
 
 static void create_stdfile(TeaState* T, FILE* f, const char* name, const char* mode)
 {
-    TeaObjectFile* file = tea_obj_new_file(T, tea_string_literal(T, ""), tea_string_new(T, mode));
+    TeaOFile* file = tea_obj_new_file(T, tea_str_literal(T, ""), tea_str_new(T, mode));
     file->file = f;
     file->is_open = -1;
 

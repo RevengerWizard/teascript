@@ -1,4 +1,3 @@
-
 - [ ] package manager
 - [ ] benchmarks
 - [ ] notebooks
@@ -13,6 +12,8 @@
 - [ ] coroutines
 - [ ] async/await
 - [x] core classes
+- [ ] event system?
+- [ ] keyed arguments
 - [ ] warnings
 - [ ] spread operator
 - [ ] splice
@@ -23,6 +24,7 @@
 - [ ] delete keyword?
 - [x] wasm interpreter
 - [ ] better error messages
+
 
 - [ ] ffi
 - [ ] http
@@ -43,5 +45,6 @@
 - [ ] ini
 - [ ] gif
 - [ ] cffi
+
 
 - [ ] Decimal

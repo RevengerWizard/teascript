@@ -20,12 +20,12 @@
 DEFINE_ARRAY(TeaValueArray, TeaValue, value_array)
 DEFINE_ARRAY(TeaBytes, uint8_t, bytes)
 
-const char* const tea_value_typenames[] = {
+const char* const tea_val_typenames[] = {
     "null", "number", "bool", 
     "userdata", "string", "range", "function", "module", "class", "instance", "list", "map", "file"
 };
 
-const char* tea_value_type(TeaValue a)
+const char* tea_val_type(TeaValue a)
 {
 #ifdef TEA_NAN_TAGGING
     if(IS_BOOL(a))
@@ -62,7 +62,7 @@ const char* tea_value_type(TeaValue a)
     return "unknown";
 }
 
-bool tea_value_equal(TeaValue a, TeaValue b)
+bool tea_val_equal(TeaValue a, TeaValue b)
 {
 #ifdef TEA_NAN_TAGGING
     if(IS_NUMBER(a) && IS_NUMBER(b))
@@ -93,7 +93,7 @@ bool tea_value_equal(TeaValue a, TeaValue b)
 #endif
 }
 
-double tea_value_tonumber(TeaValue value, int* x)
+double tea_val_tonumber(TeaValue value, int* x)
 {
     if(x != NULL)
         *x = true;
@@ -129,20 +129,20 @@ double tea_value_tonumber(TeaValue value, int* x)
     }
 }
 
-TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value)
+TeaOString* tea_val_tostring(TeaState* T, TeaValue value)
 {
 #ifdef TEA_NAN_TAGGING
     if(IS_BOOL(value))
     {
-        return AS_BOOL(value) ? tea_string_literal(T, "true") : tea_string_literal(T, "false");
+        return AS_BOOL(value) ? tea_str_literal(T, "true") : tea_str_literal(T, "false");
     }
     else if(IS_NULL(value))
     {
-        return tea_string_literal(T, "null");
+        return tea_str_literal(T, "null");
     }
     else if(IS_NUMBER(value))
     {
-        return tea_value_number_tostring(T, AS_NUMBER(value));
+        return tea_val_number_tostring(T, AS_NUMBER(value));
     }
     else if(IS_OBJECT(value))
     {
@@ -152,32 +152,32 @@ TeaObjectString* tea_value_tostring(TeaState* T, TeaValue value)
     switch(value.type)
     {
         case VAL_BOOL:
-            return AS_BOOL(value) ? tea_string_literal(T, "true") : tea_string_literal(T, "false");
+            return AS_BOOL(value) ? tea_str_literal(T, "true") : tea_str_literal(T, "false");
         case VAL_NULL:
-            return tea_string_literal(T, "null");
+            return tea_str_literal(T, "null");
         case VAL_NUMBER:
-            return tea_value_number_tostring(T, AS_NUMBER(value));
+            return tea_val_number_tostring(T, AS_NUMBER(value));
         case VAL_OBJECT:
             return tea_obj_tostring(T, value);
         default:
             break;
     }
 #endif
-    return tea_string_literal(T, "unknown");
+    return tea_str_literal(T, "unknown");
 }
 
-TeaObjectString* tea_value_number_tostring(TeaState* T, double number)
+TeaOString* tea_val_number_tostring(TeaState* T, double number)
 {
-    if(isnan(number)) return tea_string_literal(T, "nan");
+    if(isnan(number)) return tea_str_literal(T, "nan");
     if(isinf(number))
     {
         if(number > 0.0)
         {
-            return tea_string_literal(T, "infinity");
+            return tea_str_literal(T, "infinity");
         }
         else
         {
-            return tea_string_literal(T, "-infinity");
+            return tea_str_literal(T, "-infinity");
         }
     }
 
@@ -185,5 +185,5 @@ TeaObjectString* tea_value_number_tostring(TeaState* T, double number)
     char* string = TEA_ALLOCATE(T, char, length + 1);
     snprintf(string, length + 1, TEA_NUMBER_FMT, number);
 
-    return tea_string_take(T, string, length);
+    return tea_str_take(T, string, length);
 }

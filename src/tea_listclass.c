@@ -123,7 +123,7 @@ static void list_clear(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     
-    TeaObjectList* list = AS_LIST(T->base[0]);
+    TeaOList* list = AS_LIST(T->base[0]);
     tea_init_value_array(&list->items);
 }
 
@@ -132,7 +132,7 @@ static void list_insert(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 3);
 
-    TeaObjectList* list = AS_LIST(T->base[0]);
+    TeaOList* list = AS_LIST(T->base[0]);
     TeaValue insert_value = T->base[1];
     int index = tea_check_number(T, 2);
 
@@ -461,7 +461,7 @@ static void list_join(TeaState* T)
     string[length] = '\0';
     tea_pop(T, 2);
 
-    tea_vm_push(T, OBJECT_VAL(tea_string_take(T, string, length)));
+    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, string, length)));
 }
 
 static void list_copy(TeaState* T)
