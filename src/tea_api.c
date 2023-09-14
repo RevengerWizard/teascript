@@ -239,7 +239,8 @@ TEA_API double tea_to_numberx(TeaState* T, int index, int* is_num)
 
 TEA_API const char* tea_to_lstring(TeaState* T, int index, int* len)
 {
-    TeaObjectString* string = tea_value_tostring(T, index2value(T, index));
+    TeaValue value = index2value(T, index);
+    TeaObjectString* string = tea_value_tostring(T, value);
     tea_vm_push(T, OBJECT_VAL(string));
     if(len != NULL)
     {

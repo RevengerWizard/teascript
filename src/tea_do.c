@@ -206,7 +206,7 @@ bool tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
         }
     }
 
-    tea_vm_error(T, "%s is not callable", tea_value_type(callee));
+    tea_vm_error(T, "'%s' is not callable", tea_value_type(callee));
 }
 
 struct PCall

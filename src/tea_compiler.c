@@ -1645,7 +1645,7 @@ static void operator(TeaCompiler* compiler)
     if(compiler->parser->previous.type == TOKEN_LEFT_BRACKET)
     {
         consume(compiler, TOKEN_RIGHT_BRACKET, "Expected ']' after '[' operator method");
-        name = tea_string_copy(compiler->parser->T, "[]", 2);
+        name = tea_string_literal(compiler->parser->T, "[]");
     } 
     else
     {

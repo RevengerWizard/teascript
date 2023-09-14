@@ -162,7 +162,11 @@ void tea_debug_stack(TeaState* T)
     printf("          ");
     for(TeaValue* slot = T->stack; slot < T->top; slot++)
     {
+        if(slot == T->base)
+        printf("[ ^");
+        else
         printf("[ ");
+
         tea_debug_print_value(*slot);
         printf(" ]");
     }

@@ -372,11 +372,11 @@ static TeaObjectString* instance_tostring(TeaState* T, TeaObjectInstance* instan
     TeaObjectString* _tostring = tea_string_literal(T, "tostring");
     if(tea_table_get(&instance->klass->methods, _tostring, &tostring))
     {
-        TeaObjectBoundMethod* bound = tea_obj_new_bound_method(T, OBJECT_VAL(instance), tostring);
-        tea_vm_push(T, OBJECT_VAL(bound));
-        tea_call(T, 0);
+        tea_vm_push(T, OBJECT_VAL(instance));
+        tea_do_call(T, tostring, 0);
 
-        TeaValue result = tea_vm_pop(T, 1);
+        TeaValue result = tea_vm_peek(T, 0);
+        T->base++;
         if(!IS_STRING(result))
         {
             tea_error(T, "'tostring' must return a string");

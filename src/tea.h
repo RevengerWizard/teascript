@@ -212,6 +212,7 @@ TEA_API void tea_error(TeaState* T, const char* fmt, ...);
 #define tea_is_list(T, n) (tea_type(T, (n)) == TEA_TYPE_LIST)
 #define tea_is_map(T, n) (tea_type(T, (n)) == TEA_TYPE_MAP)
 #define tea_is_function(T, n) (tea_type(T, (n)) == TEA_TYPE_FUNCTION)
+#define tea_is_instance(T, n) (tea_type(T, (n)) == TEA_TYPE_INSTANCE)
 #define tea_is_file(T, n) (tea_type(T, (n)) == TEA_TYPE_FILE)
 #define tea_is_userdata(T, n) (tea_type(T, (n)) == TEA_TYPE_USERDATA)
 

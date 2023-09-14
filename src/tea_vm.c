@@ -218,6 +218,22 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
 
     switch(OBJECT_TYPE(subscript_value))
     {
+        case OBJ_INSTANCE:
+        {
+            TeaObjectInstance* instance = AS_INSTANCE(subscript_value);
+
+            TeaObjectString* subs = tea_string_literal(T, "[]");
+
+            TeaValue method;
+            if(tea_table_get(&instance->klass->methods, subs, &method))
+            {
+                tea_vm_push(T, NULL_VAL);
+                tea_do_precall(T, method, 2);
+                return;
+            }
+
+            tea_vm_error(T, "'%s' instance is not subscriptable", instance->klass->name);
+        }
         case OBJ_RANGE:
         {
             if(!IS_NUMBER(index_value)) 
@@ -320,18 +336,33 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
             break;
     }
     
-    tea_vm_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
+    tea_vm_error(T, "'%s' is not subscriptable", tea_value_type(subscript_value));
 }
 
 static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_value, TeaValue subscript_value, bool assign)
 {
     if(!IS_OBJECT(subscript_value))
     {
-        tea_vm_error(T, "%s is not subscriptable", tea_value_type(subscript_value));
+        tea_vm_error(T, "'%s' is not subscriptable", tea_value_type(subscript_value));
     }
 
     switch(OBJECT_TYPE(subscript_value))
     {
+        case OBJ_INSTANCE:
+        {
+            TeaObjectInstance* instance = AS_INSTANCE(subscript_value);
+
+            TeaObjectString* subs = tea_string_literal(T, "[]");
+
+            TeaValue method;
+            if(tea_table_get(&instance->klass->methods, subs, &method))
+            {
+                tea_do_precall(T, method, 2);
+                return;
+            }
+
+            tea_vm_error(T, "'%s' does not support item assignment", instance->klass->name);
+        }
         case OBJ_LIST:
         {
             if(!IS_NUMBER(index_value)) 
@@ -395,7 +426,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
             break;
     }
 
-    tea_vm_error(T, "%s does not support item assignment", tea_value_type(subscript_value));
+    tea_vm_error(T, "'%s' does not support item assignment", tea_value_type(subscript_value));
 }
 
 static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, bool dopop)
@@ -502,7 +533,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
                 goto retry;
             }
             
-            tea_vm_error(T, "map has no property: '%s'", name->chars);
+            tea_vm_error(T, "Map has no property: '%s'", name->chars);
         }
         default:
         retry:
@@ -528,7 +559,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaObjectString* name, 
         }
     }
 
-    tea_vm_error(T, "%s has no property '%s'", tea_obj_type(receiver), name->chars);
+    tea_vm_error(T, "'%s' has no property '%s'", tea_obj_type(receiver), name->chars);
 }
 
 static void set_property(TeaState* T, TeaObjectString* name, TeaValue receiver, TeaValue item)
@@ -574,7 +605,7 @@ static void set_property(TeaState* T, TeaObjectString* name, TeaValue receiver, 
         }
     }
 
-    tea_vm_error(T, "Cannot set property on type %s", tea_value_type(receiver));
+    tea_vm_error(T, "Cannot set property on type '%s'", tea_value_type(receiver));
 }
 
 static void define_method(TeaState* T, TeaObjectString* name)
@@ -1125,6 +1156,7 @@ void tea_vm_run(TeaState* T)
                 TeaValue list = PEEK(1);
                 STORE_FRAME;
                 subscript(T, index, list);
+                READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(SUBSCRIPT_STORE):
@@ -1134,6 +1166,7 @@ void tea_vm_run(TeaState* T)
                 TeaValue list = PEEK(2);
                 STORE_FRAME;
                 subscript_store(T, item, index, list, true);
+                READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(SUBSCRIPT_PUSH):
@@ -1143,6 +1176,7 @@ void tea_vm_run(TeaState* T)
                 TeaValue list = PEEK(2);
                 STORE_FRAME;
                 subscript_store(T, item, index, list, false);
+                READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(IS):
