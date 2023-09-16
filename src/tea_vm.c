@@ -792,10 +792,10 @@ void tea_vm_run(TeaState* T)
         } \
         while(false)
 
-    #define INTREPRET_LOOP  DISPATCH();
+    #define INTERPRET_LOOP  DISPATCH();
     #define CASE_CODE(name) OP_##name
 #else
-    #define INTREPRET_LOOP \
+    #define INTERPRET_LOOP \
         loop: \
             switch(instruction = READ_BYTE())
 
@@ -809,7 +809,7 @@ void tea_vm_run(TeaState* T)
     while(true)
     {
         uint8_t instruction;
-        INTREPRET_LOOP
+        INTERPRET_LOOP
         {
             CASE_CODE(CONSTANT):
             {
