@@ -63,7 +63,7 @@ static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
 TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
 {
     TeaState* T;
-    f = f ? f : t_alloc;
+    f = (f != NULL) ? f : t_alloc;
     T = (TeaState*)((*f)(ud, NULL, 0, sizeof(*T)));
     if(T == NULL) 
         return T;
