@@ -133,14 +133,14 @@ function divide(x, y)
 divide(5, 0)  // Raises an error with message "Cannot divide by zero"
 ```
 
-# type
+# typeof
 
-The `type` function is used to determine the type of an object.
+The `typeof` function is used to determine the type of a value.
 
 #### Syntax
 
 ```tea
-type(value)
+typeof(value)
 ```
 
 #### Parameters
