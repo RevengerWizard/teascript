@@ -250,6 +250,8 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
             return simple_instruction("OP_SUBSCRIPT_STORE", offset);
         case OP_SUBSCRIPT_PUSH:
             return simple_instruction("OP_SUBSCRIPT_PUSH", offset);
+        case OP_SLICE:
+            return simple_instruction("OP_SLICE", offset);
         case OP_EQUAL:
             return simple_instruction("OP_EQUAL", offset);
         case OP_IS:

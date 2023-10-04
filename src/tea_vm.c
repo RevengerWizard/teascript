@@ -209,6 +209,112 @@ static void in_(TeaState* T, TeaValue object, TeaValue value)
     tea_vm_error(T, "%s is not an iterable", tea_val_type(object));
 }
 
+static bool slice(TeaState* T, TeaValue object, TeaValue start_index, TeaValue end_index, TeaValue step_index)
+{
+    if(!IS_NUMBER(step_index) || (!IS_NUMBER(end_index) && !IS_NULL(end_index)) || !IS_NUMBER(step_index)) 
+    {
+        tea_vm_error(T, "Slice index must be a number");
+        return false;
+    }
+
+    if(IS_OBJECT(object))
+    {
+        switch(OBJECT_TYPE(object))
+        {
+            case OBJ_LIST:
+            {
+                TeaOList* new_list = tea_obj_new_list(T);
+                tea_vm_push(T, OBJECT_VAL(new_list));
+                TeaOList* list = AS_LIST(object);
+
+                int start = AS_NUMBER(start_index);
+                int end;
+                int step = AS_NUMBER(step_index);
+
+                if(IS_NULL(end_index))
+                {
+                    end = list->items.count;
+                }
+                else
+                {
+                    end = AS_NUMBER(end_index);
+                    if(end > list->items.count)
+                    {
+                        end = list->items.count;
+                    }
+                    else if(end < 0)
+                    {
+                        end = list->items.count + end;
+                    }
+                }
+
+                if(step > 0)
+                {
+                    for(int i = start; i < end; i += step)
+                    {
+                        tea_write_value_array(T, &new_list->items, list->items.values[i]);
+                    }
+                }
+                else if(step < 0)
+                {
+                    for(int i = end + step; i >= start; i += step)
+                    {
+                        tea_write_value_array(T, &new_list->items, list->items.values[i]);
+                    }
+                }
+
+                tea_vm_pop(T, 5);   /* +1 for the pushed list */
+                tea_vm_push(T, OBJECT_VAL(new_list));
+                return true;
+            }
+            case OBJ_STRING:
+            {
+                TeaOString* string = AS_STRING(object);
+                int length = tea_utf_length(string);
+
+                int start = AS_NUMBER(start_index);
+                int end;
+
+                if(IS_NULL(end_index))
+                {
+                    end = string->length;
+                }
+                else
+                {
+                    end = AS_NUMBER(end_index);
+                    if(end > length) 
+                    {
+                        end = length;
+                    }
+                    else if(end < 0) 
+                    {
+                        end = length + end;
+                    }
+                }
+
+                // Ensure the start index is below the end index
+                if(start > end)
+                {
+                    tea_vm_pop(T, 4);
+                    tea_vm_push(T, OBJECT_VAL(tea_str_literal(T, "")));
+                    return true;
+                } 
+                else 
+                {
+                    start = tea_utf_char_offset(string->chars, start);
+                    end = tea_utf_char_offset(string->chars, end);
+                    tea_vm_pop(T, 4);
+                    tea_vm_push(T, OBJECT_VAL(tea_utf_from_range(T, string, start, end - start, 1)));
+                    return true;
+                }
+            }
+        }
+    }
+
+    tea_vm_error(T, "%s is not sliceable", tea_val_type(object));
+    return false;
+}
+
 static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_value)
 {
     if(!IS_OBJECT(subscript_value))
@@ -1177,6 +1283,16 @@ void tea_vm_run(TeaState* T)
                 STORE_FRAME;
                 subscript_store(T, item, index, list, false);
                 READ_FRAME();
+                DISPATCH();
+            }
+            CASE_CODE(SLICE):
+            {
+                TeaValue step = PEEK(0);
+                TeaValue end = PEEK(1);
+                TeaValue start = PEEK(2);
+                TeaValue object = PEEK(3);
+                STORE_FRAME;
+                slice(T, object, start, end, step);
                 DISPATCH();
             }
             CASE_CODE(IS):

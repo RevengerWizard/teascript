@@ -854,6 +854,46 @@ static void map(TeaCompiler* compiler, bool can_assign)
     emit_argued(compiler, OP_MAP, item_count);
 }
 
+static bool s_expression(TeaCompiler* compiler)
+{
+    expression(compiler);
+
+    // it's a slice
+    if(match(compiler, TOKEN_COLON))
+    {
+        // [n:]
+        if(check(compiler, TOKEN_RIGHT_BRACKET))
+        {
+            null(compiler, false);
+            emit_constant(compiler, NUMBER_VAL(1));
+        } 
+        else
+        {
+            // [n::n]
+            if(match(compiler, TOKEN_COLON))
+            {
+                null(compiler, false);
+                expression(compiler);
+            }
+            else
+            {
+                expression(compiler);
+                if(match(compiler, TOKEN_COLON))
+                {
+                    // [n:n:n]
+                    expression(compiler);
+                }
+                else
+                {
+                    emit_constant(compiler, NUMBER_VAL(1));
+                }
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
 static void csubscript(TeaCompiler* compiler, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
@@ -866,7 +906,12 @@ static void csubscript(TeaCompiler* compiler, bool can_assign)
     emit_ops(compiler, OP_SUBSCRIPT_PUSH, op); \
     emit_op(compiler, OP_SUBSCRIPT_STORE);
 
-    expression(compiler);
+    if(s_expression(compiler))
+    {
+        emit_op(compiler, OP_SLICE);
+        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
+        return;
+    }
 
     consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
 
@@ -1951,6 +1996,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_SUBSCRIPT:
         case OP_SUBSCRIPT_STORE:
         case OP_SUBSCRIPT_PUSH:
+        case OP_SLICE:
         case OP_INHERIT:
         case OP_POP:
         case OP_POP_REPL:
