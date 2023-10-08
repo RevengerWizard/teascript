@@ -94,7 +94,7 @@ static void os_setenv(TeaState* T)
     tea_push_null(T);
 }
 
-static void os_system(TeaState* T)
+static void os_execute(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
@@ -140,7 +140,7 @@ static void init_env(TeaState* T)
 static const TeaModule os_module[] = {
     { "getenv", os_getenv },
     { "setenv", os_setenv },
-    { "system", os_system },
+    { "execute", os_execute },
     { "name", NULL },
     { "env", NULL },
     { NULL, NULL }
