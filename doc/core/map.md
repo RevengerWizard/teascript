@@ -1,26 +1,30 @@
+# Map
+
 #### Properties
 
--   `map.len`: the number of key-value pairs in the map.
--   `map.keys`: the keys in the map as a list.
--   `map.items`: the items in the map as a list.
+-   `Map.len`: the number of key-value pairs in the map.
+-   `Map.keys`: the keys in the map as a list.
+-   `Map.items`: the items in the map as a list.
 
 #### Example
 
 ```tea
-var m = {a = 1, b = 2, c = 3}
+var m = { a = 1, b = 2, c = 3 }
 print(m.len)   // 3
 print(m.keys)   // ["a", "b", "c"]
 print(m.items)   // [1, 2, 3]
 ```
 
-# map.clear
+---
 
-The `map.clear` method removes all key-value pairs from the map.
+## Map.clear
+
+The `Map.clear` method removes all key-value pairs from the map.
 
 #### Syntax
 
 ```tea
-map.clear()
+Map.clear()
 ```
 
 #### Parameters
@@ -39,14 +43,16 @@ m.clear()
 print(m)  // {}
 ```
 
-# map.contains
+---
 
-The `map.contains` method checks wether the map contains a certain key.
+## Map.contains
+
+The `Map.contains` method checks wether the map contains a certain key.
 
 #### Syntax
 
 ```tea
-map.contains(key)
+Map.contains(key)
 ```
 
 #### Parameters
@@ -65,14 +71,16 @@ print(m.contains("a"))  // true
 print(m.contains("d"))  // false
 ```
 
-# map.delete
+---
 
-The `map.delete` method removes the key-value pair with the specified key from the map.
+## Map.delete
+
+The `Map.delete` method removes the key-value pair with the specified key from the map.
 
 #### Syntax
 
 ```tea
-map.delete(key)
+Map.delete(key)
 ```
 
 #### Parameters
@@ -92,14 +100,16 @@ print(m)  // {a = 1, c = 3}
 print(m.contains("b"))  // false
 ```
 
-# map.copy
+---
 
-The `map.copy` method returns a new map that is a shallow copy of the original map.
+## Map.copy
+
+The `Map.copy` method returns a new map that is a shallow copy of the original map.
 
 #### Syntax
 
 ```tea
-map.copy()
+Map.copy()
 ```
 
 #### Parameters

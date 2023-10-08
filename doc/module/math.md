@@ -1,3 +1,5 @@
+# math
+
 The `math` module provides a variety of mathematical functions and constants for use.
 
 #### Constants
@@ -7,7 +9,9 @@ The `math` module provides a variety of mathematical functions and constants for
 -   `math.e`: The value of the constant e (2.71828...), the base of the natural logarithm.
 -   `math.phi`: The value of the golden ratio (1.618033...), a mathematical constant that appears in various areas of mathematics and physics.
 
-# math.min
+---
+
+## math.min
 
 The `math.min` function returns the minimum of its arguments.
 
@@ -46,7 +50,9 @@ value = math.min(5..11)
 print(value)
 ```
 
-# math.max
+---
+
+## math.max
 
 The `math.max` function returns the maximum of its arguments.
 
@@ -85,7 +91,9 @@ value = math.min(5..11)
 print(value)
 ```
 
-# math.mid
+---
+
+## math.mid
 
 The `math.mid` function returns the midpoint of its arguments.
 
@@ -121,7 +129,9 @@ middle = math.mid(numbers)
 print(middle)
 ```
 
-# math.sum
+---
+
+## math.sum
 
 The `math.sum` function returns the sum of its arguments.
 
@@ -160,7 +170,9 @@ total = math.sum(5..11)
 print(total)
 ```
 
-# math.floor
+---
+
+## math.floor
 
 The `math.floor` function returns the largest integer less than or equal to the argument.
 
@@ -193,7 +205,9 @@ rounded = math.floor(5)
 print(rounded)
 ```
 
-# math.ceil
+---
+
+## math.ceil
 
 The `math.ceil` function returns the smallest integer greater than or equal to the argument.
 
@@ -226,7 +240,9 @@ rounded = math.ceil(5)
 print(rounded)
 ```
 
-# math.round
+---
+
+## math.round
 
 The `math.round` function returns the nearest integer to the argument. If the argument is exactly halfway between two integers, it rounds to the nearest even integer.
 
@@ -259,7 +275,9 @@ rounded = math.round(5)
 print(rounded)
 ```
 
-# math.acos
+---
+
+## math.acos
 
 The `math.acos` function returns the inverse cosine (in radians) of the argument.
 
@@ -295,7 +313,9 @@ radians = math.acos(1)
 print(radians)  // 0
 ```
 
-# math.cos
+---
+
+## math.cos
 
 The `math.cos` function returns the cosine of the argument (in radians).
 
@@ -323,7 +343,9 @@ var cosine = math.cos(1.0471975511965979)
 print(cosine)  // 0.4999999999999999
 ```
 
-# math.asin
+---
+
+## math.asin
 
 The `math.asin` function returns the inverse sine (in radians) of the argument.
 
@@ -359,7 +381,9 @@ radians = math.asin(1)
 print(radians)  // 1.5707963267948966
 ```
 
-# math.sin
+---
+
+## math.sin
 
 The `math.sin` function returns the sine of the argument (in radians).
 
@@ -393,7 +417,9 @@ sine = math.sin(1)
 print(sine)  // 0.8414709848078965
 ```
 
-# math.atan
+---
+
+## math.atan
 
 The `math.atan` function returns the inverse tangent (in radians) of the argument.
 
@@ -429,7 +455,9 @@ radians = math.atan(0)
 print(radians)  // 0.0
 ```
 
-# math.atan2
+---
+
+## math.atan2
 
 The `math.atan2` function returns the inverse tangent (in radians) of the quotient of its arguments.
 
@@ -470,7 +498,9 @@ radians = math.atan2(1, 0)
 print(radians)  // 1.5707963267948966
 ```
 
-# math.tan
+---
+
+## math.tan
 
 The `math.tan` function returns the tangent of the argument (in radians).
 
@@ -506,7 +536,9 @@ tangent = math.tan(1)
 print(tangent)  // 1.5574077246549023
 ```
 
-# math.sign
+---
+
+## math.sign
 
 The `math.sign` function returns the sign of the argument.
 
@@ -542,7 +574,9 @@ sign = math.sign(0)
 print(sign)  // 0
 ```
 
-# math.abs
+---
+
+## math.abs
 
 The `math.abs` function returns the absolute value of the argument.
 
@@ -580,7 +614,9 @@ abs_value = math.abs(0)
 print(abs_value)  // 0
 ```
 
-# math.sqrt
+---
+
+## math.sqrt
 
 The `math.sqrt` function returns the square root of the argument.
 
@@ -612,7 +648,9 @@ sqrt = math.sqrt(0)
 print(sqrt)  // 0
 ```
 
-# math.deg
+---
+
+## math.deg
 
 The `math.deg` function converts an angle from radians to degrees.
 
@@ -648,7 +686,9 @@ degrees = math.deg(0)
 print(degrees)  // 0
 ```
 
-# math.rad
+---
+
+## math.rad
 
 The `math.rad` function converts an angle from degrees to radians.
 
@@ -684,7 +724,9 @@ radians = math.rad(0)
 print(radians)  // 0.0
 ```
 
-# math.exp
+---
+
+## math.exp
 
 The `math.exp` function returns the value of the constant `e` (2.71828...) raised to the power of the argument.
 

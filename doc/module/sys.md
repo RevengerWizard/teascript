@@ -1,6 +1,10 @@
+# sys
+
 The `sys` module provides access to system-specific parameters and functions.
 
-# sys.argv
+---
+
+## sys.argv
 
 The `sys.argv` value is a list of strings that contains the command line arguments passed to the program. The first element of the list is the name of the script itself, and the remaining elements are the arguments passed to the script.
 
@@ -20,7 +24,9 @@ if(sys.argv.len > 1)
     print(sys.argv[1])
 ```
 
-# sys.version
+---
+
+## sys.version
 
 The `sys.version` value is a map that contains information about the version of Teascript in use. It includes the following key-value pairs:
 
@@ -40,7 +46,9 @@ print(sys.version)
 print(sys.version['major'])
 ```
 
-# sys.byteorder
+---
+
+## sys.byteorder
 
 The `sys.byteorder` value is a string that indicates the byte order of the system. It is either 'little' or 'big'.
 
@@ -59,39 +67,9 @@ else
     print('System has big endian byte order')
 ```
 
-# sys.sleep
+---
 
-The `sys.sleep` function sleeps for a specified number of seconds.
-
-#### Syntax
-
-```tea
-sys.sleep(seconds)
-```
-
-#### Parameters
-
--   `seconds`: The number of seconds to sleep.
-
-#### Return Value
-
-None.
-
-#### Example
-
-Here are some examples of how to use the `sys.sleep` function:
-
-```tea
-import sys
-
-// Sleep for 2 seconds
-sys.sleep(2)
-
-// Sleep for a fraction of a second
-sys.sleep(0.5)
-```
-
-# sys.exit
+## sys.exit
 
 The `sys.exit` function exits the program with an optional exit status code.
 

@@ -25,6 +25,7 @@
 - [x] wasm interpreter
 - [ ] better error messages
 
+---
 
 - [ ] ffi
 - [ ] http
@@ -46,5 +47,6 @@
 - [ ] gif
 - [ ] cffi
 
+---
 
 - [ ] Decimal

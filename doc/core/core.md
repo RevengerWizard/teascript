@@ -1,4 +1,4 @@
-# print
+## print
 
 The `print` function is a global function in Teascript that is used to output values to the console. If no arguments are provided, it prints a new line. If arguments are provided, it prints each value separated by a tab.
 
@@ -26,7 +26,9 @@ var y = 10
 print(x, y)  // "5   10"
 ```
 
-# input
+---
+
+## input
 
 The `input` function reads a line of text from the standard input stream (usually the keyboard) and returns it as a string.
 
@@ -51,7 +53,9 @@ var name = input("Enter your name: ")
 print("Hello, " + name + "!")
 ```
 
-# open
+---
+
+## open
 
 The `open` function opens a file and returns a `file` object. This object can be used to read, write or manipulate the file.
 
@@ -76,7 +80,9 @@ A `file` object that can be used to manipulate the opened file.
 input(prompt)
 ```
 
-# assert
+---
+
+## assert
 
 The `assert` function is used to check if a given condition is `true`, and if it is not, it raises an error with an optional error message.
 
@@ -102,7 +108,9 @@ assert(5 > 3, "5 is not greater than 3")
 assert([1, 2, 3].len == 3, "The list does not have 3 elements")
 ```
 
-# error
+---
+
+## error
 
 The `error` function is used to raise an error with a specified message. It is similar to the `assert` function, but `error` always raises an error, whereas `assert` only does so if the given condition is `false`.
 
@@ -133,7 +141,9 @@ function divide(x, y)
 divide(5, 0)  // Raises an error with message "Cannot divide by zero"
 ```
 
-# typeof
+---
+
+## typeof
 
 The `typeof` function is used to determine the type of a value.
 
@@ -161,7 +171,9 @@ print(type({a = 1, b = 2}))  // "map"
 print(type(range(1, 10)))  // "range"
 ```
 
-# gc
+---
+
+## gc
 
 The `gc` function is used to invoke the garbage collector, which is responsible for freeing up memory that is no longer being used by the program.
 
@@ -185,7 +197,9 @@ None.
 gc()
 ```
 
-# interpret
+---
+
+## interpret
 
 The `interpret` function is used to interpret and execute a given string of Teascript code.
 
@@ -210,7 +224,9 @@ var code = 'print("Hello, World!")'
 interpret(code)
 ```
 
-# char
+---
+
+## char
 
 The `char` function returns a string containing a single character, given an ASCII code.
 
@@ -236,7 +252,9 @@ print(char(97))  // "a"
 print(char(48))  // "0"
 ```
 
-# ord
+---
+
+## ord
 
 The `ord` function returns the ASCII code of a given character.
 
@@ -262,7 +280,9 @@ print(ord("a"))  // 97
 print(ord("0"))  // 48
 ```
 
-# hex
+---
+
+## hex
 
 The `hex` function converts an integer to a hexadecimal string.
 
@@ -286,7 +306,35 @@ A string with the hexadecimal representation of the number.
 print(hex(255))  // "0xff"
 ```
 
-# number
+---
+
+## bin
+
+The `bin` function converts an integer to a binary string.
+
+#### Syntax
+
+```tea
+bin(x)
+```
+
+#### Parameters
+
+-   `x`: a number.
+
+#### Return value
+
+A string with the binary representation of the number.
+
+#### Example
+
+```tea
+print(bin(255))  // "0b11111111"
+```
+
+---
+
+## number
 
 The `number` function converts a string to a number or raises an error if the string cannot be converted.
 

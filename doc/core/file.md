@@ -1,10 +1,12 @@
-The `file` type in Teascript represents an object that provides a stream of bytes to a file on the computer's file system. It allows you to read from and write to files, as well as perform various other operations such as seeking to a specific position within the file or checking its current position.
+# File
+
+The `File` type in Teascript represents an object that provides a stream of bytes to a file on the computer's file system. It allows you to read from and write to files, as well as perform various other operations such as seeking to a specific position within the file or checking its current position.
 
 #### Properties
 
--   `file.closed`: a boolean indicating whether the file is closed or not.
--   `file.path`: a string representing the path to the file on the file system.
--   `file.type`: a string indicating how the file was open.
+-   `File.closed`: a boolean indicating whether the file is closed or not.
+-   `File.path`: a string representing the path to the file on the file system.
+-   `File.type`: a string indicating how the file was open.
 
 #### Example
 
@@ -16,14 +18,16 @@ f.close()
 print(f.closed)  // true
 ```
 
-# file.write
+---
 
-The `file.write` method writes the given string to the file.
+## File.write
+
+The `File.write` method writes the given string to the file.
 
 #### Syntax
 
 ```tea
-file.write(data)
+File.write(data)
 ```
 
 #### Parameters
@@ -43,14 +47,16 @@ print(num_bytes)  // 13
 f.close()
 ```
 
-# file.writeline
+---
 
-The `file.writeline` method writes the given string to the file, followed by a newline character.
+## File.writeline
+
+The `File.writeline` method writes the given string to the file, followed by a newline character.
 
 #### Syntax
 
 ```tea
-file.writeline(data)
+File.writeline(data)
 ```
 
 #### Parameters
@@ -70,14 +76,16 @@ print(num_bytes)  // 14
 f.close()
 ```
 
-# file.read
+---
 
-The `file.read` method reads and returns the specified number of bytes from the file. If `size` is not specified, it reads and returns all the remaining bytes.
+## File.read
+
+The `File.read` method reads and returns the specified number of bytes from the file. If `size` is not specified, it reads and returns all the remaining bytes.
 
 #### Syntax
 
 ```tea
-file.read(size)
+File.read(size)
 ```
 
 #### Parameters
@@ -102,14 +110,16 @@ print(first_line)  // the first 5 bytes of the file
 f.close()
 ```
 
-# file.readline
+---
 
-The `file.readline` method reads and returns a single line from the file.
+## File.readline
+
+The `File.readline` method reads and returns a single line from the file.
 
 #### Syntax
 
 ```tea
-file.readline()
+File.readline()
 ```
 
 #### Parameters
@@ -129,14 +139,16 @@ print(first_line)  // the first line of the file
 f.close()
 ```
 
-# file.seek
+---
 
-The `file.seek` method 
+## File.seek
+
+The `File.seek` method 
 
 #### Syntax
 
 ```tea
-file.seek()
+File.seek()
 ```
 
 #### Parameters
@@ -156,14 +168,16 @@ print(first_line)  // the first line of the file
 f.close()
 ```
 
-# file.close
+---
 
-The `file.close` method closes a current opened file. If the file is already closed, it gives and error.
+## File.close
+
+The `File.close` method closes a current opened file. If the file is already closed, it gives and error.
 
 #### Syntax
 
 ```tea
-file.close()
+File.close()
 ```
 
 #### Parameters

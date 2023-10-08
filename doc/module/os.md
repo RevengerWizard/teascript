@@ -1,6 +1,10 @@
+# os
+
 The `os` module provides functions and values for interacting with the operating system.
 
-# os.getenv
+---
+
+## os.getenv
 
 The `os.getenv` function gets the value of an environment variable.
 
@@ -32,7 +36,9 @@ var undefined_var = os.getenv('UNDEFINED_VAR')
 print(undefined_var)  // null
 ```
 
-# os.setenv
+---
+
+## os.setenv
 
 The `os.setenv` function sets the value of an environment variable.
 
@@ -64,14 +70,16 @@ var my_var = os.getenv('MY_VAR')
 print(my_var)  // 'value'
 ```
 
-# os.system
+---
 
-The `os.system` function executes a system command.
+## os.execute
+
+The `os.execute` function executes a system command.
 
 #### Syntax
 
 ```tea
-os.system(command)
+os.execute(command)
 ```
 
 #### Parameters
@@ -88,16 +96,18 @@ The exit status code of the command.
 import os
 
 // Execute a system command
-var exit_code = os.system('ls')
+var exit_code = os.execute('ls')
 print(exit_code)  // [exit status code of the 'ls' command]
 
 // Execute a system command and check the exit status
-exit_code = os.system('ls non-existent-dir')
+exit_code = os.execute('ls non-existent-dir')
 if(exit_code != 0)
     print('Command failed')
 ```
 
-# os.name
+---
+
+## os.name
 
 The `os.name` value is a string that indicates the name of the operating system. It is 'windows' for Windows, 'unix' for Unix-like systems, 'macOS' for macOS, 'linux' for Linux, 'freeBSD' for FreeBSD, or 'other' if it was not able to determine the operating system.
 
@@ -120,7 +130,9 @@ if(os.name == 'windows')
     print('Operating system is Windows')
 ```
 
-# os.env
+---
+
+## os.env
 
 The `os.env` value is a map that contains the environment variables of the operating system. Note: adding new keys to `os.env` does not add the new keys to the env variables. Use `os.setenv` instead.
 

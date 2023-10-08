@@ -1,6 +1,10 @@
+# random
+
 The `random` module provides functions for generating random numbers and selecting random elements.
 
-# random.seed
+---
+
+## random.seed
 
 The `random.seed` function sets the seed value for the random number generator. This allows you to generate reproducible sequences of random numbers.
 
@@ -27,14 +31,16 @@ import random
 random.seed(1234)
 
 // Generate a random number
-print(random.random())  // [random number]
+print(random.random())
 
 // Generate another random number with the same seed
 random.seed(1234)
-print(random.random())  // [same random number as above]
+print(random.random())
 ```
 
-# random.random
+---
+
+## random.random
 
 The `random.random` function returns a random number between 0.0 and 1.0.
 
@@ -57,10 +63,12 @@ import random
 
 // Generate a random float between 0.0 and 1.0
 var random_float = random.random()
-print(random_float)  // [random float between 0.0 and 1.0]
+print(random_float)
 ```
 
-# random.range
+---
+
+## random.range
 
 The `random.range` function returns a random integer within a specified range.
 
@@ -91,14 +99,16 @@ import random
 
 // Generate a random integer between 0 and 9
 var random = random.range(0, 10)
-print(random)  // [random number between 0 and 9]
+print(random)
 
 // Generate a random number from range
 random = random.range(1..11)
-print(random)  // [random number between 1 and 10]
+print(random)
 ```
 
-# random.choice
+---
+
+## random.choice
 
 The `random.choice` function selects a random element from a list.
 
@@ -123,14 +133,16 @@ import random
 
 // Select a random element from a list of integers
 var random = random.choice([1, 2, 3, 4, 5])
-print(random)  // [random element from the list]
+print(random)
 
 // Select a random element from a list of strings
 random = random.choice(['a', 'b', 'c', 'd', 'e'])
-print(random)  // [random element from the list]
+print(random)
 ```
 
-# random.shuffle
+---
+
+## random.shuffle
 
 The `random.shuffle` function shuffles the elements of a list in place.
 
@@ -156,10 +168,10 @@ import random
 // Shuffle a list of integers
 var numbers = [1, 2, 3, 4, 5]
 random.shuffle(numbers)
-print(numbers)  // [shuffled list of integers]
+print(numbers)
 
 // Shuffle a list of strings
 var letters = ['a', 'b', 'c', 'd', 'e']
 random.shuffle(letters)
-print(letters)  // [shuffled list of strings]
+print(letters)
 ```

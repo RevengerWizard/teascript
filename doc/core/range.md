@@ -1,11 +1,13 @@
+# Range
+
 The `range` type represents a sequence of numbers, starting from a start value, up to an end value, with a specified step. It is commonly used to iterate over a sequence of numbers in a for loop.
 
 #### Properties
 
--   `range.start`: the start value of the range.
--   `range.end`: the end value of the range.
--   `range.step`: the step value of the range.
--   `range.len`: the length of the range.
+-   `Range.start`: the start value of the range.
+-   `Range.end`: the end value of the range.
+-   `Range.step`: the step value of the range.
+-   `Range.len`: the length of the range.
 
 #### Example
 
@@ -19,14 +21,16 @@ print(my_range.step)  // 2
 print(my_range.len)   // 4
 ```
 
-# range.contains
+---
 
-The `range.contains` method checks if a given value is within the range.
+## Range.contains
+
+The `Range.contains` method checks if a given value is within the range.
 
 #### Syntax
 
 ```tea
-range.contains(x)
+Range.contains(x)
 ```
 
 #### Parameters

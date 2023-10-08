@@ -2,7 +2,7 @@
 
 There are two different types of import in the language right now: quoted and named.
 
-```js
+```tea
 import math
 ```
 
@@ -10,7 +10,7 @@ The named import
 
 This one loads a module named math, that is 'baked' inside the language.
 
-```js
+```tea
 import "file.tea" as file
 ```
 

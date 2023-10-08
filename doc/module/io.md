@@ -1,6 +1,10 @@
+# io
+
 The `io` module provides input/output functionality, including the ability to read from and write to standard input/output/error streams.
 
-# io.stdin
+---
+
+## io.stdin
 
 The `io.stdin` file represents the standard input stream in Teascript. It can be used to read input from the user.
 
@@ -17,10 +21,12 @@ import io
 
 // Read a line of input from the user
 var input_str = io.stdin.readline()
-print(input_str)  // [input entered by user]
+print(input_str)
 ```
 
-# io.stdout
+---
+
+## io.stdout
 
 The `io.stdout` file represents the standard output stream in Teascript. It can be used to print output to the console.
 
@@ -39,7 +45,9 @@ import io
 io.stdout.write("Hello, world!")  // Hello, world!
 ```
 
-# io.stderr
+---
+
+## io.stderr
 
 The `io.stderr` file represents the standard error stream in Teascript. It can be used to print error messages to the console.
 

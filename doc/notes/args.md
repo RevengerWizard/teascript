@@ -20,7 +20,7 @@ f(1, c=2, b=3)  # 1, 3, 2
 f(a=12, b=1, c=4)   # 12, 1, 4
 ```
 
-```js
+```tea
 function f(a, b=1, c=2)
 {
     console.log(a, b, c)
@@ -41,7 +41,7 @@ We want at least these two methods of using keyword arguments:
 - you can omit the key values
 - you can refer to the key values with their own names, in any order
 
-```js
+```tea
 function f(a, b=1, c=2)
 {
     print("{a}, {b}, {c}")
@@ -73,7 +73,7 @@ end
 f(1, 2, 3)  -- 1 2 3
 ```
 
-```js
+```tea
 function f(...v)
 {
     console.log(v)
@@ -84,7 +84,7 @@ f(1, 2, 3)  // Array [1, 2, 3]
 
 In Javascript, the dots are associated to a function argument name, that under the hood creates an array with the number of values given, so it would be as you were doing:
 
-```js
+```tea
 function f(v)
 {
     console.log(v)

@@ -1,8 +1,10 @@
-The `list` type is a mutable sequence type that allows you to store and manipulate a collection of values. It is similar to arrays in other programming languages. Lists are created using square brackets, and elements can be added, removed, or modified using various methods.
+# List
+
+The `List` type is a mutable sequence type that allows you to store and manipulate a collection of values. It is similar to arrays in other programming languages. Lists are created using square brackets, and elements can be added, removed, or modified using various methods.
 
 #### Properties
 
--   `list.len`: the number of elements in a list.
+-   `List.len`: the number of elements in a list.
 
 #### Example
 
@@ -11,14 +13,16 @@ var my_list = [1, 2, 3, 4]
 print(my_list.len)  // 4
 ```
 
-# list.add
+---
 
-The `list.add` method adds an element to the end of a list.
+## List.add
+
+The `List.add` method adds an element to the end of a list.
 
 #### Syntax
 
 ```tea
-list.add(element)
+List.add(element)
 ```
 
 #### Parameters
@@ -37,14 +41,16 @@ my_list.add(4)
 print(my_list)  // [1, 2, 3, 4]
 ```
 
-# list.remove
+---
 
-The `list.remove` method removes the first occurrence of a value from a list. If the value is not found in the list, an error is raised.
+## List.remove
+
+The `List.remove` method removes the first occurrence of a value from a list. If the value is not found in the list, an error is raised.
 
 #### Syntax
 
 ```tea
-list.remove(value)
+List.remove(value)
 ```
 
 #### Parameters
@@ -63,14 +69,16 @@ my_list.remove(2)
 print(my_list)  // [1, 3, 4, 2]
 ```
 
-# list.delete
+---
 
-The `list.delete` method removes the element at a specified index from a list. If the index is out of range, an error is raised.
+## List.delete
+
+The `List.delete` method removes the element at a specified index from a list. If the index is out of range, an error is raised.
 
 #### Syntax
 
 ```tea
-list.delete(index)
+List.delete(index)
 ```
 
 #### Parameters
@@ -89,14 +97,16 @@ my_list.delete(1)
 print(my_list)  // [1, 3, 4]
 ```
 
-# list.clear
+---
 
-The `list.clear` method removes all elements from a list.
+## List.clear
+
+The `List.clear` method removes all elements from a list.
 
 #### Syntax
 
 ```tea
-list.clear()
+List.clear()
 ```
 
 #### Parameters
@@ -115,14 +125,16 @@ my_list.clear()
 print(my_list)  // Output: []
 ```
 
-# list.insert
+---
 
-The `list.insert` method inserts an element at a specified index in a list. If the index is out of range, an error is raised.
+## List.insert
+
+The `List.insert` method inserts an element at a specified index in a list. If the index is out of range, an error is raised.
 
 #### Syntax
 
 ```tea
-list.insert(index, element)
+List.insert(index, element)
 ```
 
 #### Parameters
@@ -142,14 +154,16 @@ my_list.insert(1, 4)
 print(my_list)  // [1, 4, 2, 3]
 ```
 
-# list.extend
+---
 
-The `list.extend` method adds all elements of an iterable to the end of a list.
+## List.extend
+
+The `List.extend` method adds all elements of an iterable to the end of a list.
 
 #### Syntax
 
 ```tea
-list.extend(iterable)
+List.extend(iterable)
 ```
 
 #### Parameters
@@ -168,14 +182,16 @@ my_list.extend([4, 5, 6])
 print(my_list)  // [1, 2, 3, 4, 5, 6]
 ```
 
-# list.reverse
+---
 
-The `list.reverse` method reverses the order of elements in a list.
+## List.reverse
+
+The `List.reverse` method reverses the order of elements in a list.
 
 #### Syntax
 
 ```tea
-list.reverse()
+List.reverse()
 ```
 
 #### Parameters
@@ -194,14 +210,16 @@ my_list.reverse()
 print(my_list)  // [4, 3, 2, 1]
 ```
 
-# list.contains
+---
 
-The `list.contains` checks whether an element is present in a list or not.
+## List.contains
+
+The `List.contains` checks whether an element is present in a list or not.
 
 #### Syntax
 
 ```tea
-list.contains(element)
+List.contains(element)
 ```
 
 #### Parameters
@@ -220,14 +238,16 @@ print(my_list.contains(2))  // true
 print(my_list.contains(5))  // false
 ```
 
-# list.count
+---
 
-The `list.contains` checks whether an element is present in a list or not.
+## List.count
+
+The `List.contains` checks whether an element is present in a list or not.
 
 #### Syntax
 
 ```tea
-list.count(element)
+List.count(element)
 ```
 
 #### Parameters
@@ -248,14 +268,16 @@ print(my_list.count(4))  // 1
 print(my_list.count(5))  // 0
 ```
 
-# list.swap
+---
 
-The `list.contains` checks whether an element is present in a list or not.
+## List.swap
+
+The `List.contains` checks whether an element is present in a list or not.
 
 #### Syntax
 
 ```tea
-list.swap(index1, index2)
+List.swap(index1, index2)
 ```
 
 #### Parameters
@@ -275,14 +297,16 @@ my_list.swap(0, 3)
 print(my_list)  // [4, 2, 3, 1]
 ```
 
-# list.fill
+---
 
-The `list.fill` method fills a list with a given value.
+## List.fill
+
+The `List.fill` method fills a list with a given value.
 
 #### Syntax
 
 ```tea
-list.fill(value)
+List.fill(value)
 ```
 
 #### Parameters
@@ -301,14 +325,16 @@ my_list.fill(0)
 print(my_list)  // [0, 0, 0]
 ```
 
-# list.sort
+---
 
-The `list.sort` method sorts the elements of a list in ascending order.
+## List.sort
+
+The `List.sort` method sorts the elements of a list in ascending order.
 
 #### Syntax
 
 ```tea
-list.sort()
+List.sort()
 ```
 
 #### Parameters
@@ -327,14 +353,16 @@ my_list.sort()
 print(my_list)  // [1, 2, 3]
 ```
 
-# list.index
+---
 
-The `list.index` method returns the index of the first occurrence of a given value in a list. If the value is not found in the list, an error is raised.
+## List.index
+
+The `List.index` method returns the index of the first occurrence of a given value in a list. If the value is not found in the list, an error is raised.
 
 #### Syntax
 
 ```tea
-list.index(value)
+List.index(value)
 ```
 
 #### Parameters
@@ -353,14 +381,16 @@ index = my_list.index(2)
 print(index)  // 1
 ```
 
-# list.join
+---
 
-The `list.join` method returns a string obtained by concatenating the elements of a list, using a separator string.
+## List.join
+
+The `List.join` method returns a string obtained by concatenating the elements of a list, using a separator string.
 
 #### Syntax
 
 ```tea
-list.join(separator)
+List.join(separator)
 ```
 
 #### Parameters
@@ -379,14 +409,16 @@ result = my_list.join(', ')
 print(result)  // 'a, b, c'
 ```
 
-# list.copy
+---
 
-The `list.copy` method returns a shallow copy of a list. A shallow copy is a new list that contains references to the elements of the original list, rather than copies of the elements themselves.
+## List.copy
+
+The `List.copy` method returns a shallow copy of a list. A shallow copy is a new list that contains references to the elements of the original list, rather than copies of the elements themselves.
 
 #### Syntax
 
 ```tea
-list.copy()
+List.copy()
 ```
 
 #### Parameters

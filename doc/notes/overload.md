@@ -3,68 +3,68 @@
 ## Operators
 
 - equals
-```js
+```tea
 == (a, b)
 ```
 Overloading of this operator also overloads `!=`
 
 - add
-```js
+```tea
 + (a, b)
 ```
 
 - subtract / negate
-```js
+```tea
 - (a, b)
 ```
 
 - multiply
-```js
+```tea
 * (a, b)
 ```
 
 - divide
-```js
+```tea
 / (a, b)
 ```
 
 - mod
-```js
+```tea
 % (a, b)
 ```
 
 - pow
-```js
+```tea
 ** (a, b)
 ```
 
 - band
-```js
+```tea
 & (a, b)
 ```
 
 - bor
-```js
+```tea
 | (a, b)
 ```
 
 - bnot
-```js
+```tea
 ~ (a, b)
 ```
 
 - bxor
-```js
+```tea
 ^ (a, b)
 ```
 
 - lshift
-```js
+```tea
 << (a, b)
 ```
 
 - rshift
-```js
+```tea
 >> (a, b)
 ```
 
@@ -72,33 +72,33 @@ Overloading of this operator also overloads `!=`
 - or
 
 - greater
-```js
+```tea
 > (a, b)
 ```
 
 - less
-```js
+```tea
 < (a, b)
 ```
 
 - subscript
-```js
+```tea
 [] (index, value)
 ```
 
 ## Specials
 
 - tostring
-```js
+```tea
 tostring() : string
 ```
 
 - type
-```js
-type()
+```tea
+typeof()
 ```
 
 - contains
-```js
+```tea
 contains(element)
 ```

@@ -1,8 +1,10 @@
-The `string` type in Teascript represents a sequence of characters, and is used to represent text in your Teascript programs. You can create a string in Teascript by enclosing a sequence of characters in quotation marks, either single or double, or by using the `string` class. You can use various methods to manipulate and work with strings, such as string searching and manipulation.
+# String
+
+The `String` type in Teascript represents a sequence of characters, and is used to represent text in your Teascript programs. You can create a string in Teascript by enclosing a sequence of characters in quotation marks, either single or double, or by using the `string` class. You can use various methods to manipulate and work with strings, such as string searching and manipulation.
 
 #### Properties
 
--   `string.len`: the length of a string, in characters.
+-   `String.len`: the length of a string, in characters.
 
 #### Example
 
@@ -11,14 +13,16 @@ var my_string = "Hello, world!"
 print(my_string.len)  // 13
 ```
 
-# string.upper
+---
 
-The `string.upper` method returns a new string with all the characters in the original string converted to uppercase.
+## String.upper
+
+The `String.upper` method returns a new string with all the characters in the original string converted to uppercase.
 
 #### Syntax
 
 ```tea
-string.upper()
+String.upper()
 ```
 
 #### Parameters
@@ -37,14 +41,16 @@ my_string = my_string.upper()
 print(my_string)  // "HELLO, WORLD!"
 ```
 
-# string.lower
+---
 
-The `string.lower` method returns a new string with all the characters in the original string converted to lowercase.
+## String.lower
+
+The `String.lower` method returns a new string with all the characters in the original string converted to lowercase.
 
 #### Syntax
 
 ```tea
-string.lower()
+String.lower()
 ```
 
 #### Parameters
@@ -63,14 +69,16 @@ my_string = my_string.lower()
 print(my_string)  // "hello, world!"
 ```
 
-# string.reverse
+---
 
-The `string.reverse` method returns a new string with the characters in the original string reversed in order.
+## String.reverse
+
+The `String.reverse` method returns a new string with the characters in the original string reversed in order.
 
 #### Syntax
 
 ```tea
-string.reverse()
+String.reverse()
 ```
 
 #### Parameters
@@ -89,14 +97,16 @@ my_string = my_string.reverse()
 print(my_string)  // "!dlrow ,olleH"
 ```
 
-# string.title
+---
 
-The `string.title` method returns a new string with the first character of each word in the original string converted to uppercase, and the rest of the characters converted to lowercase.
+## String.title
+
+The `String.title` method returns a new string with the first character of each word in the original string converted to uppercase, and the rest of the characters converted to lowercase.
 
 #### Syntax
 
 ```tea
-string.title()
+String.title()
 ```
 
 #### Parameters
@@ -115,14 +125,16 @@ my_string = my_string.title()
 print(my_string)  // "Hello, World!"
 ```
 
-# string.split
+---
 
-The `string.split` method returns a list of strings created by splitting the original string at each occurrence of a specified separator.
+## String.split
+
+The `String.split` method returns a list of strings created by splitting the original string at each occurrence of a specified separator.
 
 #### Syntax
 
 ```tea
-string.split(separator, maxsplit)
+String.split(separator, maxsplit)
 ```
 
 #### Parameters
@@ -144,14 +156,16 @@ print(my_list)  // ["Hello,", "world!", "How", "are", "you", "today?"]
 
 In the example above, the `string.split` method is used to split the `my_string` string into a list of substrings, using white space as the separator.
 
-# string.contains
+---
 
-The `string.contains` method checks whether the specified string is found within the original string
+## String.contains
+
+The `String.contains` method checks whether the specified string is found within the original string
 
 #### Syntax
 
 ```tea
-string.contains(substring)
+String.contains(substring)
 ```
 
 #### Parameters
@@ -173,14 +187,16 @@ result = my_string.contains("foo")
 print(result)  // false
 ```
 
-# string.startswith
+---
 
-The `string.startswith` method checks whether the original string starts with the specified string.
+## String.startswith
+
+The `String.startswith` method checks whether the original string starts with the specified string.
 
 #### Syntax
 
 ```tea
-string.startswith(prefix)
+String.startswith(prefix)
 ```
 
 #### Parameters
@@ -202,14 +218,16 @@ result = my_string.startswith("foo")
 print(result)  // false
 ```
 
-# string.endswith
+---
 
-The `string.endswith` method returns `true` if the original string ends with the specified string, and `false` otherwise.
+## String.endswith
+
+The `String.endswith` method returns `true` if the original string ends with the specified string, and `false` otherwise.
 
 #### Syntax
 
 ```tea
-string.endswith(suffix)
+String.endswith(suffix)
 ```
 
 #### Parameters
@@ -231,14 +249,16 @@ var result = my_string.endswith("foo")
 print(result)  // false
 ```
 
-# string.leftstrip
+---
 
-The `string.leftstrip` strips the string of any leading white space.
+## String.leftstrip
+
+The `String.leftstrip` strips the string of any leading white space.
 
 #### Syntax
 
 ```tea
-string.leftstrip()
+String.leftstrip()
 ```
 
 #### Parameters
@@ -257,14 +277,16 @@ my_string = my_string.leftstrip()
 print(new_string)  // "Hello, world!"
 ```
 
-# string.rightstrip
+---
 
-The `string.rightstrip`  strips the string of any trailin white spaces.
+## String.rightstrip
+
+The `String.rightstrip`  strips the string of any trailin white spaces.
 
 #### Syntax
 
 ```tea
-string.rightstrip()
+String.rightstrip()
 ```
 
 #### Parameters
@@ -283,13 +305,15 @@ my_string = my_string.rightstrip()
 print(new_string)  // "Hello, world!"
 ```
 
-# string.strip
+---
 
-The `string.strip` strips the string of any leading and trailing white spaces.
+## String.strip
+
+The `String.strip` strips the string of any leading and trailing white spaces.
 
 #### Syntax
 
-`string.strip()`
+`String.strip()`
 
 #### Parameters
 
@@ -307,14 +331,16 @@ my_string = my_string.strip()
 print(new_string)  // "Hello, world!"
 ```
 
-# string.count
+---
 
-The `string.count` method counts the number of occurrences of a specified string within the original string.
+## String.count
+
+The `String.count` method counts the number of occurrences of a specified string within the original string.
 
 #### Syntax
 
 ```tea
-string.count(substring)
+String.count(substring)
 ```
 
 #### Parameters
@@ -335,13 +361,15 @@ result = my_string.count("foo")
 print(result)  // 0
 ```
 
-# string.find
+---
 
-The `string.find` finds the index of the first occurrence of a specified string within the original string, or -1 if the string is not found.
+## String.find
+
+The `String.find` finds the index of the first occurrence of a specified string within the original string, or -1 if the string is not found.
 
 #### Syntax
 
-`string.find(substring)`
+`String.find(substring)`
 
 ### Parameters
 
@@ -361,14 +389,16 @@ result = my_string.find("foo")
 print(result)  // -1
 ```
 
-# string.replace
+---
 
-The `string.replace` method replaces all the occurences of a string from the original string.
+## String.replace
+
+The `String.replace` method replaces all the occurences of a string from the original string.
 
 #### Syntax
 
 ```tea
-string.replace(old_string, new_string)
+String.replace(old_string, new_string)
 ```
 
 #### Parameters

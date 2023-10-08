@@ -7,7 +7,7 @@ When writing simple expressions, they should be directly printed in the REPL
 ```
 > 1
 1
-> type(2)
+> typeof(2)
 number
 ```
 
