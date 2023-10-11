@@ -19,6 +19,7 @@
 #undef TAU
 #undef E
 #undef PHI
+
 #define PI 3.14159265358979323846
 #define TAU 6.28318530717958647692
 #define E 2.71828182845904523536
@@ -258,6 +259,20 @@ static void math_exp(TeaState* T)
     tea_push_number(T, exp(tea_check_number(T, 0)));
 }
 
+static void math_isinfinity(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_bool(T, isinf(tea_check_number(T, 0)));
+}
+
+static void math_isnan(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_bool(T, isnan(tea_check_number(T, 0)));
+}
+
 static const TeaModule math_module[] = 
 {
     { "min", math_min },
@@ -280,6 +295,8 @@ static const TeaModule math_module[] =
     { "deg", math_deg },
     { "rad", math_rad },
     { "exp", math_exp },
+    { "isinfinity", math_isinfinity },
+    { "isnan", math_isnan },
     { "pi", NULL },
     { "tau", NULL },
     { "e", NULL },
