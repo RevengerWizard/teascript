@@ -33,7 +33,7 @@ char* tea_util_read_file(TeaState* T, const char* path)
     if(bytes_read < file_size) 
     {
         TEA_FREE_ARRAY(T, char, buffer, file_size + 1);
-        tea_vm_error(T, "Could not read file \"%s\"", path);
+        return NULL;
     }
 
     buffer[bytes_read] = '\0';
