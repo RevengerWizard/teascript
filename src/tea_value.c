@@ -22,7 +22,7 @@ DEFINE_ARRAY(TeaBytes, uint8_t, bytes)
 
 const char* const tea_val_typenames[] = {
     "null", "number", "bool", 
-    "userdata", "string", "range", "function", "module", "class", "instance", "list", "map", "file"
+    "string", "range", "function", "module", "class", "instance", "list", "map", "file", "userdata"
 };
 
 const char* tea_val_type(TeaValue a)

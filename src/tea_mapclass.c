@@ -64,6 +64,25 @@ static void map_get(TeaState* T)
     }
 }
 
+static void map_update(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 2);
+
+    tea_check_type(T, 1, TEA_TYPE_MAP);
+
+    TeaOMap* map = AS_MAP(T->base[0]);
+    TeaOMap* new = AS_MAP(T->base[1]);
+
+    for(int i = 0; i < new->capacity; i++)
+    {
+        if(new->items[i].empty) continue;
+        tea_map_set(T, map, new->items[i].key, new->items[i].value);
+    }
+
+    tea_push_value(T, 0);
+}
+
 static void map_clear(TeaState* T)
 {
     int count = tea_get_top(T);
@@ -106,6 +125,8 @@ static void map_delete(TeaState* T)
     }
 
     tea_map_delete(T, map, T->base[1]);
+
+    tea_push_value(T, 0);
 }
 
 static void map_copy(TeaState* T)
@@ -205,6 +226,7 @@ static const TeaClass map_class[] = {
     { "keys", "property", map_keys },
     { "values", "property", map_values },
     { "get", "method", map_get },
+    { "update", "method", map_update },
     { "clear", "method", map_clear },
     { "contains", "method", map_contains },
     { "delete", "method", map_delete },
