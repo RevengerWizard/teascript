@@ -125,7 +125,7 @@ void tea_imp_relative(TeaState* T, TeaOString* dir, TeaOString* path_name)
     TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
 
     if(status != TEA_OK)
-        tea_do_throw(T, TEA_COMPILE_ERROR);
+        tea_do_throw(T, TEA_SYNTAX_ERROR);
 
     tea_do_precall(T, T->top[-1], 0);
 }

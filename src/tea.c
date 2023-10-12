@@ -88,7 +88,7 @@ static int handle_script(TeaState* T, char** argv)
     char* path  = argv[0];
     TeaStatus status = tea_dofile(T, path);
 
-    if(status == TEA_COMPILE_ERROR)
+    if(status == TEA_SYNTAX_ERROR)
     {
         return 65;
     }
@@ -164,7 +164,7 @@ static int run_args(TeaState* T, char** argv, int n)
                     chunk = argv[++i];
 
                 int status = tea_interpret(T, "=<stdin>", chunk);
-                if(status == TEA_COMPILE_ERROR)
+                if(status == TEA_SYNTAX_ERROR)
                 {
                     return 65;
                 }

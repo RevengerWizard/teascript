@@ -53,7 +53,7 @@ static void error_at(TeaCompiler* compiler, TeaToken* token, const char* message
 
     fprintf(stderr, ": %s\n", message);
     
-    tea_do_throw(compiler->parser->T, TEA_COMPILE_ERROR);
+    tea_do_throw(compiler->parser->T, TEA_SYNTAX_ERROR);
 }
 
 static void error(TeaCompiler* compiler, const char* message)

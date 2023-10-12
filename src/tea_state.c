@@ -165,7 +165,7 @@ TEA_API TeaStatus tea_interpret(TeaState* T, const char* module_name, const char
     
     int status = tea_do_protected_compiler(T, module, source);
     if(status != TEA_OK)
-        return TEA_COMPILE_ERROR;
+        return TEA_SYNTAX_ERROR;
 
     return tea_do_pcall(T, T->top[-1], 0);
 }

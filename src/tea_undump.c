@@ -30,7 +30,7 @@ static void error(TeaLoadState* S, const char* message)
 {
     fprintf(stderr, "bad binary format: %s", message);
     fputs("\n", stderr);
-    tea_do_throw(S->T, TEA_COMPILE_ERROR);
+    tea_do_throw(S->T, TEA_SYNTAX_ERROR);
 }
 
 #define load_vector(S, b, n) load_block(S, b, (n) * sizeof((b)[0]))
