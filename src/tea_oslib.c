@@ -41,15 +41,14 @@ static void os_getenv(TeaState* T)
     int count = tea_get_top(T);
     tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
 
-    int l;
-    const char* value = getenv(tea_check_lstring(T, 0, &l));
+    const char* value = getenv(tea_check_string(T, 0));
     if(count == 2)
     {
-        const char* s = tea_check_string(T, 1);
+        tea_check_string(T, 1);
 
         if(value != NULL) 
         {
-            tea_push_lstring(T, value, l);
+            tea_push_string(T, value);
             return;
         }
 
@@ -58,7 +57,7 @@ static void os_getenv(TeaState* T)
 
     if(value != NULL) 
     {
-        tea_push_lstring(T, value, l);
+        tea_push_string(T, value);
         return;
     }
 
@@ -108,14 +107,12 @@ static inline const char* os_name()
 {
 #if defined(_WIN32) || defined(_WIN64)
     return "windows";
-#elif defined(__unix) || defined(__unix__)
-    return "unix";
 #elif defined(__APPLE__) || defined(__MACH__)
-    return "macOS";
+    return "macos";
 #elif defined(__linux__)
     return "linux";
 #elif defined(__FreeBSD__)
-    return "freeBSD";
+    return "freebsd";
 #else
     return "other";
 #endif
@@ -126,12 +123,23 @@ static void init_env(TeaState* T)
     /* This is not a portable feature on all the C compilers */
     extern char** environ;
 
-    tea_new_list(T);
+    tea_new_map(T);
 
     for(char** current = environ; *current; current++)
     {
-        tea_push_string(T, *current);
-        tea_add_item(T, 1);
+        char* key = strdup(*current);  /* Create a copy of the environment variable */
+        char* value = strchr(key, '=');
+        
+        if(value != NULL)
+        {
+            *value = '\0';  /* Split the variable and value */
+            value++;
+
+            tea_push_string(T, value);
+            tea_set_key(T, -2, key);
+        }
+        
+        free(key);
     }
 
     tea_set_key(T, 0, "env");

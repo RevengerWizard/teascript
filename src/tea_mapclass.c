@@ -43,6 +43,27 @@ static void map_values(TeaState* T)
     }
 }
 
+static void map_get(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
+
+    TeaOMap* map = AS_MAP(T->base[0]);
+    
+    TeaValue key = T->base[1];
+    TeaValue value;
+    bool b = tea_map_get(map, key, &value);
+
+    if(b)
+    {
+        tea_vm_push(T, value);
+    }
+    else
+    {
+        tea_opt_any(T, 2);
+    }
+}
+
 static void map_clear(TeaState* T)
 {
     int count = tea_get_top(T);
@@ -183,6 +204,7 @@ static const TeaClass map_class[] = {
     { "len", "property", map_len },
     { "keys", "property", map_keys },
     { "values", "property", map_values },
+    { "get", "method", map_get },
     { "clear", "method", map_clear },
     { "contains", "method", map_contains },
     { "delete", "method", map_delete },

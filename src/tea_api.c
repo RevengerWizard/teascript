@@ -466,7 +466,8 @@ TEA_API int tea_len(TeaState* T, int index)
             {
                 return AS_MAP(object)->count;
             }
-            default:;
+            default:
+                break;
         }
     }
     return -1;
@@ -745,6 +746,15 @@ TEA_API void* tea_check_userdata(TeaState* T, int index)
         expected(T, "userdata", index);
     }
     return AS_USERDATA(value)->data;
+}
+
+TEA_API void tea_opt_any(TeaState* T, int index)
+{
+    if(tea_is_none(T, index))
+    {
+        tea_push_null(T);
+    }
+    else {}
 }
 
 TEA_API bool tea_opt_bool(TeaState* T, int index, bool def)

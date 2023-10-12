@@ -51,10 +51,10 @@ typedef struct TeaClass
 
 typedef TeaClass TeaInstance;
 
-typedef enum TeaStatus
+typedef enum
 {
     TEA_OK,
-    TEA_COMPILE_ERROR,
+    TEA_SYNTAX_ERROR,
     TEA_RUNTIME_ERROR,
     TEA_MEMORY_ERROR,
     TEA_FILE_ERROR,
@@ -163,6 +163,7 @@ TEA_API const char* tea_check_lstring(TeaState* T, int index, int* len);
 TEA_API TeaCFunction tea_check_cfunction(TeaState* T, int index);
 TEA_API void* tea_check_userdata(TeaState* T, int index);
 
+TEA_API void tea_opt_any(TeaState* T, int index);
 TEA_API bool tea_opt_bool(TeaState* T, int index, bool def);
 TEA_API double tea_opt_number(TeaState* T, int index, double def);
 TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int* len);
