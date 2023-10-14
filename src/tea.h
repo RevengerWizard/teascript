@@ -154,7 +154,7 @@ TEA_API void tea_set_funcs(TeaState* T, const TeaReg* reg);
 
 TEA_API bool tea_has_module(TeaState* T, const char* module);
 
-TEA_API int tea_check_type(TeaState* T, int index, int type);
+TEA_API void tea_check_type(TeaState* T, int index, int type);
 TEA_API void tea_check_any(TeaState* T, int index);
 TEA_API double tea_check_number(TeaState* T, int index);
 TEA_API bool tea_check_bool(TeaState* T, int index);

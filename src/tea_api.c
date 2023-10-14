@@ -513,6 +513,8 @@ TEA_API void tea_get_field(TeaState* T, int map)
                 }
                 break;
             }
+            default:
+                break;
         }
     }
 }
@@ -533,6 +535,8 @@ TEA_API void tea_set_field(TeaState* T, int map)
                 tea_map_set(T, map, key, item);
                 break;
             }
+            default:
+                break;
         }
     }
     tea_pop(T, 2);
@@ -573,6 +577,8 @@ TEA_API void tea_set_key(TeaState* T, int map, const char* key)
                 }
                 break;
             }
+            default:
+                break;
         }
     }
     tea_pop(T, 2);
@@ -611,6 +617,8 @@ TEA_API void tea_get_key(TeaState* T, int map, const char* key)
                 }
                 break;
             }
+            default:
+                break;
         }
     }
 }
@@ -674,7 +682,7 @@ static void expected(TeaState* T, const char* type, int index)
     tea_error(T, "Expected %s, got %s", type, tea_type_name(T, index));
 }
 
-TEA_API int tea_check_type(TeaState* T, int index, int type)
+TEA_API void tea_check_type(TeaState* T, int index, int type)
 {
     if(tea_type(T, index) != type)
     {

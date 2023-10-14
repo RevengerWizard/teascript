@@ -308,6 +308,8 @@ static bool slice(TeaState* T, TeaValue object, TeaValue start_index, TeaValue e
                     return true;
                 }
             }
+            default:
+                break;
         }
     }
 
