@@ -1,0 +1,84 @@
+class Vector
+{
+    constructor(x=0, y=0)
+    {
+        this.x = x
+        this.y = y
+    }
+
+    + (a, b)
+    {
+        assert(a is Vector and b is Vector, "wrong argument type")
+
+        return Vector(a.x + b.x, a.y + b.y)
+    }
+
+    - (a, b)
+    {
+        if(!b) return Vector(-a.x, -a.y)
+
+        assert(a is Vector and b is Vector, "wrong argument type")
+
+        return Vector(a.x - b.x, a.y - b.y)
+    }
+
+    * (a, b)
+    {
+        if(typeof(b) == 'number') return Vector(a.x * b, a.y * b)
+
+        assert(a is Vector and b is Vector, "wrong argument type")
+
+        return Vector(a.x * b.x, a.y * b.y)
+    }
+
+    / (a, b)
+    {
+        assert(a is Vector and b is Vector, "wrong argument type")
+
+        return Vector(a.x / b.x, a.y / b.y)
+    }
+
+    == (a, b)
+    {
+        assert(a is Vector and b is Vector, "wrong argument type")
+
+        return a.x == b.x and a.y == b.y
+    }
+
+    [] (index, value) 
+    {
+		index %= 2
+
+		if(value != null) 
+        {
+			if(index == 0) 
+            {
+				this.x = value
+			} 
+            else 
+            {
+				this.y = value
+			}
+		}
+
+		return index == 0 ? this.x : this.y
+	}
+
+    tostring()
+    {
+        return f'({this.x}, {this.y})'
+    }
+}
+
+var a = Vector(2, 3)
+print(a)
+print(a[0])
+print(a[1])
+
+var b = Vector(4, 4)
+
+print(b)
+print(a + b)
+
+a[0] = 1
+print(a[0])
