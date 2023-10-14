@@ -62,7 +62,7 @@ static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
 
 static void init_opmethods(TeaState* T)
 {
-    static const char* const tea_state_opmnames[] = {
+    static const char* const opmnames[] = {
         "+", "-", "*", "/", "%", "**", 
         "&", "|", "~", "^", "<<", ">>", 
         "<", "<=", ">", ">=", "==", 
@@ -70,7 +70,7 @@ static void init_opmethods(TeaState* T)
     };
     for(int i = 0; i < MT_END; i++)
     {
-        T->opm_name[i] = tea_str_new(T, tea_state_opmnames[i]);
+        T->opm_name[i] = tea_str_new(T, opmnames[i]);
     }
 }
 

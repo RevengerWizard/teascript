@@ -98,6 +98,4 @@ typedef struct TeaState
 TEA_FUNC TeaOClass* tea_state_get_class(TeaState* T, TeaValue value);
 TEA_FUNC bool tea_state_isclass(TeaState* T, TeaOClass* klass);
 
-TEA_DATA const char* const tea_state_opmnames[];
-
 #endif
