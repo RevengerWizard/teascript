@@ -174,11 +174,25 @@ static void math_acos(TeaState* T)
     tea_push_number(T, acos(tea_check_number(T, 0)));
 }
 
+static void math_acosh(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, acosh(tea_check_number(T, 0)));
+}
+
 static void math_cos(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     tea_push_number(T, cos(tea_check_number(T, 0)));
+}
+
+static void math_cosh(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, cosh(tea_check_number(T, 0)));
 }
 
 static void math_asin(TeaState* T)
@@ -188,6 +202,13 @@ static void math_asin(TeaState* T)
     tea_push_number(T, asin(tea_check_number(T, 0)));
 }
 
+static void math_asinh(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, asinh(tea_check_number(T, 0)));
+}
+
 static void math_sin(TeaState* T)
 {
     int count = tea_get_top(T);
@@ -195,11 +216,25 @@ static void math_sin(TeaState* T)
     tea_push_number(T, sin(tea_check_number(T, 0)));
 }
 
+static void math_sinh(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, sinh(tea_check_number(T, 0)));
+}
+
 static void math_atan(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     tea_push_number(T, atan(tea_check_number(T, 0)));
+}
+
+static void math_atanh(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, atanh(tea_check_number(T, 0)));
 }
 
 static void math_atan2(TeaState* T)
@@ -214,6 +249,13 @@ static void math_tan(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     tea_push_number(T, tan(tea_check_number(T, 0)));
+}
+
+static void math_tanh(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, tanh(tea_check_number(T, 0)));
 }
 
 static void math_sign(TeaState* T)
@@ -259,6 +301,27 @@ static void math_exp(TeaState* T)
     tea_push_number(T, exp(tea_check_number(T, 0)));
 }
 
+static void math_log(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, log(tea_check_number(T, 0)));
+}
+
+static void math_log2(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, log2(tea_check_number(T, 0)));
+}
+
+static void math_log10(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+    tea_push_number(T, log(tea_check_number(T, 0)));
+}
+
 static void math_isinfinity(TeaState* T)
 {
     int count = tea_get_top(T);
@@ -283,24 +346,35 @@ static const TeaModule math_module[] =
     { "ceil", math_ceil },
     { "round", math_round },
     { "acos", math_acos },
+    { "acosh", math_acosh },
     { "cos", math_cos },
+    { "cosh", math_cosh },
     { "asin", math_asin },
+    { "asinh", math_asinh },
     { "sin", math_sin },
+    { "sinh", math_sinh },
     { "atan", math_atan },
+    { "atanh", math_atanh },
     { "atan2", math_atan2 },
     { "tan", math_tan },
+    { "tanh", math_tanh },
     { "sign", math_sign },
     { "abs", math_abs },
     { "sqrt", math_sqrt },
     { "deg", math_deg },
     { "rad", math_rad },
     { "exp", math_exp },
+    { "log", math_log },
+    { "log2", math_log2 },
+    { "log10", math_log10 },
     { "isinfinity", math_isinfinity },
     { "isnan", math_isnan },
     { "pi", NULL },
     { "tau", NULL },
     { "e", NULL },
     { "phi", NULL },
+    { "infinity", NULL },
+    { "nan", NULL },
     { NULL, NULL }
 };
 
@@ -315,4 +389,8 @@ TEAMOD_API void tea_import_math(TeaState* T)
     tea_set_key(T, 0, "e");
     tea_push_number(T, PHI);
     tea_set_key(T, 0, "phi");
+    tea_push_number(T, INFINITY);
+    tea_set_key(T, 0, "infinity");
+    tea_push_number(T, NAN);
+    tea_set_key(T, 0, "nan");
 }
