@@ -25,6 +25,30 @@ typedef struct
     TeaValue* base;
 } TeaCallInfo;
 
+typedef enum
+{
+    MT_PLUS,        /* + */
+    MT_MINUS,       /* - */
+    MT_MULT,        /* * */
+    MT_DIV,         /* / */
+    MT_MOD,         /* % */
+    MT_POW,         /* ** */
+    MT_BAND,        /* & */
+    MT_BOR,         /* | */
+    MT_BNOT,        /* ~ */
+    MT_BXOR,        /* ^ */
+    MT_LSHIFT,      /* << */
+    MT_RSHIFT,      /* >> */
+    MT_LT,          /* < */
+    MT_LE,          /* <= */
+    MT_GT,          /* > */
+    MT_GE,          /* >= */
+    MT_EQ,          /* == */
+    MT_SUBSCRIPT,   /* [] */
+    MT_TOSTRING,    /* tostring */
+    MT_END
+} TeaOpMethod;
+
 typedef struct TeaState
 {
     TeaValue* stack_last;
@@ -50,6 +74,7 @@ typedef struct TeaState
     TeaOClass* range_class;
     TeaOString* constructor_string;
     TeaOString* repl_string;
+    TeaOString* opm_name[MT_END];
     TeaObject* objects;
     size_t bytes_allocated;
     size_t next_gc;
@@ -72,5 +97,7 @@ typedef struct TeaState
 
 TEA_FUNC TeaOClass* tea_state_get_class(TeaState* T, TeaValue value);
 TEA_FUNC bool tea_state_isclass(TeaState* T, TeaOClass* klass);
+
+TEA_DATA const char* const tea_state_opmnames[];
 
 #endif

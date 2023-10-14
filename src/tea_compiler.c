@@ -1646,29 +1646,24 @@ static void arrow(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaToken name
 }
 
 static TeaTokenType operators[] = {
-    TOKEN_PLUS,
-    TOKEN_MINUS,
-    TOKEN_STAR,
-    TOKEN_SLASH,
-    
-    TOKEN_PERCENT,
-    TOKEN_STAR_STAR,
-
-    TOKEN_AMPERSAND,
-    TOKEN_PIPE,
-    TOKEN_TILDE,
-    TOKEN_CARET,
-    TOKEN_LESS_LESS,
-    TOKEN_GREATER_GREATER,
-
-	TOKEN_LESS,
-	TOKEN_LESS_EQUAL,
-	TOKEN_GREATER,
-	TOKEN_GREATER_EQUAL,
-	TOKEN_EQUAL_EQUAL,
-
-    TOKEN_LEFT_BRACKET,
-
+    TOKEN_PLUS,             /* + */
+    TOKEN_MINUS,            /* - */
+    TOKEN_STAR,             /* * */
+    TOKEN_SLASH,            /* / */
+    TOKEN_PERCENT,          /* % */
+    TOKEN_STAR_STAR,        /* ** */
+    TOKEN_AMPERSAND,        /* & */
+    TOKEN_PIPE,             /* | */
+    TOKEN_TILDE,            /* ~ */
+    TOKEN_CARET,            /* ^ */
+    TOKEN_LESS_LESS,        /* << */
+    TOKEN_GREATER_GREATER,  /* >> */
+	TOKEN_LESS,             /* < */
+	TOKEN_LESS_EQUAL,       /* <= */
+	TOKEN_GREATER,          /* > */
+	TOKEN_GREATER_EQUAL,    /* >= */
+	TOKEN_EQUAL_EQUAL,      /* == */
+    TOKEN_LEFT_BRACKET,     /* [] */
     TOKEN_EOF
 };
 

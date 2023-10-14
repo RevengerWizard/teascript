@@ -60,6 +60,20 @@ static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
     return realloc(ptr, nsize);
 }
 
+static void init_opmethods(TeaState* T)
+{
+    static const char* const tea_state_opmnames[] = {
+        "+", "-", "*", "/", "%", "**", 
+        "&", "|", "~", "^", "<<", ">>", 
+        "<", "<=", ">", ">=", "==", 
+        "[]", "tostring"
+    };
+    for(int i = 0; i < MT_END; i++)
+    {
+        T->opm_name[i] = tea_str_new(T, tea_state_opmnames[i]);
+    }
+}
+
 TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
 {
     TeaState* T;
@@ -96,6 +110,7 @@ TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
     tea_tab_init(&T->strings);
     T->constructor_string = tea_str_literal(T, "constructor");
     T->repl_string = tea_str_literal(T, "_");
+    init_opmethods(T);
     tea_open_core(T);
     return T;
 }

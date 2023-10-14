@@ -369,7 +369,7 @@ static TeaOString* class_tostring(TeaState* T, TeaOClass* klass)
 static TeaOString* instance_tostring(TeaState* T, TeaOInstance* instance)
 {
     TeaValue tostring;
-    TeaOString* _tostring = tea_str_literal(T, "tostring");
+    TeaOString* _tostring = T->opm_name[MT_TOSTRING];
     if(tea_tab_get(&instance->klass->methods, _tostring, &tostring))
     {
         tea_vm_push(T, OBJECT_VAL(instance));

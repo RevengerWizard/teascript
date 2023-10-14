@@ -295,6 +295,11 @@ static void mark_roots(TeaState* T)
     tea_gc_mark_object(T, (TeaObject*)T->constructor_string);
     tea_gc_mark_object(T, (TeaObject*)T->repl_string);
 
+    for(int i = 0; i < MT_END; i++)
+    {
+        tea_gc_mark_object(T, (TeaObject*)T->opm_name[i]);
+    }
+
     if(T->compiler != NULL)
     {
         tea_compiler_mark_roots(T, T->compiler);

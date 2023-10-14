@@ -119,6 +119,6 @@ TEA_FUNC double tea_val_tonumber(TeaValue value, int* x);
 TEA_FUNC TeaOString* tea_val_tostring(TeaState* T, TeaValue value);
 TEA_FUNC TeaOString* tea_val_number_tostring(TeaState* T, double number);
 
-TEA_DATA const char *const tea_val_typenames[];
+TEA_DATA const char* const tea_val_typenames[];
 
 #endif
