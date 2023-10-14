@@ -137,7 +137,7 @@ static void math_sum(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
-    double sum;
+    double sum = 0;
     for(int i = 0; i < count; i++) 
     {
         double n = tea_check_number(T, i);

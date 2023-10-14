@@ -11,6 +11,7 @@
 
 #include "tea.h"
 
+#include "tea_def.h"
 #include "tea_string.h"
 #include "tea_func.h"
 #include "tea_dump.h"
@@ -193,10 +194,10 @@ static void check_literal(TeaLoadState* S, const char* str, const char* message)
 static void check_header(TeaLoadState* S)
 {
     check_literal(S, TEA_SIGNATURE, "not a binary chunk");
-    uint8_t major, minor, patch;
+    uint8_t major, minor/*, patch*/;
     major = load_byte(S);
     minor = load_byte(S);
-    patch = load_byte(S);
+    /*patch = load_byte(S);*/
     if(major != TEA_VERSION_MAJOR || minor != TEA_VERSION_MINOR)
         error(S, "version mismatch");
     if(load_byte(S) != TEA_BYTECODE_FORMAT)

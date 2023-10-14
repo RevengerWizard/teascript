@@ -5,10 +5,12 @@ PLAT = none
 CC = gcc -std=gnu99
 
 CCDEBUG =
-#CCDEBUG = -O0 -g
+#CCDEBUG += -O0 -g
 
-CCOPT = -O2
-CCWARN = 
+CCWARN = -Wall
+#CCWARN+= -Wextra
+
+CCOPT = -O2 $(CCWARN)
 
 CFLAGS = $(CCOPT) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)

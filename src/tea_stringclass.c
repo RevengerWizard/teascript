@@ -123,7 +123,7 @@ static void string_split(TeaState* T)
     int len;
     char* string = (char*)tea_get_lstring(T, 0, &len);
 
-    const char* sep;
+    const char* sep = "";
     int sep_len;
     int max_split = len + 1;
 
