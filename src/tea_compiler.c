@@ -1656,7 +1656,7 @@ static TeaTokenType operators[] = {
 
     TOKEN_AMPERSAND,
     TOKEN_PIPE,
-    /*TOKEN_TILDE,*/
+    TOKEN_TILDE,
     TOKEN_CARET,
     TOKEN_LESS_LESS,
     TOKEN_GREATER_GREATER,
@@ -1689,11 +1689,13 @@ static void operator(TeaCompiler* compiler)
 
     if(compiler->parser->previous.type == TOKEN_LEFT_BRACKET)
     {
+        compiler->klass->is_static = false;
         consume(compiler, TOKEN_RIGHT_BRACKET, "Expected ']' after '[' operator method");
         name = tea_str_literal(compiler->parser->T, "[]");
     } 
     else
     {
+        compiler->klass->is_static = true;
         name = tea_str_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length);
     }
 

@@ -785,6 +785,54 @@ static void repeat(TeaState* T)
     tea_vm_push(T, OBJECT_VAL(result));
 }
 
+static bool get_op_method(TeaOString* key, TeaValue v, TeaValue* method)
+{
+    if(!IS_INSTANCE(v))
+        return false;
+
+    TeaOInstance* instance = AS_INSTANCE(v);
+    return tea_tab_get(&instance->klass->methods, key, method);
+}
+
+static void unary_arith(TeaState* T, const char* op, TeaValue v)
+{
+    TeaOString* method_name = tea_str_new(T, op);
+
+    TeaValue method;
+    if(!get_op_method(method_name, v, &method))
+    {
+        tea_vm_error(T, "Attempt to use '%s' unary operator with %s", op, tea_val_type(v));
+    }
+
+    tea_vm_pop(T, 1);
+    tea_vm_push(T, method);
+    tea_vm_push(T, v);
+    tea_vm_push(T, NULL_VAL);
+    tea_do_precall(T, method, 2);
+}
+
+static void arith(TeaState* T, const char* op, TeaValue a, TeaValue b)
+{
+    TeaOString* method_name = tea_str_new(T, op);
+
+    bool found = false;
+    TeaValue method;
+    if(!(found = get_op_method(method_name, a, &method)))
+    {
+        found = get_op_method(method_name, b, &method);
+    }
+    if(!found)
+    {
+        tea_vm_error(T, "Attempt to use '%s' operator with %s and %s", op, tea_val_type(a), tea_val_type(b));
+    }
+
+    tea_vm_pop(T, 2);
+    tea_vm_push(T, method);
+    tea_vm_push(T, a);
+    tea_vm_push(T, b);
+    tea_do_precall(T, method, 2);
+}
+
 void tea_vm_error(TeaState* T, const char* format, ...)
 {
     va_list args;
@@ -819,8 +867,8 @@ void tea_vm_run(TeaState* T)
     register TeaCallInfo* ci;
     register uint8_t* ip;
 
-    register TeaChunk* current_chunk;
     register TeaValue* base;
+    register TeaChunk* current_chunk;
     register TeaOUpvalue** upvalues;
 
 #define PUSH(value) (tea_vm_push(T, value))
@@ -855,18 +903,37 @@ void tea_vm_run(TeaState* T)
     } \
     while(false)
 
-#define BINARY_OP(value_type, op, op_string, type) \
+#define BINARY_OP(value_type, expr, op_string, type) \
     do \
     { \
         if(IS_NUMBER(PEEK(0)) && IS_NUMBER(PEEK(1))) \
         { \
             type b = AS_NUMBER(POP()); \
             type a = AS_NUMBER(PEEK(0)); \
-            T->top[-1] = value_type(a op b); \
+            T->top[-1] = value_type(expr); \
         } \
         else \
         { \
-            RUNTIME_ERROR("Attempt to use %s operator with %s and %s", op_string, tea_val_type(PEEK(1)), tea_val_type(PEEK(0))); \
+            STORE_FRAME; \
+            arith(T, op_string, PEEK(1), PEEK(0)); \
+            READ_FRAME(); \
+        } \
+    } \
+    while(false)
+
+#define UNARY_OP(value_type, expr, op_string, type) \
+    do \
+    { \
+        if(IS_NUMBER(PEEK(0))) \
+        { \
+            type v = AS_NUMBER(PEEK(0)); \
+            T->top[-1] = value_type(expr); \
+        } \
+        else \
+        { \
+            STORE_FRAME; \
+            unary_arith(T, op_string, PEEK(0)); \
+            READ_FRAME(); \
         } \
     } \
     while(false)
@@ -1342,29 +1409,37 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(EQUAL):
             {
-                TeaValue b = POP();
-                TeaValue a = POP();
+                TeaValue a = PEEK(1);
+                TeaValue b = PEEK(0);
+                if(IS_INSTANCE(a) || IS_INSTANCE(b))
+                {
+                    STORE_FRAME;
+                    arith(T, "==", a, b);
+                    READ_FRAME();
+                    DISPATCH();
+                }
+                DROP(2);
                 PUSH(BOOL_VAL(tea_val_equal(a, b)));
                 DISPATCH();
             }
             CASE_CODE(GREATER):
             {
-                BINARY_OP(BOOL_VAL, >, ">", double);
+                BINARY_OP(BOOL_VAL, (a > b), ">", double);
                 DISPATCH();
             }
             CASE_CODE(GREATER_EQUAL):
             {
-                BINARY_OP(BOOL_VAL, >=, ">=", double);
+                BINARY_OP(BOOL_VAL, (a >= b), ">=", double);
                 DISPATCH();
             }
             CASE_CODE(LESS):
             {
-                BINARY_OP(BOOL_VAL, <, "<", double);
+                BINARY_OP(BOOL_VAL, (a < b), "<", double);
                 DISPATCH();
             }
             CASE_CODE(LESS_EQUAL):
             {
-                BINARY_OP(BOOL_VAL, <=, "<=", double);
+                BINARY_OP(BOOL_VAL, (a <= b), "<=", double);
                 DISPATCH();
             }
             CASE_CODE(ADD):
@@ -1400,13 +1475,13 @@ void tea_vm_run(TeaState* T)
                 }
                 else
                 {
-                    BINARY_OP(NUMBER_VAL, +, "+", double);
+                    BINARY_OP(NUMBER_VAL, (a + b), "+", double);
                 }
                 DISPATCH();
             }
             CASE_CODE(SUBTRACT):
             {
-                BINARY_OP(NUMBER_VAL, -, "-", double);
+                BINARY_OP(NUMBER_VAL, (a - b), "-", double);
                 DISPATCH();
             }
             CASE_CODE(MULTIPLY):
@@ -1417,73 +1492,53 @@ void tea_vm_run(TeaState* T)
                 }
                 else
                 {
-                    BINARY_OP(NUMBER_VAL, *, "*", double);
+                    BINARY_OP(NUMBER_VAL, (a * b), "*", double);
                 }
                 DISPATCH();
             }
             CASE_CODE(DIVIDE):
             {
-                BINARY_OP(NUMBER_VAL, /, "/", double);
+                BINARY_OP(NUMBER_VAL, (a / b), "/", double);
                 DISPATCH();
             }
             CASE_CODE(MOD):
             {
-                TeaValue a = PEEK(1);
-                TeaValue b = PEEK(0);
-
-                if(IS_NUMBER(a) && IS_NUMBER(b))
-                {
-                    DROP(1);
-                    T->top[-1] = (NUMBER_VAL(fmod(AS_NUMBER(a), AS_NUMBER(b))));
-                    DISPATCH();
-                }
+                BINARY_OP(NUMBER_VAL, (fmod(a, b)), "%", double);
                 DISPATCH();
             }
             CASE_CODE(POW):
             {
-                TeaValue a = PEEK(1);
-                TeaValue b = PEEK(0);
-
-                if(IS_NUMBER(a) && IS_NUMBER(b))
-                {
-                    DROP(1);
-                    T->top[-1] = (NUMBER_VAL(pow(AS_NUMBER(a), AS_NUMBER(b))));
-                    DISPATCH();
-                }
+                BINARY_OP(NUMBER_VAL, (pow(a, b)), "**", double);
                 DISPATCH();
             }
             CASE_CODE(BAND):
             {
-                BINARY_OP(NUMBER_VAL, &, "&", int);
+                BINARY_OP(NUMBER_VAL, (a & b), "&", uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BOR):
             {
-                BINARY_OP(NUMBER_VAL, |, "|", int);
+                BINARY_OP(NUMBER_VAL, (a | b), "|", uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BNOT):
             {
-                if(!IS_NUMBER(PEEK(0)))
-                {
-                    RUNTIME_ERROR("Operand must be a number");
-                }
-                PUSH(NUMBER_VAL(~((int)AS_NUMBER(POP()))));
+                UNARY_OP(NUMBER_VAL, (~v), "~", uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BXOR):
             {
-                BINARY_OP(NUMBER_VAL, ^, "^", int);
+                BINARY_OP(NUMBER_VAL, (a ^ b), "^", uint32_t);
                 DISPATCH();
             }
             CASE_CODE(LSHIFT):
             {
-                BINARY_OP(NUMBER_VAL, <<, "<<", int);
+                BINARY_OP(NUMBER_VAL, (a << b), "<<", uint32_t);
                 DISPATCH();
             }
             CASE_CODE(RSHIFT):
             {
-                BINARY_OP(NUMBER_VAL, >>, ">>", int);
+                BINARY_OP(NUMBER_VAL, (a >> b), ">>", uint32_t);
                 DISPATCH();
             }
             CASE_CODE(AND):
@@ -1523,11 +1578,7 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(NEGATE):
             {
-                if(!IS_NUMBER(PEEK(0)))
-                {
-                    RUNTIME_ERROR("Operand must be a number");
-                }
-                PUSH(NUMBER_VAL(-AS_NUMBER(POP())));
+                UNARY_OP(NUMBER_VAL, (-v), "-", double);
                 DISPATCH();
             }
             CASE_CODE(MULTI_CASE):

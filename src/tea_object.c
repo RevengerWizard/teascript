@@ -379,7 +379,7 @@ static TeaOString* instance_tostring(TeaState* T, TeaOInstance* instance)
         T->base++;
         if(!IS_STRING(result))
         {
-            tea_error(T, "'tostring' must return a string");
+            tea_vm_error(T, "'tostring' must return a string");
         }
 
         return AS_STRING(result);
