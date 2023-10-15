@@ -108,7 +108,7 @@ TEA_API bool tea_is_object(TeaState* T, int index);
 TEA_API bool tea_is_cfunction(TeaState* T, int index);
 
 TEA_API bool tea_to_bool(TeaState* T, int index);
-TEA_API double tea_to_numberx(TeaState* T, int index, int* is_num);
+TEA_API double tea_to_numberx(TeaState* T, int index, bool* is_num);
 TEA_API const char* tea_to_lstring(TeaState* T, int index, int* len);
 TEA_API TeaCFunction tea_to_cfunction(TeaState* T, int index);
 TEA_API void* tea_to_userdata(TeaState* T, int index);
@@ -143,11 +143,11 @@ TEA_API void tea_add_item(TeaState* T, int list);
 TEA_API void tea_get_item(TeaState* T, int list, int index);
 TEA_API void tea_set_item(TeaState* T, int list, int index);
 
-TEA_API void tea_get_field(TeaState* T, int map);
-TEA_API void tea_set_field(TeaState* T, int map);
+TEA_API void tea_get_field(TeaState* T, int obj);
+TEA_API void tea_set_field(TeaState* T, int obj);
 
-TEA_API void tea_set_key(TeaState* T, int map, const char* key);
-TEA_API void tea_get_key(TeaState* T, int map, const char* key);
+TEA_API void tea_set_key(TeaState* T, int obj, const char* key);
+TEA_API void tea_get_key(TeaState* T, int obj, const char* key);
 
 TEA_API bool tea_get_global(TeaState* T, const char* name);
 TEA_API void tea_set_global(TeaState* T, const char* name);

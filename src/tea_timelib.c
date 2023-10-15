@@ -70,5 +70,5 @@ static const TeaModule time_module[] = {
 
 TEAMOD_API void tea_import_time(TeaState* T)
 {
-    tea_create_module(T, TEA_TIME_MODULE, time_module);
+    tea_create_module(T, TEA_MODULE_TIME, time_module);
 }

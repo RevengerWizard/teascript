@@ -12,6 +12,7 @@
 #include "tea_state.h"
 #include "tea_core.h"
 #include "tea_vm.h"
+#include "tea_memory.h"
 #include "tea_string.h"
 #include "tea_util.h"
 #include "tea_do.h"
@@ -110,6 +111,7 @@ TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
     tea_tab_init(&T->strings);
     T->constructor_string = tea_str_literal(T, "constructor");
     T->repl_string = tea_str_literal(T, "_");
+    T->memerr = tea_str_literal(T, MEMERR_MESSAGE);
     init_opmethods(T);
     tea_open_core(T);
     return T;
@@ -119,6 +121,11 @@ TEA_API void tea_close(TeaState* T)
 {
     T->constructor_string = NULL;
     T->repl_string = NULL;
+    T->memerr = NULL;
+    for(int i = 0; i < MT_END; i++)
+    {
+        T->opm_name[i] = NULL;
+    }
     
     if(T->repl) 
         tea_tab_free(T, &T->constants);

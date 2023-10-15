@@ -17,12 +17,12 @@
 #include "tea_loadlib.h"
 
 static const TeaReg modules[] = {
-    { TEA_MATH_MODULE, tea_import_math },
-    { TEA_TIME_MODULE, tea_import_time },
-    { TEA_OS_MODULE, tea_import_os },
-    { TEA_SYS_MODULE, tea_import_sys },
-    { TEA_IO_MODULE, tea_import_io },
-    { TEA_RANDOM_MODULE, tea_import_random },
+    { TEA_MODULE_MATH, tea_import_math },
+    { TEA_MODULE_TIME, tea_import_time },
+    { TEA_MODULE_OS, tea_import_os },
+    { TEA_MODULE_SYS, tea_import_sys },
+    { TEA_MODULE_IO, tea_import_io },
+    { TEA_MODULE_RANDOM, tea_import_random },
     { NULL, NULL }
 };
 

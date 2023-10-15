@@ -60,7 +60,7 @@ tea_memory.o: tea_memory.c tea.h teaconf.h tea_def.h tea_memory.h \
 tea_object.o: tea_object.c tea_memory.h tea_value.h tea_def.h tea_array.h \
  tea_object.h tea.h teaconf.h tea_chunk.h tea_opcodes.h tea_table.h \
  tea_map.h tea_string.h tea_state.h tea_vm.h tea_do.h
-tea_oslib.o: tea_oslib.c tea.h teaconf.h tealib.h tea_import.h \
+tea_oslib.o: tea_oslib.c tea.h teaconf.h tealib.h tea_arch.h tea_import.h \
  tea_state.h tea_def.h tea_value.h tea_array.h tea_object.h tea_memory.h \
  tea_chunk.h tea_opcodes.h tea_table.h tea_core.h
 tea_randomlib.o: tea_randomlib.c tea.h teaconf.h tealib.h tea_import.h \

@@ -530,8 +530,8 @@ static const TeaClass string_class[] = {
 
 void tea_open_string(TeaState* T)
 {
-    tea_create_class(T, TEA_STRING_CLASS, string_class);
+    tea_create_class(T, TEA_CLASS_STRING, string_class);
     T->string_class = AS_CLASS(T->top[-1]);
-    tea_set_global(T, TEA_STRING_CLASS);
+    tea_set_global(T, TEA_CLASS_STRING);
     tea_push_null(T);
 }

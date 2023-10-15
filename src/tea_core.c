@@ -220,7 +220,7 @@ static void core_number(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
-    int is_num;
+    bool is_num;
     double n = tea_to_numberx(T, 0, &is_num);
     if(!is_num)
     {

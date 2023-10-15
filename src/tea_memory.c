@@ -40,7 +40,10 @@ void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_si
     void* block = (*T->frealloc)(T->ud, pointer, old_size, new_size);
 
     if(block == NULL && new_size > 0)
+    {
+        puts(T->memerr->chars);
         exit(1);
+    }
 
     return block;
 }

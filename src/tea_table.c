@@ -194,7 +194,7 @@ void tea_tab_mark(TeaState* T, TeaTable* table)
     for(int i = 0; i < table->capacity; i++)
     {
         TeaEntry* entry = &table->entries[i];
-        tea_gc_mark_object(T, (TeaObject*)entry->key);
-        tea_gc_mark_value(T, entry->value);
+        tea_gc_markobj(T, (TeaObject*)entry->key);
+        tea_gc_markval(T, entry->value);
     }
 }

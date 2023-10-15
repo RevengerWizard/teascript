@@ -260,8 +260,8 @@ static const TeaClass file_class[] = {
 
 void tea_open_file(TeaState* T)
 {
-    tea_create_class(T, TEA_FILE_CLASS, file_class);
+    tea_create_class(T, TEA_CLASS_FILE, file_class);
     T->file_class = AS_CLASS(T->top[-1]);
-    tea_set_global(T, TEA_FILE_CLASS);
+    tea_set_global(T, TEA_CLASS_FILE);
     tea_push_null(T);
 }

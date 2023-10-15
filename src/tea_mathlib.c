@@ -380,7 +380,7 @@ static const TeaModule math_module[] =
 
 TEAMOD_API void tea_import_math(TeaState* T)
 {
-    tea_create_module(T, TEA_MATH_MODULE, math_module);
+    tea_create_module(T, TEA_MODULE_MATH, math_module);
     tea_push_number(T, PI);
     tea_set_key(T, 0, "pi");
     tea_push_number(T, TAU);

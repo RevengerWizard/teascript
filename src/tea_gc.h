@@ -8,8 +8,8 @@
 
 #include "tea_state.h"
 
-TEA_FUNC void tea_gc_mark_object(TeaState* T, TeaObject* object);
-TEA_FUNC void tea_gc_mark_value(TeaState* T, TeaValue value);
+TEA_FUNC void tea_gc_markobj(TeaState* T, TeaObject* object);
+TEA_FUNC void tea_gc_markval(TeaState* T, TeaValue value);
 
 TEA_FUNC void tea_gc_collect(TeaState* T);
 

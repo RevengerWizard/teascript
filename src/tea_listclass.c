@@ -681,8 +681,8 @@ static const TeaClass list_class[] = {
 
 void tea_open_list(TeaState* T)
 {
-    tea_create_class(T, TEA_LIST_CLASS, list_class);
+    tea_create_class(T, TEA_CLASS_LIST, list_class);
     T->list_class = AS_CLASS(T->top[-1]);
-    tea_set_global(T, TEA_LIST_CLASS);
+    tea_set_global(T, TEA_CLASS_LIST);
     tea_push_null(T);
 }

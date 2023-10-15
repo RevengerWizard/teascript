@@ -2774,12 +2774,12 @@ TeaOFunction* tea_compile(TeaState* T, TeaOModule* module, const char* source)
 
 void tea_compiler_mark_roots(TeaState* T, TeaCompiler* compiler)
 {
-    tea_gc_mark_value(T, compiler->parser->previous.value);
-    tea_gc_mark_value(T, compiler->parser->current.value);
+    tea_gc_markval(T, compiler->parser->previous.value);
+    tea_gc_markval(T, compiler->parser->current.value);
 
     while(compiler != NULL)
     {
-        tea_gc_mark_object(T, (TeaObject*)compiler->function);
+        tea_gc_markobj(T, (TeaObject*)compiler->function);
         compiler = compiler->enclosing;
     }
 }

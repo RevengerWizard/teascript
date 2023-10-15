@@ -35,7 +35,7 @@ static const TeaModule io_module[] = {
 
 TEAMOD_API void tea_import_io(TeaState* T)
 {
-    tea_create_module(T, TEA_IO_MODULE, io_module);
+    tea_create_module(T, TEA_MODULE_IO, io_module);
     create_stdfile(T, stdout, "stdout", "w");
     create_stdfile(T, stdin, "stdin", "r");
     create_stdfile(T, stderr, "stderr", "w");

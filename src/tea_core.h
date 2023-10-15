@@ -8,19 +8,19 @@
 
 #include "tea_state.h"
 
-#define TEA_FILE_CLASS "File"
+#define TEA_CLASS_FILE "File"
 void tea_open_file(TeaState* T);
 
-#define TEA_LIST_CLASS "List"
+#define TEA_CLASS_LIST "List"
 void tea_open_list(TeaState* T);
 
-#define TEA_MAP_CLASS "Map"
+#define TEA_CLASS_MAP "Map"
 void tea_open_map(TeaState* T);
 
-#define TEA_STRING_CLASS "String"
+#define TEA_CLASS_STRING "String"
 void tea_open_string(TeaState* T);
 
-#define TEA_RANGE_CLASS "Range"
+#define TEA_CLASS_RANGE "Range"
 void tea_open_range(TeaState* T);
 
 TEA_FUNC void tea_open_core(TeaState* T);

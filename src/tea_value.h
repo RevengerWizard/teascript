@@ -116,7 +116,7 @@ DECLARE_ARRAY(TeaBytes, uint8_t, bytes)
 TEA_FUNC const char* tea_val_type(TeaValue a);
 TEA_FUNC bool tea_val_equal(TeaValue a, TeaValue b);
 TEA_FUNC bool tea_val_rawequal(TeaValue a, TeaValue b);
-TEA_FUNC double tea_val_tonumber(TeaValue value, int* x);
+TEA_FUNC double tea_val_tonumber(TeaValue value, bool* x);
 TEA_FUNC TeaOString* tea_val_tostring(TeaState* T, TeaValue value);
 TEA_FUNC TeaOString* tea_val_number_tostring(TeaState* T, double number);
 

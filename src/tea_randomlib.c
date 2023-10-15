@@ -107,5 +107,5 @@ static const TeaModule random_module[] = {
 TEAMOD_API void tea_import_random(TeaState* T)
 {
     srand(time(NULL));
-    tea_create_module(T, TEA_RANDOM_MODULE, random_module);
+    tea_create_module(T, TEA_MODULE_RANDOM, random_module);
 }

@@ -120,7 +120,7 @@ bool tea_val_rawequal(TeaValue a, TeaValue b)
 #endif
 }
 
-double tea_val_tonumber(TeaValue value, int* x)
+double tea_val_tonumber(TeaValue value, bool* x)
 {
     if(x != NULL)
         *x = true;

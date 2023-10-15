@@ -82,7 +82,7 @@ static const TeaModule sys_module[] = {
 
 TEAMOD_API void tea_import_sys(TeaState* T)
 {
-    tea_create_module(T, TEA_SYS_MODULE, sys_module);
+    tea_create_module(T, TEA_MODULE_SYS, sys_module);
     tea_push_string(T, byteorder());
     tea_set_key(T, 0, "byteorder");
     init_argv(T);

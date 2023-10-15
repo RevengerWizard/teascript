@@ -238,8 +238,8 @@ static const TeaClass map_class[] = {
 
 void tea_open_map(TeaState* T)
 {
-    tea_create_class(T, TEA_MAP_CLASS, map_class);
+    tea_create_class(T, TEA_CLASS_MAP, map_class);
     T->map_class = AS_CLASS(T->top[-1]);
-    tea_set_global(T, TEA_MAP_CLASS);
+    tea_set_global(T, TEA_CLASS_MAP);
     tea_push_null(T);
 }

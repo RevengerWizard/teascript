@@ -10,9 +10,9 @@ CCDEBUG =
 CCWARN = -Wall
 #CCWARN+= -Wextra
 
-CCOPT = -O2 $(CCWARN)
+CCOPT = -O2
 
-CFLAGS = $(CCOPT) $(SYSCFLAGS) $(MYCFLAGS)
+CFLAGS = $(CCOPT) $(CCWARN) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
 LIBS = -lm $(SYSLIBS) $(MYLIBS)
 
@@ -96,18 +96,20 @@ onetea:
 	$(CC) -O2 -o onetea onetea.c -lm
 
 linux:
-	$(MAKE) $(ALL) SYSCFLAGS="-DTEA_USE_LINUX" SYSLIBS="-Wl,-E -ldl -lreadline"
+	$(MAKE) $(ALL) "SYSCFLAGS=-DTEA_OS=TEA_OS_LINUX" "SYSLIBS=-Wl,-E -ldl -lreadline"
 
 macosx:
-	$(MAKE) $(ALL) SYSCFLAGS="-DTEA_USE_MACOSX" SYSLIBS="-lreadline" CC=cc
+	$(MAKE) $(ALL) "SYSCFLAGS=-DTEA_OS=TEA_OS_MACOSX" "SYSLIBS=-lreadline" "CC=cc"
 
 mingw:
 	$(MAKE) "TEA_A=tea.dll" "TEA_T=tea.exe" \
 	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
-	"MYCFLAGS=-DTEA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" tea.exe
+	"SYSCFLAGS=-DTEA_OS=TEA_OS_WINDOWS" \
+	"MYCFLAGS=-DTEA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" \ tea.exe
 
 emscripten:
 	$(MAKE) "CC=emcc" "AR=emar rcu" "RANLIB=emranlib" \
+	"SYSCFLAGS=-DTEA_OS=TEA_OS_OTHER" \
 	"CFLAGS=-O2 $(MYCFLAGS) --closure=1" "TEA_A=libtea.bc" "LDFLAGS=" \
 	"TEA_T=tea.js" tea.js
 

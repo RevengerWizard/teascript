@@ -9,6 +9,8 @@
 #include "tea_value.h"
 #include "tea_def.h"
 
+#define MEMERR_MESSAGE "not enough memory"
+
 #define TEA_ALLOCATE(T, type, count) \
     (type*)tea_mem_realloc(T, NULL, 0, sizeof(type) * (count))
 

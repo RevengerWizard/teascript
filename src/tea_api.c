@@ -228,19 +228,31 @@ TEA_API bool tea_is_cfunction(TeaState* T, int index)
 
 TEA_API bool tea_to_bool(TeaState* T, int index)
 {
-    TeaValue v = index2value(T, index);
-    return !tea_obj_isfalse(v);
+    TeaValue* v = index2stack(T, index);
+    return (v == NULL) ? false : !tea_obj_isfalse(*v);
 }
 
-TEA_API double tea_to_numberx(TeaState* T, int index, int* is_num)
+TEA_API double tea_to_numberx(TeaState* T, int index, bool* is_num)
 {
-    return tea_val_tonumber(index2value(T, index), is_num);
+    TeaValue* v = index2stack(T, index);
+    if(v == NULL)
+    {
+        if(is_num != NULL) *is_num = false;
+        return 0;
+    }
+    return tea_val_tonumber(*v, is_num);
 }
 
 TEA_API const char* tea_to_lstring(TeaState* T, int index, int* len)
 {
-    TeaValue value = index2value(T, index);
-    TeaOString* string = tea_val_tostring(T, value);
+    TeaValue* value = index2stack(T, index);
+    if(value == NULL)
+    {
+        if(len != NULL) *len = 0;
+        return NULL;
+    }
+
+    TeaOString* string = tea_val_tostring(T, *value);
     tea_vm_push(T, OBJECT_VAL(string));
     if(len != NULL)
     {
@@ -498,9 +510,9 @@ TEA_API void tea_add_item(TeaState* T, int list)
     tea_pop(T, 1);
 }
 
-TEA_API void tea_get_field(TeaState* T, int map)
+TEA_API void tea_get_field(TeaState* T, int obj)
 {
-    TeaValue object = index2value(T, map);
+    TeaValue object = index2value(T, obj);
     TeaValue key = tea_vm_peek(T, 0);
 
     if(IS_OBJECT(object))
@@ -524,9 +536,9 @@ TEA_API void tea_get_field(TeaState* T, int map)
     }
 }
 
-TEA_API void tea_set_field(TeaState* T, int map)
+TEA_API void tea_set_field(TeaState* T, int obj)
 {
-    TeaValue object = index2value(T, map);
+    TeaValue object = index2value(T, obj);
     TeaValue item = tea_vm_peek(T, 0);
     TeaValue key = tea_vm_peek(T, 1);
 
@@ -547,9 +559,9 @@ TEA_API void tea_set_field(TeaState* T, int map)
     tea_pop(T, 2);
 }
 
-TEA_API void tea_set_key(TeaState* T, int map, const char* key)
+TEA_API void tea_set_key(TeaState* T, int obj, const char* key)
 {
-    TeaValue object = index2value(T, map);
+    TeaValue object = index2value(T, obj);
     TeaValue item = tea_vm_peek(T, 0);
 
     tea_push_string(T, key);
@@ -589,9 +601,9 @@ TEA_API void tea_set_key(TeaState* T, int map, const char* key)
     tea_pop(T, 2);
 }
 
-TEA_API void tea_get_key(TeaState* T, int map, const char* key)
+TEA_API void tea_get_key(TeaState* T, int obj, const char* key)
 {
-    TeaValue object = index2value(T, map);
+    TeaValue object = index2value(T, obj);
 
     tea_push_string(T, key);
     if(IS_OBJECT(object))

@@ -3,22 +3,22 @@
 
 #include "tea.h"
 
-#define TEA_MATH_MODULE "math"
+#define TEA_MODULE_MATH "math"
 TEAMOD_API void tea_import_math(TeaState* T);
 
-#define TEA_TIME_MODULE "time"
+#define TEA_MODULE_TIME "time"
 TEAMOD_API void tea_import_time(TeaState* T);
 
-#define TEA_OS_MODULE "os"
+#define TEA_MODULE_OS "os"
 TEAMOD_API void tea_import_os(TeaState* T);
 
-#define TEA_SYS_MODULE "sys"
+#define TEA_MODULE_SYS "sys"
 TEAMOD_API void tea_import_sys(TeaState* T);
 
-#define TEA_IO_MODULE "io"
+#define TEA_MODULE_IO "io"
 TEAMOD_API void tea_import_io(TeaState* T);
 
-#define TEA_RANDOM_MODULE "random"
+#define TEA_MODULE_RANDOM "random"
 TEAMOD_API void tea_import_random(TeaState* T);
 
 #endif

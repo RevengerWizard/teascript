@@ -13,6 +13,7 @@
 #include "tea.h"
 #include "tealib.h"
 
+#include "tea_arch.h"
 #include "tea_import.h"
 #include "tea_core.h"
 
@@ -103,21 +104,6 @@ static void os_execute(TeaState* T)
     tea_push_number(T, system(arg));
 }
 
-static inline const char* os_name()
-{
-#if defined(_WIN32) || defined(_WIN64)
-    return "windows";
-#elif defined(__APPLE__) || defined(__MACH__)
-    return "macos";
-#elif defined(__linux__)
-    return "linux";
-#elif defined(__FreeBSD__)
-    return "freebsd";
-#else
-    return "other";
-#endif
-}
-
 static void init_env(TeaState* T)
 {
     /* This is not a portable feature on all the C compilers */
@@ -156,8 +142,8 @@ static const TeaModule os_module[] = {
 
 TEAMOD_API void tea_import_os(TeaState* T)
 {
-    tea_create_module(T, TEA_OS_MODULE, os_module);    
-    tea_push_string(T, os_name());
+    tea_create_module(T, TEA_MODULE_OS, os_module);    
+    tea_push_string(T, TEA_OS_NAME);
     tea_set_key(T, 0, "name");
     init_env(T);
 }

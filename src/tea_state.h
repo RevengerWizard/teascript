@@ -74,6 +74,7 @@ typedef struct TeaState
     TeaOClass* range_class;
     TeaOString* constructor_string;
     TeaOString* repl_string;
+    TeaOString* memerr;
     TeaOString* opm_name[MT_END];
     TeaObject* objects;
     size_t bytes_allocated;
