@@ -86,6 +86,33 @@ bool tea_val_equal(TeaValue a, TeaValue b)
         case VAL_NUMBER:
             return AS_NUMBER(a) == AS_NUMBER(b);
         case VAL_OBJECT:
+            return tea_obj_equal(a, b);
+        default:
+            return false; /* Unreachable */
+    }
+#endif
+}
+
+bool tea_val_rawequal(TeaValue a, TeaValue b)
+{
+#ifdef TEA_NAN_TAGGING
+    if(IS_NUMBER(a) && IS_NUMBER(b))
+    {
+        return AS_NUMBER(a) == AS_NUMBER(b);
+    }
+    return a == b;
+#else
+    if(a.type != b.type)
+        return false;
+    switch(a.type)
+    {
+        case VAL_BOOL:
+            return AS_BOOL(a) == AS_BOOL(b);
+        case VAL_NULL:
+            return true;
+        case VAL_NUMBER:
+            return AS_NUMBER(a) == AS_NUMBER(b);
+        case VAL_OBJECT:
             return AS_OBJECT(a) == AS_OBJECT(b);
         default:
             return false; /* Unreachable */

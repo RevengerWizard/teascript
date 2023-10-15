@@ -166,7 +166,7 @@ static TeaOString* list_tostring(TeaState* T, TeaOList* list)
 #ifdef TEA_NAN_TAGGING
         if(value == OBJECT_VAL(list))
 #else
-        if(tea_val_equal(value, OBJECT_VAL(list)))
+        if(tea_val_rawequal(value, OBJECT_VAL(list)))
 #endif
         {
             element = "[...]";
@@ -241,7 +241,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
 #ifdef TEA_NAN_TAGGING
         if(item->key == OBJECT_VAL(map))
 #else
-        if(tea_val_equal(item->key, OBJECT_VAL(map)))
+        if(tea_val_rawequal(item->key, OBJECT_VAL(map)))
 #endif
         {
             key = "{...}";
@@ -289,7 +289,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
 #ifdef TEA_NAN_TAGGING
         if(item->value == OBJECT_VAL(map))
 #else
-        if(tea_val_equal(item->value, OBJECT_VAL(map)))
+        if(tea_val_rawequal(item->value, OBJECT_VAL(map)))
 #endif
         {
             element = "{...}";

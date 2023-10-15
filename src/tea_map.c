@@ -107,7 +107,7 @@ static TeaMapItem* map_find_entry(TeaMapItem* items, int capacity, TeaValue key)
 #ifdef TEA_NAN_TAGGING
         else if(item->key == key)
 #else
-        else if(tea_val_equal(item->key, key))
+        else if(tea_val_rawequal(item->key, key))
 #endif
         {
             /* We found the key */

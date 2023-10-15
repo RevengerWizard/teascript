@@ -35,25 +35,25 @@ static void list_remove(TeaState* T)
     int len = tea_len(T, 0);
 
     bool found = false;
-    if(len == 0) 
+    if(len == 0)
     {
         tea_pop(T, 1);
         return;
     }
 
-    if(len > 1) 
+    if(len > 1)
     {
         for(int i = 0; i < len - 1; i++) 
         {
             tea_get_item(T, 0, i);
-            if(!found && tea_equals(T, 1, 2)) 
+            if(!found && tea_equal(T, 1, 2))
             {
                 found = true;
             }
             tea_pop(T, 1);
 
             /* If we have found the value, shuffle the array */
-            if(found) 
+            if(found)
             {
                 tea_get_item(T, 0, i + 1);
                 tea_set_item(T, 0, i);
@@ -62,7 +62,7 @@ static void list_remove(TeaState* T)
 
         /* Check if it's the last element */
         tea_get_item(T, 0, len - 1);
-        if(!found && tea_equals(T, 1, 2)) 
+        if(!found && tea_equal(T, 1, 2)) 
         {
             found = true;
         }
@@ -71,7 +71,7 @@ static void list_remove(TeaState* T)
     else 
     {
         tea_get_item(T, 0, 0);
-        if(tea_equals(T, 1, 2)) 
+        if(tea_equal(T, 1, 2)) 
         {
             found = true;
         }
@@ -201,7 +201,7 @@ static void list_contains(TeaState* T)
     for(int i = 0; i < len; i++) 
     {
         tea_get_item(T, 0, i);
-        if(tea_equals(T, 1, 2)) 
+        if(tea_equal(T, 1, 2)) 
         {
             tea_push_bool(T, true);
             return;
@@ -223,7 +223,7 @@ static void list_count(TeaState* T)
     for(int i = 0; i < len; i++) 
     {
         tea_get_item(T, 0, i);
-        if(tea_equals(T, 1, 2)) 
+        if(tea_equal(T, 1, 2)) 
         {
             n++;
         }
@@ -402,7 +402,7 @@ static void list_index(TeaState* T)
     for(int i = 0; i < len; i++) 
     {
         tea_get_item(T, 0, i);
-        if(tea_equals(T, 1, 2)) 
+        if(tea_equal(T, 1, 2)) 
         {
             tea_push_number(T, i);
             return;

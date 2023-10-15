@@ -835,6 +835,29 @@ static void arith(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
     tea_do_precall(T, method, 2);
 }
 
+static bool arith_comp(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
+{
+    TeaOString* method_name = T->opm_name[op];
+
+    bool found = false;
+    TeaValue method;
+    if(!(found = get_op_method(method_name, a, &method)))
+    {
+        found = get_op_method(method_name, b, &method);
+    }
+    if(!found)
+    {
+        return false;
+    }
+
+    tea_vm_pop(T, 2);
+    tea_vm_push(T, method);
+    tea_vm_push(T, a);
+    tea_vm_push(T, b);
+    tea_do_precall(T, method, 2);
+    return true;
+}
+
 void tea_vm_error(TeaState* T, const char* format, ...)
 {
     va_list args;
@@ -1416,7 +1439,12 @@ void tea_vm_run(TeaState* T)
                 if(IS_INSTANCE(a) || IS_INSTANCE(b))
                 {
                     STORE_FRAME;
-                    arith(T, MT_EQ, a, b);
+                    if(!arith_comp(T, MT_EQ, a, b))
+                    {
+                        DROP(2);
+                        PUSH(BOOL_VAL(tea_val_equal(a, b)));
+                        DISPATCH();
+                    }
                     READ_FRAME();
                     DISPATCH();
                 }

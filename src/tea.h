@@ -113,7 +113,8 @@ TEA_API const char* tea_to_lstring(TeaState* T, int index, int* len);
 TEA_API TeaCFunction tea_to_cfunction(TeaState* T, int index);
 TEA_API void* tea_to_userdata(TeaState* T, int index);
 
-TEA_API int tea_equals(TeaState* T, int index1, int index2);
+TEA_API bool tea_equal(TeaState* T, int index1, int index2);
+TEA_API bool tea_rawequal(TeaState* T, int index1, int index2);
 
 TEA_API void tea_pop(TeaState* T, int n);
 

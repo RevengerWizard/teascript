@@ -271,9 +271,14 @@ TEA_API void* tea_to_userdata(TeaState* T, int index)
     return data;
 }
 
-TEA_API int tea_equals(TeaState* T, int index1, int index2)
+TEA_API bool tea_equal(TeaState* T, int index1, int index2)
 {
     return tea_val_equal(index2value(T, index1), index2value(T, index2));
+}
+
+TEA_API bool tea_rawequal(TeaState* T, int index1, int index2)
+{
+    return tea_val_rawequal(index2value(T, index1), index2value(T, index2));
 }
 
 TEA_API void tea_pop(TeaState* T, int n)
