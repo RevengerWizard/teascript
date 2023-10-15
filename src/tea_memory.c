@@ -15,6 +15,7 @@
 #include "tea_state.h"
 #include "tea_array.h"
 #include "tea_do.h"
+#include "tea_gc.h"
 
 void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_size)
 {
@@ -27,12 +28,12 @@ void* tea_mem_realloc(TeaState* T, void* pointer, size_t old_size, size_t new_si
     if(new_size > old_size)
     {
 #ifdef TEA_DEBUG_STRESS_GC
-        tea_gc(T);
+        tea_gc_collect(T);
 #endif
 
         if(T->bytes_allocated > T->next_gc)
         {
-            tea_gc(T);
+            tea_gc_collect(T);
         }
     }
 
