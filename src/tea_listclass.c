@@ -43,7 +43,7 @@ static void list_remove(TeaState* T)
 
     if(len > 1)
     {
-        for(int i = 0; i < len - 1; i++) 
+        for(int i = 0; i < len - 1; i++)
         {
             tea_get_item(T, 0, i);
             if(!found && tea_equal(T, 1, 2))
@@ -62,23 +62,23 @@ static void list_remove(TeaState* T)
 
         /* Check if it's the last element */
         tea_get_item(T, 0, len - 1);
-        if(!found && tea_equal(T, 1, 2)) 
+        if(!found && tea_equal(T, 1, 2))
         {
             found = true;
         }
         tea_pop(T, 1);
-    } 
-    else 
+    }
+    else
     {
         tea_get_item(T, 0, 0);
-        if(tea_equal(T, 1, 2)) 
+        if(tea_equal(T, 1, 2))
         {
             found = true;
         }
         tea_pop(T, 1);
     }
 
-    if(found) 
+    if(found)
     {
         AS_LIST(T->base[0])->items.count--;
         tea_pop(T, 1);
@@ -95,7 +95,7 @@ static void list_delete(TeaState* T)
 
     int len = tea_len(T, 0);
 
-    if(len == 0) 
+    if(len == 0)
     {
         tea_pop(T, 1);
         return;
@@ -122,7 +122,7 @@ static void list_clear(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
-    
+
     TeaOList* list = AS_LIST(T->base[0]);
     tea_init_value_array(&list->items);
 }
@@ -136,12 +136,12 @@ static void list_insert(TeaState* T)
     TeaValue insert_value = T->base[1];
     int index = tea_check_number(T, 2);
 
-    if(index < 0 || index > list->items.count) 
+    if(index < 0 || index > list->items.count)
     {
         tea_error(T, "Index out of bounds for the list given");
     }
 
-    if(list->items.capacity < list->items.count + 1) 
+    if(list->items.capacity < list->items.count + 1)
     {
         int old_capacity = list->items.capacity;
         list->items.capacity = TEA_GROW_CAPACITY(old_capacity);
@@ -150,7 +150,7 @@ static void list_insert(TeaState* T)
 
     list->items.count++;
 
-    for(int i = list->items.count - 1; i > index; --i) 
+    for(int i = list->items.count - 1; i > index; --i)
     {
         list->items.values[i] = list->items.values[i - 1];
     }
@@ -168,7 +168,7 @@ static void list_extend(TeaState* T)
     int len = tea_len(T, 1);
 
     /* list index 0, list index 1 */
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_get_item(T, 1, i);
         tea_add_item(T, 0);
@@ -182,7 +182,7 @@ static void list_reverse(TeaState* T)
     tea_ensure_min_args(T, count, 1);
 
     int len = tea_len(T, 0);
-    for(int i = 0; i < len / 2; i++) 
+    for(int i = 0; i < len / 2; i++)
     {
         tea_get_item(T, 0, i);
         tea_get_item(T, 0, len - i - 1);
@@ -198,10 +198,10 @@ static void list_contains(TeaState* T)
 
     int len = tea_len(T, 0);
 
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_get_item(T, 0, i);
-        if(tea_equal(T, 1, 2)) 
+        if(tea_equal(T, 1, 2))
         {
             tea_push_bool(T, true);
             return;
@@ -220,10 +220,10 @@ static void list_count(TeaState* T)
     int len = tea_len(T, 0);
 
     int n = 0;
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_get_item(T, 0, i);
-        if(tea_equal(T, 1, 2)) 
+        if(tea_equal(T, 1, 2))
         {
             n++;
         }
@@ -262,7 +262,7 @@ static void list_fill(TeaState* T)
 
     int len = tea_len(T, 0);
 
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
         tea_set_item(T, 0, i);
@@ -399,10 +399,10 @@ static void list_index(TeaState* T)
 
     int len = tea_len(T, 0);
 
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_get_item(T, 0, i);
-        if(tea_equal(T, 1, 2)) 
+        if(tea_equal(T, 1, 2))
         {
             tea_push_number(T, i);
             return;
@@ -473,24 +473,24 @@ static void list_copy(TeaState* T)
 
     tea_new_list(T);
 
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_get_item(T, 0, i);
         tea_add_item(T, 1);
     }
 }
 
-static void list_find(TeaState* T) 
+static void list_find(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
-    
+
     tea_check_list(T, 0);
     tea_check_function(T, 1);
 
     int len = tea_len(T, 0);
 
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
         tea_get_item(T, 0, i);
@@ -499,7 +499,7 @@ static void list_find(TeaState* T)
         bool found = tea_check_bool(T, -1);
         tea_pop(T, 1);
 
-        if(found) 
+        if(found)
         {
             tea_get_item(T, 0, i);
             return;
@@ -508,11 +508,11 @@ static void list_find(TeaState* T)
     tea_push_null(T);
 }
 
-static void list_map(TeaState* T) 
+static void list_map(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
-    
+
     tea_check_list(T, 0);
     tea_check_function(T, 1);
 
@@ -520,7 +520,7 @@ static void list_map(TeaState* T)
 
     tea_new_list(T);
 
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
         tea_get_item(T, 0, i);
@@ -530,7 +530,7 @@ static void list_map(TeaState* T)
     tea_push_value(T, 2);
 }
 
-static void list_filter(TeaState* T) 
+static void list_filter(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
@@ -540,7 +540,7 @@ static void list_filter(TeaState* T)
     tea_new_list(T);
 
     int j = 0;
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
         tea_get_item(T, 0, i);
@@ -549,7 +549,7 @@ static void list_filter(TeaState* T)
         bool filter = tea_check_bool(T, -1);
         tea_pop(T, 1);
 
-        if(filter) 
+        if(filter)
         {
             tea_get_item(T, 0, i);
             tea_add_item(T, 2);
@@ -559,7 +559,7 @@ static void list_filter(TeaState* T)
     tea_push_value(T, 2);
 }
 
-static void list_reduce(TeaState* T) 
+static void list_reduce(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
@@ -576,7 +576,7 @@ static void list_reduce(TeaState* T)
 
     int i = 0;
     tea_get_item(T, 0, i++);    /* pivot item */
-    for(; i < len; i++) 
+    for(; i < len; i++)
     {
         tea_push_value(T, 1);
         tea_push_value(T, -2);      /* push pivot */
@@ -586,7 +586,7 @@ static void list_reduce(TeaState* T)
     }
 }
 
-static void list_foreach(TeaState* T) 
+static void list_foreach(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 2);
@@ -596,7 +596,7 @@ static void list_foreach(TeaState* T)
 
     int len = tea_len(T, 0);
 
-    for(int i = 0; i < len; i++) 
+    for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
         tea_get_item(T, 0, i);

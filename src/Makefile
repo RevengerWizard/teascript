@@ -34,7 +34,7 @@ MYOBJS =
 PLATS = generic linux macosx mingw emscripten
 
 TEA_A = libtea.a
-CORE_O = tea_api.o tea_chunk.o tea_compiler.o tea_core.o tea_debug.o \
+CORE_O = tea_api.o tea_chunk.o tea_parser.o tea_core.o tea_debug.o \
     tea_do.o tea_gc.o tea_import.o tea_memory.o tea_object.o tea_func.o tea_map.o tea_string.o tea_lexer.o tea_loadlib.o \
     tea_state.o tea_table.o tea_utf.o tea_util.o tea_value.o tea_vm.o \
 	tea_dump.o tea_undump.o \

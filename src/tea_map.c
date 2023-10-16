@@ -14,7 +14,7 @@ TeaOMap* tea_map_new(TeaState* T)
     map->count = 0;
     map->capacity = 0;
     map->items = NULL;
-    
+
     return map;
 }
 
@@ -180,7 +180,7 @@ bool tea_map_set(TeaState* T, TeaOMap* map, TeaValue key, TeaValue value)
     item->key = key;
     item->value = value;
     item->empty = false;
-    
+
     return is_new_key;
 }
 

@@ -40,7 +40,7 @@ static void string_upper(TeaState* T)
     const char* string = tea_get_lstring(T, 0, &len);
     char* temp = TEA_ALLOCATE(T, char, len + 1);
 
-    for(int i = 0; string[i]; i++) 
+    for(int i = 0; string[i]; i++)
     {
         temp[i] = toupper(string[i]);
     }
@@ -58,7 +58,7 @@ static void string_lower(TeaState* T)
     const char* string = tea_get_lstring(T, 0, &len);
     char* temp = TEA_ALLOCATE(T, char, len + 1);
 
-    for(int i = 0; string[i]; i++) 
+    for(int i = 0; string[i]; i++)
     {
         temp[i] = tolower(string[i]);
     }
@@ -156,15 +156,15 @@ static void string_split(TeaState* T)
     tea_new_list(T);
     int list_len = 0;
 
-    if(sep_len == 0) 
+    if(sep_len == 0)
     {
         int index = 0;
-        for(; index < len && list_len < max_split; index++) 
+        for(; index < len && list_len < max_split; index++)
         {
             list_len++;
             *(temp) = string[index];
             *(temp + 1) = '\0';
-            
+
             tea_push_string(T, temp);
             tea_add_item(T, count);
         }
@@ -172,15 +172,15 @@ static void string_split(TeaState* T)
         if(index != len && list_len >= max_split)
         {
             temp = string + index;
-        } 
-        else 
+        }
+        else
         {
             temp = NULL;
         }
-    } 
-    else if(max_split > 0) 
+    }
+    else if(max_split > 0)
     {
-        do 
+        do
         {
             list_len++;
             token = strstr(temp, sep);
@@ -192,10 +192,10 @@ static void string_split(TeaState* T)
             tea_push_string(T, temp);
             tea_add_item(T, count);
             temp = token + sep_len;
-        } 
+        }
         while(token != NULL && list_len < max_split);
 
-        if(token == NULL) 
+        if(token == NULL)
         {
             temp = NULL;
         }
@@ -219,7 +219,7 @@ static void string_title(TeaState* T)
     char* temp = TEA_ALLOCATE(T, char, len + 1);
 
     bool next = true;
-    for(int i = 0; string[i]; i++) 
+    for(int i = 0; string[i]; i++)
     {
         if(string[i] == ' ')
         {
@@ -285,7 +285,7 @@ static void string_leftstrip(TeaState* T)
     count = 0;
     char* temp = TEA_ALLOCATE(T, char, len + 1);
 
-    for(i = 0; i < len; i++) 
+    for(i = 0; i < len; i++)
     {
         if(!isspace(string[i]))
         {
@@ -294,7 +294,7 @@ static void string_leftstrip(TeaState* T)
         count++;
     }
 
-    if(count != 0) 
+    if(count != 0)
     {
         temp = TEA_GROW_ARRAY(T, char, temp, len + 1, (len - count) + 1);
     }
@@ -316,7 +316,7 @@ static void string_rightstrip(TeaState* T)
     int length;
     char* temp = TEA_ALLOCATE(T, char, l + 1);
 
-    for(length = l - 1; length > 0; length--) 
+    for(length = l - 1; length > 0; length--)
     {
         if(!isspace(string[length]))
         {
@@ -359,7 +359,7 @@ static void string_count(TeaState* T)
     const char* needle = tea_check_string(T, 1);
 
     count = 0;
-    while((string = strstr(string, needle))) 
+    while((string = strstr(string, needle)))
     {
         count++;
         string++;
@@ -384,10 +384,10 @@ static void string_find(TeaState* T)
     const char* substr = tea_check_lstring(T, 1, &len);
 
     int position = 0;
-    for(int i = 0; i < index; i++) 
+    for(int i = 0; i < index; i++)
     {
         char* result = strstr(string, substr);
-        if(!result) 
+        if(!result)
         {
             position = -1;
             break;

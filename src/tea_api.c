@@ -392,7 +392,7 @@ TEA_API void* tea_new_userdata(TeaState* T, size_t size)
 {
     TeaOUserdata* ud = tea_obj_new_userdata(T, size);
     tea_vm_push(T, OBJECT_VAL(ud));
-    
+
     return ud->data;
 }
 

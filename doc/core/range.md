@@ -14,8 +14,8 @@ The `range` type represents a sequence of numbers, starting from a start value, 
 ```tea
 var my_range = 1..10..2
 
-print(my_range.start)  // 1 
-print(my_range.end)  // 10 
+print(my_range.start)  // 1
+print(my_range.end)  // 10
 print(my_range.step)  // 2
 
 print(my_range.len)   // 4

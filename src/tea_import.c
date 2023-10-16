@@ -9,6 +9,7 @@
 #include "tea.h"
 #include "tealib.h"
 
+#include "tea_arch.h"
 #include "tea_state.h"
 #include "tea_import.h"
 #include "tea_util.h"
@@ -63,12 +64,18 @@ static bool readable(const char* filename)
     return false;
 }
 
+#if TEA_TARGET_WINDOWS
+#define SHARED_EXT  ".dll"
+#else
+#define SHARED_EXT  ".so"
+#endif
+
 static TeaOString* resolve_filename(TeaState* T, char* dir, char* path_name)
 {
     TeaOString* file = NULL;
     size_t l;
 
-    const char* exts[] = { ".tea", /* ".tbc",*/ ".dll", /*".so",*/ "/init.tea" };
+    const char* exts[] = { ".tea", /* ".tbc",*/ SHARED_EXT, "/init.tea" };
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     for(int i = 0; i < n; i++) 
@@ -153,8 +160,8 @@ void tea_imp_logical(TeaState* T, TeaOString* name)
             tea_vm_error(T, "Unknown module \"%s\"", name->chars);
         }
 
-        printf("dll %s\n", module->chars);
-        if(get_filename_ext(module->chars, ".dll"))
+        printf("shared %s\n", module->chars);
+        if(get_filename_ext(module->chars, SHARED_EXT))
         {
             const char* symname = tea_push_fstring(T, TEA_POF "%s", name->chars);
 

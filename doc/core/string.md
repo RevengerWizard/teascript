@@ -9,7 +9,7 @@ The `String` type in Teascript represents a sequence of characters, and is used 
 #### Example
 
 ```tea
-var my_string = "Hello, world!" 
+var my_string = "Hello, world!"
 print(my_string.len)  // 13
 ```
 
@@ -64,8 +64,8 @@ A new string with all the characters in the original string converted to lowerca
 #### Example
 
 ```tea
-var my_string = "Hello, world!" 
-my_string = my_string.lower() 
+var my_string = "Hello, world!"
+my_string = my_string.lower()
 print(my_string)  // "hello, world!"
 ```
 
@@ -120,8 +120,8 @@ A new string with the first character of each word in the original string conver
 #### Example
 
 ```tea
-var my_string = "hello, world!" 
-my_string = my_string.title() 
+var my_string = "hello, world!"
+my_string = my_string.title()
 print(my_string)  // "Hello, World!"
 ```
 
@@ -150,7 +150,7 @@ A list of strings created by splitting the original string at each occurrence of
 
 ```tea
 var my_string = "Hello, world! How are you today?"
-my_list = my_string.split() 
+my_list = my_string.split()
 print(my_list)  // ["Hello,", "world!", "How", "are", "you", "today?"]
 ```
 
@@ -179,11 +179,11 @@ String.contains(substring)
 #### Example
 
 ```tea
-var my_string = "Hello, world!" 
-var result = my_string.contains("world") 
+var my_string = "Hello, world!"
+var result = my_string.contains("world")
 print(result)  // true
 
-result = my_string.contains("foo") 
+result = my_string.contains("foo")
 print(result)  // false
 ```
 
@@ -212,9 +212,9 @@ String.startswith(prefix)
 ```tea
 var my_string = "Hello, world!"
 var result = my_string.startswith("Hello")
-print(result)  // true 
+print(result)  // true
 
-result = my_string.startswith("foo") 
+result = my_string.startswith("foo")
 print(result)  // false
 ```
 
@@ -354,10 +354,10 @@ The number of occurrences of `substring` within the original string.
 #### Example
 
 ```tea
-var my_string = "Hello, world! Hello, world!" 
+var my_string = "Hello, world! Hello, world!"
 var result = my_string.count("Hello")
 print(result)  // 2
-result = my_string.count("foo") 
+result = my_string.count("foo")
 print(result)  // 0
 ```
 
@@ -382,10 +382,10 @@ The index of the first occurrence of `substring` within the original string, or 
 #### Example
 
 ```tea
-var my_string = "Hello, world!" 
-var result = my_string.find("world") 
-print(result)  // 7  
-result = my_string.find("foo") 
+var my_string = "Hello, world!"
+var result = my_string.find("world")
+print(result)  // 7
+result = my_string.find("foo")
 print(result)  // -1
 ```
 

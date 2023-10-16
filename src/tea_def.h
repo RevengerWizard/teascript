@@ -17,9 +17,9 @@
 
 #ifdef TEA_DEBUG
 #include <assert.h>
-#define tea_assert(c)   assert(c)
+#define TEA_ASSERT(c)   assert(c)
 #else
-#define tea_assert(c)   ((void)0)
+#define TEA_ASSERT(c)   ((void)0)
 #endif
 
 #ifndef _MSC_VER

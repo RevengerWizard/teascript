@@ -9,5 +9,5 @@ start = time.time()
 
 for i in range(0, 5):
 	print(fib(28))
-	
+
 print("elapsed: " + str(time.time() - start))

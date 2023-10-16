@@ -8,7 +8,7 @@
 
 #include "tea_state.h"
 
-#define teaD_checkstack(T, n) \
+#define tea_do_checkstack(T, n) \
     if((char*)T->stack_last - (char*)T->top <= (n)*(int)sizeof(TeaValue)) \
         tea_do_grow_stack(T, n);
 

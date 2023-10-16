@@ -36,7 +36,7 @@ static void math_min(TeaState* T)
         tea_get_item(T, 0, 0);
         double min = tea_check_number(T, 1);
         tea_pop(T, 1);
-        for(int i = 1; i < len; i++) 
+        for(int i = 1; i < len; i++)
         {
             tea_get_item(T, 0, i);
             double n = tea_check_number(T, 1);
@@ -51,7 +51,7 @@ static void math_min(TeaState* T)
     }
 
     double min = tea_check_number(T, 0);
-    for(int i = 1; i < count; i++) 
+    for(int i = 1; i < count; i++)
     {
         double n = tea_check_number(T, i);
         if(min > n)
@@ -73,7 +73,7 @@ static void math_max(TeaState* T)
         tea_get_item(T, 0, 0);
         double max = tea_check_number(T, 1);
         tea_pop(T, 1);
-        for(int i = 1; i < len; i++) 
+        for(int i = 1; i < len; i++)
         {
             tea_get_item(T, 0, i);
             double n = tea_check_number(T, 1);
@@ -88,7 +88,7 @@ static void math_max(TeaState* T)
     }
 
     double max = tea_check_number(T, 0);
-    for(int i = 1; i < count; i++) 
+    for(int i = 1; i < count; i++)
     {
         double n = tea_check_number(T, i);
         if(n > max)
@@ -138,7 +138,7 @@ static void math_sum(TeaState* T)
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
     double sum = 0;
-    for(int i = 0; i < count; i++) 
+    for(int i = 0; i < count; i++)
     {
         double n = tea_check_number(T, i);
         sum = sum + n;
@@ -336,7 +336,7 @@ static void math_isnan(TeaState* T)
     tea_push_bool(T, isnan(tea_check_number(T, 0)));
 }
 
-static const TeaModule math_module[] = 
+static const TeaModule math_module[] =
 {
     { "min", math_min },
     { "max", math_max },

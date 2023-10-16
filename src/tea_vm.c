@@ -12,7 +12,7 @@
 #define TEA_CORE
 
 #include "tea_def.h"
-#include "tea_compiler.h"
+#include "tea_parser.h"
 #include "tea_debug.h"
 #include "tea_object.h"
 #include "tea_func.h"
@@ -49,7 +49,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_cou
             TeaOModule* module = AS_MODULE(receiver);
 
             TeaValue value;
-            if(tea_tab_get(&module->values, name, &value)) 
+            if(tea_tab_get(&module->values, name, &value))
             {
                 tea_do_precall(T, value, arg_count);
                 return;
@@ -76,9 +76,9 @@ static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_cou
         {
             TeaOClass* klass = AS_CLASS(receiver);
             TeaValue method;
-            if(tea_tab_get(&klass->methods, name, &method)) 
+            if(tea_tab_get(&klass->methods, name, &method))
             {
-                if(IS_NATIVE(method) || AS_CLOSURE(method)->function->type != TYPE_STATIC) 
+                if(IS_NATIVE(method) || AS_CLOSURE(method)->function->type != TYPE_STATIC)
                 {
                     tea_vm_error(T, "'%s' is not static. Only static methods can be invoked directly from a class", name->chars);
                 }
@@ -95,7 +95,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_cou
             if(type != NULL)
             {
                 TeaValue value;
-                if(tea_tab_get(&type->methods, name, &value)) 
+                if(tea_tab_get(&type->methods, name, &value))
                 {
                     tea_do_precall(T, value, arg_count);
                     return;
@@ -178,9 +178,9 @@ static void in_(TeaState* T, TeaValue object, TeaValue value)
             {
                 TeaOList* list = AS_LIST(object);
 
-                for(int i = 0; i < list->items.count; i++) 
+                for(int i = 0; i < list->items.count; i++)
                 {
-                    if(tea_val_equal(list->items.values[i], value)) 
+                    if(tea_val_equal(list->items.values[i], value))
                     {
                         tea_vm_pop(T, 2);
                         tea_vm_push(T, TRUE_VAL);
@@ -211,7 +211,7 @@ static void in_(TeaState* T, TeaValue object, TeaValue value)
 
 static bool slice(TeaState* T, TeaValue object, TeaValue start_index, TeaValue end_index, TeaValue step_index)
 {
-    if(!IS_NUMBER(step_index) || (!IS_NUMBER(end_index) && !IS_NULL(end_index)) || !IS_NUMBER(step_index)) 
+    if(!IS_NUMBER(step_index) || (!IS_NUMBER(end_index) && !IS_NULL(end_index)) || !IS_NUMBER(step_index))
     {
         tea_vm_error(T, "Slice index must be a number");
         return false;
@@ -282,11 +282,11 @@ static bool slice(TeaState* T, TeaValue object, TeaValue start_index, TeaValue e
                 else
                 {
                     end = AS_NUMBER(end_index);
-                    if(end > length) 
+                    if(end > length)
                     {
                         end = length;
                     }
-                    else if(end < 0) 
+                    else if(end < 0)
                     {
                         end = length + end;
                     }
@@ -298,8 +298,8 @@ static bool slice(TeaState* T, TeaValue object, TeaValue start_index, TeaValue e
                     tea_vm_pop(T, 4);
                     tea_vm_push(T, OBJECT_VAL(tea_str_literal(T, "")));
                     return true;
-                } 
-                else 
+                }
+                else
                 {
                     start = tea_utf_char_offset(string->chars, start);
                     end = tea_utf_char_offset(string->chars, end);
@@ -344,7 +344,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
         }
         case OBJ_RANGE:
         {
-            if(!IS_NUMBER(index_value)) 
+            if(!IS_NUMBER(index_value))
             {
                 tea_vm_error(T, "Range index must be a number");
             }
@@ -361,7 +361,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
                 index = len + index;
             }
 
-            if(index >= 0 && index < len) 
+            if(index >= 0 && index < len)
             {
                 tea_vm_pop(T, 2);
                 tea_vm_push(T, NUMBER_VAL(range->start + index * range->step));
@@ -372,7 +372,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
         }
         case OBJ_LIST:
         {
-            if(!IS_NUMBER(index_value)) 
+            if(!IS_NUMBER(index_value))
             {
                 tea_vm_error(T, "List index must be a number");
             }
@@ -386,7 +386,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
                 index = list->items.count + index;
             }
 
-            if(index >= 0 && index < list->items.count) 
+            if(index >= 0 && index < list->items.count)
             {
                 tea_vm_pop(T, 2);
                 tea_vm_push(T, list->items.values[index]);
@@ -415,7 +415,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
         }
         case OBJ_STRING:
         {
-            if(!IS_NUMBER(index_value)) 
+            if(!IS_NUMBER(index_value))
             {
                 tea_vm_error(T, "String index must be a number (got %s)", tea_val_type(index_value));
             }
@@ -443,7 +443,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
         default:
             break;
     }
-    
+
     tea_vm_error(T, "'%s' is not subscriptable", tea_val_type(subscript_value));
 }
 
@@ -473,7 +473,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
         }
         case OBJ_LIST:
         {
-            if(!IS_NUMBER(index_value)) 
+            if(!IS_NUMBER(index_value))
             {
                 tea_vm_error(T, "List index must be a number (got %s)", tea_val_type(index_value));
             }
@@ -486,7 +486,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
                 index = list->items.count + index;
             }
 
-            if(index >= 0 && index < list->items.count) 
+            if(index >= 0 && index < list->items.count)
             {
                 if(assign)
                 {
@@ -549,7 +549,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaOString* name, bool 
         case OBJ_INSTANCE:
         {
             TeaOInstance* instance = AS_INSTANCE(receiver);
-            
+
             TeaValue value;
             if(tea_tab_get(&instance->fields, name, &value))
             {
@@ -565,7 +565,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaOString* name, bool 
                 return;
 
             TeaOClass* klass = instance->klass;
-            while(klass != NULL) 
+            while(klass != NULL)
             {
                 if(tea_tab_get(&klass->statics, name, &value))
                 {
@@ -587,7 +587,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaOString* name, bool 
             TeaOClass* klass = AS_CLASS(receiver);
             TeaOClass* klass_store = klass;
 
-            while(klass != NULL) 
+            while(klass != NULL)
             {
                 TeaValue value;
                 if(tea_tab_get(&klass->statics, name, &value))
@@ -610,7 +610,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaOString* name, bool 
             TeaOModule* module = AS_MODULE(receiver);
 
             TeaValue value;
-            if(tea_tab_get(&module->values, name, &value)) 
+            if(tea_tab_get(&module->values, name, &value))
             {
                 if(dopop)
                 {
@@ -640,7 +640,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaOString* name, bool 
             {
                 goto retry;
             }
-            
+
             tea_vm_error(T, "Map has no property: '%s'", name->chars);
         }
         default:
@@ -650,7 +650,7 @@ static void get_property(TeaState* T, TeaValue receiver, TeaOString* name, bool 
             if(klass != NULL)
             {
                 TeaValue value;
-                if(tea_tab_get(&klass->methods, name, &value)) 
+                if(tea_tab_get(&klass->methods, name, &value))
                 {
                     if(IS_NATIVE(value) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
                     {
@@ -774,7 +774,7 @@ static void repeat(TeaState* T)
     int length = string->length;
     char* chars = TEA_ALLOCATE(T, char, (n * length) + 1);
 
-    int i; 
+    int i;
     char* p;
     for(i = 0, p = chars; i < n; ++i, p += length)
     {
@@ -817,11 +817,11 @@ static void arith(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
 {
     TeaOString* method_name = T->opm_name[op];
 
-    bool found = false;
     TeaValue method;
-    if(!(found = get_op_method(method_name, a, &method)))
+    bool found = get_op_method(method_name, a, &method);    /* try first operand */
+    if(!found)
     {
-        found = get_op_method(method_name, b, &method);
+        found = get_op_method(method_name, b, &method); /* try second operand */
     }
     if(!found)
     {
@@ -839,11 +839,11 @@ static bool arith_comp(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
 {
     TeaOString* method_name = T->opm_name[op];
 
-    bool found = false;
     TeaValue method;
-    if(!(found = get_op_method(method_name, a, &method)))
+    bool found = get_op_method(method_name, a, &method);    /* try first operand */
+    if(!found)
     {
-        found = get_op_method(method_name, b, &method);
+        found = get_op_method(method_name, b, &method); /* try second operand */
     }
     if(!found)
     {
@@ -893,8 +893,6 @@ void tea_vm_run(TeaState* T)
     register uint8_t* ip;
 
     register TeaValue* base;
-    register TeaChunk* current_chunk;
-    register TeaOUpvalue** upvalues;
 
 #define PUSH(value) (tea_vm_push(T, value))
 #define POP() (tea_vm_pop(T, 1))
@@ -908,14 +906,12 @@ void tea_vm_run(TeaState* T)
     do \
     { \
         ci = T->ci - 1; \
-        current_chunk = &ci->closure->function->chunk; \
 	    ip = ci->ip; \
 	    base = ci->base; \
-	    upvalues = ci->closure == NULL ? NULL : ci->closure->upvalues; \
     } \
     while(false) \
 
-#define READ_CONSTANT() (current_chunk->constants.values[READ_BYTE()])
+#define READ_CONSTANT() (ci->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
 #define RUNTIME_ERROR(...) \
@@ -967,6 +963,7 @@ void tea_vm_run(TeaState* T)
     #define TRACE_INSTRUCTIONS() \
         do \
         { \
+            TeaChunk* current_chunk = &ci->closure->function->chunk; \
             tea_debug_stack(T); \
             tea_debug_instruction(T, current_chunk, (int)(ip - current_chunk->code)); \
         } \
@@ -1003,7 +1000,7 @@ void tea_vm_run(TeaState* T)
 #endif
 
     READ_FRAME();
-    
+
     while(true)
     {
         uint8_t instruction;
@@ -1155,13 +1152,13 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(GET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                PUSH(*upvalues[slot]->location);
+                PUSH(*ci->closure->upvalues[slot]->location);
                 DISPATCH();
             }
             CASE_CODE(SET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                *upvalues[slot]->location = PEEK(0);
+                *ci->closure->upvalues[slot]->location = PEEK(0);
                 DISPATCH();
             }
             CASE_CODE(GET_PROPERTY):
@@ -1205,7 +1202,7 @@ void tea_vm_run(TeaState* T)
                 TeaValue b = POP();
                 TeaValue a = POP();
 
-                if(!IS_NUMBER(a) || !IS_NUMBER(b) || !IS_NUMBER(c)) 
+                if(!IS_NUMBER(a) || !IS_NUMBER(b) || !IS_NUMBER(c))
                 {
                     RUNTIME_ERROR("Range operands must be numbers");
                 }
@@ -1251,7 +1248,7 @@ void tea_vm_run(TeaState* T)
                         tea_write_value_array(T, &list->items, PEEK(i));
                     }
                 }
-                
+
                 /* Pop items from stack */
                 T->top -= item_count + 1;
 
@@ -1269,12 +1266,12 @@ void tea_vm_run(TeaState* T)
 
                 TeaOList* list = AS_LIST(POP());
 
-                if(var_count != list->items.count) 
+                if(var_count != list->items.count)
                 {
                     if(var_count < list->items.count)
                     {
                         RUNTIME_ERROR("Too many values to unpack");
-                    } 
+                    }
                     else
                     {
                         RUNTIME_ERROR("Not enough values to unpack");
@@ -1418,7 +1415,7 @@ void tea_vm_run(TeaState* T)
 
                     instance_klass = (TeaOClass*)instance_klass->super;
                 }
-                
+
                 DROP(2); /* Drop the instance and class */
                 PUSH(BOOL_VAL(found));
 
@@ -1474,14 +1471,22 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(ADD):
             {
-                if(IS_STRING(PEEK(0)) && IS_STRING(PEEK(1)))
+                TeaValue a = PEEK(1);
+                TeaValue b = PEEK(0);
+                if(IS_NUMBER(a) && IS_NUMBER(b))
+                {
+                    double b = AS_NUMBER(POP());
+                    double a = AS_NUMBER(PEEK(0));
+                    T->top[-1] = NUMBER_VAL(a + b);
+                }
+                else if(IS_STRING(a) && IS_STRING(b))
                 {
                     concatenate(T);
                 }
-                else if(IS_LIST(PEEK(0)) && IS_LIST(PEEK(1)))
+                else if(IS_LIST(a) && IS_LIST(b))
                 {
-                    TeaOList* l2 = AS_LIST(PEEK(0));
-                    TeaOList* l1 = AS_LIST(PEEK(1));
+                    TeaOList* l1 = AS_LIST(a);
+                    TeaOList* l2 = AS_LIST(b);
 
                     for(int i = 0; i < l2->items.count; i++)
                     {
@@ -1489,23 +1494,23 @@ void tea_vm_run(TeaState* T)
                     }
 
                     DROP(2);
-
                     PUSH(OBJECT_VAL(l1));
                 }
-                else if(IS_MAP(PEEK(0)) && IS_MAP(PEEK(1)))
+                else if(IS_MAP(a) && IS_MAP(b))
                 {
-                    TeaOMap* m2 = AS_MAP(PEEK(0));
-                    TeaOMap* m1 = AS_MAP(PEEK(1));
+                    TeaOMap* m1 = AS_MAP(a);
+                    TeaOMap* m2 = AS_MAP(b);
 
                     tea_map_add_all(T, m2, m1);
 
                     DROP(2);
-
                     PUSH(OBJECT_VAL(m1));
                 }
                 else
                 {
-                    BINARY_OP(NUMBER_VAL, (a + b), MT_PLUS, double);
+                    STORE_FRAME;
+                    arith(T, MT_PLUS, a, b);
+                    READ_FRAME();
                 }
                 DISPATCH();
             }
@@ -1516,13 +1521,23 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(MULTIPLY):
             {
-                if((IS_STRING(PEEK(0)) && IS_NUMBER(PEEK(1))) || (IS_NUMBER(PEEK(0)) && IS_STRING(PEEK(1))))
+                TeaValue a = PEEK(1);
+                TeaValue b = PEEK(0);
+                if(IS_NUMBER(a) && IS_NUMBER(b))
+                {
+                    double b = AS_NUMBER(POP());
+                    double a = AS_NUMBER(PEEK(0));
+                    T->top[-1] = NUMBER_VAL(a * b);
+                }
+                else if((IS_STRING(a) && IS_NUMBER(b)) || (IS_NUMBER(a) && IS_STRING(b)))
                 {
                     repeat(T);
                 }
                 else
                 {
-                    BINARY_OP(NUMBER_VAL, (a * b), MT_MULT, double);
+                    STORE_FRAME;
+                    arith(T, MT_MULT, a, b);
+                    READ_FRAME();
                 }
                 DISPATCH();
             }
@@ -1574,7 +1589,7 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(AND):
             {
                 uint16_t offset = READ_SHORT();
-                
+
                 if(tea_obj_isfalse(PEEK(0)))
                 {
                     ip += offset;
@@ -1589,7 +1604,7 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(OR):
             {
                 uint16_t offset = READ_SHORT();
-                
+
                 if(tea_obj_isfalse(PEEK(0)))
                 {
                     DROP(1);
@@ -1624,7 +1639,7 @@ void tea_vm_run(TeaState* T)
                         while(i <= count)
                         {
                             DROP(1);
-                            i++;   
+                            i++;
                         }
                         break;
                     }
@@ -1709,7 +1724,7 @@ void tea_vm_run(TeaState* T)
                 TeaOFunction* function = AS_FUNCTION(READ_CONSTANT());
                 TeaOClosure* closure = tea_func_new_closure(T, function);
                 PUSH(OBJECT_VAL(closure));
-                
+
                 for(int i = 0; i < closure->upvalue_count; i++)
                 {
                     uint8_t is_local = READ_BYTE();
@@ -1720,7 +1735,7 @@ void tea_vm_run(TeaState* T)
                     }
                     else
                     {
-                        closure->upvalues[i] = upvalues[index];
+                        closure->upvalues[i] = ci->closure->upvalues[index];
                     }
                 }
                 DISPATCH();
@@ -1794,7 +1809,7 @@ void tea_vm_run(TeaState* T)
                 }
                 klass->super = superclass;
                 klass->constructor = superclass->constructor;
-                
+
                 tea_tab_addall(T, &superclass->methods, &klass->methods);
                 tea_tab_addall(T, &superclass->statics, &klass->statics);
                 DROP(1);
@@ -1836,7 +1851,7 @@ void tea_vm_run(TeaState* T)
                 TeaOString* variable = READ_STRING();
 
                 TeaValue module_variable;
-                if(!tea_tab_get(&T->last_module->values, variable, &module_variable)) 
+                if(!tea_tab_get(&T->last_module->values, variable, &module_variable))
                 {
                     RUNTIME_ERROR("%s can't be found in module %s", variable->chars, T->last_module->name->chars);
                 }

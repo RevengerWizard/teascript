@@ -49,7 +49,7 @@ static void map_get(TeaState* T)
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
 
     TeaOMap* map = AS_MAP(T->base[0]);
-    
+
     TeaValue key = T->base[1];
     TeaValue value;
     bool b = tea_map_get(map, key, &value);
@@ -103,7 +103,7 @@ static void map_contains(TeaState* T)
     {
         tea_error(T, "Map key isn't hashable");
     }
-    
+
     TeaValue _;
     tea_push_bool(T, tea_map_get(map, T->base[1], &_));
 }

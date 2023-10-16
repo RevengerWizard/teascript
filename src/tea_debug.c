@@ -28,7 +28,7 @@ static void print_object(TeaValue object)
                 printf("<function>");
             break;
         }
-        case OBJ_FUNCTION: 
+        case OBJ_FUNCTION:
         {
             if(AS_FUNCTION(object)->name == NULL)
                 printf("<script>");
@@ -36,23 +36,23 @@ static void print_object(TeaValue object)
                 printf("<function>");
             break;
         }
-        case OBJ_NATIVE: 
+        case OBJ_NATIVE:
             printf("<native>");
             break;
-        case OBJ_INSTANCE: 
+        case OBJ_INSTANCE:
             printf("<instance>");
             break;
-        case OBJ_LIST: 
+        case OBJ_LIST:
             printf("<list>");
             break;
-        case OBJ_MAP: 
+        case OBJ_MAP:
             printf("<map>");
             break;
-        case OBJ_MODULE: 
-            printf("<module>"); 
+        case OBJ_MODULE:
+            printf("<module>");
             break;
         case OBJ_RANGE:
-            printf("<range>"); 
+            printf("<range>");
             break;
         case OBJ_STRING:
         {
@@ -60,14 +60,14 @@ static void print_object(TeaValue object)
             if(string->length > 40)
                 printf("<string>");
             else
-                printf("'%s'", AS_CSTRING(object)); 
+                printf("'%s'", AS_CSTRING(object));
             break;
         }
         case OBJ_UPVALUE:
             printf("<upvalue>");
             break;
         default:
-            printf("<unknown>"); 
+            printf("<unknown>");
             break;
     }
 }

@@ -406,14 +406,14 @@ The sine of the argument.
 ```tea
 import math
 
-// Find the sine of a number (in radians) 
-sine = math.sin(0.5235987755982989) 
-print(sine)  // 0.5  
+// Find the sine of a number (in radians)
+sine = math.sin(0.5235987755982989)
+print(sine)  // 0.5
 
-// Find the sine of a negative number (in radians) sine = math.sin(-0.5235987755982989) print(sine)  // -0.5  
+// Find the sine of a negative number (in radians) sine = math.sin(-0.5235987755982989) print(sine)  // -0.5
 
-// Find the sine of an integer (in radians) 
-sine = math.sin(1) 
+// Find the sine of an integer (in radians)
+sine = math.sin(1)
 print(sine)  // 0.8414709848078965
 ```
 

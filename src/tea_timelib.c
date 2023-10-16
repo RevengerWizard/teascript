@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-#ifdef _WIN32
+#include "tea_arch.h"
+
+#if TEA_TARGET_WINDOWS
 #include <windows.h>
 #else
 #include <math.h>
@@ -29,7 +31,7 @@ static void time_sleep(TeaState* T)
     tea_ensure_min_args(T, count, 1);
 
     double stop = tea_check_number(T, 0);
-#ifdef _WIN32
+#if TEA_TARGET_WINDOWS
     Sleep(stop * 1000);
 #elif _POSIX_C_SOURCE >= 199309L
     struct timespec ts;

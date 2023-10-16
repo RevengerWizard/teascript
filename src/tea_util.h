@@ -6,13 +6,14 @@
 #ifndef TEA_UTIL_H
 #define TEA_UTIL_H
 
+#include "tea_arch.h"
 #include "tea_vm.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
 
-#ifdef _WIN32
+#if TEA_TARGET_WINDOWS
 #define DIR_SEPARATOR '\\'
 #define DIR_ALT_SEPARATOR '/'
 #define DIR_SEPARATOR_AS_STRING "\\"

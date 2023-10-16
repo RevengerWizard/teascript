@@ -1,4 +1,4 @@
-/* 
+/*
 ** tea_dump.c
 ** Teascript bytecode saving
 */
@@ -43,12 +43,12 @@ static void dump_size(TeaDumpState* D, size_t x)
 {
     unsigned char buff[DIBS];
     int n = 0;
-    do 
+    do
     {
         /* fill buffer in reverse order */
         buff[DIBS - (++n)] = x & 0x7f;
         x >>= 7;
-    } 
+    }
     while (x != 0);
     buff[DIBS - 1] |= 0x80; /* mark last byte */
     dump_vector(D, buff + DIBS - n, n);

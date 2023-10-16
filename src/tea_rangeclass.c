@@ -45,7 +45,7 @@ static void range_iterate(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count != 2, "Expected 2 arguments, got %d", count);
-    
+
     double start, end;
     tea_check_range(T, 0, &start, &end, NULL);
 

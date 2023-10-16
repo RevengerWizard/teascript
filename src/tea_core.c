@@ -61,11 +61,11 @@ static void core_input(TeaState* T)
 
     int c = EOF;
     uint64_t length = 0;
-    while((c = getchar()) != '\n' && c != EOF) 
+    while((c = getchar()) != '\n' && c != EOF)
     {
         line[length++] = (char)c;
 
-        if(length + 1 == current_size) 
+        if(length + 1 == current_size)
         {
             int old_size = current_size;
             current_size = TEA_GROW_CAPACITY(current_size);
@@ -74,11 +74,11 @@ static void core_input(TeaState* T)
     }
 
     /* If length has changed, shrink */
-    if(length != current_size) 
+    if(length != current_size)
     {
         line = TEA_GROW_ARRAY(T, char, line, current_size, length + 1);
     }
-    
+
     line[length] = '\0';
 
     tea_vm_push(T, OBJECT_VAL(tea_str_take(T, line, length)));
@@ -96,7 +96,7 @@ static void core_open(TeaState* T)
         type = tea_check_string(T, 1);
 
     FILE* fp = fopen(path, type);
-    if(fp == NULL) 
+    if(fp == NULL)
     {
         tea_error(T, "Unable to open file '%s'", path);
     }
@@ -192,12 +192,12 @@ static void core_bin(TeaState* T)
     buffer[0] = '0';
     buffer[1] = 'b';
 
-    while(n > 0) 
+    while(n > 0)
     {
         buffer[i++] = (n % 2) + '0';
         n /= 2;
     }
-    if(i == 2) 
+    if(i == 2)
     {
         buffer[i++] = '0';
     }
@@ -206,7 +206,7 @@ static void core_bin(TeaState* T)
 
     /* Reverse the buffer to get the binary representation in the correct order */
     char temp;
-    for(int j = 0; j < (i - 2) / 2; j++) 
+    for(int j = 0; j < (i - 2) / 2; j++)
     {
         temp = buffer[j + 2];
         buffer[j + 2] = buffer[i - j - 1];
@@ -272,6 +272,6 @@ void tea_open_core(TeaState* T)
         tea_push_cfunction(T, core[i]);
         tea_call(T, 0);
         tea_pop(T, 1);
-        tea_assert(tea_get_top(T) == 0);
+        TEA_ASSERT(tea_get_top(T) == 0);
     }
 }

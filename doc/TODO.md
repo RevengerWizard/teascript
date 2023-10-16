@@ -17,13 +17,14 @@
 - [ ] warnings
 - [ ] spread operator
 - [ ] splice
-- [ ] slice
+- [X] slice
 - [ ] try/catch
 - [ ] register based bytecode
 - [ ] implicit string concatenation
 - [ ] delete keyword?
 - [x] wasm interpreter
 - [ ] better error messages
+- [ ] debug hooks
 
 ---
 

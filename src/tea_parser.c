@@ -1,5 +1,5 @@
 /*
-** tea_compiler.c
+** tea_parser.c
 ** Teascript parser and compiler
 */
 
@@ -7,12 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define tea_compiler_c
+#define tea_parser_c
 #define TEA_CORE
 
 #include "tea_def.h"
 #include "tea_state.h"
-#include "tea_compiler.h"
+#include "tea_parser.h"
 #include "tea_func.h"
 #include "tea_string.h"
 #include "tea_gc.h"
@@ -52,7 +52,7 @@ static void error_at(TeaCompiler* compiler, TeaToken* token, const char* message
     }
 
     fprintf(stderr, ": %s\n", message);
-    
+
     tea_do_throw(compiler->parser->T, TEA_SYNTAX_ERROR);
 }
 
@@ -297,7 +297,7 @@ static TeaOFunction* end_compiler(TeaCompiler* compiler)
     }
 
     compiler->parser->T->compiler = compiler->enclosing;
-    
+
     return function;
 }
 
@@ -365,7 +365,7 @@ static int resolve_local(TeaCompiler* compiler, TeaToken* name)
             {
                 break;
             }
-                
+
             return i;
         }
     }
@@ -438,7 +438,7 @@ static void add_local(TeaCompiler* compiler, TeaToken name)
 static int add_init_local(TeaCompiler* compiler, TeaToken name, bool constant)
 {
     add_local(compiler, name);
-    
+
     TeaLocal* local = &compiler->locals[compiler->local_count - 1];
     local->depth = compiler->scope_depth;
     local->constant = constant;
@@ -491,17 +491,17 @@ static void define_variable(TeaCompiler* compiler, uint8_t global, bool constant
     }
 
     TeaOString* string = AS_STRING(current_chunk(compiler)->constants.values[global]);
-    if(constant) 
+    if(constant)
     {
         tea_tab_set(compiler->parser->T, &compiler->parser->T->constants, string, NULL_VAL);
     }
-    
+
     TeaValue value;
-    if(tea_tab_get(&compiler->parser->T->globals, string, &value)) 
+    if(tea_tab_get(&compiler->parser->T->globals, string, &value))
     {
         emit_argued(compiler, OP_DEFINE_GLOBAL, global);
-    } 
-    else 
+    }
+    else
     {
         emit_argued(compiler, OP_DEFINE_MODULE, global);
     }
@@ -520,7 +520,7 @@ static uint8_t argument_list(TeaCompiler* compiler)
                 error(compiler, "Can't have more than 255 arguments");
             }
             arg_count++;
-        } 
+        }
         while(match(compiler, TOKEN_COMMA));
     }
     consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after arguments");
@@ -866,7 +866,7 @@ static bool s_expression(TeaCompiler* compiler)
         {
             null(compiler, false);
             emit_constant(compiler, NUMBER_VAL(1));
-        } 
+        }
         else
         {
             // [n::n]
@@ -1000,9 +1000,9 @@ static void interpolation(TeaCompiler* compiler, bool can_assign)
         expression(compiler);
 
         invoke_method(compiler, 1, "add");
-    } 
+    }
     while(match(compiler, TOKEN_INTERPOLATION));
-    
+
     consume(compiler, TOKEN_STRING, "Expect end of string interpolation");
     literal(compiler, false);
     invoke_method(compiler, 1, "add");
@@ -1020,7 +1020,7 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
             {
                 error(compiler, "Cannot assign to a constant");
             }
-            
+
             break;
         }
         case OP_SET_UPVALUE:
@@ -1031,7 +1031,7 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
             {
                 error(compiler, "Cannot assign to a constant");
             }
-            
+
             break;
         }
         case OP_SET_GLOBAL:
@@ -1043,7 +1043,7 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
             {
                 error(compiler, "Cannot assign to a constant");
             }
-            
+
             break;
         }
         default:;
@@ -1083,12 +1083,12 @@ static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign
         arg = identifier_constant(compiler, &name);
         TeaOString* string = tea_str_copy(compiler->parser->T, name.start, name.length);
         TeaValue value;
-        if(tea_tab_get(&compiler->parser->T->globals, string, &value)) 
+        if(tea_tab_get(&compiler->parser->T->globals, string, &value))
         {
             get_op = OP_GET_GLOBAL;
             set_op = OP_SET_GLOBAL;
-        } 
-        else 
+        }
+        else
         {
             get_op = OP_GET_MODULE;
             set_op = OP_SET_MODULE;
@@ -1463,7 +1463,7 @@ static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaF
     {
         bool optional = false;
         bool spread = false;
-        
+
         do
         {
             if(spread)
@@ -1509,7 +1509,7 @@ static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaF
 
             uint8_t constant = parse_variable_at(fn_compiler, name);
             define_variable(fn_compiler, constant, false);
-        } 
+        }
         while(match(fn_compiler, TOKEN_COMMA));
 
         if(fn_compiler->function->arity_optional > 0)
@@ -1560,7 +1560,7 @@ static void grouping(TeaCompiler* compiler, bool can_assign)
 
     const char* start = compiler->parser->previous.start;
 	int line = compiler->parser->previous.line;
-    
+
     if(match(compiler, TOKEN_NAME))
     {
         TeaToken name = compiler->parser->previous;
@@ -1626,7 +1626,7 @@ static void arrow(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaToken name
             }
             uint8_t constant = parse_variable(fn_compiler, "Expect parameter name");
             define_variable(fn_compiler, constant, false);
-        } 
+        }
         while(match(fn_compiler, TOKEN_COMMA));
     }
 
@@ -1670,9 +1670,9 @@ static TeaTokenType operators[] = {
 static void operator(TeaCompiler* compiler)
 {
     int i = 0;
-    while(operators[i] != TOKEN_EOF) 
+    while(operators[i] != TOKEN_EOF)
     {
-        if(match(compiler, operators[i])) 
+        if(match(compiler, operators[i]))
         {
             break;
         }
@@ -1687,7 +1687,7 @@ static void operator(TeaCompiler* compiler)
         compiler->klass->is_static = false;
         consume(compiler, TOKEN_RIGHT_BRACKET, "Expected ']' after '[' operator method");
         name = tea_str_literal(compiler->parser->T, "[]");
-    } 
+    }
     else
     {
         compiler->klass->is_static = true;
@@ -1778,7 +1778,7 @@ static void class_declaration(TeaCompiler* compiler)
         begin_scope(compiler);
         add_local(compiler, synthetic_token("super"));
         define_variable(compiler, 0, false);
-    
+
         named_variable(compiler, class_name, false);
         emit_op(compiler, OP_INHERIT);
         class_compiler.has_superclass = true;
@@ -1823,7 +1823,7 @@ static void function_assignment(TeaCompiler* compiler)
     {
         consume(compiler, TOKEN_NAME, "Expect method name");
         uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
-        
+
         TeaClassCompiler class_compiler;
         init_class_compiler(compiler, &class_compiler);
 
@@ -1840,11 +1840,11 @@ static void function_declaration(TeaCompiler* compiler)
 {
     consume(compiler, TOKEN_NAME, "Expect function name");
     TeaToken name = compiler->parser->previous;
-    
+
     if(check(compiler, TOKEN_DOT) || check(compiler, TOKEN_COLON))
     {
         named_variable(compiler, name, false);
-        function_assignment(compiler);        
+        function_assignment(compiler);
         return;
     }
 
@@ -1879,7 +1879,7 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
         consume(compiler, TOKEN_NAME, "Expect variable name");
         variables[var_count] = compiler->parser->previous;
         var_count++;
-        
+
         if(rest)
         {
             rest_pos = var_count;
@@ -1949,7 +1949,7 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
             emit_op(compiler, OP_NULL);
         }
     }
-    
+
     finish:
     if(compiler->scope_depth == 0)
     {
@@ -1958,7 +1958,7 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
             uint8_t identifier = identifier_constant(compiler, &variables[i]);
             define_variable(compiler, identifier, constant);
         }
-    } 
+    }
     else
     {
         for(int i = 0; i < var_count; i++)
@@ -1984,7 +1984,7 @@ static void expression_statement(TeaCompiler* compiler)
 
 static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
 {
-    switch(code[ip]) 
+    switch(code[ip])
     {
         case OP_NULL:
         case OP_TRUE:
@@ -2064,7 +2064,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_INVOKE:
         case OP_SUPER:
             return 2;
-        case OP_CLOSURE: 
+        case OP_CLOSURE:
         {
             int constant = code[ip + 1];
             TeaOFunction* loaded_fn = AS_FUNCTION(constants.values[constant]);
@@ -2124,15 +2124,15 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var, bool constant)
 
     if(match(compiler, TOKEN_COMMA))
     {
-        do 
+        do
         {
             consume(compiler, TOKEN_NAME, "Expect variable name");
             variables[var_count] = compiler->parser->previous;
             var_count++;
-        } 
+        }
         while(match(compiler, TOKEN_COMMA));
     }
-    
+
     consume(compiler, TOKEN_IN, "Expect for iterator");
 
     expression(compiler);
@@ -2175,7 +2175,7 @@ static void for_in_statement(TeaCompiler* compiler, TeaToken var, bool constant)
 
     /* Loop variable */
     end_scope(compiler);
-    
+
     emit_loop(compiler, compiler->loop->start);
     end_loop(compiler);
 
@@ -2225,7 +2225,7 @@ static void for_statement(TeaCompiler* compiler)
     begin_loop(compiler, &loop);
 
     compiler->loop->end = -1;
-    
+
     expression(compiler);
     consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop condition");
 
@@ -2241,7 +2241,7 @@ static void for_statement(TeaCompiler* compiler)
 
     emit_loop(compiler, compiler->loop->start);
     compiler->loop->start = increment_start;
-    
+
     patch_jump(compiler, body_jump);
 
     compiler->loop->body = compiler->function->chunk.count;
@@ -2318,13 +2318,13 @@ static void switch_statement(TeaCompiler* compiler)
         {
             expression(compiler);
             int multiple_cases = 0;
-            if(match(compiler, TOKEN_COMMA)) 
+            if(match(compiler, TOKEN_COMMA))
             {
                 do
                 {
                     multiple_cases++;
                     expression(compiler);
-                } 
+                }
                 while(match(compiler, TOKEN_COMMA));
                 emit_argued(compiler, OP_MULTI_CASE, multiple_cases);
             }
@@ -2338,7 +2338,7 @@ static void switch_statement(TeaCompiler* compiler)
                 error_at_current(compiler, "Switch statement can not have more than 256 case blocks");
             }
 
-        } 
+        }
         while(match(compiler, TOKEN_CASE));
     }
 
@@ -2356,10 +2356,10 @@ static void switch_statement(TeaCompiler* compiler)
 
     consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after switch body");
 
-    for(int i = 0; i < case_count; i++) 
+    for(int i = 0; i < case_count; i++)
     {
     	patch_jump(compiler, case_ends[i]);
-    } 
+    }
 }
 
 static void return_statement(TeaCompiler* compiler)
@@ -2394,7 +2394,7 @@ static void import_statement(TeaCompiler* compiler)
         emit_argued(compiler, OP_IMPORT_STRING, import_constant);
         emit_op(compiler, OP_POP);
 
-        if(match(compiler, TOKEN_AS)) 
+        if(match(compiler, TOKEN_AS))
         {
             uint8_t import_name = parse_variable(compiler, "Expect import alias");
             emit_op(compiler, OP_IMPORT_ALIAS);
@@ -2414,7 +2414,7 @@ static void import_statement(TeaCompiler* compiler)
         uint8_t import_name = identifier_constant(compiler, &compiler->parser->previous);
         declare_variable(compiler, &compiler->parser->previous);
 
-        if(match(compiler, TOKEN_AS)) 
+        if(match(compiler, TOKEN_AS))
         {
             uint8_t import_alias = parse_variable(compiler, "Expect import alias");
 
@@ -2459,12 +2459,12 @@ static void from_import_statement(TeaCompiler* compiler)
 
     int var_count = 0;
 
-    do 
+    do
     {
         consume(compiler, TOKEN_NAME, "Expect variable name");
         TeaToken var_token = compiler->parser->previous;
         uint8_t var_constant = identifier_constant(compiler, &var_token);
-        
+
         uint8_t slot;
         if(match(compiler, TOKEN_AS))
         {
@@ -2479,11 +2479,11 @@ static void from_import_statement(TeaCompiler* compiler)
         define_variable(compiler, slot, false);
 
         var_count++;
-        if(var_count > 255) 
+        if(var_count > 255)
         {
             error(compiler, "Cannot have more than 255 variables");
         }
-    } 
+    }
     while(match(compiler, TOKEN_COMMA));
 
     emit_op(compiler, OP_IMPORT_END);
@@ -2565,12 +2565,12 @@ static void multiple_assignment(TeaCompiler* compiler)
     variables[var_count] = previous;
     var_count++;
 
-    do 
+    do
     {
         consume(compiler, TOKEN_NAME, "Expect variable name");
         variables[var_count] = compiler->parser->previous;
         var_count++;
-    } 
+    }
     while(match(compiler, TOKEN_COMMA));
 
     consume(compiler, TOKEN_EQUAL, "Expect '=' multiple assignment");
@@ -2591,32 +2591,32 @@ static void multiple_assignment(TeaCompiler* compiler)
     {
         error(compiler, "Not enough values to assign to");
     }
-    
+
     finish:
     for(int i = var_count - 1; i >= 0; i--)
     {
         TeaToken token = variables[i];
-    
+
         uint8_t set_op;
         int arg = resolve_local(compiler, &token);
-        if(arg != -1) 
+        if(arg != -1)
         {
             set_op = OP_SET_LOCAL;
-        } 
-        else if((arg = resolve_upvalue(compiler, &token)) != -1) 
+        }
+        else if((arg = resolve_upvalue(compiler, &token)) != -1)
         {
             set_op = OP_SET_UPVALUE;
-        } 
+        }
         else
         {
             arg = identifier_constant(compiler, &token);
             TeaOString* string = tea_str_copy(compiler->parser->T, token.start, token.length);
             TeaValue value;
-            if(tea_tab_get(&compiler->parser->T->globals, string, &value)) 
+            if(tea_tab_get(&compiler->parser->T->globals, string, &value))
             {
                 set_op = OP_SET_GLOBAL;
-            } 
-            else 
+            }
+            else
             {
                 set_op = OP_SET_MODULE;
             }
@@ -2724,7 +2724,7 @@ static void tea_lex_all(TeaLexer* lex, const char* source)
         {
             printf("%4d ", token.line);
             line = token.line;
-        } 
+        }
         else
         {
             printf("   | ");
@@ -2764,7 +2764,7 @@ TeaOFunction* tea_compile(TeaState* T, TeaOModule* module, const char* source)
 
     TeaOFunction* function = end_compiler(&compiler);
 
-    if(!T->repl) 
+    if(!T->repl)
     {
         tea_tab_free(T, &T->constants);
     }

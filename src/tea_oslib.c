@@ -17,9 +17,9 @@
 #include "tea_import.h"
 #include "tea_core.h"
 
-#ifdef _WIN32
+#if TEA_TARGET_WINDOWS
 #define unsetenv(NAME) _putenv_s(NAME, "")
-int setenv(const char* name, const char* value, int overwrite) 
+int setenv(const char* name, const char* value, int overwrite)
 {
     if(!overwrite && getenv(name) == NULL)
     {
@@ -29,7 +29,7 @@ int setenv(const char* name, const char* value, int overwrite)
     if(_putenv_s(name, value))
     {
         return -1;
-    } 
+    }
     else
     {
         return 0;
@@ -47,7 +47,7 @@ static void os_getenv(TeaState* T)
     {
         tea_check_string(T, 1);
 
-        if(value != NULL) 
+        if(value != NULL)
         {
             tea_push_string(T, value);
             return;
@@ -56,7 +56,7 @@ static void os_getenv(TeaState* T)
         return;
     }
 
-    if(value != NULL) 
+    if(value != NULL)
     {
         tea_push_string(T, value);
         return;
@@ -100,7 +100,7 @@ static void os_execute(TeaState* T)
     tea_ensure_min_args(T, count, 1);
 
     const char* arg = tea_check_string(T, 0);
-    
+
     tea_push_number(T, system(arg));
 }
 
@@ -115,7 +115,7 @@ static void init_env(TeaState* T)
     {
         char* key = strdup(*current);  /* Create a copy of the environment variable */
         char* value = strchr(key, '=');
-        
+
         if(value != NULL)
         {
             *value = '\0';  /* Split the variable and value */
@@ -124,7 +124,7 @@ static void init_env(TeaState* T)
             tea_push_string(T, value);
             tea_set_key(T, -2, key);
         }
-        
+
         free(key);
     }
 
@@ -142,7 +142,7 @@ static const TeaModule os_module[] = {
 
 TEAMOD_API void tea_import_os(TeaState* T)
 {
-    tea_create_module(T, TEA_MODULE_OS, os_module);    
+    tea_create_module(T, TEA_MODULE_OS, os_module);
     tea_push_string(T, TEA_OS_NAME);
     tea_set_key(T, 0, "name");
     init_env(T);

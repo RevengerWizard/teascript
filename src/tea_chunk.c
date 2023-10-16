@@ -44,7 +44,7 @@ void tea_chunk_write(TeaState* T, TeaChunk* chunk, uint8_t byte, int line)
     chunk->count++;
 
     /* See if we're still on the same line */
-    if(chunk->line_count > 0 && chunk->lines[chunk->line_count - 1].line == line) 
+    if(chunk->line_count > 0 && chunk->lines[chunk->line_count - 1].line == line)
     {
         return;
     }
@@ -83,11 +83,11 @@ int tea_chunk_getline(TeaChunk* chunk, int instruction)
         if(instruction < line->offset)
         {
             end = mid - 1;
-        } 
-        else if(mid == chunk->line_count - 1 || instruction < chunk->lines[mid + 1].offset) 
+        }
+        else if(mid == chunk->line_count - 1 || instruction < chunk->lines[mid + 1].offset)
         {
             return line->line;
-        } 
+        }
         else
         {
             start = mid + 1;

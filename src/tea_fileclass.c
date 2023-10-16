@@ -95,7 +95,7 @@ static void file_read(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_min_args(T, count, 1);
-    
+
     TeaOFile* file = get_file(T);
 
     if(strcmp(file->type->chars, "w") == 0)
@@ -117,7 +117,7 @@ static void file_read(TeaState* T)
             current_size += BUFFER_SIZE;
             contents = TEA_GROW_ARRAY(T, char, contents, old_size, current_size);
         }
-    } 
+    }
     while(read_bytes == BUFFER_SIZE);
 
     contents[total_read_bytes] = '\0';
@@ -142,10 +142,10 @@ static void file_readline(TeaState* T)
     int current_size = BUFFER_SIZE;
     char* line = TEA_ALLOCATE(T, char, current_size);
 
-    while(fgets(line, BUFFER_SIZE, file->file) != NULL) 
+    while(fgets(line, BUFFER_SIZE, file->file) != NULL)
     {
         int line_length = strlen(line);
-        
+
         if(line_length == BUFFER_SIZE && line[line_length - 1] != '\n')
         {
             int old_size = current_size;
@@ -155,7 +155,7 @@ static void file_readline(TeaState* T)
         else
         {
             /* Remove newline char */
-            if(line[line_length - 1] == '\n') 
+            if(line[line_length - 1] == '\n')
             {
                 line_length--;
             }
@@ -179,10 +179,10 @@ static void file_seek(TeaState* T)
     TeaOFile* file = get_file(T);
 
     int seek_type = SEEK_SET;
-    if(count == 3) 
+    if(count == 3)
     {
         int seek_type_num = tea_check_number(T, 2);
-        switch(seek_type_num) 
+        switch(seek_type_num)
         {
             case 0:
                 seek_type = SEEK_SET;
@@ -201,7 +201,7 @@ static void file_seek(TeaState* T)
 
     int offset = tea_check_number(T, 1);
 
-    if(offset != 0 && !strstr(file->type->chars, "b")) 
+    if(offset != 0 && !strstr(file->type->chars, "b"))
     {
         tea_error(T, "May not have non-zero offset if file is opened in text mode");
     }
@@ -228,7 +228,7 @@ static void file_close(TeaState* T)
 
     fclose(file->file);
     file->is_open = false;
-    
+
     tea_push_null(T);
 }
 

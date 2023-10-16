@@ -19,7 +19,7 @@
 
 #include "tea_api.c"
 #include "tea_chunk.c"
-#include "tea_compiler.c"
+#include "tea_parser.c"
 #include "tea_core.c"
 #include "tea_debug.c"
 #include "tea_do.c"

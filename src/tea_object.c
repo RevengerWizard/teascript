@@ -69,7 +69,7 @@ TeaOClass* tea_obj_new_class(TeaState* T, TeaOString* name, TeaOClass* superclas
 TeaOUserdata* tea_obj_new_userdata(TeaState* T, size_t size)
 {
     TeaOUserdata* ud = ALLOCATE_OBJECT(T, TeaOUserdata, OBJ_USERDATA);
-    
+
     if(size > 0)
     {
         ud->data = tea_mem_realloc(T, NULL, 0, size);
@@ -78,7 +78,7 @@ TeaOUserdata* tea_obj_new_userdata(TeaState* T, size_t size)
     {
         ud->data = NULL;
     }
-    
+
     ud->size = size;
 
     return ud;
@@ -99,7 +99,7 @@ TeaOModule* tea_obj_new_module(TeaState* T, TeaOString* name)
     TeaValue module_val;
     if(c != '?')
     {
-        if(tea_tab_get(&T->modules, name, &module_val)) 
+        if(tea_tab_get(&T->modules, name, &module_val))
         {
             return AS_MODULE(module_val);
         }
@@ -109,7 +109,7 @@ TeaOModule* tea_obj_new_module(TeaState* T, TeaOString* name)
     tea_tab_init(&module->values);
     module->name = name;
     module->path = NULL;
-    
+
     tea_vm_push(T, OBJECT_VAL(module));
     tea_tab_set(T, &T->modules, name, OBJECT_VAL(module));
     tea_vm_pop(T, 1);
@@ -151,12 +151,12 @@ static TeaOString* list_tostring(TeaState* T, TeaOList* list)
         return tea_str_literal(T, "[]");
 
     int size = 50;
-    
+
     char* string = TEA_ALLOCATE(T, char, size);
     memcpy(string, "[", 1);
     int length = 1;
 
-    for(int i = 0; i < list->items.count; i++) 
+    for(int i = 0; i < list->items.count; i++)
     {
         TeaValue value = list->items.values[i];
 
@@ -179,13 +179,13 @@ static TeaOString* list_tostring(TeaState* T, TeaOList* list)
             element_size = s->length;
         }
 
-        if(element_size > (size - length - 6)) 
+        if(element_size > (size - length - 6))
         {
             int old_size = size;
-            if(element_size > size) 
+            if(element_size > size)
             {
                 size = size + element_size * 2 + 6;
-            } 
+            }
             else
             {
                 size = size * 2 + 6;
@@ -197,7 +197,7 @@ static TeaOString* list_tostring(TeaState* T, TeaOList* list)
         memcpy(string + length, element, element_size);
         length += element_size;
 
-        if(i != list->items.count - 1) 
+        if(i != list->items.count - 1)
         {
             memcpy(string + length, ", ", 2);
             length += 2;
@@ -217,7 +217,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
 {
     if(map->count == 0)
         return tea_str_literal(T, "{}");
-        
+
     int count = 0;
     int size = 50;
 
@@ -225,10 +225,10 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
     memcpy(string, "{", 1);
     int length = 1;
 
-    for(int i = 0; i < map->capacity; i++) 
+    for(int i = 0; i < map->capacity; i++)
     {
         TeaMapItem* item = &map->items[i];
-        if(item->empty) 
+        if(item->empty)
         {
             continue;
         }
@@ -237,7 +237,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
 
         char* key;
         int key_size;
-        
+
 #ifdef TEA_NAN_TAGGING
         if(item->key == OBJECT_VAL(map))
 #else
@@ -252,16 +252,16 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
             TeaOString* s = tea_val_tostring(T, item->key);
             key = s->chars;
             key_size = s->length;
-        } 
+        }
 
-        if(key_size > (size - length - key_size - 4)) 
+        if(key_size > (size - length - key_size - 4))
         {
             int old_size = size;
-            if(key_size > size) 
+            if(key_size > size)
             {
                 size += key_size * 2 + 4;
-            } 
-            else 
+            }
+            else
             {
                 size *= 2 + 4;
             }
@@ -276,7 +276,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
             memcpy(string + length + 1 + key_size, "] = ", 4);
             length += 5 + key_size;
         }
-        else 
+        else
         {
             memcpy(string + length, key, key_size);
             memcpy(string + length + key_size, " = ", 3);
@@ -285,7 +285,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
 
         char* element;
         int element_size;
-        
+
 #ifdef TEA_NAN_TAGGING
         if(item->value == OBJECT_VAL(map))
 #else
@@ -300,12 +300,12 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
             TeaOString* s = tea_val_tostring(T, item->value);
             element = s->chars;
             element_size = s->length;
-        } 
+        }
 
-        if(element_size > (size - length - element_size - 6)) 
+        if(element_size > (size - length - element_size - 6))
         {
             int old_size = size;
-            if(element_size > size) 
+            if(element_size > size)
             {
                 size += element_size * 2 + 6;
             }
@@ -406,8 +406,8 @@ TeaOString* tea_obj_tostring(TeaState* T, TeaValue value)
             {
                 case NATIVE_PROPERTY:
                     return tea_str_literal(T, "<property>");
-                case NATIVE_FUNCTION: 
-                case NATIVE_METHOD: 
+                case NATIVE_FUNCTION:
+                case NATIVE_METHOD:
                     return tea_str_literal(T, "<function>");
             }
         }

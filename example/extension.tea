@@ -1,0 +1,18 @@
+class Foo
+{
+    constructor(x, y)
+    {
+        this.x = x
+        this.y = y
+    }
+}
+
+function Foo:say()
+{
+    this.said = "hello hello"
+    print(this, this.said)
+}
+
+var foo = Foo(12, 32)
+foo.say()
+print(foo.said)

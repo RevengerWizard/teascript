@@ -50,7 +50,7 @@ static void t_panic(TeaState* T)
 
 static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
 {
-    (void)ud; 
+    (void)ud;
     (void)osize;
     if(nsize == 0)
     {
@@ -64,9 +64,9 @@ static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
 static void init_opmethods(TeaState* T)
 {
     static const char* const opmnames[] = {
-        "+", "-", "*", "/", "%", "**", 
-        "&", "|", "~", "^", "<<", ">>", 
-        "<", "<=", ">", ">=", "==", 
+        "+", "-", "*", "/", "%", "**",
+        "&", "|", "~", "^", "<<", ">>",
+        "<", "<=", ">", ">=", "==",
         "[]", "tostring"
     };
     for(int i = 0; i < MT_END; i++)
@@ -80,7 +80,7 @@ TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
     TeaState* T;
     f = (f != NULL) ? f : t_alloc;
     T = (TeaState*)((*f)(ud, NULL, 0, sizeof(*T)));
-    if(T == NULL) 
+    if(T == NULL)
         return T;
     T->frealloc = f;
     T->ud = ud;
@@ -126,8 +126,8 @@ TEA_API void tea_close(TeaState* T)
     {
         T->opm_name[i] = NULL;
     }
-    
-    if(T->repl) 
+
+    if(T->repl)
         tea_tab_free(T, &T->constants);
 
     tea_tab_free(T, &T->modules);
@@ -183,8 +183,12 @@ TEA_API TeaStatus tea_interpret(TeaState* T, const char* module_name, const char
     {
         module->path = tea_util_get_directory(T, (char*)module_name);
     }
+    else
+    {
+        module->path = tea_str_literal(T, ".");
+    }
     tea_vm_pop(T, 1);
-    
+
     int status = tea_do_protected_compiler(T, module, source);
     if(status != TEA_OK)
         return TEA_SYNTAX_ERROR;

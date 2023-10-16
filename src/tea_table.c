@@ -119,7 +119,7 @@ bool tea_tab_set(TeaState* T, TeaTable* table, TeaOString* key, TeaValue value)
 
     entry->key = key;
     entry->value = value;
-    
+
     return is_new_key;
 }
 

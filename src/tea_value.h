@@ -59,7 +59,7 @@ static inline double value_to_num(TeaValue value)
 {
     double num;
     memcpy(&num, &value, sizeof(TeaValue));
-    
+
     return num;
 }
 
@@ -67,7 +67,7 @@ static inline TeaValue num_to_value(double num)
 {
     TeaValue value;
     memcpy(&value, &num, sizeof(double));
-    
+
     return value;
 }
 

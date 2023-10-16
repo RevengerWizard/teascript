@@ -1,5 +1,5 @@
 /*
-** tea_compiler.h
+** tea_parser.h
 ** Teascript parser and compiler
 */
 
@@ -63,7 +63,7 @@ typedef struct TeaClassCompiler
     bool has_superclass;
 } TeaClassCompiler;
 
-typedef struct TeaLoop 
+typedef struct TeaLoop
 {
     struct TeaLoop* enclosing;
     int start;

@@ -10,6 +10,7 @@
 #define tea_util_c
 #define TEA_CORE
 
+#include "tea_arch.h"
 #include "tea_util.h"
 #include "tea_string.h"
 #include "tea_state.h"
@@ -91,7 +92,7 @@ bool tea_util_resolve_path(char* directory, char* path, char* ret)
 
     snprintf(buf, PATH_MAX, "%s%c%s", directory, DIR_SEPARATOR, path);
 
-#ifdef _WIN32
+#if TEA_TARGET_WINDOWS
     _fullpath(ret, buf, PATH_MAX);
 #else
     if(realpath(buf, ret) == NULL) 

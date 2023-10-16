@@ -1,4 +1,4 @@
-/* 
+/*
 ** tea_undump.c
 ** Teascript bytecode loading
 */
@@ -55,13 +55,13 @@ static size_t load_unsigned(TeaLoadState* S, size_t limit)
     size_t x = 0;
     int b;
     limit >>= 7;
-    do 
+    do
     {
         b = load_byte(S);
         if(x >= limit)
             error(S, "integer overflow");
         x = (x << 7) | (b & 0x7f);
-    } 
+    }
     while((b & 0x80) == 0);
     return x;
 }

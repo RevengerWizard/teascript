@@ -45,17 +45,17 @@ class Vector
         return a.x == b.x and a.y == b.y
     }
 
-    [] (index, value) 
+    [] (index, value)
     {
         index %= 2
 
-        if(value != null) 
+        if(value != null)
         {
-            if(index == 0) 
+            if(index == 0)
             {
                 this.x = value
             }
-            else 
+            else
             {
                 this.y = value
             }

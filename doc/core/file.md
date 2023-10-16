@@ -143,7 +143,7 @@ f.close()
 
 ## File.seek
 
-The `File.seek` method 
+The `File.seek` method
 
 #### Syntax
 

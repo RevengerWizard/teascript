@@ -11,7 +11,7 @@
 #include "tea_state.h"
 #include "tea_memory.h"
 #include "tea_gc.h"
-#include "tea_compiler.h"
+#include "tea_parser.h"
 
 #ifdef TEA_DEBUG_LOG_GC
 #include <stdio.h>
@@ -272,7 +272,7 @@ static void mark_roots(TeaState* T)
     {
         tea_gc_markval(T, *slot);
     }
-    
+
     for(TeaCallInfo* ci = T->base_ci; ci < T->ci; ci++)
     {
         tea_gc_markobj(T, (TeaObject*)ci->closure);
@@ -292,7 +292,7 @@ static void mark_roots(TeaState* T)
     tea_gc_markobj(T, (TeaObject*)T->string_class);
     tea_gc_markobj(T, (TeaObject*)T->range_class);
     tea_gc_markobj(T, (TeaObject*)T->file_class);
-    
+
     tea_gc_markobj(T, (TeaObject*)T->constructor_string);
     tea_gc_markobj(T, (TeaObject*)T->repl_string);
     tea_gc_markobj(T, (TeaObject*)T->memerr);
@@ -305,7 +305,7 @@ static void mark_roots(TeaState* T)
     if(T->compiler != NULL)
     {
         tea_compiler_mark_roots(T, T->compiler);
-    }   
+    }
 }
 
 static void trace_references(TeaState* T)

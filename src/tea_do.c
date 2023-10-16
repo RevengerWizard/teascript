@@ -13,7 +13,7 @@
 #include "tea_do.h"
 #include "tea_func.h"
 #include "tea_vm.h"
-#include "tea_compiler.h"
+#include "tea_parser.h"
 #include "tea_debug.h"
 
 struct tea_longjmp
@@ -132,7 +132,7 @@ static void callt(TeaState* T, TeaOClosure* closure, int arg_count)
     }
 
     tea_do_grow_ci(T);
-    teaD_checkstack(T, closure->function->max_slots);
+    tea_do_checkstack(T, closure->function->max_slots);
 
     TeaCallInfo* ci = T->ci++;
     ci->closure = closure;
@@ -144,7 +144,7 @@ static void callt(TeaState* T, TeaOClosure* closure, int arg_count)
 static void callc(TeaState* T, TeaONative* native, int arg_count)
 {
     tea_do_grow_ci(T);
-    teaD_checkstack(T, BASE_STACK_SIZE);
+    tea_do_checkstack(T, BASE_STACK_SIZE);
 
     TeaCallInfo* ci = T->ci++;
     ci->closure = NULL;

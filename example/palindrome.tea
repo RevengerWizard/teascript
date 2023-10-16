@@ -1,0 +1,12 @@
+function palindrome(s)
+{
+    s = s.lower()
+    if(s.len <= 1)
+        return true
+    else if(s[0] == s[-1])
+        return palindrome(s[1:-1])
+    else
+        return false
+}
+
+print(palindrome("Able was I ere I saw Elba"))

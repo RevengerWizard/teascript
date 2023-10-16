@@ -13,6 +13,8 @@
 
 #include "tea.h"
 
+#include "tea_arch.h"
+
 static TeaState* global = NULL;
 
 void tsignal(int id)
@@ -23,9 +25,9 @@ void tsignal(int id)
 
 static void clear()
 {
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#if TEA_TARGET_POSIX
     system("clear");
-#elif defined(_WIN32) || defined(_WIN64)
+#elif TEA_TARGET_WINDOWS
     system("cls");
 #endif
 }
@@ -72,7 +74,7 @@ static void repl(TeaState* T)
         {
             break;
         }
-        
+
         if(strcmp(line, "clear\n") == 0)
         {
             clear();
@@ -202,7 +204,7 @@ int main(int argc, char** argv)
     if(flags & flag_v)
         print_version();
     if((status = run_args(T, argv, script)) > 1)
-        return status; 
+        return status;
     if(script < argc && (status = handle_script(T, argv + script)) != TEA_OK)
     {
         return status;
