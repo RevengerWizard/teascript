@@ -38,7 +38,7 @@ TeaObject* tea_obj_allocate(TeaState* T, size_t size, TeaObjectType type)
 
 TeaOBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaValue method)
 {
-    TeaOBoundMethod* bound = ALLOCATE_OBJECT(T, TeaOBoundMethod, OBJ_BOUND_METHOD);
+    TeaOBoundMethod* bound = TEA_ALLOCATE_OBJECT(T, TeaOBoundMethod, OBJ_BOUND_METHOD);
     bound->receiver = receiver;
     bound->method = method;
 
@@ -47,7 +47,7 @@ TeaOBoundMethod* tea_obj_new_bound_method(TeaState* T, TeaValue receiver, TeaVal
 
 TeaOInstance* tea_obj_new_instance(TeaState* T, TeaOClass* klass)
 {
-    TeaOInstance* instance = ALLOCATE_OBJECT(T, TeaOInstance, OBJ_INSTANCE);
+    TeaOInstance* instance = TEA_ALLOCATE_OBJECT(T, TeaOInstance, OBJ_INSTANCE);
     instance->klass = klass;
     tea_tab_init(&instance->fields);
 
@@ -56,7 +56,7 @@ TeaOInstance* tea_obj_new_instance(TeaState* T, TeaOClass* klass)
 
 TeaOClass* tea_obj_new_class(TeaState* T, TeaOString* name, TeaOClass* superclass)
 {
-    TeaOClass* klass = ALLOCATE_OBJECT(T, TeaOClass, OBJ_CLASS);
+    TeaOClass* klass = TEA_ALLOCATE_OBJECT(T, TeaOClass, OBJ_CLASS);
     klass->name = name;
     klass->super = superclass;
     klass->constructor = NULL_VAL;
@@ -68,7 +68,7 @@ TeaOClass* tea_obj_new_class(TeaState* T, TeaOString* name, TeaOClass* superclas
 
 TeaOUserdata* tea_obj_new_userdata(TeaState* T, size_t size)
 {
-    TeaOUserdata* ud = ALLOCATE_OBJECT(T, TeaOUserdata, OBJ_USERDATA);
+    TeaOUserdata* ud = TEA_ALLOCATE_OBJECT(T, TeaOUserdata, OBJ_USERDATA);
 
     if(size > 0)
     {
@@ -86,7 +86,7 @@ TeaOUserdata* tea_obj_new_userdata(TeaState* T, size_t size)
 
 TeaOList* tea_obj_new_list(TeaState* T)
 {
-    TeaOList* list = ALLOCATE_OBJECT(T, TeaOList, OBJ_LIST);
+    TeaOList* list = TEA_ALLOCATE_OBJECT(T, TeaOList, OBJ_LIST);
     tea_init_value_array(&list->items);
 
     return list;
@@ -105,7 +105,7 @@ TeaOModule* tea_obj_new_module(TeaState* T, TeaOString* name)
         }
     }
 
-    TeaOModule* module = ALLOCATE_OBJECT(T, TeaOModule, OBJ_MODULE);
+    TeaOModule* module = TEA_ALLOCATE_OBJECT(T, TeaOModule, OBJ_MODULE);
     tea_tab_init(&module->values);
     module->name = name;
     module->path = NULL;
@@ -119,7 +119,7 @@ TeaOModule* tea_obj_new_module(TeaState* T, TeaOString* name)
 
 TeaOFile* tea_obj_new_file(TeaState* T, TeaOString* path, TeaOString* type)
 {
-    TeaOFile* file = ALLOCATE_OBJECT(T, TeaOFile, OBJ_FILE);
+    TeaOFile* file = TEA_ALLOCATE_OBJECT(T, TeaOFile, OBJ_FILE);
     file->path = path;
     file->type = type;
     file->is_open = true;
@@ -129,7 +129,7 @@ TeaOFile* tea_obj_new_file(TeaState* T, TeaOString* path, TeaOString* type)
 
 TeaORange* tea_obj_new_range(TeaState* T, double start, double end, double step)
 {
-    TeaORange* range = ALLOCATE_OBJECT(T, TeaORange, OBJ_RANGE);
+    TeaORange* range = TEA_ALLOCATE_OBJECT(T, TeaORange, OBJ_RANGE);
     range->start = start;
     range->end = end;
     range->step = step;
@@ -338,32 +338,10 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
 
 static TeaOString* range_tostring(TeaState* T, TeaORange* range)
 {
-    char* start = tea_val_number_tostring(T, range->start)->chars;
-    char* end = tea_val_number_tostring(T, range->end)->chars;
+    TeaOString* start = tea_val_number_tostring(T, range->start);
+    TeaOString* end = tea_val_number_tostring(T, range->end);
 
-    int len = snprintf(NULL, 0, "%s...%s", start, end);
-    char* string = TEA_ALLOCATE(T, char, len + 1);
-    snprintf(string, len + 1, "%s...%s", start, end);
-
-    return tea_str_take(T, string, len);
-}
-
-static TeaOString* module_tostring(TeaState* T, TeaOModule* module)
-{
-    int len = snprintf(NULL, 0, "<%s module>", module->name->chars);
-    char* string = TEA_ALLOCATE(T, char, len + 1);
-    snprintf(string, len + 1, "<%s module>", module->name->chars);
-
-    return tea_str_take(T, string, len);
-}
-
-static TeaOString* class_tostring(TeaState* T, TeaOClass* klass)
-{
-    int len = snprintf(NULL, 0, "<%s>", klass->name->chars);
-    char* string = TEA_ALLOCATE(T, char, len + 1);
-    snprintf(string, len + 1, "<%s>", klass->name->chars);
-
-    return tea_str_take(T, string, len);
+    return tea_str_format(T, "@...@", start, end);
 }
 
 static TeaOString* instance_tostring(TeaState* T, TeaOInstance* instance)
@@ -385,11 +363,7 @@ static TeaOString* instance_tostring(TeaState* T, TeaOInstance* instance)
         return AS_STRING(result);
     }
 
-    int len = snprintf(NULL, 0, "<%s instance>", instance->klass->name->chars);
-    char* string = TEA_ALLOCATE(T, char, len + 1);
-    snprintf(string, len + 1, "<%s instance>", instance->klass->name->chars);
-
-    return tea_str_take(T, string, len);
+    return tea_str_format(T, "<@ instance>", instance->klass->name);
 }
 
 TeaOString* tea_obj_tostring(TeaState* T, TeaValue value)
@@ -422,9 +396,9 @@ TeaOString* tea_obj_tostring(TeaState* T, TeaValue value)
         case OBJ_RANGE:
             return range_tostring(T, AS_RANGE(value));
         case OBJ_MODULE:
-            return module_tostring(T, AS_MODULE(value));
+            return tea_str_format(T, "<@ module>", AS_MODULE(value)->name);
         case OBJ_CLASS:
-            return class_tostring(T, AS_CLASS(value));
+            return tea_str_format(T, "<@>", AS_CLASS(value)->name);
         case OBJ_INSTANCE:
             return instance_tostring(T, AS_INSTANCE(value));
         case OBJ_STRING:

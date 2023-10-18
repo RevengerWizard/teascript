@@ -34,6 +34,6 @@ TEA_FUNC void tea_do_throw(TeaState* T, int code);
 
 TEA_FUNC int tea_do_runprotected(TeaState* T, TeaPFunction f, void* ud);
 
-TEA_FUNC int tea_do_protected_compiler(TeaState* T, TeaOModule* module, const char* source);
+TEA_FUNC int tea_do_protectedparser(TeaState* T, TeaOModule* module, const char* source);
 
 #endif

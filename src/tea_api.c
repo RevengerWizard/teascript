@@ -93,7 +93,7 @@ TEA_API void tea_set_top(TeaState* T, int index)
     }
     else
     {
-        T->top += index;
+        T->top += index + 1;
     }
 }
 
@@ -844,13 +844,13 @@ TEA_API void tea_call(TeaState* T, int n)
     tea_do_call(T, func, n);
 }
 
-TEA_API TeaStatus tea_dofile(TeaState* T, const char* path)
+TEA_API int tea_dofile(TeaState* T, const char* path)
 {
     char* source = tea_util_read_file(T, path);
     if(source == NULL)
         return TEA_FILE_ERROR;
 
-    TeaStatus status = tea_interpret(T, path, source);
+    int status = tea_interpret(T, path, source);
     TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
 
     return status;

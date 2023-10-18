@@ -163,9 +163,9 @@ void tea_debug_stack(TeaState* T)
     for(TeaValue* slot = T->stack; slot < T->top; slot++)
     {
         if(slot == T->base)
-        printf("[ ^");
+            printf("[ ^");
         else
-        printf("[ ");
+            printf("[ ");
 
         tea_debug_print_value(*slot);
         printf(" ]");
@@ -252,6 +252,10 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
             return simple_instruction("OP_SUBSCRIPT_PUSH", offset);
         case OP_SLICE:
             return simple_instruction("OP_SLICE", offset);
+        case OP_PUSH_LIST_ITEM:
+            return simple_instruction("OP_PUSH_LIST_ITEM", offset);
+        case OP_PUSH_MAP_FIELD:
+            return simple_instruction("OP_PUSH_MAP_FIELD", offset);
         case OP_EQUAL:
             return simple_instruction("OP_EQUAL", offset);
         case OP_IS:

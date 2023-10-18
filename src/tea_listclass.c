@@ -508,6 +508,37 @@ static void list_find(TeaState* T)
     tea_push_null(T);
 }
 
+static void flatten(TeaState* T, int src, int len)
+{
+    for(int i = 0; i < len; i++)
+    {
+        tea_get_item(T, src, i);
+        if(tea_is_list(T, -1))
+        {
+            int l = tea_len(T, -1);
+            int top = tea_get_top(T);
+            flatten(T, top - 1, l);
+        }
+        else
+        {
+            tea_push_value(T, -1);
+            tea_add_item(T, 1);
+        }
+        tea_pop(T, 1);
+    }
+}
+
+static void list_flat(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 1);
+
+    int len = tea_len(T, 0);
+
+    tea_new_list(T);
+    flatten(T, 0, len);
+}
+
 static void list_map(TeaState* T)
 {
     int count = tea_get_top(T);
@@ -670,6 +701,7 @@ static const TeaClass list_class[] = {
     { "join", "method", list_join },
     { "copy", "method", list_copy },
     { "find", "method", list_find },
+    { "flat", "method", list_flat },
     { "map", "method", list_map },
     { "filter", "method", list_filter },
     { "reduce", "method", list_reduce },

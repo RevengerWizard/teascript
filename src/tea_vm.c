@@ -398,7 +398,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
         case OBJ_MAP:
         {
             TeaOMap* map = AS_MAP(subscript_value);
-            if(!tea_map_validkey(index_value))
+            if(!tea_map_hashable(index_value))
             {
                 tea_vm_error(T, "Map key isn't hashable");
             }
@@ -507,7 +507,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
         case OBJ_MAP:
         {
             TeaOMap* map = AS_MAP(subscript_value);
-            if(!tea_map_validkey(index_value))
+            if(!tea_map_hashable(index_value))
             {
                 tea_vm_error(T, "Map key isn't hashable");
             }
@@ -891,7 +891,6 @@ void tea_vm_run(TeaState* T)
 {
     register TeaCallInfo* ci;
     register uint8_t* ip;
-
     register TeaValue* base;
 
 #define PUSH(value) (tea_vm_push(T, value))
@@ -1212,46 +1211,7 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(LIST):
             {
-                uint8_t item_count = READ_BYTE();
                 TeaOList* list = tea_obj_new_list(T);
-
-                PUSH(OBJECT_VAL(list));
-
-                /* Add items to list */
-                for(int i = item_count; i > 0; i--)
-                {
-                    if(IS_RANGE(PEEK(i)))
-                    {
-                        TeaORange* range = AS_RANGE(PEEK(i));
-
-                        int start = range->start;
-                        int end = range->end;
-                        int step = range->step;
-
-                        if(step > 0)
-                        {
-                            for(int i = start; i < end; i += step)
-                            {
-                                tea_write_value_array(T, &list->items, NUMBER_VAL(i));
-                            }
-                        }
-                        else if(step < 0)
-                        {
-                            for(int i = end + step; i >= 0; i += step)
-                            {
-                                tea_write_value_array(T, &list->items, NUMBER_VAL(i));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        tea_write_value_array(T, &list->items, PEEK(i));
-                    }
-                }
-
-                /* Pop items from stack */
-                T->top -= item_count + 1;
-
                 PUSH(OBJECT_VAL(list));
                 DISPATCH();
             }
@@ -1325,23 +1285,7 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(MAP):
             {
-                uint8_t item_count = READ_BYTE();
                 TeaOMap* map = tea_map_new(T);
-
-                PUSH(OBJECT_VAL(map));
-
-                for(int i = item_count * 2; i > 0; i -= 2)
-                {
-                    if(!tea_map_validkey(PEEK(i)))
-                    {
-                        RUNTIME_ERROR("Map key isn't hashable");
-                    }
-
-                    tea_map_set(T, map, PEEK(i), PEEK(i - 1));
-                }
-
-                T->top -= item_count * 2 + 1;
-
                 PUSH(OBJECT_VAL(map));
                 DISPATCH();
             }
@@ -1382,6 +1326,57 @@ void tea_vm_run(TeaState* T)
                 TeaValue object = PEEK(3);
                 STORE_FRAME;
                 slice(T, object, start, end, step);
+                DISPATCH();
+            }
+            CASE_CODE(PUSH_LIST_ITEM):
+            {
+                TeaOList* list = AS_LIST(PEEK(1));
+                TeaValue item = PEEK(0);
+                
+                if(IS_RANGE(item))
+                {
+                    TeaORange* range = AS_RANGE(item);
+
+                    int start = range->start;
+                    int end = range->end;
+                    int step = range->step;
+
+                    if(step > 0)
+                    {
+                        for(int i = start; i < end; i += step)
+                        {
+                            tea_write_value_array(T, &list->items, NUMBER_VAL(i));
+                        }
+                    }
+                    else if(step < 0)
+                    {
+                        for(int i = end + step; i >= 0; i += step)
+                        {
+                            tea_write_value_array(T, &list->items, NUMBER_VAL(i));
+                        }
+                    }
+                }
+                else
+                {
+                    tea_write_value_array(T, &list->items, item);
+                }
+
+                DROP(1);
+                DISPATCH();
+            }
+            CASE_CODE(PUSH_MAP_FIELD):
+            {
+                TeaOMap* map = AS_MAP(PEEK(2));
+                TeaValue key = PEEK(1);
+                TeaValue value = PEEK(0);
+
+                if(!tea_map_hashable(key))
+                {
+                    RUNTIME_ERROR("%s isn't a hashable map key", tea_val_type(key));
+                }
+
+                tea_map_set(T, map, key, value);
+                DROP(2);
                 DISPATCH();
             }
             CASE_CODE(IS):
@@ -1488,23 +1483,35 @@ void tea_vm_run(TeaState* T)
                     TeaOList* l1 = AS_LIST(a);
                     TeaOList* l2 = AS_LIST(b);
 
-                    for(int i = 0; i < l2->items.count; i++)
+                    TeaOList* new = tea_obj_new_list(T);
+                    PUSH(OBJECT_VAL(new));
+
+                    for(int i = 0; i < l1->items.count; i++)
                     {
-                        tea_write_value_array(T, &l1->items, l2->items.values[i]);
+                        tea_write_value_array(T, &new->items, l1->items.values[i]);
                     }
 
-                    DROP(2);
-                    PUSH(OBJECT_VAL(l1));
+                    for(int i = 0; i < l2->items.count; i++)
+                    {
+                        tea_write_value_array(T, &new->items, l2->items.values[i]);
+                    }
+
+                    DROP(3);
+                    PUSH(OBJECT_VAL(new));
                 }
                 else if(IS_MAP(a) && IS_MAP(b))
                 {
                     TeaOMap* m1 = AS_MAP(a);
                     TeaOMap* m2 = AS_MAP(b);
 
-                    tea_map_add_all(T, m2, m1);
+                    TeaOMap* new = tea_map_new(T);
+                    PUSH(OBJECT_VAL(new));
 
-                    DROP(2);
-                    PUSH(OBJECT_VAL(m1));
+                    tea_map_addall(T, m1, new);
+                    tea_map_addall(T, m2, new);
+
+                    DROP(3);
+                    PUSH(OBJECT_VAL(new));
                 }
                 else
                 {

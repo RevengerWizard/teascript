@@ -73,11 +73,11 @@ static bool readable(const char* filename)
 static TeaOString* resolve_filename(TeaState* T, char* dir, char* path_name)
 {
     TeaOString* file = NULL;
-    size_t l;
 
     const char* exts[] = { ".tea", /* ".tbc",*/ SHARED_EXT, "/init.tea" };
     const int n = sizeof(exts) / sizeof(exts[0]);
 
+    size_t l;
     for(int i = 0; i < n; i++) 
     {
         l = strlen(path_name) + strlen(exts[i]);
@@ -128,7 +128,7 @@ void tea_imp_relative(TeaState* T, TeaOString* dir, TeaOString* path_name)
     module->path = tea_util_dirname(T, path->chars, path->length);
     T->last_module = module;
 
-    int status = tea_do_protected_compiler(T, module, source);
+    int status = tea_do_protectedparser(T, module, source);
     TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
 
     if(status != TEA_OK)

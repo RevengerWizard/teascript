@@ -51,16 +51,17 @@ typedef struct TeaClass
 
 typedef TeaClass TeaInstance;
 
-typedef enum
+enum
 {
     TEA_OK,
     TEA_SYNTAX_ERROR,
     TEA_RUNTIME_ERROR,
     TEA_MEMORY_ERROR,
     TEA_FILE_ERROR,
-} TeaStatus;
+    TEA_ERROR_ERROR
+};
 
-typedef enum
+enum
 {
     TEA_TYPE_NONE = -1,
     TEA_TYPE_NULL,
@@ -75,8 +76,8 @@ typedef enum
     TEA_TYPE_LIST,
     TEA_TYPE_MAP,
     TEA_TYPE_FILE,
-    TEA_TYPE_USERDATA,
-} TeaType;
+    TEA_TYPE_USERDATA
+};
 
 TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud);
 TEA_API void tea_close(TeaState* T);
@@ -174,8 +175,8 @@ TEA_API void tea_importf(TeaState* T, const char* mod, TeaCFunction openf, bool 
 
 TEA_API int tea_gc(TeaState* T);
 
-TEA_API TeaStatus tea_interpret(TeaState* T, const char* module_name, const char* source);
-TEA_API TeaStatus tea_dofile(TeaState* T, const char* path);
+TEA_API int tea_interpret(TeaState* T, const char* module_name, const char* source);
+TEA_API int tea_dofile(TeaState* T, const char* path);
 
 TEA_API void tea_call(TeaState* T, int n);
 

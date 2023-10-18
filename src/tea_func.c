@@ -12,7 +12,7 @@
 
 TeaONative* tea_func_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn)
 {
-    TeaONative* native = ALLOCATE_OBJECT(T, TeaONative, OBJ_NATIVE);
+    TeaONative* native = TEA_ALLOCATE_OBJECT(T, TeaONative, OBJ_NATIVE);
     native->type = type;
     native->fn = fn;
 
@@ -27,7 +27,7 @@ TeaOClosure* tea_func_new_closure(TeaState* T, TeaOFunction* function)
         upvalues[i] = NULL;
     }
 
-    TeaOClosure* closure = ALLOCATE_OBJECT(T, TeaOClosure, OBJ_CLOSURE);
+    TeaOClosure* closure = TEA_ALLOCATE_OBJECT(T, TeaOClosure, OBJ_CLOSURE);
     closure->function = function;
     closure->upvalues = upvalues;
     closure->upvalue_count = function->upvalue_count;
@@ -37,7 +37,7 @@ TeaOClosure* tea_func_new_closure(TeaState* T, TeaOFunction* function)
 
 TeaOFunction* tea_func_new_function(TeaState* T, TeaFunctionType type, TeaOModule* module, int max_slots)
 {
-    TeaOFunction* function = ALLOCATE_OBJECT(T, TeaOFunction, OBJ_FUNCTION);
+    TeaOFunction* function = TEA_ALLOCATE_OBJECT(T, TeaOFunction, OBJ_FUNCTION);
     function->arity = 0;
     function->arity_optional = 0;
     function->variadic = 0;
@@ -53,7 +53,7 @@ TeaOFunction* tea_func_new_function(TeaState* T, TeaFunctionType type, TeaOModul
 
 TeaOUpvalue* tea_func_new_upvalue(TeaState* T, TeaValue* slot)
 {
-    TeaOUpvalue* upvalue = ALLOCATE_OBJECT(T, TeaOUpvalue, OBJ_UPVALUE);
+    TeaOUpvalue* upvalue = TEA_ALLOCATE_OBJECT(T, TeaOUpvalue, OBJ_UPVALUE);
     upvalue->closed = NULL_VAL;
     upvalue->location = slot;
     upvalue->next = NULL;

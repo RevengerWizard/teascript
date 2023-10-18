@@ -295,31 +295,31 @@ int tea_do_runprotected(TeaState* T, TeaPFunction f, void* ud)
     return tj.status;
 }
 
-struct PCompiler
+struct PParser
 {
     TeaOModule* module;
     const char* source;
 };
 
-static void f_compiler(TeaState* T, void* ud)
+static void f_parser(TeaState* T, void* ud)
 {
-    struct PCompiler* c;
+    struct PParser* c;
     TeaOFunction* function;
     TeaOClosure* closure;
 
-    c = (struct PCompiler*)(ud);
+    c = (struct PParser*)(ud);
 
     function = tea_compile(T, c->module, c->source);
     closure = tea_func_new_closure(T, function);
     tea_vm_push(T, OBJECT_VAL(closure));
 }
 
-int tea_do_protected_compiler(TeaState* T, TeaOModule* module, const char* source)
+int tea_do_protectedparser(TeaState* T, TeaOModule* module, const char* source)
 {
-    struct PCompiler c;
+    struct PParser c;
     int status;
     c.module = module;
     c.source = source;
-    status = tea_do_runprotected(T, f_compiler, &c);
+    status = tea_do_runprotected(T, f_parser, &c);
     return status;
 }

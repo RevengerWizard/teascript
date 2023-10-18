@@ -48,9 +48,11 @@ static void map_get(TeaState* T)
     int count = tea_get_top(T);
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
 
-    TeaOMap* map = AS_MAP(T->base[0]);
+    tea_opt_any(T, 2);
 
+    TeaOMap* map = AS_MAP(T->base[0]);
     TeaValue key = T->base[1];
+
     TeaValue value;
     bool b = tea_map_get(map, key, &value);
 
@@ -58,9 +60,24 @@ static void map_get(TeaState* T)
     {
         tea_vm_push(T, value);
     }
-    else
+}
+
+static void map_set(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
+
+    tea_opt_any(T, 2);
+
+    TeaOMap* map = AS_MAP(T->base[0]);
+    TeaValue key = T->base[1];
+    TeaValue value = T->base[2];
+
+    bool b = tea_map_set(T, map, key, value);
+
+    if(b)
     {
-        tea_opt_any(T, 2);
+        tea_vm_push(T, value);
     }
 }
 
@@ -99,7 +116,7 @@ static void map_contains(TeaState* T)
 
     TeaOMap* map = AS_MAP(T->base[0]);
 
-    if(!tea_map_validkey(T->base[1]))
+    if(!tea_map_hashable(T->base[1]))
     {
         tea_error(T, "Map key isn't hashable");
     }
@@ -114,17 +131,20 @@ static void map_delete(TeaState* T)
     tea_ensure_min_args(T, count, 2);
 
     TeaOMap* map = AS_MAP(T->base[0]);
+    TeaValue key = T->base[1];
+
     TeaValue _;
-    if(!tea_map_validkey(T->base[1]))
+    if(!tea_map_hashable(key))
     {
         tea_error(T, "Map key isn't hashable");
     }
-    else if(!tea_map_get(map, T->base[1], &_))
+    
+    if(!tea_map_get(map, key, &_))
     {
         tea_error(T, "No such key in the map");
     }
 
-    tea_map_delete(T, map, T->base[1]);
+    tea_map_delete(T, map, key);
 
     tea_push_value(T, 0);
 }
@@ -144,6 +164,31 @@ static void map_copy(TeaState* T)
         if(map->items[i].empty) continue;
         tea_map_set(T, new, map->items[i].key, map->items[i].value);
     }
+}
+
+static void map_foreach(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 2);
+
+    tea_check_function(T, 1);
+
+    TeaOMap* map = AS_MAP(T->base[0]);
+
+    for(int i = 0; i < map->capacity; i++)
+    {
+        if(map->items[i].empty) continue;
+
+        TeaValue key = map->items[i].key;
+        TeaValue value = map->items[i].value;
+
+        tea_push_value(T, 1);
+        tea_vm_push(T, key);
+        tea_vm_push(T, value);
+        tea_call(T, 2);
+        tea_pop(T, 1);
+    }
+    tea_set_top(T, 1);
 }
 
 static void map_iterate(TeaState* T)
@@ -226,11 +271,13 @@ static const TeaClass map_class[] = {
     { "keys", "property", map_keys },
     { "values", "property", map_values },
     { "get", "method", map_get },
+    { "set", "method", map_set },
     { "update", "method", map_update },
     { "clear", "method", map_clear },
     { "contains", "method", map_contains },
     { "delete", "method", map_delete },
     { "copy", "method", map_copy },
+    { "foreach", "method", map_foreach },
     { "iterate", "method", map_iterate },
     { "iteratorvalue", "method", map_iteratorvalue },
     { NULL, NULL, NULL }

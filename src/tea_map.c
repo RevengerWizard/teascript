@@ -10,7 +10,7 @@
 
 TeaOMap* tea_map_new(TeaState* T)
 {
-    TeaOMap* map = ALLOCATE_OBJECT(T, TeaOMap, OBJ_MAP);
+    TeaOMap* map = TEA_ALLOCATE_OBJECT(T, TeaOMap, OBJ_MAP);
     map->count = 0;
     map->capacity = 0;
     map->items = NULL;
@@ -216,7 +216,7 @@ bool tea_map_delete(TeaState* T, TeaOMap* map, TeaValue key)
     return true;
 }
 
-void tea_map_add_all(TeaState* T, TeaOMap* from, TeaOMap* to)
+void tea_map_addall(TeaState* T, TeaOMap* from, TeaOMap* to)
 {
     for(int i = 0; i < from->capacity; i++)
     {

@@ -46,7 +46,7 @@
 #define AS_STRING(value) ((TeaOString*)AS_OBJECT(value))
 #define AS_CSTRING(value) (((TeaOString*)AS_OBJECT(value))->chars)
 
-#define ALLOCATE_OBJECT(T, type, object_type) (type*)tea_obj_allocate(T, sizeof(type), object_type)
+#define TEA_ALLOCATE_OBJECT(T, type, object_type) (type*)tea_obj_allocate(T, sizeof(type), object_type)
 
 typedef enum
 {

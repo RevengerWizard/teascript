@@ -88,7 +88,7 @@ static void repl(TeaState* T)
 static int handle_script(TeaState* T, char** argv)
 {
     char* path  = argv[0];
-    TeaStatus status = tea_dofile(T, path);
+    int status = tea_dofile(T, path);
 
     if(status == TEA_SYNTAX_ERROR)
     {

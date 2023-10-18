@@ -170,7 +170,7 @@ bool tea_state_isclass(TeaState* T, TeaOClass* klass)
            klass == T->file_class);
 }
 
-TEA_API TeaStatus tea_interpret(TeaState* T, const char* module_name, const char* source)
+TEA_API int tea_interpret(TeaState* T, const char* module_name, const char* source)
 {
     TeaOString* name = tea_str_new(T, module_name);
     tea_vm_push(T, OBJECT_VAL(name));
@@ -189,7 +189,7 @@ TEA_API TeaStatus tea_interpret(TeaState* T, const char* module_name, const char
     }
     tea_vm_pop(T, 1);
 
-    int status = tea_do_protected_compiler(T, module, source);
+    int status = tea_do_protectedparser(T, module, source);
     if(status != TEA_OK)
         return TEA_SYNTAX_ERROR;
 

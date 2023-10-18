@@ -12,7 +12,7 @@
 
 static TeaOString* string_allocate(TeaState* T, char* chars, int length, uint32_t hash)
 {
-    TeaOString* string = ALLOCATE_OBJECT(T, TeaOString, OBJ_STRING);
+    TeaOString* string = TEA_ALLOCATE_OBJECT(T, TeaOString, OBJ_STRING);
     string->length = length;
     string->chars = chars;
     string->hash = hash;
@@ -62,4 +62,67 @@ TeaOString* tea_str_copy(TeaState* T, const char* chars, int length)
     heap_chars[length] = '\0';
 
     return string_allocate(T, heap_chars, length, hash);
+}
+
+TEA_FUNC TeaOString* tea_str_format(TeaState* T, const char* format, ...)
+{
+    va_list arg_list;
+
+    va_start(arg_list, format);
+    size_t total = 0;
+    for(const char* c = format; *c != '\0'; c++)
+    {
+        switch(*c)
+        {
+            case '$':
+            {
+                /* a const char* C string */
+                total += strlen(va_arg(arg_list, const char*));
+                break;
+            }
+            case '@':
+            {
+                /* a TeaOString* */
+                total += va_arg(arg_list, TeaOString*)->length;
+                break;
+            }
+            default:
+                // Any other character is interpreted literally
+                total++;
+        }
+    }
+    va_end(arg_list);
+
+    char* bytes = TEA_ALLOCATE(T, char, total + 1);
+    bytes[total] = '\0';
+
+    va_start(arg_list, format);
+    char* start = bytes;
+    for(const char* c = format; *c != '\0'; c++)
+    {
+        switch(*c)
+        {
+            case '$':
+            {
+                const char* s = va_arg(arg_list, const char*);
+                size_t l = strlen(s);
+                memcpy(start, s, l);
+                start += l;
+                break;
+            }
+            case '@':
+            {
+                TeaOString* s = va_arg(arg_list, TeaOString*);
+                memcpy(start, s->chars, s->length);
+                start += s->length;
+                break;
+            }
+            default:
+                // Any other character is interpreted literally
+                *start++ = *c;
+        }
+    }
+    va_end(arg_list);
+
+    return tea_str_take(T, bytes, total);
 }

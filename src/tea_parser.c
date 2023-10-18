@@ -786,7 +786,8 @@ static void null(TeaCompiler* compiler, bool can_assign)
 
 static void list(TeaCompiler* compiler, bool can_assign)
 {
-    int item_count = 0;
+    emit_op(compiler, OP_LIST);
+
     if(!check(compiler, TOKEN_RIGHT_BRACKET))
     {
         do
@@ -798,24 +799,18 @@ static void list(TeaCompiler* compiler, bool can_assign)
             }
 
             expression(compiler);
-
-            if(item_count == UINT8_COUNT)
-            {
-                error(compiler, "Cannot have more than 256 items in a list literal");
-            }
-            item_count++;
+            emit_op(compiler, OP_PUSH_LIST_ITEM);
         }
         while(match(compiler, TOKEN_COMMA));
     }
 
     consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after list literal");
-
-    emit_argued(compiler, OP_LIST, item_count);
 }
 
 static void map(TeaCompiler* compiler, bool can_assign)
 {
-    int item_count = 0;
+    emit_op(compiler, OP_MAP);
+
     if(!check(compiler, TOKEN_RIGHT_BRACE))
     {
         do
@@ -840,18 +835,12 @@ static void map(TeaCompiler* compiler, bool can_assign)
                 expression(compiler);
             }
 
-            if(item_count == UINT8_COUNT)
-            {
-                error(compiler, "Cannot have more than 256 items in a map literal");
-            }
-            item_count++;
+            emit_op(compiler, OP_PUSH_MAP_FIELD);
         }
         while(match(compiler, TOKEN_COMMA));
     }
 
     consume(compiler, TOKEN_RIGHT_BRACE, "Expect '} after map literal'");
-
-    emit_argued(compiler, OP_MAP, item_count);
 }
 
 static bool s_expression(TeaCompiler* compiler)
@@ -990,7 +979,7 @@ static void literal(TeaCompiler* compiler, bool can_assign)
 
 static void interpolation(TeaCompiler* compiler, bool can_assign)
 {
-    emit_argued(compiler, OP_LIST, 0);
+    emit_op(compiler, OP_LIST);
 
     do
     {
@@ -2023,6 +2012,10 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_BNOT:
         case OP_LSHIFT:
         case OP_RSHIFT:
+        case OP_LIST:
+        case OP_MAP:
+        case OP_PUSH_LIST_ITEM:
+        case OP_PUSH_MAP_FIELD:
             return 0;
         case OP_CONSTANT:
         case OP_GET_LOCAL:
@@ -2046,9 +2039,7 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_EXTENSION_METHOD:
         case OP_IMPORT_STRING:
         case OP_IMPORT_NAME:
-        case OP_LIST:
         case OP_UNPACK_LIST:
-        case OP_MAP:
         case OP_MULTI_CASE:
             return 1;
         case OP_IMPORT_VARIABLE:

@@ -2,8 +2,7 @@ var cache = {}
 
 function fib(n)
 {
-    if(n < 2)
-        return n
+    if(n < 2) return n
     return n in cache ? cache[n] : cache[n] = fib(n - 1) + fib(n - 2)
 }
 

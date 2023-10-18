@@ -23,10 +23,11 @@ static void random_seed(TeaState* T)
     if(count == 0)
     {
         srand(time(NULL));
-        tea_push_null(T);
-        return;
     }
-    srand((unsigned int)tea_check_number(T, 0));
+    else
+    {
+        srand((unsigned int)tea_check_number(T, 0));
+    }
     tea_push_null(T);
 }
 

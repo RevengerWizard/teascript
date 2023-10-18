@@ -8,6 +8,7 @@
 
 #include <string.h>
 
+#include "tea_def.h"
 #include "tea_object.h"
 
 #define tea_str_literal(T, s) (tea_str_copy(T, "" s, (sizeof(s)/sizeof(char))-1))
@@ -15,5 +16,6 @@
 
 TEA_FUNC TeaOString* tea_str_take(TeaState* T, char* chars, int length);
 TEA_FUNC TeaOString* tea_str_copy(TeaState* T, const char* chars, int length);
+TEA_FUNC TeaOString* tea_str_format(TeaState* T, const char* format, ...);
 
 #endif
