@@ -817,7 +817,7 @@ TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char
     return 0;
 }
 
-TEA_API void tea_importf(TeaState* T, const char* mod, TeaCFunction openf, bool glb)
+TEA_API void tea_openf(TeaState* T, const char* mod, TeaCFunction openf, bool glb)
 {
     tea_push_cfunction(T, openf);
     tea_push_string(T, mod);

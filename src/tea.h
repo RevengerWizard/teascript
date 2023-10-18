@@ -171,7 +171,7 @@ TEA_API double tea_opt_number(TeaState* T, int index, double def);
 TEA_API const char* tea_opt_lstring(TeaState* T, int index, const char* def, int* len);
 TEA_API int tea_check_option(TeaState* T, int index, const char* def, const char* const options[]);
 
-TEA_API void tea_importf(TeaState* T, const char* mod, TeaCFunction openf, bool glb);
+TEA_API void tea_openf(TeaState* T, const char* mod, TeaCFunction openf, bool glb);
 
 TEA_API int tea_gc(TeaState* T);
 
