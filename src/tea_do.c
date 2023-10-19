@@ -66,7 +66,7 @@ void tea_do_realloc_stack(TeaState* T, int new_size)
 	TeaValue* old_stack = T->stack;
 	T->stack = TEA_GROW_ARRAY(T, TeaValue, T->stack, T->stack_size, new_size);
 	T->stack_size = new_size;
-    T->stack_last = T->stack + new_size - 1;
+    T->stack_last = T->stack + new_size - 1 - EXTRA_STACK;
 
     if(old_stack != T->stack)
     {
@@ -79,7 +79,7 @@ void tea_do_grow_stack(TeaState* T, int needed)
 	if(needed <= T->stack_size)
         tea_do_realloc_stack(T, 2 * T->stack_size);
     else
-        tea_do_realloc_stack(T, T->stack_size + needed);
+        tea_do_realloc_stack(T, T->stack_size + needed + EXTRA_STACK);
 }
 
 static void callt(TeaState* T, TeaOClosure* closure, int arg_count)

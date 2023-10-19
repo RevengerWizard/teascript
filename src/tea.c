@@ -38,7 +38,7 @@ static void print_usage()
     fputs(
         "usage: tea [options] [script [args]]\n"
         "Available options are:\n"
-        "  -e chunk   execute string 'chunk'\n"
+        "  -e code    execute string 'code'\n"
         "  -i         enter interactive mode after executing 'script'\n"
         "  -v         show version information\n"
         "  --         stop handling options\n"
@@ -178,7 +178,7 @@ static int run_args(TeaState* T, char** argv, int n)
             }
         }
     }
-    return 1;
+    return 0;
 }
 
 int main(int argc, char** argv)
@@ -190,24 +190,24 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    int status;
+    int status = EXIT_SUCCESS;
     int flags = 0;
     int script = collect_args(argv, &flags);
     if(script < 0)
     {
         print_usage();
-        return 0;
+        goto finish;
     }
 
     tea_set_argv(T, argc, argv, script);
 
     if(flags & flag_v)
         print_version();
-    if((status = run_args(T, argv, script)) > 1)
-        return status;
+    if((status = run_args(T, argv, script)) > 0)
+        goto finish;
     if(script < argc && (status = handle_script(T, argv + script)) != TEA_OK)
     {
-        return status;
+        goto finish;
     }
     if(flags & flag_i)
         repl(T);
@@ -217,7 +217,8 @@ int main(int argc, char** argv)
         repl(T);
     }
 
+    finish:
     tea_close(T);
 
-    return EXIT_SUCCESS;
+    return status;
 }
