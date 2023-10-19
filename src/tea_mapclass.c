@@ -91,11 +91,7 @@ static void map_update(TeaState* T)
     TeaOMap* map = AS_MAP(T->base[0]);
     TeaOMap* new = AS_MAP(T->base[1]);
 
-    for(int i = 0; i < new->capacity; i++)
-    {
-        if(new->items[i].empty) continue;
-        tea_map_set(T, map, new->items[i].key, new->items[i].value);
-    }
+    tea_map_addall(T, new, map);
 
     tea_push_value(T, 0);
 }
