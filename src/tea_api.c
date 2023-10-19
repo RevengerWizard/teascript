@@ -252,7 +252,7 @@ TEA_API const char* tea_to_lstring(TeaState* T, int index, int* len)
         return NULL;
     }
 
-    TeaOString* string = tea_val_tostring(T, *value);
+    TeaOString* string = tea_val_tostring(T, *value, 0);
     tea_vm_push(T, OBJECT_VAL(string));
     if(len != NULL)
     {

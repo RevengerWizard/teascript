@@ -323,7 +323,7 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
             offset++;
             uint8_t constant = chunk->code[offset++];
             printf("%-16s %4d ", "CLOSURE", constant);
-            printf("%s", tea_val_tostring(T, chunk->constants.values[constant])->chars);
+            tea_debug_print_value(chunk->constants.values[constant]);
             printf("\n");
 
             TeaOFunction* function = AS_FUNCTION(chunk->constants.values[constant]);

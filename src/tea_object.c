@@ -145,7 +145,7 @@ static TeaOString* function_tostring(TeaState* T, TeaOFunction* function)
     return tea_str_literal(T, "<function>");
 }
 
-static TeaOString* list_tostring(TeaState* T, TeaOList* list)
+static TeaOString* list_tostring(TeaState* T, TeaOList* list, int depth)
 {
     if(list->items.count == 0)
         return tea_str_literal(T, "[]");
@@ -174,7 +174,7 @@ static TeaOString* list_tostring(TeaState* T, TeaOList* list)
         }
         else
         {
-            TeaOString* s = tea_val_tostring(T, value);
+            TeaOString* s = tea_val_tostring(T, value, depth);
             element = s->chars;
             element_size = s->length;
         }
@@ -213,10 +213,15 @@ static TeaOString* list_tostring(TeaState* T, TeaOList* list)
     return tea_str_take(T, string, length);
 }
 
-static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
+#define MAX_TOSTRING_DEPTH 16
+
+static TeaOString* map_tostring(TeaState* T, TeaOMap* map, int depth)
 {
     if(map->count == 0)
         return tea_str_literal(T, "{}");
+    
+    if(depth > MAX_TOSTRING_DEPTH)
+        return tea_str_literal(T, "{...}");
 
     int count = 0;
     int size = 50;
@@ -249,7 +254,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
         }
         else
         {
-            TeaOString* s = tea_val_tostring(T, item->key);
+            TeaOString* s = tea_val_tostring(T, item->key, depth);
             key = s->chars;
             key_size = s->length;
         }
@@ -297,7 +302,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map)
         }
         else
         {
-            TeaOString* s = tea_val_tostring(T, item->value);
+            TeaOString* s = tea_val_tostring(T, item->value, depth);
             element = s->chars;
             element_size = s->length;
         }
@@ -366,8 +371,15 @@ static TeaOString* instance_tostring(TeaState* T, TeaOInstance* instance)
     return tea_str_format(T, "<@ instance>", instance->klass->name);
 }
 
-TeaOString* tea_obj_tostring(TeaState* T, TeaValue value)
+TeaOString* tea_obj_tostring(TeaState* T, TeaValue value, int depth)
 {
+    if(depth > MAX_TOSTRING_DEPTH)
+    {
+        return tea_str_literal(T, "...");
+    }
+
+    depth++;
+
     switch(OBJECT_TYPE(value))
     {
         case OBJ_FILE:
@@ -390,9 +402,9 @@ TeaOString* tea_obj_tostring(TeaState* T, TeaValue value)
         case OBJ_CLOSURE:
             return function_tostring(T, AS_CLOSURE(value)->function);
         case OBJ_LIST:
-            return list_tostring(T, AS_LIST(value));
+            return list_tostring(T, AS_LIST(value), depth);
         case OBJ_MAP:
-            return map_tostring(T, AS_MAP(value));
+            return map_tostring(T, AS_MAP(value), depth);
         case OBJ_RANGE:
             return range_tostring(T, AS_RANGE(value));
         case OBJ_MODULE:

@@ -225,7 +225,7 @@ TEA_FUNC TeaOModule* tea_obj_new_module(TeaState* T, TeaOString* name);
 TEA_FUNC TeaOFile* tea_obj_new_file(TeaState* T, TeaOString* path, TeaOString* type);
 TEA_FUNC TeaORange* tea_obj_new_range(TeaState* T, double start, double end, double step);
 
-TEA_FUNC TeaOString* tea_obj_tostring(TeaState* T, TeaValue value);
+TEA_FUNC TeaOString* tea_obj_tostring(TeaState* T, TeaValue value, int depth);
 TEA_FUNC bool tea_obj_equal(TeaValue a, TeaValue b);
 TEA_FUNC const char* tea_obj_type(TeaValue a);
 

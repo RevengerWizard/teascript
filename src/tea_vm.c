@@ -1036,7 +1036,7 @@ void tea_vm_run(TeaState* T)
                 if(!IS_NULL(value))
                 {
                     tea_tab_set(T, &T->globals, T->repl_string, value);
-                    TeaOString* string = tea_val_tostring(T, value);
+                    TeaOString* string = tea_val_tostring(T, value, 0);
                     PUSH(OBJECT_VAL(string));
                     fwrite(string->chars, sizeof(char), string->length, stdout);
                     putchar('\n');

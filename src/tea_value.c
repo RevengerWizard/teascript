@@ -156,7 +156,7 @@ double tea_val_tonumber(TeaValue value, bool* x)
     }
 }
 
-TeaOString* tea_val_tostring(TeaState* T, TeaValue value)
+TeaOString* tea_val_tostring(TeaState* T, TeaValue value, int depth)
 {
 #ifdef TEA_NAN_TAGGING
     if(IS_BOOL(value))
@@ -173,7 +173,7 @@ TeaOString* tea_val_tostring(TeaState* T, TeaValue value)
     }
     else if(IS_OBJECT(value))
     {
-        return tea_obj_tostring(T, value);
+        return tea_obj_tostring(T, value, depth);
     }
 #else
     switch(value.type)
