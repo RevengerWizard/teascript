@@ -62,7 +62,7 @@ static void repl(TeaState* T)
     while(true)
     {
         line:
-        fwrite("> ", sizeof(char), 2, stdout);
+        fputs("> ", stdout); fflush(stdout);
 
         if(!fgets(line, sizeof(line), stdin))
         {
@@ -111,9 +111,9 @@ static int handle_script(TeaState* T, char** argv)
 
 #define notail(x)   { if ((x)[2] != '\0') return -1; }
 
-#define flag_i 1
-#define flag_v 2
-#define flag_e 4
+#define FLAG_I 1
+#define FLAG_V 2
+#define FLAG_E 4
 
 static int collect_args(char** argv, int* flags)
 {
@@ -131,13 +131,13 @@ static int collect_args(char** argv, int* flags)
                 return i;
             case 'i':
                 notail(argv[i]);
-                *flags |= flag_i;
+                *flags |= FLAG_I;
             case 'v':
                 notail(argv[i])
-                *flags |= flag_v;
+                *flags |= FLAG_V;
                 break;
             case 'e':
-                *flags |= flag_e;
+                *flags |= FLAG_E;
                 if (argv[i][2] == '\0')
                 {
                     i++;
@@ -201,7 +201,7 @@ int main(int argc, char** argv)
 
     tea_set_argv(T, argc, argv, script);
 
-    if(flags & flag_v)
+    if(flags & FLAG_V)
         print_version();
     if((status = run_args(T, argv, script)) > 0)
         goto finish;
@@ -209,9 +209,9 @@ int main(int argc, char** argv)
     {
         goto finish;
     }
-    if(flags & flag_i)
+    if(flags & FLAG_I)
         repl(T);
-    else if(script == argc && !(flags & (flag_e | flag_v)))
+    else if(script == argc && !(flags & (FLAG_E | FLAG_V)))
     {
         print_version();
         repl(T);
