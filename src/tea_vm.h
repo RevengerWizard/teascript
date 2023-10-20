@@ -8,6 +8,7 @@
 
 #include "tea_state.h"
 
+TEA_FUNC void tea_vm_concat(TeaState* T);
 TEA_FUNC void tea_vm_error(TeaState* T, const char* format, ...);
 TEA_FUNC void tea_vm_run(TeaState* T);
 

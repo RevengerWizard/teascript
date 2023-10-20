@@ -117,6 +117,8 @@ TEA_API void* tea_to_userdata(TeaState* T, int index);
 TEA_API bool tea_equal(TeaState* T, int index1, int index2);
 TEA_API bool tea_rawequal(TeaState* T, int index1, int index2);
 
+TEA_API void tea_concat(TeaState* T);
+
 TEA_API void tea_pop(TeaState* T, int n);
 
 TEA_API void tea_push_null(TeaState* T);

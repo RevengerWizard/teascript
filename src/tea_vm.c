@@ -725,68 +725,6 @@ static void define_method(TeaState* T, TeaOString* name)
     tea_vm_pop(T, 1);
 }
 
-static void concatenate(TeaState* T)
-{
-    TeaOString* b = AS_STRING(tea_vm_peek(T, 0));
-    TeaOString* a = AS_STRING(tea_vm_peek(T, 1));
-
-    int length = a->length + b->length;
-    char* chars = TEA_ALLOCATE(T, char, length + 1);
-    memcpy(chars, a->chars, a->length);
-    memcpy(chars + a->length, b->chars, b->length);
-    chars[length] = '\0';
-
-    TeaOString* result = tea_str_take(T, chars, length);
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, OBJECT_VAL(result));
-}
-
-static void repeat(TeaState* T)
-{
-    TeaOString* string;
-    int n;
-
-    if(IS_STRING(tea_vm_peek(T, 0)) && IS_NUMBER(tea_vm_peek(T, 1)))
-    {
-        string = AS_STRING(tea_vm_peek(T, 0));
-        n = AS_NUMBER(tea_vm_peek(T, 1));
-    }
-    else if(IS_NUMBER(tea_vm_peek(T, 0)) && IS_STRING(tea_vm_peek(T, 1)))
-    {
-        n = AS_NUMBER(tea_vm_peek(T, 0));
-        string = AS_STRING(tea_vm_peek(T, 1));
-    }
-
-    if(n <= 0)
-    {
-        TeaOString* s = tea_str_literal(T, "");
-        tea_vm_pop(T, 2);
-        tea_vm_push(T, OBJECT_VAL(s));
-        return;
-    }
-    else if(n == 1)
-    {
-        tea_vm_pop(T, 2);
-        tea_vm_push(T, OBJECT_VAL(string));
-        return;
-    }
-
-    int length = string->length;
-    char* chars = TEA_ALLOCATE(T, char, (n * length) + 1);
-
-    int i;
-    char* p;
-    for(i = 0, p = chars; i < n; ++i, p += length)
-    {
-        memcpy(p, string->chars, length);
-    }
-    *p = '\0';
-
-    TeaOString* result = tea_str_take(T, chars, strlen(chars));
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, OBJECT_VAL(result));
-}
-
 static bool get_op_method(TeaOString* key, TeaValue v, TeaValue* method)
 {
     if(!IS_INSTANCE(v))
@@ -856,6 +794,68 @@ static bool arith_comp(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
     tea_vm_push(T, b);
     tea_do_precall(T, method, 2);
     return true;
+}
+
+static void repeat(TeaState* T)
+{
+    TeaOString* string;
+    int n;
+
+    if(IS_STRING(tea_vm_peek(T, 0)) && IS_NUMBER(tea_vm_peek(T, 1)))
+    {
+        string = AS_STRING(tea_vm_peek(T, 0));
+        n = AS_NUMBER(tea_vm_peek(T, 1));
+    }
+    else if(IS_NUMBER(tea_vm_peek(T, 0)) && IS_STRING(tea_vm_peek(T, 1)))
+    {
+        n = AS_NUMBER(tea_vm_peek(T, 0));
+        string = AS_STRING(tea_vm_peek(T, 1));
+    }
+
+    if(n <= 0)
+    {
+        TeaOString* s = tea_str_literal(T, "");
+        tea_vm_pop(T, 2);
+        tea_vm_push(T, OBJECT_VAL(s));
+        return;
+    }
+    else if(n == 1)
+    {
+        tea_vm_pop(T, 2);
+        tea_vm_push(T, OBJECT_VAL(string));
+        return;
+    }
+
+    int length = string->length;
+    char* chars = TEA_ALLOCATE(T, char, (n * length) + 1);
+
+    int i;
+    char* p;
+    for(i = 0, p = chars; i < n; ++i, p += length)
+    {
+        memcpy(p, string->chars, length);
+    }
+    *p = '\0';
+
+    TeaOString* result = tea_str_take(T, chars, strlen(chars));
+    tea_vm_pop(T, 2);
+    tea_vm_push(T, OBJECT_VAL(result));
+}
+
+void tea_vm_concat(TeaState* T)
+{
+    TeaOString* b = AS_STRING(tea_vm_peek(T, 0));
+    TeaOString* a = AS_STRING(tea_vm_peek(T, 1));
+
+    int length = a->length + b->length;
+    char* chars = TEA_ALLOCATE(T, char, length + 1);
+    memcpy(chars, a->chars, a->length);
+    memcpy(chars + a->length, b->chars, b->length);
+    chars[length] = '\0';
+
+    TeaOString* result = tea_str_take(T, chars, length);
+    tea_vm_pop(T, 2);
+    tea_vm_push(T, OBJECT_VAL(result));
 }
 
 void tea_vm_error(TeaState* T, const char* format, ...)
@@ -1476,7 +1476,7 @@ void tea_vm_run(TeaState* T)
                 }
                 else if(IS_STRING(a) && IS_STRING(b))
                 {
-                    concatenate(T);
+                    tea_vm_concat(T);
                 }
                 else if(IS_LIST(a) && IS_LIST(b))
                 {

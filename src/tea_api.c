@@ -293,6 +293,11 @@ TEA_API bool tea_rawequal(TeaState* T, int index1, int index2)
     return tea_val_rawequal(index2value(T, index1), index2value(T, index2));
 }
 
+TEA_API void tea_concat(TeaState* T)
+{
+    tea_vm_concat(T);
+}
+
 TEA_API void tea_pop(TeaState* T, int n)
 {
     T->top -= n;
