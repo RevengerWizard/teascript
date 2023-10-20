@@ -15,6 +15,10 @@
 
 #include "tea_arch.h"
 
+#define PROMPT  "> "
+#define PROMPT2  "... "
+#define MAX_INPUT 512
+
 static TeaState* global = NULL;
 
 void tsignal(int id)
@@ -52,19 +56,98 @@ static void print_version()
     fputs("teascript v" TEA_VERSION "\n", stdout);
 }
 
+static void t_message(const char* msg)
+{
+    fputs("tea: ", stderr);
+    fputs(msg, stderr);
+    fputc('\n', stderr);
+    fflush(stderr);
+}
+
+static void write_prompt(bool firstline)
+{
+    const char* prompt = firstline ? PROMPT : PROMPT2;
+    fputs(prompt, stdout);
+    fflush(stdout);
+}
+
+static bool match_braces(const char* line)
+{
+    int level = 0;
+
+    for(int i = 0; line[i]; i++)
+    {
+        if(line[i] == '\0')
+        {
+            break;
+        }
+        else if (line[i] == '{')
+        {
+            level++;
+        }
+        else if (line[i] == '}')
+        {
+            level--;
+        }
+
+        if(level < 0)
+        {
+            return true; // closed brace before opening, end line now
+        }
+    }
+
+    return level == 0;
+}
+
 static void repl(TeaState* T)
 {
     global = T;
     signal(SIGINT, tsignal);
     tea_set_repl(T, true);
 
-    char line[1024];
+    char* line = calloc(MAX_INPUT, sizeof(char));
+    if(line == NULL)
+    {
+        t_message("not enough memory");
+        exit(1);
+    }
+    size_t line_length = 0;
+    size_t line_memory = MAX_INPUT;
+
     while(true)
     {
         line:
-        fputs("> ", stdout); fflush(stdout);
+        write_prompt(true);
 
-        if(!fgets(line, sizeof(line), stdin))
+        char buffer[MAX_INPUT];
+        while(fgets(buffer, MAX_INPUT, stdin) != NULL)
+        {
+            if(line_length + MAX_INPUT > line_memory)
+            {
+                line_memory *= 2;
+                line = realloc(line, line_memory);
+                if(line == NULL)
+                {
+                    t_message("not enough memory");
+                    exit(1);
+                }
+            }
+            strcat(line, buffer);
+            line_length += MAX_INPUT;
+
+            if(!match_braces(line))
+            {
+                write_prompt(false);
+                continue;
+            }
+
+            if(strlen(buffer) != MAX_INPUT - 1 || buffer[MAX_INPUT-2] == '\n')
+            {
+                break;
+            }
+        }
+
+        if(line[0] == '\0')
         {
             putchar('\n');
             break;
@@ -78,11 +161,17 @@ static void repl(TeaState* T)
         if(strcmp(line, "clear\n") == 0)
         {
             clear();
+            line_length = 0;
+            line[0] = '\0';
             goto line;
         }
 
         tea_interpret(T, "=<stdin>", line);
+        line_length = 0;
+        line[0] = '\0';
     }
+
+    free(line);
 }
 
 static int handle_script(TeaState* T, char** argv)
@@ -186,7 +275,7 @@ int main(int argc, char** argv)
     TeaState* T = tea_open();
     if(T == NULL)
     {
-        fprintf(stderr, "Cannot create state: not enough memory");
+        t_message("Cannot create state: not enough memory");
         return EXIT_FAILURE;
     }
 
