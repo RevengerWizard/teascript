@@ -19,6 +19,7 @@ TEA_FUNC int tea_utf_encode(int value, uint8_t* bytes);
 TEA_FUNC TeaOString* tea_utf_codepoint_at(TeaState* T, TeaOString* string, uint32_t index);
 TEA_FUNC TeaOString* tea_utf_from_codepoint(TeaState* T, int value);
 TEA_FUNC TeaOString* tea_utf_from_range(TeaState* T, TeaOString* source, int start, uint32_t count, int step);
+TEA_FUNC TeaOString* tea_utf_reverse(TeaState* T, TeaOString* string);
 
 TEA_FUNC int tea_utf_char_offset(char* str, int index);
 

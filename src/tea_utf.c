@@ -226,6 +226,46 @@ TeaOString* tea_utf_from_range(TeaState* T, TeaOString* source, int start, uint3
 	return tea_str_take(T, bytes, length);
 }
 
+static void rev(char* str, int len)
+{
+    /* this assumes that str is valid UTF-8 */
+    char* scanl, *scanr, *scanr2, c;
+
+    /* first reverse the string */
+    for(scanl = str, scanr = str + len; scanl < scanr;)
+        c = *scanl, *scanl++ = *--scanr, *scanr = c;
+
+    /* then scan all bytes and reverse each multibyte character */
+    for(scanl = scanr = str; (c = *scanr++);)
+    {
+        if((c & 0x80) == 0) /* ASCII char */
+            scanl = scanr;
+        else if((c & 0xc0) == 0xc0)
+        { /* start of multibyte */
+            scanr2 = scanr;
+            switch(scanr - scanl)
+            {
+                case 4:
+                    c = *scanl, *scanl++ = *--scanr, *scanr = c; /* fallthrough */
+                case 3:                                          /* fallthrough */
+                case 2:
+                    c = *scanl, *scanl++ = *--scanr, *scanr = c;
+            }
+            scanr = scanl = scanr2;
+        }
+    }
+}
+
+TEA_FUNC TeaOString* tea_utf_reverse(TeaState* T, TeaOString* string)
+{
+	size_t length = string->length;
+	char* reversed = TEA_ALLOCATE(T, char, length + 1);
+	strcpy(reversed, string->chars);
+	rev(reversed, length);
+
+    return tea_str_take(T, reversed, length);
+}
+
 int tea_utf_char_offset(char* str, int index)
 {
 	#define is_utf(c) (((c) & 0xC0) != 0x80)

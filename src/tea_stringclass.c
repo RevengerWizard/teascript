@@ -67,52 +67,17 @@ static void string_lower(TeaState* T)
     tea_vm_push(T, OBJECT_VAL(tea_str_take(T, temp, len)));
 }
 
-static void rev(char* str, int len)
-{
-    /* this assumes that str is valid UTF-8 */
-    char* scanl, *scanr, *scanr2, c;
-
-    /* first reverse the string */
-    for(scanl = str, scanr = str + len; scanl < scanr;)
-        c = *scanl, *scanl++ = *--scanr, *scanr = c;
-
-    /* then scan all bytes and reverse each multibyte character */
-    for(scanl = scanr = str; (c = *scanr++);)
-    {
-        if((c & 0x80) == 0) /* ASCII char */
-            scanl = scanr;
-        else if((c & 0xc0) == 0xc0)
-        { /* start of multibyte */
-            scanr2 = scanr;
-            switch(scanr - scanl)
-            {
-                case 4:
-                    c = *scanl, *scanl++ = *--scanr, *scanr = c; /* fallthrough */
-                case 3:                                          /* fallthrough */
-                case 2:
-                    c = *scanl, *scanl++ = *--scanr, *scanr = c;
-            }
-            scanr = scanl = scanr2;
-        }
-    }
-}
-
 static void string_reverse(TeaState* T)
 {
     int count = tea_get_top(T);
     tea_ensure_max_args(T, count, 1);
 
-    int len;
-    char* string = (char*)tea_get_lstring(T, 0, &len);
-    if(len < 2)
-    {
-        return;
-    }
+    tea_check_string(T, 0);
 
-    char* reversed = TEA_ALLOCATE(T, char, len + 1);
-    strcpy(reversed, string);
-    rev(reversed, len);
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, reversed, len)));
+    TeaOString* string = AS_STRING(T->base[0]);
+    TeaOString* reversed = tea_utf_reverse(T, string);
+
+    tea_vm_push(T, OBJECT_VAL(reversed));
 }
 
 static void string_split(TeaState* T)
