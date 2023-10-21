@@ -205,19 +205,9 @@ static int invoke_instruction(TeaChunk* chunk, int offset)
     return offset + 3;
 }
 
-static int native_import_instruction(TeaChunk* chunk, int offset)
-{
-    uint8_t module = chunk->code[offset + 2];
-    printf("'");
-    tea_debug_print_value(chunk->constants.values[module]);
-    printf("'\n");
-
-    return offset + 3;
-}
-
 static int simple_instruction(int offset)
 {
-    printf("\n");
+    putchar('\n');
 
     return offset + 1;
 }
@@ -280,133 +270,86 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
     switch(instruction)
     {
         case OP_CONSTANT:
+        case OP_GET_PROPERTY_NO_POP:
+        case OP_SET_CLASS_VAR:
+        case OP_GET_GLOBAL:
+        case OP_SET_GLOBAL:
+        case OP_GET_MODULE:
+        case OP_SET_MODULE:
+        case OP_DEFINE_OPTIONAL:
+        case OP_DEFINE_GLOBAL:
+        case OP_DEFINE_MODULE:
+        case OP_GET_PROPERTY:
+        case OP_SET_PROPERTY:
+        case OP_GET_SUPER:
+        case OP_CLASS:
+        case OP_METHOD:
+        case OP_EXTENSION_METHOD:
+        case OP_IMPORT_STRING:
+        case OP_IMPORT_NAME:
+        case OP_IMPORT_VARIABLE:
             return constant_instruction(chunk, offset);
         case OP_NULL:
-            return simple_instruction(offset);
         case OP_TRUE:
-            return simple_instruction(offset);
         case OP_FALSE:
-            return simple_instruction(offset);
         case OP_POP:
-            return simple_instruction(offset);
         case OP_POP_REPL:
-            return simple_instruction(offset);
-        case OP_GET_PROPERTY_NO_POP:
-            return constant_instruction(chunk, offset);
-        case OP_SET_CLASS_VAR:
-            return constant_instruction(chunk, offset);
-        case OP_GET_LOCAL:
-            return byte_instruction(chunk, offset);
-        case OP_SET_LOCAL:
-            return byte_instruction(chunk, offset);
-        case OP_GET_GLOBAL:
-            return constant_instruction(chunk, offset);
-        case OP_SET_GLOBAL:
-            return constant_instruction(chunk, offset);
-        case OP_GET_MODULE:
-            return constant_instruction(chunk, offset);
-        case OP_SET_MODULE:
-            return constant_instruction(chunk, offset);
-        case OP_DEFINE_OPTIONAL:
-            return constant_instruction(chunk, offset);
-        case OP_DEFINE_GLOBAL:
-            return constant_instruction(chunk, offset);
-        case OP_DEFINE_MODULE:
-            return constant_instruction(chunk, offset);
-        case OP_GET_UPVALUE:
-            return byte_instruction(chunk, offset);
-        case OP_SET_UPVALUE:
-            return byte_instruction(chunk, offset);
-        case OP_GET_PROPERTY:
-            return constant_instruction(chunk, offset);
-        case OP_SET_PROPERTY:
-            return constant_instruction(chunk, offset);
-        case OP_GET_SUPER:
-            return constant_instruction(chunk, offset);
         case OP_RANGE:
-            return simple_instruction(offset);
-        case OP_MULTI_CASE:
-            return byte_instruction(chunk, offset);
         case OP_LIST:
-            return simple_instruction(offset);
-        case OP_UNPACK_LIST:
-            return byte_instruction(chunk, offset);
-        case OP_UNPACK_REST_LIST:
-            return byte_instruction(chunk, offset);
         case OP_MAP:
-            return simple_instruction(offset);
         case OP_SUBSCRIPT:
-            return simple_instruction(offset);
         case OP_SUBSCRIPT_STORE:
-            return simple_instruction(offset);
         case OP_SUBSCRIPT_PUSH:
-            return simple_instruction(offset);
         case OP_SLICE:
-            return simple_instruction(offset);
         case OP_PUSH_LIST_ITEM:
-            return simple_instruction(offset);
         case OP_PUSH_MAP_FIELD:
-            return simple_instruction(offset);
         case OP_EQUAL:
-            return simple_instruction(offset);
         case OP_IS:
-            return simple_instruction(offset);
         case OP_IN:
-            return simple_instruction(offset);
         case OP_GREATER:
-            return simple_instruction(offset);
         case OP_GREATER_EQUAL:
-            return simple_instruction(offset);
         case OP_LESS:
-            return simple_instruction(offset);
         case OP_LESS_EQUAL:
-            return simple_instruction(offset);
         case OP_ADD:
-            return simple_instruction(offset);
         case OP_SUBTRACT:
-            return simple_instruction(offset);
         case OP_MULTIPLY:
-            return simple_instruction(offset);
         case OP_DIVIDE:
-            return simple_instruction(offset);
         case OP_MOD:
-            return simple_instruction(offset);
         case OP_POW:
-            return simple_instruction(offset);
         case OP_BAND:
-            return simple_instruction(offset);
         case OP_BOR:
-            return simple_instruction(offset);
         case OP_BNOT:
-            return simple_instruction(offset);
         case OP_BXOR:
-            return simple_instruction(offset);
         case OP_LSHIFT:
-            return simple_instruction(offset);
         case OP_RSHIFT:
-            return simple_instruction(offset);
         case OP_NOT:
-            return simple_instruction(offset);
         case OP_NEGATE:
+        case OP_CLOSE_UPVALUE:
+        case OP_RETURN:
+        case OP_INHERIT:
+        case OP_IMPORT_ALIAS:
+        case OP_IMPORT_END:
+        case OP_END:
             return simple_instruction(offset);
+        case OP_GET_LOCAL:
+        case OP_SET_LOCAL:
+        case OP_GET_UPVALUE:
+        case OP_SET_UPVALUE:
+        case OP_MULTI_CASE:
+        case OP_UNPACK_LIST:
+        case OP_UNPACK_REST_LIST:
+        case OP_CALL:
+            return byte_instruction(chunk, offset);
         case OP_AND:
-            return jump_instruction(1, chunk, offset);
         case OP_OR:
-            return jump_instruction(1, chunk, offset);
         case OP_COMPARE_JUMP:
-            return jump_instruction(1, chunk, offset);
         case OP_JUMP:
-            return jump_instruction(1, chunk, offset);
         case OP_JUMP_IF_FALSE:
-            return jump_instruction(1, chunk, offset);
         case OP_JUMP_IF_NULL:
             return jump_instruction(1, chunk, offset);
         case OP_LOOP:
             return jump_instruction(-1, chunk, offset);
-        case OP_CALL:
-            return byte_instruction(chunk, offset);
         case OP_INVOKE:
-            return invoke_instruction(chunk, offset);
         case OP_SUPER:
             return invoke_instruction(chunk, offset);
         case OP_CLOSURE:
@@ -422,35 +365,11 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
             {
                 int is_local = chunk->code[offset++];
                 int index = chunk->code[offset++];
-                printf("%04d      |                     %s %d\n", offset - 2, is_local ? "local" : "upvalue", index);
+                printf("%04d    |                     %s %d\n", offset - 2, is_local ? "local" : "upvalue", index);
             }
 
             return offset;
         }
-        case OP_CLOSE_UPVALUE:
-            return simple_instruction(offset);
-        case OP_RETURN:
-            return simple_instruction(offset);
-        case OP_CLASS:
-            return constant_instruction(chunk, offset);
-        case OP_INHERIT:
-            return simple_instruction(offset);
-        case OP_METHOD:
-            return constant_instruction(chunk, offset);
-        case OP_EXTENSION_METHOD:
-            return constant_instruction(chunk, offset);
-        case OP_IMPORT_STRING:
-            return constant_instruction(chunk, offset);
-        case OP_IMPORT_NAME:
-            return native_import_instruction(chunk, offset);
-        case OP_IMPORT_VARIABLE:
-            return constant_instruction(chunk, offset);
-        case OP_IMPORT_ALIAS:
-            return simple_instruction(offset);
-        case OP_IMPORT_END:
-            return simple_instruction(offset);
-        case OP_END:
-            return simple_instruction(offset);
         default:
             return offset + 1;
     }
