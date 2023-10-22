@@ -73,7 +73,7 @@ static size_t load_size(TeaLoadState* S)
 
 static int load_int(TeaLoadState* S)
 {
-    return (int)load_unsigned(S, __INT_MAX__);
+    return (int)load_unsigned(S, INT_MAX);
 }
 
 static double load_number(TeaLoadState* S)

@@ -102,7 +102,7 @@ macosx:
 	$(MAKE) $(ALL) "SYSCFLAGS=-DTEA_OS=TEA_OS_MACOSX" "CC=cc"
 
 mingw:
-	$(MAKE) "TEA_A=tea.dll" "TEA_T=tea.exe" \
+	$(MAKE) "TEA_A=tea0.dll" "TEA_T=tea.exe" \
 	"AR=$(CC) -shared -o" "RANLIB=strip --strip-unneeded" \
 	"SYSCFLAGS=-DTEA_OS=TEA_OS_WINDOWS" \
 	"MYCFLAGS=-DTEA_BUILD_AS_DLL" "MYLIBS=" "MYLDFLAGS=-s" \ tea.exe

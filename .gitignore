@@ -1,7 +1,12 @@
 *.o
+*.obj
 *.exe
+*.manifest
+*.exp
 *.a
 *.dll
+*.so
+*.lib
 *.js
 *.wasm
 *.bc

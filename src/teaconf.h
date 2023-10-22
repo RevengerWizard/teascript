@@ -6,7 +6,7 @@
 #ifndef TEACONF_H
 #define TEACONF_H
 
-#if defined(TEA_BUILD_DLL)
+#if defined(TEA_BUILD_AS_DLL)
 
 #if defined(TEA_CORE) || defined(TEA_LIB)
 #define TEA_API __declspec(dllexport)
