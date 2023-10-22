@@ -3,8 +3,6 @@
 ** Dynamic library loader for Teascript
 */
 
-#include "tea.h"
-
 #include "tea_arch.h"
 
 #if TEA_TARGET_WINDOWS
@@ -13,6 +11,8 @@
 
 #define tea_loadlib_c
 #define TEA_CORE
+
+#include "tea.h"
 
 #if TEA_TARGET_DLOPEN
 
