@@ -3,16 +3,12 @@
 ** Dynamic library loader for Teascript
 */
 
-#include "tea_arch.h"
-
-#if TEA_TARGET_WINDOWS
-#include <windows.h>
-#endif
-
 #define tea_loadlib_c
 #define TEA_CORE
 
 #include "tea.h"
+
+#include "tea_arch.h"
 
 #if TEA_TARGET_DLOPEN
 
@@ -40,6 +36,8 @@ TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym)
 }
 
 #elif TEA_TARGET_WINDOWS
+
+#include <windows.h>
 
 static void lib_error(TeaState* T)
 {
