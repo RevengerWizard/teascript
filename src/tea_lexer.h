@@ -12,6 +12,7 @@
 typedef struct TeaLexer
 {
     TeaState* T;
+    TeaOModule* module;
     const char* start;
     const char* current;
     int line;
@@ -23,6 +24,7 @@ typedef struct TeaLexer
 
 TEA_FUNC void tea_lex_init(TeaState* T, TeaLexer* lex, const char* source);
 TEA_FUNC void tea_lex_backtrack(TeaLexer* lex);
+TEA_FUNC void tea_lex_error(TeaLexer* lex, TeaToken* token, const char* message);
 TEA_FUNC TeaToken tea_lex_token(TeaLexer* lex);
 
 static inline bool is_alpha(char c)

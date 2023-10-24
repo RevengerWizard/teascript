@@ -16,6 +16,7 @@
 #include "tea_lexer.h"
 #include "tea_string.h"
 #include "tea_utf.h"
+#include "tea_do.h"
 
 void tea_lex_init(TeaState* T, TeaLexer* lex, const char* source)
 {
@@ -89,15 +90,15 @@ static TeaToken match_token(TeaLexer* lex, char c, TeaTokenType a, TeaTokenType 
     return make_token(lex, match_char(lex, c) ? a : b);
 }
 
-static TeaToken error_token(TeaLexer* lex, const char* message)
-{
+static void error_token(TeaLexer* lex, const char* message)
+{    
     TeaToken token;
     token.type = TOKEN_ERROR;
     token.start = message;
     token.length = (int)strlen(message);
     token.line = lex->line;
     
-    return token;
+    tea_lex_error(lex, &token, message);
 }
 
 static void skip_line_comment(TeaLexer* lex)
@@ -434,7 +435,7 @@ static TeaToken make_number_token(TeaLexer* lex, bool strip, bool is_hex, bool i
 	if(errno == ERANGE) 
     {
 		errno = 0;
-		return error_token(lex, "Number too big");
+		error_token(lex, "Number too big");
 	}
 
 	TeaToken token = make_token(lex, TOKEN_NUMBER);
@@ -452,7 +453,7 @@ static TeaToken hex_number(TeaLexer* lex)
         if(peek(lex) == '_')
         {
             if(!underscore) underscore = true;
-            if(last) return error_token(lex, "Cannot have consecutive underscores");
+            if(last) error_token(lex, "Cannot have consecutive underscores");
             advance_char(lex);
             last = true;
         }
@@ -463,7 +464,7 @@ static TeaToken hex_number(TeaLexer* lex)
         }
     }
 
-    if(last) return error_token(lex, "Invalid hex number");
+    if(last) error_token(lex, "Invalid hex number");
 
     return make_number_token(lex, underscore, true, false, false);
 }
@@ -477,7 +478,7 @@ static TeaToken binary_number(TeaLexer* lex)
         if(peek(lex) == '_')
         {
             if(!underscore) underscore = true;
-            if(last) return error_token(lex, "Cannot have consecutive underscores");
+            if(last) error_token(lex, "Cannot have consecutive underscores");
             advance_char(lex);
             last = true;
         }
@@ -488,7 +489,7 @@ static TeaToken binary_number(TeaLexer* lex)
         }
     }
 
-    if(last) return error_token(lex, "Cannot have leading underscores");
+    if(last) error_token(lex, "Cannot have leading underscores");
 
     return make_number_token(lex, underscore, false, true, false);
 }
@@ -502,7 +503,7 @@ static TeaToken octal_number(TeaLexer* lex)
         if(peek(lex) == '_')
         {
             if(!underscore) underscore = true;
-            if(last) return error_token(lex, "Cannot have consecutive underscores");
+            if(last) error_token(lex, "Cannot have consecutive underscores");
             advance_char(lex);
             last = true;
         }
@@ -513,7 +514,7 @@ static TeaToken octal_number(TeaLexer* lex)
         }
     }
 
-    if(last) return error_token(lex, "Cannot have leading underscores");
+    if(last) error_token(lex, "Cannot have leading underscores");
 
     return make_number_token(lex, underscore, false, false, true);
 }
@@ -527,7 +528,7 @@ static TeaToken exponent_number(TeaLexer* lex)
 
     if(!is_digit(peek(lex)))
     {
-        return error_token(lex, "Unterminated scientific notation");
+        error_token(lex, "Unterminated scientific notation");
     }
 
     bool underscore, last = false;
@@ -537,7 +538,7 @@ static TeaToken exponent_number(TeaLexer* lex)
         if(peek(lex) == '_')
         {
             if(!underscore) underscore = true;
-            if(last) return error_token(lex, "Cannot have consecutive underscores");
+            if(last) error_token(lex, "Cannot have consecutive underscores");
             advance_char(lex);
             last = true;
         }
@@ -548,7 +549,7 @@ static TeaToken exponent_number(TeaLexer* lex)
         }
     }
 
-    if(last) return error_token(lex, "Cannot have leading underscores");
+    if(last) error_token(lex, "Cannot have leading underscores");
 
     return make_number_token(lex, underscore, false, false, false);
 }
@@ -562,7 +563,7 @@ static TeaToken number(TeaLexer* lex)
         if(peek(lex) == '_')
         {
             if(!underscore) underscore = true;
-            if(last) return error_token(lex, "Cannot have consecutive underscores");
+            if(last) error_token(lex, "Cannot have consecutive underscores");
             advance_char(lex);
             last = true;
         }
@@ -585,7 +586,7 @@ static TeaToken number(TeaLexer* lex)
             if(peek(lex) == '_')
             {
                 if(!underscore) underscore = true;
-                if(last) return error_token(lex, "Cannot have consecutive underscores");
+                if(last) error_token(lex, "Cannot have consecutive underscores");
                 advance_char(lex);
                 last = true;
             }
@@ -602,7 +603,7 @@ static TeaToken number(TeaLexer* lex)
         return exponent_number(lex);
     }
 
-    if(last) return error_token(lex, "Cannot have leading underscores");
+    if(last) error_token(lex, "Cannot have leading underscores");
 
     return make_number_token(lex, underscore, false, false, false);
 }
@@ -674,7 +675,7 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
             if(lex->num_braces >= 4)
             {
                 tea_free_bytes(T, &bytes);
-				return error_token(lex, "String interpolation is too deep");
+				error_token(lex, "String interpolation is too deep");
 			}
 
 			type = TOKEN_INTERPOLATION;
@@ -690,7 +691,7 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
             case '\0':
             {
                 tea_free_bytes(T, &bytes);
-                return error_token(lex, "Unterminated string");
+                error_token(lex, "Unterminated string");
             }
             case '\n':
             {
@@ -726,7 +727,7 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
                         if(h == -1)
                         {
                             tea_free_bytes(T, &bytes);
-                            return error_token(lex, "Incomplete byte escape sequence.");
+                            error_token(lex, "Incomplete byte escape sequence.");
                         }
                         tea_write_bytes(T, &bytes, (uint8_t)h);
                         break;
@@ -737,7 +738,7 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
                         if(e)
                         {
                             tea_free_bytes(T, &bytes);
-                            return error_token(lex, "Incomplete unicode escape sequence.");
+                            error_token(lex, "Incomplete unicode escape sequence.");
                         }
                         break;
                     }
@@ -747,14 +748,14 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
                         if(e)
                         {
                             tea_free_bytes(T, &bytes);
-                            return error_token(lex, "Incomplete unicode escape sequence.");
+                            error_token(lex, "Incomplete unicode escape sequence.");
                         }
                         break;
                     }
                     default: 
                     {
                         tea_free_bytes(T, &bytes);
-                        return error_token(lex, "Invalid escape character");
+                        error_token(lex, "Invalid escape character");
                     }
                 }
                 break;
@@ -780,11 +781,38 @@ void tea_lex_backtrack(TeaLexer* lex)
     lex->current--;
 }
 
+void tea_lex_error(TeaLexer* lex, TeaToken* token, const char* message)
+{
+    char* module_name = lex->module->name->chars;
+    char c = module_name[0];
+    int off = 0;
+    if(c == '?' || c == '=') off = 1;
+
+    fprintf(stderr, "File %s, [line %d] Error", module_name + off, token->line);
+
+    if(token->type == TOKEN_EOF)
+    {
+        fprintf(stderr, " at end");
+    }
+    else if(token->type == TOKEN_ERROR)
+    {
+        /* Nothing */
+    }
+    else
+    {
+        fprintf(stderr, " at '%.*s'", token->length, token->start);
+    }
+
+    fprintf(stderr, ": %s\n", message);
+
+    tea_do_throw(lex->T, TEA_SYNTAX_ERROR);
+}
+
 TeaToken tea_lex_token(TeaLexer* lex)
 {
     if(skip_whitespace(lex))
     {
-        return error_token(lex, "Unterminated block comment");
+        error_token(lex, "Unterminated block comment");
     }
     lex->start = lex->current;
 
@@ -929,5 +957,6 @@ TeaToken tea_lex_token(TeaLexer* lex)
         }
     }
 
-    return error_token(lex, "Unexpected character");
+    error_token(lex, "Unexpected character");
+    return make_token(lex, TOKEN_EOF);
 }

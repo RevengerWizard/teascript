@@ -18,7 +18,6 @@
 #include "tea_gc.h"
 #include "tea_lexer.h"
 #include "tea_import.h"
-#include "tea_do.h"
 
 #ifdef TEA_DEBUG_PRINT_CODE
 #include "tea_debug.h"
@@ -29,55 +28,21 @@ static TeaChunk* current_chunk(TeaCompiler* compiler)
     return &compiler->function->chunk;
 }
 
-static void error_at(TeaCompiler* compiler, TeaToken* token, const char* message)
-{
-    char* module_name = compiler->parser->module->name->chars;
-    char c = module_name[0];
-    int off = 0;
-    if(c == '?' || c == '=') off = 1;
-
-    fprintf(stderr, "File %s, [line %d] Error", module_name + off, token->line);
-
-    if(token->type == TOKEN_EOF)
-    {
-        fprintf(stderr, " at end");
-    }
-    else if(token->type == TOKEN_ERROR)
-    {
-        /* Nothing */
-    }
-    else
-    {
-        fprintf(stderr, " at '%.*s'", token->length, token->start);
-    }
-
-    fprintf(stderr, ": %s\n", message);
-
-    tea_do_throw(compiler->parser->T, TEA_SYNTAX_ERROR);
-}
-
 static void error(TeaCompiler* compiler, const char* message)
 {
-    error_at(compiler, &compiler->parser->previous, message);
+    tea_lex_error(&compiler->parser->lex, &compiler->parser->previous, message);
 }
 
 static void error_at_current(TeaCompiler* compiler, const char* message)
 {
-    error_at(compiler, &compiler->parser->current, message);
+    tea_lex_error(&compiler->parser->lex, &compiler->parser->current, message);
 }
 
 static void next(TeaCompiler* compiler)
 {
     compiler->parser->previous = compiler->parser->current;
 
-    while(true)
-    {
-        compiler->parser->current = tea_lex_token(&compiler->parser->lex);
-        if(compiler->parser->current.type != TOKEN_ERROR)
-            break;
-
-        error_at_current(compiler, compiler->parser->current.start);
-    }
+    compiler->parser->current = tea_lex_token(&compiler->parser->lex);
 }
 
 /* Go back by one token. You need to patch the current token to the previous one after calling this function */
@@ -240,6 +205,7 @@ static void init_compiler(TeaParser* parser, TeaCompiler* compiler, TeaCompiler*
     compiler->function = NULL;
     compiler->klass = NULL;
     compiler->loop = NULL;
+    compiler->parser->lex.module = parser->module;
 
     if(parent != NULL)
     {
