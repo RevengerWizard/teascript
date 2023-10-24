@@ -25,7 +25,7 @@ void tea_lex_init(TeaState* T, TeaLexer* lex, const char* source)
 
     lex->T = T;
     lex->start = source;
-    lex->current = source;
+    lex->curr = source;
     lex->line = 1;
     lex->num_braces = 0;
     lex->raw = false;
@@ -33,19 +33,19 @@ void tea_lex_init(TeaState* T, TeaLexer* lex, const char* source)
 
 static bool is_at_end(TeaLexer* lex)
 {
-    return *lex->current == '\0';
+    return *lex->curr == '\0';
 }
 
 static char advance_char(TeaLexer* lex)
 {
-    lex->current++;
+    lex->curr++;
 
-    return lex->current[-1];
+    return lex->curr[-1];
 }
 
 static char peek(TeaLexer* lex)
 {
-    return *lex->current;
+    return *lex->curr;
 }
 
 static char peek_next(TeaLexer* lex)
@@ -53,7 +53,7 @@ static char peek_next(TeaLexer* lex)
     if(is_at_end(lex))
         return '\0';
 
-    return lex->current[1];
+    return lex->curr[1];
 }
 
 static bool match_char(TeaLexer* lex, char expected)
@@ -61,10 +61,10 @@ static bool match_char(TeaLexer* lex, char expected)
     if(is_at_end(lex))
         return false;
 
-    if(*lex->current != expected)
+    if(*lex->curr != expected)
         return false;
 
-    lex->current++;
+    lex->curr++;
 
     return true;
 }
@@ -74,7 +74,7 @@ static TeaToken make_token(TeaLexer* lex, TeaTokenType type)
     TeaToken token;
     token.type = type;
     token.start = lex->start;
-    token.length = (int)(lex->current - lex->start);
+    token.length = (int)(lex->curr - lex->start);
     token.line = lex->line;
 
     return token;
@@ -194,7 +194,7 @@ static bool skip_whitespace(TeaLexer* lex)
 
 static TeaTokenType check_keyword(TeaLexer* lex, int start, int length, const char* rest, TeaTokenType type)
 {
-    if(lex->current - lex->start == start + length && memcmp(lex->start + start, rest, length) == 0)
+    if(lex->curr - lex->start == start + length && memcmp(lex->start + start, rest, length) == 0)
     {
         return type;
     }
@@ -208,7 +208,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
     {
         case 'a':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -221,7 +221,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         case 'b': return check_keyword(lex, 1, 4, "reak", TOKEN_BREAK);
         case 'c':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -229,7 +229,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
                     case 'l': return check_keyword(lex, 2, 3, "ass", TOKEN_CLASS);
                     case 'o': 
                     {
-                        if(lex->current - lex->start > 3)
+                        if(lex->curr - lex->start > 3)
                         {
                             switch(lex->start[3])
                             {
@@ -245,7 +245,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         }
         case 'd':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -257,7 +257,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         }
         case 'e':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -269,7 +269,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         }
         case 'f':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -283,7 +283,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         }
         case 'i':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -297,7 +297,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         }
         case 'n':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -310,7 +310,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         case 'o': return check_keyword(lex, 1, 1, "r", TOKEN_OR);
         case 'r': 
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -321,7 +321,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         }
         case 's':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -334,7 +334,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         }
         case 't':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -347,7 +347,7 @@ static TeaTokenType identifier_type(TeaLexer* lex)
         case 'v': return check_keyword(lex, 1, 2, "ar", TOKEN_VAR);
         case 'w':
         {
-            if(lex->current - lex->start > 1)
+            if(lex->curr - lex->start > 1)
             {
                 switch(lex->start[1])
                 {
@@ -376,7 +376,7 @@ static TeaToken make_number_token(TeaLexer* lex, bool strip, bool is_hex, bool i
 
     if(strip)
     {
-        int len = (int)(lex->current - lex->start);
+        int len = (int)(lex->curr - lex->start);
         char* buffer = TEA_ALLOCATE(lex->T, char, len + 1);
         char* current = buffer;
 
@@ -778,7 +778,7 @@ static TeaToken string(TeaLexer* lex, bool interpolation)
 
 void tea_lex_backtrack(TeaLexer* lex)
 {
-    lex->current--;
+    lex->curr--;
 }
 
 void tea_lex_error(TeaLexer* lex, TeaToken* token, const char* message)
@@ -814,7 +814,7 @@ TeaToken tea_lex_token(TeaLexer* lex)
     {
         error_token(lex, "Unterminated block comment");
     }
-    lex->start = lex->current;
+    lex->start = lex->curr;
 
     if(is_at_end(lex))
         return make_token(lex, TOKEN_EOF);

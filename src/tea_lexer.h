@@ -14,7 +14,9 @@ typedef struct TeaLexer
     TeaState* T;
     TeaOModule* module;
     const char* start;
-    const char* current;
+    const char* curr;
+    TeaToken current;
+    TeaToken previous;
     int line;
     char string;
     int braces[4];

@@ -23,70 +23,70 @@
 #include "tea_debug.h"
 #endif
 
-static TeaChunk* current_chunk(TeaCompiler* compiler)
+static TeaChunk* current_chunk(TeaParser* parser)
 {
-    return &compiler->function->chunk;
+    return &parser->function->chunk;
 }
 
-static void error(TeaCompiler* compiler, const char* message)
+static void error(TeaParser* parser, const char* message)
 {
-    tea_lex_error(&compiler->parser->lex, &compiler->parser->previous, message);
+    tea_lex_error(parser->lex, &parser->lex->previous, message);
 }
 
-static void error_at_current(TeaCompiler* compiler, const char* message)
+static void error_at_current(TeaParser* parser, const char* message)
 {
-    tea_lex_error(&compiler->parser->lex, &compiler->parser->current, message);
+    tea_lex_error(parser->lex, &parser->lex->current, message);
 }
 
-static void next(TeaCompiler* compiler)
+static void next(TeaParser* parser)
 {
-    compiler->parser->previous = compiler->parser->current;
+    parser->lex->previous = parser->lex->current;
 
-    compiler->parser->current = tea_lex_token(&compiler->parser->lex);
+    parser->lex->current = tea_lex_token(parser->lex);
 }
 
 /* Go back by one token. You need to patch the current token to the previous one after calling this function */
-static void recede(TeaCompiler* compiler)
+static void recede(TeaParser* parser)
 {
-    for(int i = 0; i < compiler->parser->current.length; i++)
+    for(int i = 0; i < parser->lex->current.length; i++)
     {
-        tea_lex_backtrack(&compiler->parser->lex);
+        tea_lex_backtrack(parser->lex);
     }
 }
 
-static void consume(TeaCompiler* compiler, TeaTokenType type, const char* message)
+static void consume(TeaParser* parser, TeaTokenType type, const char* message)
 {
-    if(compiler->parser->current.type == type)
+    if(parser->lex->current.type == type)
     {
-        next(compiler);
+        next(parser);
         return;
     }
 
-    error_at_current(compiler, message);
+    error_at_current(parser, message);
 }
 
-static bool check(TeaCompiler* compiler, TeaTokenType type)
+static bool check(TeaParser* parser, TeaTokenType type)
 {
-    return compiler->parser->current.type == type;
+    return parser->lex->current.type == type;
 }
 
-static bool match(TeaCompiler* compiler, TeaTokenType type)
+static bool match(TeaParser* parser, TeaTokenType type)
 {
-    if(!check(compiler, type))
+    if(!check(parser, type))
         return false;
-    next(compiler);
+    next(parser);
     return true;
 }
 
-static void emit_byte(TeaCompiler* compiler, uint8_t byte)
+static void emit_byte(TeaParser* parser, uint8_t byte)
 {
-    tea_chunk_write(compiler->parser->T, current_chunk(compiler), byte, compiler->parser->previous.line);
+    tea_chunk_write(parser->lex->T, current_chunk(parser), byte, parser->lex->previous.line);
 }
 
-static void emit_bytes(TeaCompiler* compiler, uint8_t byte1, uint8_t byte2)
+static void emit_bytes(TeaParser* parser, uint8_t byte1, uint8_t byte2)
 {
-    emit_byte(compiler, byte1);
-    emit_byte(compiler, byte2);
+    emit_byte(parser, byte1);
+    emit_byte(parser, byte2);
 }
 
 static const int stack_effects[] = {
@@ -95,138 +95,137 @@ static const int stack_effects[] = {
     #undef OPCODE
 };
 
-static void emit_op(TeaCompiler* compiler, TeaOpCode op)
+static void emit_op(TeaParser* parser, TeaOpCode op)
 {
-    emit_byte(compiler, op);
+    emit_byte(parser, op);
 
-    compiler->slot_count += stack_effects[op];
-    if(compiler->slot_count > compiler->function->max_slots)
+    parser->slot_count += stack_effects[op];
+    if(parser->slot_count > parser->function->max_slots)
     {
-        compiler->function->max_slots = compiler->slot_count;
+        parser->function->max_slots = parser->slot_count;
     }
 }
 
-static void emit_ops(TeaCompiler* compiler, TeaOpCode op1, TeaOpCode op2)
+static void emit_ops(TeaParser* parser, TeaOpCode op1, TeaOpCode op2)
 {
-    emit_bytes(compiler, op1, op2);
+    emit_bytes(parser, op1, op2);
 
-    compiler->slot_count += stack_effects[op1] + stack_effects[op2];
-    if(compiler->slot_count > compiler->function->max_slots)
+    parser->slot_count += stack_effects[op1] + stack_effects[op2];
+    if(parser->slot_count > parser->function->max_slots)
     {
-        compiler->function->max_slots = compiler->slot_count;
+        parser->function->max_slots = parser->slot_count;
     }
 }
 
-static void emit_argued(TeaCompiler* compiler, TeaOpCode op, uint8_t byte)
+static void emit_argued(TeaParser* parser, TeaOpCode op, uint8_t byte)
 {
-    emit_bytes(compiler, op, byte);
+    emit_bytes(parser, op, byte);
 
-    compiler->slot_count += stack_effects[op];
-    if(compiler->slot_count > compiler->function->max_slots)
+    parser->slot_count += stack_effects[op];
+    if(parser->slot_count > parser->function->max_slots)
     {
-        compiler->function->max_slots = compiler->slot_count;
+        parser->function->max_slots = parser->slot_count;
     }
 }
 
-static void emit_loop(TeaCompiler* compiler, int loop_start)
+static void emit_loop(TeaParser* parser, int loop_start)
 {
-    emit_op(compiler, OP_LOOP);
+    emit_op(parser, OP_LOOP);
 
-    int offset = current_chunk(compiler)->count - loop_start + 2;
+    int offset = current_chunk(parser)->count - loop_start + 2;
     if(offset > UINT16_MAX)
-        error(compiler, "Loop body too large");
+        error(parser, "Loop body too large");
 
-    emit_byte(compiler, (offset >> 8) & 0xff);
-    emit_byte(compiler, offset & 0xff);
+    emit_byte(parser, (offset >> 8) & 0xff);
+    emit_byte(parser, offset & 0xff);
 }
 
-static int emit_jump(TeaCompiler* compiler, uint8_t instruction)
+static int emit_jump(TeaParser* parser, uint8_t instruction)
 {
-    emit_op(compiler, instruction);
-    emit_bytes(compiler, 0xff, 0xff);
+    emit_op(parser, instruction);
+    emit_bytes(parser, 0xff, 0xff);
 
-    return current_chunk(compiler)->count - 2;
+    return current_chunk(parser)->count - 2;
 }
 
-static void emit_return(TeaCompiler* compiler)
+static void emit_return(TeaParser* parser)
 {
-    if(compiler->type == TYPE_CONSTRUCTOR)
+    if(parser->type == TYPE_CONSTRUCTOR)
     {
-        emit_argued(compiler, OP_GET_LOCAL, 0);
+        emit_argued(parser, OP_GET_LOCAL, 0);
     }
     else
     {
-        emit_op(compiler, OP_NULL);
+        emit_op(parser, OP_NULL);
     }
 
-    emit_byte(compiler, OP_RETURN);
+    emit_byte(parser, OP_RETURN);
 }
 
-static uint8_t make_constant(TeaCompiler* compiler, TeaValue value)
+static uint8_t make_constant(TeaParser* parser, TeaValue value)
 {
-    int constant = tea_chunk_add_constant(compiler->parser->T, current_chunk(compiler), value);
+    int constant = tea_chunk_add_constant(parser->lex->T, current_chunk(parser), value);
     if(constant > UINT8_MAX)
     {
-        error(compiler, "Too many constants in one chunk");
+        error(parser, "Too many constants in one chunk");
     }
 
     return (uint8_t)constant;
 }
 
-static void invoke_method(TeaCompiler* compiler, int args, const char* name)
+static void invoke_method(TeaParser* parser, int args, const char* name)
 {
-    emit_argued(compiler, OP_INVOKE, make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, name, strlen(name)))));
-    emit_byte(compiler, args);
+    emit_argued(parser, OP_INVOKE, make_constant(parser, OBJECT_VAL(tea_str_copy(parser->lex->T, name, strlen(name)))));
+    emit_byte(parser, args);
 }
 
-static void emit_constant(TeaCompiler* compiler, TeaValue value)
+static void emit_constant(TeaParser* parser, TeaValue value)
 {
-    emit_argued(compiler, OP_CONSTANT, make_constant(compiler, value));
+    emit_argued(parser, OP_CONSTANT, make_constant(parser, value));
 }
 
-static void patch_jump(TeaCompiler* compiler, int offset)
+static void patch_jump(TeaParser* parser, int offset)
 {
     /* -2 to adjust for the bytecode for the jump offset itself */
-    int jump = current_chunk(compiler)->count - offset - 2;
+    int jump = current_chunk(parser)->count - offset - 2;
 
     if(jump > UINT16_MAX)
     {
-        error(compiler, "Too much code to jump over");
+        error(parser, "Too much code to jump over");
     }
 
-    current_chunk(compiler)->code[offset] = (jump >> 8) & 0xff;
-    current_chunk(compiler)->code[offset + 1] = jump & 0xff;
+    current_chunk(parser)->code[offset] = (jump >> 8) & 0xff;
+    current_chunk(parser)->code[offset + 1] = jump & 0xff;
 }
 
-static void init_compiler(TeaParser* parser, TeaCompiler* compiler, TeaCompiler* parent, TeaFunctionType type)
+static void init_compiler(TeaLexer* lexer, TeaParser* parser, TeaParser* parent, TeaFunctionType type)
 {
-    compiler->parser = parser;
-    compiler->enclosing = parent;
-    compiler->function = NULL;
-    compiler->klass = NULL;
-    compiler->loop = NULL;
-    compiler->parser->lex.module = parser->module;
+    parser->lex = lexer;
+    parser->enclosing = parent;
+    parser->function = NULL;
+    parser->klass = NULL;
+    parser->loop = NULL;
 
     if(parent != NULL)
     {
-        compiler->klass = parent->klass;
+        parser->klass = parent->klass;
     }
 
-    compiler->type = type;
-    compiler->local_count = 1;
-    compiler->slot_count = compiler->local_count;
-    compiler->scope_depth = 0;
+    parser->type = type;
+    parser->local_count = 1;
+    parser->slot_count = parser->local_count;
+    parser->scope_depth = 0;
 
-    parser->T->compiler = compiler;
+    lexer->T->parser = parser;
 
-    compiler->function = tea_func_new_function(parser->T, type, parser->module, compiler->slot_count);
+    parser->function = tea_func_new_function(lexer->T, type, lexer->module, parser->slot_count);
 
     if(type != TYPE_SCRIPT)
     {
-        compiler->function->name = tea_str_copy(parser->T, parser->previous.start, parser->previous.length);
+        parser->function->name = tea_str_copy(lexer->T, lexer->previous.start, lexer->previous.length);
     }
 
-    TeaLocal* local = &compiler->locals[0];
+    TeaLocal* local = &parser->locals[0];
     local->depth = 0;
     local->is_captured = false;
     if(type != TYPE_FUNCTION)
@@ -241,75 +240,75 @@ static void init_compiler(TeaParser* parser, TeaCompiler* compiler, TeaCompiler*
     }
 }
 
-static TeaOFunction* end_compiler(TeaCompiler* compiler)
+static TeaOFunction* end_compiler(TeaParser* parser)
 {
-    emit_return(compiler);
-    TeaOFunction* function = compiler->function;
+    emit_return(parser);
+    TeaOFunction* function = parser->function;
 
 #ifdef TEA_DEBUG_PRINT_CODE
-    TeaState* T = compiler->parser->T;
-    tea_debug_chunk(T, current_chunk(compiler), function->name != NULL ? function->name->chars : "<script>");
+    TeaState* T = parser->lex->T;
+    tea_debug_chunk(T, current_chunk(parser), function->name != NULL ? function->name->chars : "<script>");
 #endif
 
-    if(compiler->enclosing != NULL)
+    if(parser->enclosing != NULL)
     {
-        emit_argued(compiler->enclosing, OP_CLOSURE, make_constant(compiler->enclosing, OBJECT_VAL(function)));
+        emit_argued(parser->enclosing, OP_CLOSURE, make_constant(parser->enclosing, OBJECT_VAL(function)));
 
         for(int i = 0; i < function->upvalue_count; i++)
         {
-            emit_byte(compiler->enclosing, compiler->upvalues[i].is_local ? 1 : 0);
-            emit_byte(compiler->enclosing, compiler->upvalues[i].index);
+            emit_byte(parser->enclosing, parser->upvalues[i].is_local ? 1 : 0);
+            emit_byte(parser->enclosing, parser->upvalues[i].index);
         }
     }
 
-    compiler->parser->T->compiler = compiler->enclosing;
+    parser->lex->T->parser = parser->enclosing;
 
     return function;
 }
 
-static void begin_scope(TeaCompiler* compiler)
+static void begin_scope(TeaParser* parser)
 {
-    compiler->scope_depth++;
+    parser->scope_depth++;
 }
 
-static int discard_locals(TeaCompiler* compiler, int depth)
+static int discard_locals(TeaParser* parser, int depth)
 {
     int local;
-    for(local = compiler->local_count - 1; local >= 0 && compiler->locals[local].depth >= depth; local--)
+    for(local = parser->local_count - 1; local >= 0 && parser->locals[local].depth >= depth; local--)
     {
-        if(compiler->locals[local].is_captured)
+        if(parser->locals[local].is_captured)
         {
-            emit_byte(compiler, OP_CLOSE_UPVALUE);
+            emit_byte(parser, OP_CLOSE_UPVALUE);
         }
         else
         {
-            emit_byte(compiler, OP_POP);
+            emit_byte(parser, OP_POP);
         }
     }
 
-    return compiler->local_count - local - 1;
+    return parser->local_count - local - 1;
 }
 
-static void end_scope(TeaCompiler* compiler)
+static void end_scope(TeaParser* parser)
 {
-    int effect = discard_locals(compiler, compiler->scope_depth);
-    compiler->local_count -= effect;
-    compiler->slot_count -= effect;
-    compiler->scope_depth--;
+    int effect = discard_locals(parser, parser->scope_depth);
+    parser->local_count -= effect;
+    parser->slot_count -= effect;
+    parser->scope_depth--;
 }
 
-static void expression(TeaCompiler* compiler);
-static void statement(TeaCompiler* compiler);
-static void declaration(TeaCompiler* compiler);
+static void expression(TeaParser* parser);
+static void statement(TeaParser* parser);
+static void declaration(TeaParser* parser);
 static TeaParseRule* get_rule(TeaTokenType type);
-static void parse_precedence(TeaCompiler* compiler, TeaPrecedence precedence);
-static void arrow(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaToken name);
-static void anonymous(TeaCompiler* compiler, bool can_assign);
-static void grouping(TeaCompiler* compiler, bool can_assign);
+static void parse_precedence(TeaParser* parser, TeaPrecedence precedence);
+static void arrow(TeaParser* parser, TeaParser* fn_parser, TeaToken name);
+static void anonymous(TeaParser* parser, bool can_assign);
+static void grouping(TeaParser* parser, bool can_assign);
 
-static uint8_t identifier_constant(TeaCompiler* compiler, TeaToken* name)
+static uint8_t identifier_constant(TeaParser* parser, TeaToken* name)
 {
-    return make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, name->start, name->length)));
+    return make_constant(parser, OBJECT_VAL(tea_str_copy(parser->lex->T, name->start, name->length)));
 }
 
 static bool identifiers_equal(TeaToken* a, TeaToken* b)
@@ -320,11 +319,11 @@ static bool identifiers_equal(TeaToken* a, TeaToken* b)
     return memcmp(a->start, b->start, a->length) == 0;
 }
 
-static int resolve_local(TeaCompiler* compiler, TeaToken* name)
+static int resolve_local(TeaParser* parser, TeaToken* name)
 {
-    for(int i = compiler->local_count - 1; i >= 0; i--)
+    for(int i = parser->local_count - 1; i >= 0; i--)
     {
-        TeaLocal* local = &compiler->locals[i];
+        TeaLocal* local = &parser->locals[i];
         if(identifiers_equal(name, &local->name))
         {
             if(local->depth == -1)
@@ -339,13 +338,13 @@ static int resolve_local(TeaCompiler* compiler, TeaToken* name)
     return -1;
 }
 
-static int add_upvalue(TeaCompiler* compiler, uint8_t index, bool is_local, bool constant)
+static int add_upvalue(TeaParser* parser, uint8_t index, bool is_local, bool constant)
 {
-    int upvalue_count = compiler->function->upvalue_count;
+    int upvalue_count = parser->function->upvalue_count;
 
     for(int i = 0; i < upvalue_count; i++)
     {
-        TeaUpvalue* upvalue = &compiler->upvalues[i];
+        TeaUpvalue* upvalue = &parser->upvalues[i];
         if(upvalue->index == index && upvalue->is_local == is_local)
         {
             return i;
@@ -354,493 +353,493 @@ static int add_upvalue(TeaCompiler* compiler, uint8_t index, bool is_local, bool
 
     if(upvalue_count == UINT8_COUNT)
     {
-        error(compiler, "Too many closure variables in function");
+        error(parser, "Too many closure variables in function");
     }
 
-    compiler->upvalues[upvalue_count].is_local = is_local;
-    compiler->upvalues[upvalue_count].index = index;
-    compiler->upvalues[upvalue_count].constant = constant;
+    parser->upvalues[upvalue_count].is_local = is_local;
+    parser->upvalues[upvalue_count].index = index;
+    parser->upvalues[upvalue_count].constant = constant;
 
-    return compiler->function->upvalue_count++;
+    return parser->function->upvalue_count++;
 }
 
-static int resolve_upvalue(TeaCompiler* compiler, TeaToken* name)
+static int resolve_upvalue(TeaParser* parser, TeaToken* name)
 {
-    if(compiler->enclosing == NULL)
+    if(parser->enclosing == NULL)
         return -1;
 
-    int local = resolve_local(compiler->enclosing, name);
-    bool constant = compiler->enclosing->locals[local].constant;
+    int local = resolve_local(parser->enclosing, name);
+    bool constant = parser->enclosing->locals[local].constant;
     if(local != -1)
     {
-        compiler->enclosing->locals[local].is_captured = true;
-        return add_upvalue(compiler, (uint8_t)local, true, constant);
+        parser->enclosing->locals[local].is_captured = true;
+        return add_upvalue(parser, (uint8_t)local, true, constant);
     }
 
-    int upvalue = resolve_upvalue(compiler->enclosing, name);
-    constant = compiler->enclosing->upvalues[upvalue].constant;
+    int upvalue = resolve_upvalue(parser->enclosing, name);
+    constant = parser->enclosing->upvalues[upvalue].constant;
     if(upvalue != -1)
     {
-        return add_upvalue(compiler, (uint8_t)upvalue, false, constant);
+        return add_upvalue(parser, (uint8_t)upvalue, false, constant);
     }
 
     return -1;
 }
 
-static void add_local(TeaCompiler* compiler, TeaToken name)
+static void add_local(TeaParser* parser, TeaToken name)
 {
-    if(compiler->local_count == UINT8_COUNT)
+    if(parser->local_count == UINT8_COUNT)
     {
-        error(compiler, "Too many local variables in function");
+        error(parser, "Too many local variables in function");
     }
 
-    TeaLocal* local = &compiler->locals[compiler->local_count++];
+    TeaLocal* local = &parser->locals[parser->local_count++];
     local->name = name;
     local->depth = -1;
     local->is_captured = false;
     local->constant = false;
 }
 
-static int add_init_local(TeaCompiler* compiler, TeaToken name, bool constant)
+static int add_init_local(TeaParser* parser, TeaToken name, bool constant)
 {
-    add_local(compiler, name);
+    add_local(parser, name);
 
-    TeaLocal* local = &compiler->locals[compiler->local_count - 1];
-    local->depth = compiler->scope_depth;
+    TeaLocal* local = &parser->locals[parser->local_count - 1];
+    local->depth = parser->scope_depth;
     local->constant = constant;
 
-    return compiler->local_count - 1;
+    return parser->local_count - 1;
 }
 
-static void declare_variable(TeaCompiler* compiler, TeaToken* name)
+static void declare_variable(TeaParser* parser, TeaToken* name)
 {
-    if(compiler->scope_depth == 0)
+    if(parser->scope_depth == 0)
         return;
 
-    add_local(compiler, *name);
+    add_local(parser, *name);
 }
 
-static uint8_t parse_variable(TeaCompiler* compiler, const char* error_message)
+static uint8_t parse_variable(TeaParser* parser, const char* error_message)
 {
-    consume(compiler, TOKEN_NAME, error_message);
+    consume(parser, TOKEN_NAME, error_message);
 
-    declare_variable(compiler, &compiler->parser->previous);
-    if(compiler->scope_depth > 0)
+    declare_variable(parser, &parser->lex->previous);
+    if(parser->scope_depth > 0)
         return 0;
 
-    return identifier_constant(compiler, &compiler->parser->previous);
+    return identifier_constant(parser, &parser->lex->previous);
 }
 
-static uint8_t parse_variable_at(TeaCompiler* compiler, TeaToken name)
+static uint8_t parse_variable_at(TeaParser* parser, TeaToken name)
 {
-    declare_variable(compiler, &name);
-    if(compiler->scope_depth > 0)
+    declare_variable(parser, &name);
+    if(parser->scope_depth > 0)
         return 0;
 
-    return identifier_constant(compiler, &name);
+    return identifier_constant(parser, &name);
 }
 
-static void mark_initialized(TeaCompiler* compiler, bool constant)
+static void mark_initialized(TeaParser* parser, bool constant)
 {
-    if(compiler->scope_depth == 0) return;
+    if(parser->scope_depth == 0) return;
 
-    compiler->locals[compiler->local_count - 1].depth = compiler->scope_depth;
-    compiler->locals[compiler->local_count - 1].constant = constant;
+    parser->locals[parser->local_count - 1].depth = parser->scope_depth;
+    parser->locals[parser->local_count - 1].constant = constant;
 }
 
-static void define_variable(TeaCompiler* compiler, uint8_t global, bool constant)
+static void define_variable(TeaParser* parser, uint8_t global, bool constant)
 {
-    if(compiler->scope_depth > 0)
+    if(parser->scope_depth > 0)
     {
-        mark_initialized(compiler, constant);
+        mark_initialized(parser, constant);
         return;
     }
 
-    TeaOString* string = AS_STRING(current_chunk(compiler)->constants.values[global]);
+    TeaOString* string = AS_STRING(current_chunk(parser)->constants.values[global]);
     if(constant)
     {
-        tea_tab_set(compiler->parser->T, &compiler->parser->T->constants, string, NULL_VAL);
+        tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL_VAL);
     }
 
     TeaValue value;
-    if(tea_tab_get(&compiler->parser->T->globals, string, &value))
+    if(tea_tab_get(&parser->lex->T->globals, string, &value))
     {
-        emit_argued(compiler, OP_DEFINE_GLOBAL, global);
+        emit_argued(parser, OP_DEFINE_GLOBAL, global);
     }
     else
     {
-        emit_argued(compiler, OP_DEFINE_MODULE, global);
+        emit_argued(parser, OP_DEFINE_MODULE, global);
     }
 }
 
-static uint8_t argument_list(TeaCompiler* compiler)
+static uint8_t argument_list(TeaParser* parser)
 {
     uint8_t arg_count = 0;
-    if(!check(compiler, TOKEN_RIGHT_PAREN))
+    if(!check(parser, TOKEN_RIGHT_PAREN))
     {
         do
         {
-            expression(compiler);
+            expression(parser);
             if(arg_count == 255)
             {
-                error(compiler, "Can't have more than 255 arguments");
+                error(parser, "Can't have more than 255 arguments");
             }
             arg_count++;
         }
-        while(match(compiler, TOKEN_COMMA));
+        while(match(parser, TOKEN_COMMA));
     }
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after arguments");
+    consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after arguments");
 
     return arg_count;
 }
 
-static void and_(TeaCompiler* compiler, bool can_assign)
+static void and_(TeaParser* parser, bool can_assign)
 {
-    int jump = emit_jump(compiler, OP_AND);
-    parse_precedence(compiler, PREC_AND);
-    patch_jump(compiler, jump);
+    int jump = emit_jump(parser, OP_AND);
+    parse_precedence(parser, PREC_AND);
+    patch_jump(parser, jump);
 }
 
-static void binary(TeaCompiler* compiler, bool can_assign)
+static void binary(TeaParser* parser, bool can_assign)
 {
-    TeaTokenType operator_type = compiler->parser->previous.type;
+    TeaTokenType operator_type = parser->lex->previous.type;
 
     if(operator_type == TOKEN_BANG)
     {
-        consume(compiler, TOKEN_IN, "Expected 'not in' binary operator");
+        consume(parser, TOKEN_IN, "Expected 'not in' binary operator");
 
         TeaParseRule* rule = get_rule(operator_type);
-        parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
+        parse_precedence(parser, (TeaPrecedence)(rule->precedence + 1));
 
-        emit_ops(compiler, OP_IN, OP_NOT);
+        emit_ops(parser, OP_IN, OP_NOT);
         return;
     }
 
-    if(operator_type == TOKEN_IS && match(compiler, TOKEN_BANG))
+    if(operator_type == TOKEN_IS && match(parser, TOKEN_BANG))
     {
         TeaParseRule* rule = get_rule(operator_type);
-        parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
+        parse_precedence(parser, (TeaPrecedence)(rule->precedence + 1));
 
-        emit_ops(compiler, OP_IS, OP_NOT);
+        emit_ops(parser, OP_IS, OP_NOT);
         return;
     }
 
     TeaParseRule* rule = get_rule(operator_type);
-    parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
+    parse_precedence(parser, (TeaPrecedence)(rule->precedence + 1));
 
     switch(operator_type)
     {
         case TOKEN_BANG_EQUAL:
         {
-            emit_ops(compiler, OP_EQUAL, OP_NOT);
+            emit_ops(parser, OP_EQUAL, OP_NOT);
             break;
         }
         case TOKEN_EQUAL_EQUAL:
         {
-            emit_op(compiler, OP_EQUAL);
+            emit_op(parser, OP_EQUAL);
             break;
         }
         case TOKEN_IS:
         {
-            emit_op(compiler, OP_IS);
+            emit_op(parser, OP_IS);
             break;
         }
         case TOKEN_GREATER:
         {
-            emit_op(compiler, OP_GREATER);
+            emit_op(parser, OP_GREATER);
             break;
         }
         case TOKEN_GREATER_EQUAL:
         {
-            emit_op(compiler, OP_GREATER_EQUAL);
+            emit_op(parser, OP_GREATER_EQUAL);
             break;
         }
         case TOKEN_LESS:
         {
-            emit_op(compiler, OP_LESS);
+            emit_op(parser, OP_LESS);
             break;
         }
         case TOKEN_LESS_EQUAL:
         {
-            emit_op(compiler, OP_LESS_EQUAL);
+            emit_op(parser, OP_LESS_EQUAL);
             break;
         }
         case TOKEN_PLUS:
         {
-            emit_op(compiler, OP_ADD);
+            emit_op(parser, OP_ADD);
             break;
         }
         case TOKEN_MINUS:
         {
-            emit_op(compiler, OP_SUBTRACT);
+            emit_op(parser, OP_SUBTRACT);
             break;
         }
         case TOKEN_STAR:
         {
-            emit_op(compiler, OP_MULTIPLY);
+            emit_op(parser, OP_MULTIPLY);
             break;
         }
         case TOKEN_SLASH:
         {
-            emit_op(compiler, OP_DIVIDE);
+            emit_op(parser, OP_DIVIDE);
             break;
         }
         case TOKEN_PERCENT:
         {
-            emit_op(compiler, OP_MOD);
+            emit_op(parser, OP_MOD);
             break;
         }
         case TOKEN_STAR_STAR:
         {
-            emit_op(compiler, OP_POW);
+            emit_op(parser, OP_POW);
             break;
         }
         case TOKEN_AMPERSAND:
         {
-            emit_op(compiler, OP_BAND);
+            emit_op(parser, OP_BAND);
             break;
         }
         case TOKEN_PIPE:
         {
-            emit_op(compiler, OP_BOR);
+            emit_op(parser, OP_BOR);
             break;
         }
         case TOKEN_CARET:
         {
-            emit_op(compiler, OP_BXOR);
+            emit_op(parser, OP_BXOR);
             break;
         }
         case TOKEN_GREATER_GREATER:
         {
-            emit_op(compiler, OP_RSHIFT);
+            emit_op(parser, OP_RSHIFT);
             break;
         }
         case TOKEN_LESS_LESS:
         {
-            emit_op(compiler, OP_LSHIFT);
+            emit_op(parser, OP_LSHIFT);
             break;
         }
         case TOKEN_IN:
         {
-            emit_op(compiler, OP_IN);
+            emit_op(parser, OP_IN);
             break;
         }
         default: return; /* Unreachable */
     }
 }
 
-static void ternary(TeaCompiler* compiler, bool can_assign)
+static void ternary(TeaParser* parser, bool can_assign)
 {
     /* Jump to else branch if the condition is false */
-    int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    int else_jump = emit_jump(parser, OP_JUMP_IF_FALSE);
 
     /* Pop the condition */
-    emit_op(compiler, OP_POP);
-    expression(compiler);
+    emit_op(parser, OP_POP);
+    expression(parser);
 
-    int end_jump = emit_jump(compiler, OP_JUMP);
+    int end_jump = emit_jump(parser, OP_JUMP);
 
-    patch_jump(compiler, else_jump);
-    emit_op(compiler, OP_POP);
+    patch_jump(parser, else_jump);
+    emit_op(parser, OP_POP);
 
-    consume(compiler, TOKEN_COLON, "Expected colon after ternary expression");
-    expression(compiler);
+    consume(parser, TOKEN_COLON, "Expected colon after ternary expression");
+    expression(parser);
 
-    patch_jump(compiler, end_jump);
+    patch_jump(parser, end_jump);
 }
 
-static void call(TeaCompiler* compiler, bool can_assign)
+static void call(TeaParser* parser, bool can_assign)
 {
-    uint8_t arg_count = argument_list(compiler);
-    emit_argued(compiler, OP_CALL, arg_count);
+    uint8_t arg_count = argument_list(parser);
+    emit_argued(parser, OP_CALL, arg_count);
 }
 
-static void dot(TeaCompiler* compiler, bool can_assign)
+static void dot(TeaParser* parser, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    emit_argued(compiler, OP_GET_PROPERTY_NO_POP, name); \
-    expression(compiler); \
-    emit_op(compiler, op); \
-    emit_argued(compiler, OP_SET_PROPERTY, name);
+    emit_argued(parser, OP_GET_PROPERTY_NO_POP, name); \
+    expression(parser); \
+    emit_op(parser, op); \
+    emit_argued(parser, OP_SET_PROPERTY, name);
 
 #define SHORT_HAND_INCREMENT(op) \
-    emit_argued(compiler, OP_GET_PROPERTY_NO_POP, name); \
-    emit_constant(compiler, NUMBER_VAL(1)); \
-    emit_op(compiler, op); \
-    emit_argued(compiler, OP_SET_PROPERTY, name);
+    emit_argued(parser, OP_GET_PROPERTY_NO_POP, name); \
+    emit_constant(parser, NUMBER_VAL(1)); \
+    emit_op(parser, op); \
+    emit_argued(parser, OP_SET_PROPERTY, name);
 
-    consume(compiler, TOKEN_NAME, "Expect property name after '.'");
-    uint8_t name = identifier_constant(compiler, &compiler->parser->previous);
+    consume(parser, TOKEN_NAME, "Expect property name after '.'");
+    uint8_t name = identifier_constant(parser, &parser->lex->previous);
 
-    if(match(compiler, TOKEN_LEFT_PAREN))
+    if(match(parser, TOKEN_LEFT_PAREN))
     {
-        uint8_t arg_count = argument_list(compiler);
-        emit_argued(compiler, OP_INVOKE, name);
-        emit_byte(compiler, arg_count);
+        uint8_t arg_count = argument_list(parser);
+        emit_argued(parser, OP_INVOKE, name);
+        emit_byte(parser, arg_count);
         return;
     }
 
-    if(can_assign && match(compiler, TOKEN_EQUAL))
+    if(can_assign && match(parser, TOKEN_EQUAL))
     {
-        expression(compiler);
-        emit_argued(compiler, OP_SET_PROPERTY, name);
+        expression(parser);
+        emit_argued(parser, OP_SET_PROPERTY, name);
     }
-    else if(can_assign && match(compiler, TOKEN_PLUS_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PLUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_ADD);
     }
-    else if(can_assign && match(compiler, TOKEN_MINUS_EQUAL))
+    else if(can_assign && match(parser, TOKEN_MINUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_SUBTRACT);
     }
-    else if(can_assign && match(compiler, TOKEN_STAR_EQUAL))
+    else if(can_assign && match(parser, TOKEN_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_MULTIPLY);
     }
-    else if(can_assign && match(compiler, TOKEN_SLASH_EQUAL))
+    else if(can_assign && match(parser, TOKEN_SLASH_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_DIVIDE);
     }
-    else if(can_assign && match(compiler, TOKEN_PERCENT_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PERCENT_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_MOD);
     }
-    else if(can_assign && match(compiler, TOKEN_STAR_STAR_EQUAL))
+    else if(can_assign && match(parser, TOKEN_STAR_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_POW);
     }
-    else if(can_assign && match(compiler, TOKEN_AMPERSAND_EQUAL))
+    else if(can_assign && match(parser, TOKEN_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BAND);
     }
-    else if(can_assign && match(compiler, TOKEN_PIPE_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PIPE_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BOR);
     }
-    else if(can_assign && match(compiler, TOKEN_CARET_EQUAL))
+    else if(can_assign && match(parser, TOKEN_CARET_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BXOR);
     }
     else
     {
-        if(match(compiler, TOKEN_PLUS_PLUS))
+        if(match(parser, TOKEN_PLUS_PLUS))
         {
             SHORT_HAND_INCREMENT(OP_ADD);
         }
-        else if(match(compiler, TOKEN_MINUS_MINUS))
+        else if(match(parser, TOKEN_MINUS_MINUS))
         {
             SHORT_HAND_INCREMENT(OP_SUBTRACT);
         }
         else
         {
-            emit_argued(compiler, OP_GET_PROPERTY, name);
+            emit_argued(parser, OP_GET_PROPERTY, name);
         }
     }
 #undef SHORT_HAND_ASSIGNMENT
 #undef SHORT_HAND_INCREMENT
 }
 
-static void boolean_(TeaCompiler* compiler, bool can_assign)
+static void boolean_(TeaParser* parser, bool can_assign)
 {
-    emit_op(compiler, compiler->parser->previous.type == TOKEN_FALSE ? OP_FALSE : OP_TRUE);
+    emit_op(parser, parser->lex->previous.type == TOKEN_FALSE ? OP_FALSE : OP_TRUE);
 }
 
-static void null(TeaCompiler* compiler, bool can_assign)
+static void null(TeaParser* parser, bool can_assign)
 {
-    emit_op(compiler, OP_NULL);
+    emit_op(parser, OP_NULL);
 }
 
-static void list(TeaCompiler* compiler, bool can_assign)
+static void list(TeaParser* parser, bool can_assign)
 {
-    emit_op(compiler, OP_LIST);
+    emit_op(parser, OP_LIST);
 
-    if(!check(compiler, TOKEN_RIGHT_BRACKET))
+    if(!check(parser, TOKEN_RIGHT_BRACKET))
     {
         do
         {
-            if(check(compiler, TOKEN_RIGHT_BRACKET))
+            if(check(parser, TOKEN_RIGHT_BRACKET))
             {
                 /* Traling comma case */
                 break;
             }
 
-            expression(compiler);
-            emit_op(compiler, OP_PUSH_LIST_ITEM);
+            expression(parser);
+            emit_op(parser, OP_PUSH_LIST_ITEM);
         }
-        while(match(compiler, TOKEN_COMMA));
+        while(match(parser, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after list literal");
+    consume(parser, TOKEN_RIGHT_BRACKET, "Expect ']' after list literal");
 }
 
-static void map(TeaCompiler* compiler, bool can_assign)
+static void map(TeaParser* parser, bool can_assign)
 {
-    emit_op(compiler, OP_MAP);
+    emit_op(parser, OP_MAP);
 
-    if(!check(compiler, TOKEN_RIGHT_BRACE))
+    if(!check(parser, TOKEN_RIGHT_BRACE))
     {
         do
         {
-            if(check(compiler, TOKEN_RIGHT_BRACE))
+            if(check(parser, TOKEN_RIGHT_BRACE))
             {
                 /* Traling comma case */
                 break;
             }
 
-            if(match(compiler, TOKEN_LEFT_BRACKET))
+            if(match(parser, TOKEN_LEFT_BRACKET))
             {
-                expression(compiler);
-                consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after key expression");
-                consume(compiler, TOKEN_EQUAL, "Expected '=' after key expression");
-                expression(compiler);
+                expression(parser);
+                consume(parser, TOKEN_RIGHT_BRACKET, "Expect ']' after key expression");
+                consume(parser, TOKEN_EQUAL, "Expected '=' after key expression");
+                expression(parser);
             }
-            else if(match(compiler, TOKEN_NAME))
+            else if(match(parser, TOKEN_NAME))
             {
-                emit_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length)));
-                consume(compiler, TOKEN_EQUAL, "Expected '=' after key name");
-                expression(compiler);
+                emit_constant(parser, OBJECT_VAL(tea_str_copy(parser->lex->T, parser->lex->previous.start, parser->lex->previous.length)));
+                consume(parser, TOKEN_EQUAL, "Expected '=' after key name");
+                expression(parser);
             }
 
-            emit_op(compiler, OP_PUSH_MAP_FIELD);
+            emit_op(parser, OP_PUSH_MAP_FIELD);
         }
-        while(match(compiler, TOKEN_COMMA));
+        while(match(parser, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '} after map literal'");
+    consume(parser, TOKEN_RIGHT_BRACE, "Expect '} after map literal'");
 }
 
-static bool s_expression(TeaCompiler* compiler)
+static bool s_expression(TeaParser* parser)
 {
-    expression(compiler);
+    expression(parser);
 
     // it's a slice
-    if(match(compiler, TOKEN_COLON))
+    if(match(parser, TOKEN_COLON))
     {
         // [n:]
-        if(check(compiler, TOKEN_RIGHT_BRACKET))
+        if(check(parser, TOKEN_RIGHT_BRACKET))
         {
-            null(compiler, false);
-            emit_constant(compiler, NUMBER_VAL(1));
+            null(parser, false);
+            emit_constant(parser, NUMBER_VAL(1));
         }
         else
         {
             // [n::n]
-            if(match(compiler, TOKEN_COLON))
+            if(match(parser, TOKEN_COLON))
             {
-                null(compiler, false);
-                expression(compiler);
+                null(parser, false);
+                expression(parser);
             }
             else
             {
-                expression(compiler);
-                if(match(compiler, TOKEN_COLON))
+                expression(parser);
+                if(match(parser, TOKEN_COLON))
                 {
                     // [n:n:n]
-                    expression(compiler);
+                    expression(parser);
                 }
                 else
                 {
-                    emit_constant(compiler, NUMBER_VAL(1));
+                    emit_constant(parser, NUMBER_VAL(1));
                 }
             }
         }
@@ -849,81 +848,81 @@ static bool s_expression(TeaCompiler* compiler)
     return false;
 }
 
-static void csubscript(TeaCompiler* compiler, bool can_assign)
+static void csubscript(TeaParser* parser, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    expression(compiler); \
-    emit_ops(compiler, OP_SUBSCRIPT_PUSH, op); \
-    emit_op(compiler, OP_SUBSCRIPT_STORE);
+    expression(parser); \
+    emit_ops(parser, OP_SUBSCRIPT_PUSH, op); \
+    emit_op(parser, OP_SUBSCRIPT_STORE);
 
 #define SHORT_HAND_INCREMENT(op) \
-    emit_constant(compiler, NUMBER_VAL(1)); \
-    emit_ops(compiler, OP_SUBSCRIPT_PUSH, op); \
-    emit_op(compiler, OP_SUBSCRIPT_STORE);
+    emit_constant(parser, NUMBER_VAL(1)); \
+    emit_ops(parser, OP_SUBSCRIPT_PUSH, op); \
+    emit_op(parser, OP_SUBSCRIPT_STORE);
 
-    if(s_expression(compiler))
+    if(s_expression(parser))
     {
-        emit_op(compiler, OP_SLICE);
-        consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
+        emit_op(parser, OP_SLICE);
+        consume(parser, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
         return;
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
+    consume(parser, TOKEN_RIGHT_BRACKET, "Expect ']' after closing");
 
-    if(can_assign && match(compiler, TOKEN_EQUAL))
+    if(can_assign && match(parser, TOKEN_EQUAL))
     {
-        expression(compiler);
-        emit_op(compiler, OP_SUBSCRIPT_STORE);
+        expression(parser);
+        emit_op(parser, OP_SUBSCRIPT_STORE);
     }
-    else if(can_assign && match(compiler, TOKEN_PLUS_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PLUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_ADD);
     }
-    else if(can_assign && match(compiler, TOKEN_MINUS_EQUAL))
+    else if(can_assign && match(parser, TOKEN_MINUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_SUBTRACT);
     }
-    else if(can_assign && match(compiler, TOKEN_STAR_EQUAL))
+    else if(can_assign && match(parser, TOKEN_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_MULTIPLY);
     }
-    else if(can_assign && match(compiler, TOKEN_SLASH_EQUAL))
+    else if(can_assign && match(parser, TOKEN_SLASH_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_DIVIDE);
     }
-    else if(can_assign && match(compiler, TOKEN_PERCENT_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PERCENT_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_MOD);
     }
-    else if(can_assign && match(compiler, TOKEN_STAR_STAR_EQUAL))
+    else if(can_assign && match(parser, TOKEN_STAR_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_POW);
     }
-    else if(can_assign && match(compiler, TOKEN_AMPERSAND_EQUAL))
+    else if(can_assign && match(parser, TOKEN_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BAND);
     }
-    else if(can_assign && match(compiler, TOKEN_PIPE_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PIPE_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BOR);
     }
-    else if(can_assign && match(compiler, TOKEN_CARET_EQUAL))
+    else if(can_assign && match(parser, TOKEN_CARET_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BXOR);
     }
     else
     {
-        if(match(compiler, TOKEN_PLUS_PLUS))
+        if(match(parser, TOKEN_PLUS_PLUS))
         {
             SHORT_HAND_INCREMENT(OP_ADD);
         }
-        else if(match(compiler, TOKEN_MINUS_MINUS))
+        else if(match(parser, TOKEN_MINUS_MINUS))
         {
             SHORT_HAND_INCREMENT(OP_SUBTRACT);
         }
         else
         {
-            emit_op(compiler, OP_SUBSCRIPT);
+            emit_op(parser, OP_SUBSCRIPT);
         }
     }
 
@@ -931,60 +930,60 @@ static void csubscript(TeaCompiler* compiler, bool can_assign)
 #undef SHORT_HAND_INCREMENT
 }
 
-static void or_(TeaCompiler* compiler, bool can_assign)
+static void or_(TeaParser* parser, bool can_assign)
 {
-    int jump = emit_jump(compiler, OP_OR);
-    parse_precedence(compiler, PREC_OR);
-    patch_jump(compiler, jump);
+    int jump = emit_jump(parser, OP_OR);
+    parse_precedence(parser, PREC_OR);
+    patch_jump(parser, jump);
 }
 
-static void literal(TeaCompiler* compiler, bool can_assign)
+static void literal(TeaParser* parser, bool can_assign)
 {
-    emit_constant(compiler, compiler->parser->previous.value);
+    emit_constant(parser, parser->lex->previous.value);
 }
 
-static void interpolation(TeaCompiler* compiler, bool can_assign)
+static void interpolation(TeaParser* parser, bool can_assign)
 {
-    emit_op(compiler, OP_LIST);
+    emit_op(parser, OP_LIST);
 
     do
     {
-        literal(compiler, false);
-        invoke_method(compiler, 1, "add");
+        literal(parser, false);
+        invoke_method(parser, 1, "add");
 
-        expression(compiler);
+        expression(parser);
 
-        invoke_method(compiler, 1, "add");
+        invoke_method(parser, 1, "add");
     }
-    while(match(compiler, TOKEN_INTERPOLATION));
+    while(match(parser, TOKEN_INTERPOLATION));
 
-    consume(compiler, TOKEN_STRING, "Expect end of string interpolation");
-    literal(compiler, false);
-    invoke_method(compiler, 1, "add");
+    consume(parser, TOKEN_STRING, "Expect end of string interpolation");
+    literal(parser, false);
+    invoke_method(parser, 1, "add");
 
-    invoke_method(compiler, 0, "join");
+    invoke_method(parser, 0, "join");
 }
 
-static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
+static void check_const(TeaParser* parser, uint8_t set_op, int arg)
 {
     switch(set_op)
     {
         case OP_SET_LOCAL:
         {
-            if(compiler->locals[arg].constant)
+            if(parser->locals[arg].constant)
             {
-                error(compiler, "Cannot assign to a constant");
+                error(parser, "Cannot assign to a constant");
             }
 
             break;
         }
         case OP_SET_UPVALUE:
         {
-            TeaUpvalue upvalue = compiler->upvalues[arg];
+            TeaUpvalue upvalue = parser->upvalues[arg];
 
             if(upvalue.constant)
             {
-                error(compiler, "Cannot assign to a constant");
+                error(parser, "Cannot assign to a constant");
             }
 
             break;
@@ -992,11 +991,11 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
         case OP_SET_GLOBAL:
         case OP_SET_MODULE:
         {
-            TeaOString* string = AS_STRING(current_chunk(compiler)->constants.values[arg]);
+            TeaOString* string = AS_STRING(current_chunk(parser)->constants.values[arg]);
             TeaValue _;
-            if(tea_tab_get(&compiler->parser->T->constants, string, &_))
+            if(tea_tab_get(&parser->lex->T->constants, string, &_))
             {
-                error(compiler, "Cannot assign to a constant");
+                error(parser, "Cannot assign to a constant");
             }
 
             break;
@@ -1005,40 +1004,40 @@ static void check_const(TeaCompiler* compiler, uint8_t set_op, int arg)
     }
 }
 
-static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign)
+static void named_variable(TeaParser* parser, TeaToken name, bool can_assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    check_const(compiler, set_op, arg); \
-    emit_argued(compiler, get_op, (uint8_t)arg); \
-    expression(compiler); \
-    emit_op(compiler, op); \
-    emit_argued(compiler, set_op, (uint8_t)arg);
+    check_const(parser, set_op, arg); \
+    emit_argued(parser, get_op, (uint8_t)arg); \
+    expression(parser); \
+    emit_op(parser, op); \
+    emit_argued(parser, set_op, (uint8_t)arg);
 
 #define SHORT_HAND_INCREMENT(op) \
-    check_const(compiler, set_op, arg); \
-    emit_argued(compiler, get_op, (uint8_t)arg); \
-    emit_constant(compiler, NUMBER_VAL(1)); \
-    emit_op(compiler, op); \
-    emit_argued(compiler, set_op, (uint8_t)arg);
+    check_const(parser, set_op, arg); \
+    emit_argued(parser, get_op, (uint8_t)arg); \
+    emit_constant(parser, NUMBER_VAL(1)); \
+    emit_op(parser, op); \
+    emit_argued(parser, set_op, (uint8_t)arg);
 
     uint8_t get_op, set_op;
-    int arg = resolve_local(compiler, &name);
+    int arg = resolve_local(parser, &name);
     if(arg != -1)
     {
         get_op = OP_GET_LOCAL;
         set_op = OP_SET_LOCAL;
     }
-    else if((arg = resolve_upvalue(compiler, &name)) != -1)
+    else if((arg = resolve_upvalue(parser, &name)) != -1)
     {
         get_op = OP_GET_UPVALUE;
         set_op = OP_SET_UPVALUE;
     }
     else
     {
-        arg = identifier_constant(compiler, &name);
-        TeaOString* string = tea_str_copy(compiler->parser->T, name.start, name.length);
+        arg = identifier_constant(parser, &name);
+        TeaOString* string = tea_str_copy(parser->lex->T, name.start, name.length);
         TeaValue value;
-        if(tea_tab_get(&compiler->parser->T->globals, string, &value))
+        if(tea_tab_get(&parser->lex->T->globals, string, &value))
         {
             get_op = OP_GET_GLOBAL;
             set_op = OP_SET_GLOBAL;
@@ -1050,70 +1049,70 @@ static void named_variable(TeaCompiler* compiler, TeaToken name, bool can_assign
         }
     }
 
-    if(can_assign && match(compiler, TOKEN_EQUAL))
+    if(can_assign && match(parser, TOKEN_EQUAL))
     {
-        check_const(compiler, set_op, arg);
-        expression(compiler);
-        emit_argued(compiler, set_op, (uint8_t)arg);
+        check_const(parser, set_op, arg);
+        expression(parser);
+        emit_argued(parser, set_op, (uint8_t)arg);
     }
-    else if(can_assign && match(compiler, TOKEN_PLUS_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PLUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_ADD);
     }
-    else if(can_assign && match(compiler, TOKEN_MINUS_EQUAL))
+    else if(can_assign && match(parser, TOKEN_MINUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_SUBTRACT);
     }
-    else if(can_assign && match(compiler, TOKEN_STAR_EQUAL))
+    else if(can_assign && match(parser, TOKEN_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_MULTIPLY);
     }
-    else if(can_assign && match(compiler, TOKEN_SLASH_EQUAL))
+    else if(can_assign && match(parser, TOKEN_SLASH_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_DIVIDE);
     }
-    else if(can_assign && match(compiler, TOKEN_PERCENT_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PERCENT_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_MOD);
     }
-    else if(can_assign && match(compiler, TOKEN_STAR_STAR_EQUAL))
+    else if(can_assign && match(parser, TOKEN_STAR_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_POW);
     }
-    else if(can_assign && match(compiler, TOKEN_AMPERSAND_EQUAL))
+    else if(can_assign && match(parser, TOKEN_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BAND);
     }
-    else if(can_assign && match(compiler, TOKEN_PIPE_EQUAL))
+    else if(can_assign && match(parser, TOKEN_PIPE_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BOR);
     }
-    else if(can_assign && match(compiler, TOKEN_CARET_EQUAL))
+    else if(can_assign && match(parser, TOKEN_CARET_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(OP_BXOR);
     }
     else
     {
-        if(match(compiler, TOKEN_PLUS_PLUS))
+        if(match(parser, TOKEN_PLUS_PLUS))
         {
             SHORT_HAND_INCREMENT(OP_ADD);
         }
-        else if(match(compiler, TOKEN_MINUS_MINUS))
+        else if(match(parser, TOKEN_MINUS_MINUS))
         {
             SHORT_HAND_INCREMENT(OP_SUBTRACT);
         }
         else
         {
-            emit_argued(compiler, get_op, (uint8_t)arg);
+            emit_argued(parser, get_op, (uint8_t)arg);
         }
     }
 #undef SHORT_HAND_ASSIGNMENT
 #undef SHORT_HAND_INCREMENT
 }
 
-static void variable(TeaCompiler* compiler, bool can_assign)
+static void variable(TeaParser* parser, bool can_assign)
 {
-    named_variable(compiler, compiler->parser->previous, can_assign);
+    named_variable(parser, parser->lex->previous, can_assign);
 }
 
 static TeaToken synthetic_token(const char* text)
@@ -1125,109 +1124,109 @@ static TeaToken synthetic_token(const char* text)
     return token;
 }
 
-static void super_(TeaCompiler* compiler, bool can_assign)
+static void super_(TeaParser* parser, bool can_assign)
 {
-    if(compiler->klass == NULL)
+    if(parser->klass == NULL)
     {
-        error(compiler, "Can't use 'super' outside of a class");
+        error(parser, "Can't use 'super' outside of a class");
     }
-    else if(compiler->klass->is_static)
+    else if(parser->klass->is_static)
     {
-        error(compiler, "Can't use 'this' inside a static method");
+        error(parser, "Can't use 'this' inside a static method");
     }
-    else if(!compiler->klass->has_superclass)
+    else if(!parser->klass->has_superclass)
     {
-        error(compiler, "Can't use 'super' in a class with no superclass");
+        error(parser, "Can't use 'super' in a class with no superclass");
     }
 
     /* super */
-    if(!check(compiler, TOKEN_LEFT_PAREN) && !check(compiler, TOKEN_DOT))
+    if(!check(parser, TOKEN_LEFT_PAREN) && !check(parser, TOKEN_DOT))
     {
-        named_variable(compiler, synthetic_token("super"), false);
+        named_variable(parser, synthetic_token("super"), false);
         return;
     }
 
     /* super() -> super.constructor() */
-    if(match(compiler, TOKEN_LEFT_PAREN))
+    if(match(parser, TOKEN_LEFT_PAREN))
     {
         TeaToken token = synthetic_token("constructor");
 
-        uint8_t name = identifier_constant(compiler, &token);
-        named_variable(compiler, synthetic_token("this"), false);
-        uint8_t arg_count = argument_list(compiler);
-        named_variable(compiler, synthetic_token("super"), false);
-        emit_argued(compiler, OP_SUPER, name);
-        emit_byte(compiler, arg_count);
+        uint8_t name = identifier_constant(parser, &token);
+        named_variable(parser, synthetic_token("this"), false);
+        uint8_t arg_count = argument_list(parser);
+        named_variable(parser, synthetic_token("super"), false);
+        emit_argued(parser, OP_SUPER, name);
+        emit_byte(parser, arg_count);
         return;
     }
 
     /* super.name */
-    consume(compiler, TOKEN_DOT, "Expect '.' after 'super'");
-    consume(compiler, TOKEN_NAME, "Expect superclass method name");
-    uint8_t name = identifier_constant(compiler, &compiler->parser->previous);
+    consume(parser, TOKEN_DOT, "Expect '.' after 'super'");
+    consume(parser, TOKEN_NAME, "Expect superclass method name");
+    uint8_t name = identifier_constant(parser, &parser->lex->previous);
 
-    named_variable(compiler, synthetic_token("this"), false);
+    named_variable(parser, synthetic_token("this"), false);
 
-    if(match(compiler, TOKEN_LEFT_PAREN))
+    if(match(parser, TOKEN_LEFT_PAREN))
     {
         /* super.name() */
-        uint8_t arg_count = argument_list(compiler);
-        named_variable(compiler, synthetic_token("super"), false);
-        emit_argued(compiler, OP_SUPER, name);
-        emit_byte(compiler, arg_count);
+        uint8_t arg_count = argument_list(parser);
+        named_variable(parser, synthetic_token("super"), false);
+        emit_argued(parser, OP_SUPER, name);
+        emit_byte(parser, arg_count);
     }
     else
     {
         /* super.name */
-        named_variable(compiler, synthetic_token("super"), false);
-        emit_argued(compiler, OP_GET_SUPER, name);
+        named_variable(parser, synthetic_token("super"), false);
+        emit_argued(parser, OP_GET_SUPER, name);
     }
 }
 
-static void this_(TeaCompiler* compiler, bool can_assign)
+static void this_(TeaParser* parser, bool can_assign)
 {
-    if(compiler->klass == NULL)
+    if(parser->klass == NULL)
     {
-        error(compiler, "Can't use 'this' outside of a class");
+        error(parser, "Can't use 'this' outside of a class");
     }
-    else if(compiler->klass->is_static)
+    else if(parser->klass->is_static)
     {
-        error(compiler, "Can't use 'this' inside a static method");
+        error(parser, "Can't use 'this' inside a static method");
     }
 
-    variable(compiler, false);
+    variable(parser, false);
 }
 
-static void static_(TeaCompiler* compiler, bool can_assign)
+static void static_(TeaParser* parser, bool can_assign)
 {
-    if(compiler->klass == NULL)
+    if(parser->klass == NULL)
     {
-        error(compiler, "Can't use 'static' outside of a class");
+        error(parser, "Can't use 'static' outside of a class");
     }
 }
 
-static void unary(TeaCompiler* compiler, bool can_assign)
+static void unary(TeaParser* parser, bool can_assign)
 {
-    TeaTokenType operator_type = compiler->parser->previous.type;
+    TeaTokenType operator_type = parser->lex->previous.type;
 
-    parse_precedence(compiler, PREC_UNARY);
+    parse_precedence(parser, PREC_UNARY);
 
     /* Emit the operator instruction */
     switch(operator_type)
     {
         case TOKEN_BANG:
         {
-            emit_op(compiler, OP_NOT);
+            emit_op(parser, OP_NOT);
             break;
         }
         case TOKEN_MINUS:
         {
-            emit_op(compiler, OP_NEGATE);
+            emit_op(parser, OP_NEGATE);
             break;
         }
         case TOKEN_TILDE:
         {
-            emit_op(compiler, OP_BNOT);
+            emit_op(parser, OP_BNOT);
             break;
         }
         default:
@@ -1235,24 +1234,24 @@ static void unary(TeaCompiler* compiler, bool can_assign)
     }
 }
 
-static void range(TeaCompiler* compiler, bool can_assign)
+static void range(TeaParser* parser, bool can_assign)
 {
-    TeaTokenType operator_type = compiler->parser->previous.type;
+    TeaTokenType operator_type = parser->lex->previous.type;
     TeaParseRule* rule = get_rule(operator_type);
-    parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
+    parse_precedence(parser, (TeaPrecedence)(rule->precedence + 1));
 
-    if(match(compiler, TOKEN_DOT_DOT))
+    if(match(parser, TOKEN_DOT_DOT))
     {
-        TeaTokenType operator_type = compiler->parser->previous.type;
+        TeaTokenType operator_type = parser->lex->previous.type;
         TeaParseRule* rule = get_rule(operator_type);
-        parse_precedence(compiler, (TeaPrecedence)(rule->precedence + 1));
+        parse_precedence(parser, (TeaPrecedence)(rule->precedence + 1));
     }
     else
     {
-        emit_constant(compiler, NUMBER_VAL(1));
+        emit_constant(parser, NUMBER_VAL(1));
     }
 
-    emit_op(compiler, OP_RANGE);
+    emit_op(parser, OP_RANGE);
 }
 
 #define NONE                    { NULL, NULL, PREC_NONE }
@@ -1350,28 +1349,28 @@ static TeaParseRule rules[] = {
 #undef PREFIX
 #undef OPERATOR
 
-static void parse_precedence(TeaCompiler* compiler, TeaPrecedence precedence)
+static void parse_precedence(TeaParser* parser, TeaPrecedence precedence)
 {
-    next(compiler);
-    TeaParseFn prefix_rule = get_rule(compiler->parser->previous.type)->prefix;
+    next(parser);
+    TeaParseFn prefix_rule = get_rule(parser->lex->previous.type)->prefix;
     if(prefix_rule == NULL)
     {
-        error(compiler, "Expect expression");
+        error(parser, "Expect expression");
     }
 
     bool can_assign = precedence <= PREC_ASSIGNMENT;
-    prefix_rule(compiler, can_assign);
+    prefix_rule(parser, can_assign);
 
-    while(precedence <= get_rule(compiler->parser->current.type)->precedence)
+    while(precedence <= get_rule(parser->lex->current.type)->precedence)
     {
-        next(compiler);
-        TeaParseFn infix_rule = get_rule(compiler->parser->previous.type)->infix;
-        infix_rule(compiler, can_assign);
+        next(parser);
+        TeaParseFn infix_rule = get_rule(parser->lex->previous.type)->infix;
+        infix_rule(parser, can_assign);
     }
 
-    if(can_assign && match(compiler, TOKEN_EQUAL))
+    if(can_assign && match(parser, TOKEN_EQUAL))
     {
-        error(compiler, "Invalid assignment target");
+        error(parser, "Invalid assignment target");
     }
 }
 
@@ -1380,41 +1379,41 @@ static TeaParseRule* get_rule(TeaTokenType type)
     return &rules[type];
 }
 
-static void expression(TeaCompiler* compiler)
+static void expression(TeaParser* parser)
 {
-    parse_precedence(compiler, PREC_ASSIGNMENT);
+    parse_precedence(parser, PREC_ASSIGNMENT);
 }
 
-static void block(TeaCompiler* compiler)
+static void block(TeaParser* parser)
 {
-    while(!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF))
+    while(!check(parser, TOKEN_RIGHT_BRACE) && !check(parser, TOKEN_EOF))
     {
-        declaration(compiler);
+        declaration(parser);
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after block");
+    consume(parser, TOKEN_RIGHT_BRACE, "Expect '}' after block");
 }
 
-static void check_parameters(TeaCompiler* compiler, TeaToken* name)
+static void check_parameters(TeaParser* parser, TeaToken* name)
 {
-    for(int i = compiler->local_count - 1; i >= 0; i--)
+    for(int i = parser->local_count - 1; i >= 0; i--)
     {
-        TeaLocal* local = &compiler->locals[i];
+        TeaLocal* local = &parser->locals[i];
         if(identifiers_equal(name, &local->name))
         {
-            error(compiler, "Duplicate parameter name in function declaration");
+            error(parser, "Duplicate parameter name in function declaration");
         }
     }
 }
 
-static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaFunctionType type)
+static void begin_function(TeaParser* parser, TeaParser* fn_parser, TeaFunctionType type)
 {
-    init_compiler(compiler->parser, fn_compiler, compiler, type);
-    begin_scope(fn_compiler);
+    init_compiler(parser->lex, fn_parser, parser, type);
+    begin_scope(fn_parser);
 
-    consume(fn_compiler, TOKEN_LEFT_PAREN, "Expect '(' after function name");
+    consume(fn_parser, TOKEN_LEFT_PAREN, "Expect '(' after function name");
 
-    if(!check(fn_compiler, TOKEN_RIGHT_PAREN))
+    if(!check(fn_parser, TOKEN_RIGHT_PAREN))
     {
         bool optional = false;
         bool spread = false;
@@ -1423,180 +1422,180 @@ static void begin_function(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaF
         {
             if(spread)
             {
-                error(fn_compiler, "spread parameter must be last in the parameter list");
+                error(fn_parser, "spread parameter must be last in the parameter list");
             }
 
-            spread = match(fn_compiler, TOKEN_DOT_DOT_DOT);
-            consume(fn_compiler, TOKEN_NAME, "Expect parameter name");
+            spread = match(fn_parser, TOKEN_DOT_DOT_DOT);
+            consume(fn_parser, TOKEN_NAME, "Expect parameter name");
 
-            TeaToken name = fn_compiler->parser->previous;
-            check_parameters(fn_compiler, &name);
+            TeaToken name = fn_parser->lex->previous;
+            check_parameters(fn_parser, &name);
 
             if(spread)
             {
-                fn_compiler->function->variadic = spread;
+                fn_parser->function->variadic = spread;
             }
 
-            if(match(fn_compiler, TOKEN_EQUAL))
+            if(match(fn_parser, TOKEN_EQUAL))
             {
                 if(spread)
                 {
-                    error(fn_compiler, "spread parameter cannot have an optional value");
+                    error(fn_parser, "spread parameter cannot have an optional value");
                 }
-                fn_compiler->function->arity_optional++;
+                fn_parser->function->arity_optional++;
                 optional = true;
-                expression(fn_compiler);
+                expression(fn_parser);
             }
             else
             {
-                fn_compiler->function->arity++;
+                fn_parser->function->arity++;
 
                 if(optional)
                 {
-                    error(fn_compiler, "Cannot have non-optional parameter after optional");
+                    error(fn_parser, "Cannot have non-optional parameter after optional");
                 }
             }
 
-            if(fn_compiler->function->arity + fn_compiler->function->arity_optional > 255)
+            if(fn_parser->function->arity + fn_parser->function->arity_optional > 255)
             {
-                error(fn_compiler, "Cannot have more than 255 parameters");
+                error(fn_parser, "Cannot have more than 255 parameters");
             }
 
-            uint8_t constant = parse_variable_at(fn_compiler, name);
-            define_variable(fn_compiler, constant, false);
+            uint8_t constant = parse_variable_at(fn_parser, name);
+            define_variable(fn_parser, constant, false);
         }
-        while(match(fn_compiler, TOKEN_COMMA));
+        while(match(fn_parser, TOKEN_COMMA));
 
-        if(fn_compiler->function->arity_optional > 0)
+        if(fn_parser->function->arity_optional > 0)
         {
-            emit_op(fn_compiler, OP_DEFINE_OPTIONAL);
-            emit_bytes(fn_compiler, fn_compiler->function->arity, fn_compiler->function->arity_optional);
+            emit_op(fn_parser, OP_DEFINE_OPTIONAL);
+            emit_bytes(fn_parser, fn_parser->function->arity, fn_parser->function->arity_optional);
         }
     }
 
-    consume(fn_compiler, TOKEN_RIGHT_PAREN, "Expect ')' after parameters");
+    consume(fn_parser, TOKEN_RIGHT_PAREN, "Expect ')' after parameters");
 }
 
-static void function(TeaCompiler* compiler, TeaFunctionType type)
+static void function(TeaParser* parser, TeaFunctionType type)
 {
-    TeaCompiler fn_compiler;
+    TeaParser fn_parser;
 
-    begin_function(compiler, &fn_compiler, type);
-    consume(&fn_compiler, TOKEN_LEFT_BRACE, "Expect '{' before function body");
-    block(&fn_compiler);
-    end_compiler(&fn_compiler);
+    begin_function(parser, &fn_parser, type);
+    consume(&fn_parser, TOKEN_LEFT_BRACE, "Expect '{' before function body");
+    block(&fn_parser);
+    end_compiler(&fn_parser);
 }
 
-static void anonymous(TeaCompiler* compiler, bool can_assign)
+static void anonymous(TeaParser* parser, bool can_assign)
 {
-    function(compiler, TYPE_FUNCTION);
+    function(parser, TYPE_FUNCTION);
 }
 
-static void grouping(TeaCompiler* compiler, bool can_assign)
+static void grouping(TeaParser* parser, bool can_assign)
 {
-    if(match(compiler, TOKEN_RIGHT_PAREN))
+    if(match(parser, TOKEN_RIGHT_PAREN))
     {
-        TeaCompiler fn_compiler;
-        init_compiler(compiler->parser, &fn_compiler, compiler, TYPE_FUNCTION);
-        begin_scope(&fn_compiler);
-        consume(compiler, TOKEN_ARROW, "Expected arrow function");
-        if(match(&fn_compiler, TOKEN_LEFT_BRACE))
+        TeaParser fn_parser;
+        init_compiler(parser->lex, &fn_parser, parser, TYPE_FUNCTION);
+        begin_scope(&fn_parser);
+        consume(parser, TOKEN_ARROW, "Expected arrow function");
+        if(match(&fn_parser, TOKEN_LEFT_BRACE))
         {
-            block(&fn_compiler);
+            block(&fn_parser);
         }
         else
         {
-            expression(&fn_compiler);
-            emit_op(&fn_compiler, OP_RETURN);
+            expression(&fn_parser);
+            emit_op(&fn_parser, OP_RETURN);
         }
-        end_compiler(&fn_compiler);
+        end_compiler(&fn_parser);
         return;
     }
 
-    const char* start = compiler->parser->previous.start;
-	int line = compiler->parser->previous.line;
+    const char* start = parser->lex->previous.start;
+	int line = parser->lex->previous.line;
 
-    if(match(compiler, TOKEN_NAME))
+    if(match(parser, TOKEN_NAME))
     {
-        TeaToken name = compiler->parser->previous;
-        if(match(compiler, TOKEN_COMMA))
+        TeaToken name = parser->lex->previous;
+        if(match(parser, TOKEN_COMMA))
         {
-            TeaCompiler fn_compiler;
-            arrow(compiler, &fn_compiler, name);
-            end_compiler(&fn_compiler);
+            TeaParser fn_parser;
+            arrow(parser, &fn_parser, name);
+            end_compiler(&fn_parser);
             return;
         }
-        else if(match(compiler, TOKEN_RIGHT_PAREN) && match(compiler, TOKEN_ARROW))
+        else if(match(parser, TOKEN_RIGHT_PAREN) && match(parser, TOKEN_ARROW))
         {
-            TeaCompiler fn_compiler;
-            init_compiler(compiler->parser, &fn_compiler, compiler, TYPE_FUNCTION);
-            begin_scope(&fn_compiler);
-            fn_compiler.function->arity = 1;
-            uint8_t constant = parse_variable_at(&fn_compiler, name);
-            define_variable(&fn_compiler, constant, false);
-            if(match(&fn_compiler, TOKEN_LEFT_BRACE))
+            TeaParser fn_parser;
+            init_compiler(parser->lex, &fn_parser, parser, TYPE_FUNCTION);
+            begin_scope(&fn_parser);
+            fn_parser.function->arity = 1;
+            uint8_t constant = parse_variable_at(&fn_parser, name);
+            define_variable(&fn_parser, constant, false);
+            if(match(&fn_parser, TOKEN_LEFT_BRACE))
             {
-                block(&fn_compiler);
+                block(&fn_parser);
             }
             else
             {
-                expression(&fn_compiler);
-                emit_op(&fn_compiler, OP_RETURN);
+                expression(&fn_parser);
+                emit_op(&fn_parser, OP_RETURN);
             }
-            end_compiler(&fn_compiler);
+            end_compiler(&fn_parser);
             return;
         }
         else
         {
-            TeaLexer* lex = &compiler->parser->lex;
+            TeaLexer* lex = parser->lex;
 
-			lex->current = start;
+			lex->curr = start;
 			lex->line = line;
 
-			compiler->parser->current = tea_lex_token(lex);
-			next(compiler);
+			parser->lex->current = tea_lex_token(lex);
+			next(parser);
         }
     }
 
-    expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after grouping expression");
+    expression(parser);
+    consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after grouping expression");
 }
 
-static void arrow(TeaCompiler* compiler, TeaCompiler* fn_compiler, TeaToken name)
+static void arrow(TeaParser* parser, TeaParser* fn_parser, TeaToken name)
 {
-    init_compiler(compiler->parser, fn_compiler, compiler, TYPE_FUNCTION);
-    begin_scope(fn_compiler);
+    init_compiler(parser->lex, fn_parser, parser, TYPE_FUNCTION);
+    begin_scope(fn_parser);
 
-    fn_compiler->function->arity = 1;
-    uint8_t constant = parse_variable_at(fn_compiler, name);
-    define_variable(fn_compiler, constant, false);
-    if(!check(fn_compiler, TOKEN_RIGHT_PAREN))
+    fn_parser->function->arity = 1;
+    uint8_t constant = parse_variable_at(fn_parser, name);
+    define_variable(fn_parser, constant, false);
+    if(!check(fn_parser, TOKEN_RIGHT_PAREN))
     {
         do
         {
-            fn_compiler->function->arity++;
-            if(fn_compiler->function->arity > 255)
+            fn_parser->function->arity++;
+            if(fn_parser->function->arity > 255)
             {
-                error_at_current(fn_compiler, "Can't have more than 255 parameters");
+                error_at_current(fn_parser, "Can't have more than 255 parameters");
             }
-            uint8_t constant = parse_variable(fn_compiler, "Expect parameter name");
-            define_variable(fn_compiler, constant, false);
+            uint8_t constant = parse_variable(fn_parser, "Expect parameter name");
+            define_variable(fn_parser, constant, false);
         }
-        while(match(fn_compiler, TOKEN_COMMA));
+        while(match(fn_parser, TOKEN_COMMA));
     }
 
-    consume(fn_compiler, TOKEN_RIGHT_PAREN, "Expect ')' after parameters");
-    consume(fn_compiler, TOKEN_ARROW, "Expect '=>' after function arguments");
-    if(match(fn_compiler, TOKEN_LEFT_BRACE))
+    consume(fn_parser, TOKEN_RIGHT_PAREN, "Expect ')' after parameters");
+    consume(fn_parser, TOKEN_ARROW, "Expect '=>' after function arguments");
+    if(match(fn_parser, TOKEN_LEFT_BRACE))
     {
         /* Brace so expect a block */
-        block(fn_compiler);
+        block(fn_parser);
     }
     else
     {
         /* No brace, so expect single expression */
-        expression(fn_compiler);
-        emit_op(fn_compiler, OP_RETURN);
+        expression(fn_parser);
+        emit_op(fn_parser, OP_RETURN);
     }
 }
 
@@ -1622,12 +1621,12 @@ static TeaTokenType operators[] = {
     TOKEN_EOF
 };
 
-static void operator(TeaCompiler* compiler)
+static void operator(TeaParser* parser)
 {
     int i = 0;
     while(operators[i] != TOKEN_EOF)
     {
-        if(match(compiler, operators[i]))
+        if(match(parser, operators[i]))
         {
             break;
         }
@@ -1637,179 +1636,179 @@ static void operator(TeaCompiler* compiler)
 
     TeaOString* name = NULL;
 
-    if(compiler->parser->previous.type == TOKEN_LEFT_BRACKET)
+    if(parser->lex->previous.type == TOKEN_LEFT_BRACKET)
     {
-        compiler->klass->is_static = false;
-        consume(compiler, TOKEN_RIGHT_BRACKET, "Expected ']' after '[' operator method");
-        name = tea_str_literal(compiler->parser->T, "[]");
+        parser->klass->is_static = false;
+        consume(parser, TOKEN_RIGHT_BRACKET, "Expected ']' after '[' operator method");
+        name = tea_str_literal(parser->lex->T, "[]");
     }
     else
     {
-        compiler->klass->is_static = true;
-        name = tea_str_copy(compiler->parser->T, compiler->parser->previous.start, compiler->parser->previous.length);
+        parser->klass->is_static = true;
+        name = tea_str_copy(parser->lex->T, parser->lex->previous.start, parser->lex->previous.length);
     }
 
-    uint8_t constant = make_constant(compiler, OBJECT_VAL(name));
+    uint8_t constant = make_constant(parser, OBJECT_VAL(name));
 
-    function(compiler, TYPE_METHOD);
-    emit_argued(compiler, OP_METHOD, constant);
+    function(parser, TYPE_METHOD);
+    emit_argued(parser, OP_METHOD, constant);
 }
 
-static void method(TeaCompiler* compiler, TeaFunctionType type)
+static void method(TeaParser* parser, TeaFunctionType type)
 {
-    uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
+    uint8_t constant = identifier_constant(parser, &parser->lex->previous);
 
-    if(compiler->parser->previous.length == 11 && memcmp(compiler->parser->previous.start, "constructor", 11) == 0)
+    if(parser->lex->previous.length == 11 && memcmp(parser->lex->previous.start, "constructor", 11) == 0)
     {
         type = TYPE_CONSTRUCTOR;
     }
 
-    function(compiler, type);
-    emit_argued(compiler, OP_METHOD, constant);
+    function(parser, type);
+    emit_argued(parser, OP_METHOD, constant);
 }
 
-static void init_class_compiler(TeaCompiler* compiler, TeaClassCompiler* class_compiler)
+static void init_class_compiler(TeaParser* parser, TeaClassParser* class_compiler)
 {
     class_compiler->is_static = false;
     class_compiler->has_superclass = false;
-    class_compiler->enclosing = compiler->klass;
-    compiler->klass = class_compiler;
+    class_compiler->enclosing = parser->klass;
+    parser->klass = class_compiler;
 }
 
-static void class_body(TeaCompiler* compiler)
+static void class_body(TeaParser* parser)
 {
-    while(!check(compiler, TOKEN_RIGHT_BRACE) && !check(compiler, TOKEN_EOF))
+    while(!check(parser, TOKEN_RIGHT_BRACE) && !check(parser, TOKEN_EOF))
     {
-        if(match(compiler, TOKEN_VAR))
+        if(match(parser, TOKEN_VAR))
         {
-            consume(compiler, TOKEN_NAME, "Expect class variable name");
-            uint8_t name = identifier_constant(compiler, &compiler->parser->previous);
+            consume(parser, TOKEN_NAME, "Expect class variable name");
+            uint8_t name = identifier_constant(parser, &parser->lex->previous);
 
-            if(match(compiler, TOKEN_EQUAL))
+            if(match(parser, TOKEN_EQUAL))
             {
-                expression(compiler);
+                expression(parser);
             }
             else
             {
-                emit_op(compiler, OP_NULL);
+                emit_op(parser, OP_NULL);
             }
-            emit_argued(compiler, OP_SET_CLASS_VAR, name);
+            emit_argued(parser, OP_SET_CLASS_VAR, name);
         }
-        else if(match(compiler, TOKEN_STATIC))
+        else if(match(parser, TOKEN_STATIC))
         {
-            compiler->klass->is_static = true;
-            consume(compiler, TOKEN_NAME, "Expect method name after 'static' keyword");
-            method(compiler, TYPE_STATIC);
-            compiler->klass->is_static = false;
+            parser->klass->is_static = true;
+            consume(parser, TOKEN_NAME, "Expect method name after 'static' keyword");
+            method(parser, TYPE_STATIC);
+            parser->klass->is_static = false;
         }
-        else if(match(compiler, TOKEN_NAME))
+        else if(match(parser, TOKEN_NAME))
         {
-            method(compiler, TYPE_METHOD);
+            method(parser, TYPE_METHOD);
         }
         else
         {
-            operator(compiler);
+            operator(parser);
         }
     }
 }
 
-static void class_declaration(TeaCompiler* compiler)
+static void class_declaration(TeaParser* parser)
 {
-    consume(compiler, TOKEN_NAME, "Expect class name");
-    TeaToken class_name = compiler->parser->previous;
-    uint8_t name_constant = identifier_constant(compiler, &compiler->parser->previous);
-    declare_variable(compiler, &compiler->parser->previous);
+    consume(parser, TOKEN_NAME, "Expect class name");
+    TeaToken class_name = parser->lex->previous;
+    uint8_t name_constant = identifier_constant(parser, &parser->lex->previous);
+    declare_variable(parser, &parser->lex->previous);
 
-    emit_argued(compiler, OP_CLASS, name_constant);
-    define_variable(compiler, name_constant, false);
+    emit_argued(parser, OP_CLASS, name_constant);
+    define_variable(parser, name_constant, false);
 
-    TeaClassCompiler class_compiler;
-    init_class_compiler(compiler, &class_compiler);
+    TeaClassParser class_compiler;
+    init_class_compiler(parser, &class_compiler);
 
-    if(match(compiler, TOKEN_COLON))
+    if(match(parser, TOKEN_COLON))
     {
-        expression(compiler);
+        expression(parser);
 
-        begin_scope(compiler);
-        add_local(compiler, synthetic_token("super"));
-        define_variable(compiler, 0, false);
+        begin_scope(parser);
+        add_local(parser, synthetic_token("super"));
+        define_variable(parser, 0, false);
 
-        named_variable(compiler, class_name, false);
-        emit_op(compiler, OP_INHERIT);
+        named_variable(parser, class_name, false);
+        emit_op(parser, OP_INHERIT);
         class_compiler.has_superclass = true;
     }
 
-    named_variable(compiler, class_name, false);
+    named_variable(parser, class_name, false);
 
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before class body");
-    class_body(compiler);
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
+    consume(parser, TOKEN_LEFT_BRACE, "Expect '{' before class body");
+    class_body(parser);
+    consume(parser, TOKEN_RIGHT_BRACE, "Expect '}' after class body");
 
-    emit_op(compiler, OP_POP);
+    emit_op(parser, OP_POP);
 
     if(class_compiler.has_superclass)
     {
-        end_scope(compiler);
+        end_scope(parser);
     }
 
-    compiler->klass = compiler->klass->enclosing;
+    parser->klass = parser->klass->enclosing;
 }
 
-static void function_assignment(TeaCompiler* compiler)
+static void function_assignment(TeaParser* parser)
 {
-    if(match(compiler, TOKEN_DOT))
+    if(match(parser, TOKEN_DOT))
     {
-        consume(compiler, TOKEN_NAME, "Expect property name");
-        uint8_t dot = identifier_constant(compiler, &compiler->parser->previous);
-        if(!check(compiler, TOKEN_LEFT_PAREN))
+        consume(parser, TOKEN_NAME, "Expect property name");
+        uint8_t dot = identifier_constant(parser, &parser->lex->previous);
+        if(!check(parser, TOKEN_LEFT_PAREN))
         {
-            emit_argued(compiler, OP_GET_PROPERTY, dot);
-            function_assignment(compiler);
+            emit_argued(parser, OP_GET_PROPERTY, dot);
+            function_assignment(parser);
         }
         else
         {
-            function(compiler, TYPE_FUNCTION);
-            emit_argued(compiler, OP_SET_PROPERTY, dot);
-            emit_op(compiler, OP_POP);
+            function(parser, TYPE_FUNCTION);
+            emit_argued(parser, OP_SET_PROPERTY, dot);
+            emit_op(parser, OP_POP);
             return;
         }
     }
-    else if(match(compiler, TOKEN_COLON))
+    else if(match(parser, TOKEN_COLON))
     {
-        consume(compiler, TOKEN_NAME, "Expect method name");
-        uint8_t constant = identifier_constant(compiler, &compiler->parser->previous);
+        consume(parser, TOKEN_NAME, "Expect method name");
+        uint8_t constant = identifier_constant(parser, &parser->lex->previous);
 
-        TeaClassCompiler class_compiler;
-        init_class_compiler(compiler, &class_compiler);
+        TeaClassParser class_compiler;
+        init_class_compiler(parser, &class_compiler);
 
-        function(compiler, TYPE_METHOD);
+        function(parser, TYPE_METHOD);
 
-        compiler->klass = compiler->klass->enclosing;
+        parser->klass = parser->klass->enclosing;
 
-        emit_argued(compiler, OP_EXTENSION_METHOD, constant);
+        emit_argued(parser, OP_EXTENSION_METHOD, constant);
         return;
     }
 }
 
-static void function_declaration(TeaCompiler* compiler)
+static void function_declaration(TeaParser* parser)
 {
-    consume(compiler, TOKEN_NAME, "Expect function name");
-    TeaToken name = compiler->parser->previous;
+    consume(parser, TOKEN_NAME, "Expect function name");
+    TeaToken name = parser->lex->previous;
 
-    if(check(compiler, TOKEN_DOT) || check(compiler, TOKEN_COLON))
+    if(check(parser, TOKEN_DOT) || check(parser, TOKEN_COLON))
     {
-        named_variable(compiler, name, false);
-        function_assignment(compiler);
+        named_variable(parser, name, false);
+        function_assignment(parser);
         return;
     }
 
-    uint8_t global = parse_variable_at(compiler, name);
-    mark_initialized(compiler, false);
-    function(compiler, TYPE_FUNCTION);
-    define_variable(compiler, global, false);
+    uint8_t global = parse_variable_at(parser, name);
+    mark_initialized(parser, false);
+    function(parser, TYPE_FUNCTION);
+    define_variable(parser, global, false);
 }
 
-static void var_declaration(TeaCompiler* compiler, bool constant)
+static void var_declaration(TeaParser* parser, bool constant)
 {
     TeaToken variables[255];
     int var_count = 0;
@@ -1822,17 +1821,17 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
     {
         if(rest_count > 1)
         {
-            error(compiler, "Multiple '...'");
+            error(parser, "Multiple '...'");
         }
 
-        if(match(compiler, TOKEN_DOT_DOT_DOT))
+        if(match(parser, TOKEN_DOT_DOT_DOT))
         {
             rest = true;
             rest_count++;
         }
 
-        consume(compiler, TOKEN_NAME, "Expect variable name");
-        variables[var_count] = compiler->parser->previous;
+        consume(parser, TOKEN_NAME, "Expect variable name");
+        variables[var_count] = parser->lex->previous;
         var_count++;
 
         if(rest)
@@ -1841,99 +1840,99 @@ static void var_declaration(TeaCompiler* compiler, bool constant)
             rest = false;
         }
 
-        if(var_count == 1 && match(compiler, TOKEN_EQUAL))
+        if(var_count == 1 && match(parser, TOKEN_EQUAL))
         {
             if(rest_count)
             {
-                error(compiler, "Cannot rest single variable");
+                error(parser, "Cannot rest single variable");
             }
 
-            uint8_t global = parse_variable_at(compiler, variables[0]);
-            expression(compiler);
-            define_variable(compiler, global, constant);
+            uint8_t global = parse_variable_at(parser, variables[0]);
+            expression(parser);
+            define_variable(parser, global, constant);
 
-            if(match(compiler, TOKEN_COMMA))
+            if(match(parser, TOKEN_COMMA))
             {
                 do
                 {
-                    uint8_t global = parse_variable(compiler, "Expect variable name");
-                    consume(compiler, TOKEN_EQUAL, "Expected an assignment");
-                    expression(compiler);
-                    define_variable(compiler, global, constant);
+                    uint8_t global = parse_variable(parser, "Expect variable name");
+                    consume(parser, TOKEN_EQUAL, "Expected an assignment");
+                    expression(parser);
+                    define_variable(parser, global, constant);
                 }
-                while(match(compiler, TOKEN_COMMA));
+                while(match(parser, TOKEN_COMMA));
             }
             return;
         }
     }
-    while(match(compiler, TOKEN_COMMA));
+    while(match(parser, TOKEN_COMMA));
 
     if(rest_count)
     {
-        consume(compiler, TOKEN_EQUAL, "Expected variable assignment");
-        expression(compiler);
-        emit_op(compiler, OP_UNPACK_REST_LIST);
-        emit_bytes(compiler, var_count, rest_pos - 1);
+        consume(parser, TOKEN_EQUAL, "Expected variable assignment");
+        expression(parser);
+        emit_op(parser, OP_UNPACK_REST_LIST);
+        emit_bytes(parser, var_count, rest_pos - 1);
         goto finish;
     }
 
-    if(match(compiler, TOKEN_EQUAL))
+    if(match(parser, TOKEN_EQUAL))
     {
         do
         {
-            expression(compiler);
+            expression(parser);
             expr_count++;
-            if(expr_count == 1 && (!check(compiler, TOKEN_COMMA)))
+            if(expr_count == 1 && (!check(parser, TOKEN_COMMA)))
             {
-                emit_argued(compiler, OP_UNPACK_LIST, var_count);
+                emit_argued(parser, OP_UNPACK_LIST, var_count);
                 goto finish;
             }
 
         }
-        while(match(compiler, TOKEN_COMMA));
+        while(match(parser, TOKEN_COMMA));
 
         if(expr_count != var_count)
         {
-            error(compiler, "Not enough values to assign to");
+            error(parser, "Not enough values to assign to");
         }
     }
     else
     {
         for(int i = 0; i < var_count; i++)
         {
-            emit_op(compiler, OP_NULL);
+            emit_op(parser, OP_NULL);
         }
     }
 
     finish:
-    if(compiler->scope_depth == 0)
+    if(parser->scope_depth == 0)
     {
         for(int i = var_count - 1; i >= 0; i--)
         {
-            uint8_t identifier = identifier_constant(compiler, &variables[i]);
-            define_variable(compiler, identifier, constant);
+            uint8_t identifier = identifier_constant(parser, &variables[i]);
+            define_variable(parser, identifier, constant);
         }
     }
     else
     {
         for(int i = 0; i < var_count; i++)
         {
-            declare_variable(compiler, &variables[i]);
-            define_variable(compiler, 0, constant);
+            declare_variable(parser, &variables[i]);
+            define_variable(parser, 0, constant);
         }
     }
 }
 
-static void expression_statement(TeaCompiler* compiler)
+static void expression_statement(TeaParser* parser)
 {
-    expression(compiler);
-    if(compiler->parser->T->repl && compiler->type == TYPE_SCRIPT)
+    expression(parser);
+    if(parser->lex->T->repl && parser->type == TYPE_SCRIPT)
     {
-        emit_op(compiler, OP_POP_REPL);
+        emit_op(parser, OP_POP_REPL);
     }
     else
     {
-        emit_op(compiler, OP_POP);
+        emit_op(parser, OP_POP);
     }
 }
 
@@ -2034,488 +2033,488 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
     return 0;
 }
 
-static void begin_loop(TeaCompiler* compiler, TeaLoop* loop)
+static void begin_loop(TeaParser* parser, TeaLoop* loop)
 {
-    loop->start = current_chunk(compiler)->count;
-    loop->scope_depth = compiler->scope_depth;
-    loop->enclosing = compiler->loop;
-    compiler->loop = loop;
+    loop->start = current_chunk(parser)->count;
+    loop->scope_depth = parser->scope_depth;
+    loop->enclosing = parser->loop;
+    parser->loop = loop;
 }
 
-static void end_loop(TeaCompiler* compiler)
+static void end_loop(TeaParser* parser)
 {
-    if(compiler->loop->end != -1)
+    if(parser->loop->end != -1)
     {
-        patch_jump(compiler, compiler->loop->end);
-        emit_op(compiler, OP_POP);
+        patch_jump(parser, parser->loop->end);
+        emit_op(parser, OP_POP);
     }
 
-    int i = compiler->loop->body;
-    while(i < compiler->function->chunk.count)
+    int i = parser->loop->body;
+    while(i < parser->function->chunk.count)
     {
-        if(compiler->function->chunk.code[i] == OP_END)
+        if(parser->function->chunk.code[i] == OP_END)
         {
-            compiler->function->chunk.code[i] = OP_JUMP;
-            patch_jump(compiler, i + 1);
+            parser->function->chunk.code[i] = OP_JUMP;
+            patch_jump(parser, i + 1);
             i += 3;
         }
         else
         {
-            i += 1 + get_arg_count(compiler->function->chunk.code, compiler->function->chunk.constants, i);
+            i += 1 + get_arg_count(parser->function->chunk.code, parser->function->chunk.constants, i);
         }
     }
 
-    compiler->loop = compiler->loop->enclosing;
+    parser->loop = parser->loop->enclosing;
 }
 
-static void for_in_statement(TeaCompiler* compiler, TeaToken var, bool constant)
+static void for_in_statement(TeaParser* parser, TeaToken var, bool constant)
 {
-    if(compiler->local_count + 2 > 256)
+    if(parser->local_count + 2 > 256)
     {
-        error(compiler, "Cannot declare more than 256 variables in one scope (Not enough space for for-loops internal variables)");
+        error(parser, "Cannot declare more than 256 variables in one scope (Not enough space for for-loops internal variables)");
     }
 
     TeaToken variables[255];
     int var_count = 1;
     variables[0] = var;
 
-    if(match(compiler, TOKEN_COMMA))
+    if(match(parser, TOKEN_COMMA))
     {
         do
         {
-            consume(compiler, TOKEN_NAME, "Expect variable name");
-            variables[var_count] = compiler->parser->previous;
+            consume(parser, TOKEN_NAME, "Expect variable name");
+            variables[var_count] = parser->lex->previous;
             var_count++;
         }
-        while(match(compiler, TOKEN_COMMA));
+        while(match(parser, TOKEN_COMMA));
     }
 
-    consume(compiler, TOKEN_IN, "Expect for iterator");
+    consume(parser, TOKEN_IN, "Expect for iterator");
 
-    expression(compiler);
-    int seq_slot = add_init_local(compiler, synthetic_token("seq "), false);
+    expression(parser);
+    int seq_slot = add_init_local(parser, synthetic_token("seq "), false);
 
-    null(compiler, false);
-    int iter_slot = add_init_local(compiler, synthetic_token("iter "), false);
+    null(parser, false);
+    int iter_slot = add_init_local(parser, synthetic_token("iter "), false);
 
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after loop expression");
+    consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after loop expression");
 
     TeaLoop loop;
-    begin_loop(compiler, &loop);
+    begin_loop(parser, &loop);
 
     /* Get the iterator index. If it's null, it means the loop is over */
-    emit_argued(compiler, OP_GET_LOCAL, seq_slot);
-    emit_argued(compiler, OP_GET_LOCAL, iter_slot);
-    invoke_method(compiler, 1, "iterate");
-    emit_argued(compiler, OP_SET_LOCAL, iter_slot);
-    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_NULL);
-    emit_op(compiler, OP_POP);
+    emit_argued(parser, OP_GET_LOCAL, seq_slot);
+    emit_argued(parser, OP_GET_LOCAL, iter_slot);
+    invoke_method(parser, 1, "iterate");
+    emit_argued(parser, OP_SET_LOCAL, iter_slot);
+    parser->loop->end = emit_jump(parser, OP_JUMP_IF_NULL);
+    emit_op(parser, OP_POP);
 
     /* Get the iterator value */
-    emit_argued(compiler, OP_GET_LOCAL, seq_slot);
-    emit_argued(compiler, OP_GET_LOCAL, iter_slot);
-    invoke_method(compiler, 1, "iteratorvalue");
+    emit_argued(parser, OP_GET_LOCAL, seq_slot);
+    emit_argued(parser, OP_GET_LOCAL, iter_slot);
+    invoke_method(parser, 1, "iteratorvalue");
 
-    begin_scope(compiler);
+    begin_scope(parser);
 
     if(var_count > 1)
-        emit_argued(compiler, OP_UNPACK_LIST, var_count);
+        emit_argued(parser, OP_UNPACK_LIST, var_count);
 
     for(int i = 0; i < var_count; i++)
     {
-        declare_variable(compiler, &variables[i]);
-        define_variable(compiler, 0, constant);
+        declare_variable(parser, &variables[i]);
+        define_variable(parser, 0, constant);
     }
 
-    compiler->loop->body = compiler->function->chunk.count;
-    statement(compiler);
+    parser->loop->body = parser->function->chunk.count;
+    statement(parser);
 
     /* Loop variable */
-    end_scope(compiler);
+    end_scope(parser);
 
-    emit_loop(compiler, compiler->loop->start);
-    end_loop(compiler);
+    emit_loop(parser, parser->loop->start);
+    end_loop(parser);
 
     /* Hidden variables */
-    end_scope(compiler);
+    end_scope(parser);
 }
 
-static void for_statement(TeaCompiler* compiler)
+static void for_statement(TeaParser* parser)
 {
-    begin_scope(compiler);
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'for'");
+    begin_scope(parser);
+    consume(parser, TOKEN_LEFT_PAREN, "Expect '(' after 'for'");
 
     bool constant = false;
-    if(match(compiler, TOKEN_VAR) || (constant = match(compiler, TOKEN_CONST)))
+    if(match(parser, TOKEN_VAR) || (constant = match(parser, TOKEN_CONST)))
     {
-        consume(compiler, TOKEN_NAME, "Expect variable name");
-        TeaToken var = compiler->parser->previous;
+        consume(parser, TOKEN_NAME, "Expect variable name");
+        TeaToken var = parser->lex->previous;
 
-        if(check(compiler, TOKEN_IN) || check(compiler, TOKEN_COMMA))
+        if(check(parser, TOKEN_IN) || check(parser, TOKEN_COMMA))
         {
             /* It's a for in statement */
-            for_in_statement(compiler, var, constant);
+            for_in_statement(parser, var, constant);
             return;
         }
 
-        uint8_t global = parse_variable_at(compiler, var);
+        uint8_t global = parse_variable_at(parser, var);
 
-        if(match(compiler, TOKEN_EQUAL))
+        if(match(parser, TOKEN_EQUAL))
         {
-            expression(compiler);
+            expression(parser);
         }
         else
         {
-            emit_op(compiler, OP_NULL);
+            emit_op(parser, OP_NULL);
         }
 
-        define_variable(compiler, global, constant);
-        consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop variable");
+        define_variable(parser, global, constant);
+        consume(parser, TOKEN_SEMICOLON, "Expect ';' after loop variable");
     }
     else
     {
-        expression_statement(compiler);
-        consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop expression");
+        expression_statement(parser);
+        consume(parser, TOKEN_SEMICOLON, "Expect ';' after loop expression");
     }
 
     TeaLoop loop;
-    begin_loop(compiler, &loop);
+    begin_loop(parser, &loop);
 
-    compiler->loop->end = -1;
+    parser->loop->end = -1;
 
-    expression(compiler);
-    consume(compiler, TOKEN_SEMICOLON, "Expect ';' after loop condition");
+    expression(parser);
+    consume(parser, TOKEN_SEMICOLON, "Expect ';' after loop condition");
 
-    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_op(compiler, OP_POP); /* Condition */
+    parser->loop->end = emit_jump(parser, OP_JUMP_IF_FALSE);
+    emit_op(parser, OP_POP); /* Condition */
 
-    int body_jump = emit_jump(compiler, OP_JUMP);
+    int body_jump = emit_jump(parser, OP_JUMP);
 
-    int increment_start = current_chunk(compiler)->count;
-    expression(compiler);
-    emit_op(compiler, OP_POP);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses");
+    int increment_start = current_chunk(parser)->count;
+    expression(parser);
+    emit_op(parser, OP_POP);
+    consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after for clauses");
 
-    emit_loop(compiler, compiler->loop->start);
-    compiler->loop->start = increment_start;
+    emit_loop(parser, parser->loop->start);
+    parser->loop->start = increment_start;
 
-    patch_jump(compiler, body_jump);
+    patch_jump(parser, body_jump);
 
-    compiler->loop->body = compiler->function->chunk.count;
-    statement(compiler);
+    parser->loop->body = parser->function->chunk.count;
+    statement(parser);
 
-    emit_loop(compiler, compiler->loop->start);
+    emit_loop(parser, parser->loop->start);
 
-    end_loop(compiler);
-    end_scope(compiler);
+    end_loop(parser);
+    end_scope(parser);
 }
 
-static void break_statement(TeaCompiler* compiler)
+static void break_statement(TeaParser* parser)
 {
-    if(compiler->loop == NULL)
+    if(parser->loop == NULL)
     {
-        error(compiler, "Cannot use 'break' outside of a loop");
+        error(parser, "Cannot use 'break' outside of a loop");
     }
 
     /* Discard any locals created inside the loop */
-    discard_locals(compiler, compiler->loop->scope_depth + 1);
+    discard_locals(parser, parser->loop->scope_depth + 1);
 
-    emit_jump(compiler, OP_END);
+    emit_jump(parser, OP_END);
 }
 
-static void continue_statement(TeaCompiler* compiler)
+static void continue_statement(TeaParser* parser)
 {
-    if(compiler->loop == NULL)
+    if(parser->loop == NULL)
     {
-        error(compiler, "Cannot use 'continue' outside of a loop");
+        error(parser, "Cannot use 'continue' outside of a loop");
     }
 
     /* Discard any locals created inside the loop */
-    discard_locals(compiler, compiler->loop->scope_depth + 1);
+    discard_locals(parser, parser->loop->scope_depth + 1);
 
     /* Jump to the top of the innermost loop */
-    emit_loop(compiler, compiler->loop->start);
+    emit_loop(parser, parser->loop->start);
 }
 
-static void if_statement(TeaCompiler* compiler)
+static void if_statement(TeaParser* parser)
 {
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'if'");
-    expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
+    consume(parser, TOKEN_LEFT_PAREN, "Expect '(' after 'if'");
+    expression(parser);
+    consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
 
-    int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE);
+    int else_jump = emit_jump(parser, OP_JUMP_IF_FALSE);
 
-    emit_op(compiler, OP_POP);
-    statement(compiler);
+    emit_op(parser, OP_POP);
+    statement(parser);
 
-    int end_jump = emit_jump(compiler, OP_JUMP);
+    int end_jump = emit_jump(parser, OP_JUMP);
 
-    patch_jump(compiler, else_jump);
-    emit_op(compiler, OP_POP);
+    patch_jump(parser, else_jump);
+    emit_op(parser, OP_POP);
 
-    if(match(compiler, TOKEN_ELSE))
-        statement(compiler);
+    if(match(parser, TOKEN_ELSE))
+        statement(parser);
 
-    patch_jump(compiler, end_jump);
+    patch_jump(parser, end_jump);
 }
 
-static void switch_statement(TeaCompiler* compiler)
+static void switch_statement(TeaParser* parser)
 {
     int case_ends[256];
     int case_count = 0;
 
-    consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after switch");
-    expression(compiler);
-    consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after expression");
-    consume(compiler, TOKEN_LEFT_BRACE, "Expect '{' before switch body");
+    consume(parser, TOKEN_LEFT_PAREN, "Expect '(' after switch");
+    expression(parser);
+    consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after expression");
+    consume(parser, TOKEN_LEFT_BRACE, "Expect '{' before switch body");
 
-    if(match(compiler, TOKEN_CASE))
+    if(match(parser, TOKEN_CASE))
     {
         do
         {
-            expression(compiler);
+            expression(parser);
             int multiple_cases = 0;
-            if(match(compiler, TOKEN_COMMA))
+            if(match(parser, TOKEN_COMMA))
             {
                 do
                 {
                     multiple_cases++;
-                    expression(compiler);
+                    expression(parser);
                 }
-                while(match(compiler, TOKEN_COMMA));
-                emit_argued(compiler, OP_MULTI_CASE, multiple_cases);
+                while(match(parser, TOKEN_COMMA));
+                emit_argued(parser, OP_MULTI_CASE, multiple_cases);
             }
-            int compare_jump = emit_jump(compiler, OP_COMPARE_JUMP);
-            consume(compiler, TOKEN_COLON, "Expect ':' after expression");
-            statement(compiler);
-            case_ends[case_count++] = emit_jump(compiler, OP_JUMP);
-            patch_jump(compiler, compare_jump);
+            int compare_jump = emit_jump(parser, OP_COMPARE_JUMP);
+            consume(parser, TOKEN_COLON, "Expect ':' after expression");
+            statement(parser);
+            case_ends[case_count++] = emit_jump(parser, OP_JUMP);
+            patch_jump(parser, compare_jump);
             if(case_count > 255)
             {
-                error_at_current(compiler, "Switch statement can not have more than 256 case blocks");
+                error_at_current(parser, "Switch statement can not have more than 256 case blocks");
             }
 
         }
-        while(match(compiler, TOKEN_CASE));
+        while(match(parser, TOKEN_CASE));
     }
 
-    emit_op(compiler, OP_POP); /* Expression */
-    if(match(compiler, TOKEN_DEFAULT))
+    emit_op(parser, OP_POP); /* Expression */
+    if(match(parser, TOKEN_DEFAULT))
     {
-        consume(compiler, TOKEN_COLON, "Expect ':' after default");
-        statement(compiler);
+        consume(parser, TOKEN_COLON, "Expect ':' after default");
+        statement(parser);
     }
 
-    if(match(compiler, TOKEN_CASE))
+    if(match(parser, TOKEN_CASE))
     {
-        error(compiler, "Unexpected case after default");
+        error(parser, "Unexpected case after default");
     }
 
-    consume(compiler, TOKEN_RIGHT_BRACE, "Expect '}' after switch body");
+    consume(parser, TOKEN_RIGHT_BRACE, "Expect '}' after switch body");
 
     for(int i = 0; i < case_count; i++)
     {
-    	patch_jump(compiler, case_ends[i]);
+    	patch_jump(parser, case_ends[i]);
     }
 }
 
-static void return_statement(TeaCompiler* compiler)
+static void return_statement(TeaParser* parser)
 {
-    if(compiler->type == TYPE_SCRIPT)
+    if(parser->type == TYPE_SCRIPT)
     {
-        error(compiler, "Can't return from top-level code");
+        error(parser, "Can't return from top-level code");
     }
 
-    if(check(compiler, TOKEN_RIGHT_BRACE) || match(compiler, TOKEN_SEMICOLON))
+    if(check(parser, TOKEN_RIGHT_BRACE) || match(parser, TOKEN_SEMICOLON))
     {
-        emit_return(compiler);
+        emit_return(parser);
     }
     else
     {
-        if(compiler->type == TYPE_CONSTRUCTOR)
+        if(parser->type == TYPE_CONSTRUCTOR)
         {
-            error(compiler, "Can't return a value from a constructor");
+            error(parser, "Can't return a value from a constructor");
         }
 
-        expression(compiler);
-        emit_op(compiler, OP_RETURN);
+        expression(parser);
+        emit_op(parser, OP_RETURN);
     }
 }
 
-static void import_statement(TeaCompiler* compiler)
+static void import_statement(TeaParser* parser)
 {
-    if(match(compiler, TOKEN_STRING))
+    if(match(parser, TOKEN_STRING))
     {
-        int import_constant = make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
+        int import_constant = make_constant(parser, OBJECT_VAL(tea_str_copy(parser->lex->T, parser->lex->previous.start + 1, parser->lex->previous.length - 2)));
 
-        emit_argued(compiler, OP_IMPORT_STRING, import_constant);
-        emit_op(compiler, OP_POP);
+        emit_argued(parser, OP_IMPORT_STRING, import_constant);
+        emit_op(parser, OP_POP);
 
-        if(match(compiler, TOKEN_AS))
+        if(match(parser, TOKEN_AS))
         {
-            uint8_t import_name = parse_variable(compiler, "Expect import alias");
-            emit_op(compiler, OP_IMPORT_ALIAS);
-            define_variable(compiler, import_name, false);
+            uint8_t import_name = parse_variable(parser, "Expect import alias");
+            emit_op(parser, OP_IMPORT_ALIAS);
+            define_variable(parser, import_name, false);
         }
 
-        emit_op(compiler, OP_IMPORT_END);
+        emit_op(parser, OP_IMPORT_END);
 
-        if(match(compiler, TOKEN_COMMA))
+        if(match(parser, TOKEN_COMMA))
         {
-            import_statement(compiler);
+            import_statement(parser);
         }
     }
     else
     {
-        consume(compiler, TOKEN_NAME, "Expect import identifier");
-        uint8_t import_name = identifier_constant(compiler, &compiler->parser->previous);
-        declare_variable(compiler, &compiler->parser->previous);
+        consume(parser, TOKEN_NAME, "Expect import identifier");
+        uint8_t import_name = identifier_constant(parser, &parser->lex->previous);
+        declare_variable(parser, &parser->lex->previous);
 
-        if(match(compiler, TOKEN_AS))
+        if(match(parser, TOKEN_AS))
         {
-            uint8_t import_alias = parse_variable(compiler, "Expect import alias");
+            uint8_t import_alias = parse_variable(parser, "Expect import alias");
 
-            emit_argued(compiler, OP_IMPORT_NAME, import_name);
-            define_variable(compiler, import_alias, false);
+            emit_argued(parser, OP_IMPORT_NAME, import_name);
+            define_variable(parser, import_alias, false);
         }
         else
         {
-            emit_argued(compiler, OP_IMPORT_NAME, import_name);
-            define_variable(compiler, import_name, false);
+            emit_argued(parser, OP_IMPORT_NAME, import_name);
+            define_variable(parser, import_name, false);
         }
 
-        emit_op(compiler, OP_IMPORT_END);
+        emit_op(parser, OP_IMPORT_END);
 
-        if(match(compiler, TOKEN_COMMA))
+        if(match(parser, TOKEN_COMMA))
         {
-            import_statement(compiler);
+            import_statement(parser);
         }
     }
 }
 
-static void from_import_statement(TeaCompiler* compiler)
+static void from_import_statement(TeaParser* parser)
 {
-    if(match(compiler, TOKEN_STRING))
+    if(match(parser, TOKEN_STRING))
     {
-        int import_constant = make_constant(compiler, OBJECT_VAL(tea_str_copy(compiler->parser->T, compiler->parser->previous.start + 1, compiler->parser->previous.length - 2)));
+        int import_constant = make_constant(parser, OBJECT_VAL(tea_str_copy(parser->lex->T, parser->lex->previous.start + 1, parser->lex->previous.length - 2)));
 
-        consume(compiler, TOKEN_IMPORT, "Expect 'import' after import path");
-        emit_argued(compiler, OP_IMPORT_STRING, import_constant);
-        emit_op(compiler, OP_POP);
+        consume(parser, TOKEN_IMPORT, "Expect 'import' after import path");
+        emit_argued(parser, OP_IMPORT_STRING, import_constant);
+        emit_op(parser, OP_POP);
     }
     else
     {
-        consume(compiler, TOKEN_NAME, "Expect import identifier");
-        uint8_t import_name = identifier_constant(compiler, &compiler->parser->previous);
+        consume(parser, TOKEN_NAME, "Expect import identifier");
+        uint8_t import_name = identifier_constant(parser, &parser->lex->previous);
 
-        consume(compiler, TOKEN_IMPORT, "Expect 'import' after identifier");
+        consume(parser, TOKEN_IMPORT, "Expect 'import' after identifier");
 
-        emit_argued(compiler, OP_IMPORT_NAME, import_name);
-        emit_op(compiler, OP_POP);
+        emit_argued(parser, OP_IMPORT_NAME, import_name);
+        emit_op(parser, OP_POP);
     }
 
     int var_count = 0;
 
     do
     {
-        consume(compiler, TOKEN_NAME, "Expect variable name");
-        TeaToken var_token = compiler->parser->previous;
-        uint8_t var_constant = identifier_constant(compiler, &var_token);
+        consume(parser, TOKEN_NAME, "Expect variable name");
+        TeaToken var_token = parser->lex->previous;
+        uint8_t var_constant = identifier_constant(parser, &var_token);
 
         uint8_t slot;
-        if(match(compiler, TOKEN_AS))
+        if(match(parser, TOKEN_AS))
         {
-            slot = parse_variable(compiler, "Expect variable name");
+            slot = parse_variable(parser, "Expect variable name");
         }
         else
         {
-            slot = parse_variable_at(compiler, var_token);
+            slot = parse_variable_at(parser, var_token);
         }
 
-        emit_argued(compiler, OP_IMPORT_VARIABLE, var_constant);
-        define_variable(compiler, slot, false);
+        emit_argued(parser, OP_IMPORT_VARIABLE, var_constant);
+        define_variable(parser, slot, false);
 
         var_count++;
         if(var_count > 255)
         {
-            error(compiler, "Cannot have more than 255 variables");
+            error(parser, "Cannot have more than 255 variables");
         }
     }
-    while(match(compiler, TOKEN_COMMA));
+    while(match(parser, TOKEN_COMMA));
 
-    emit_op(compiler, OP_IMPORT_END);
+    emit_op(parser, OP_IMPORT_END);
 }
 
-static void while_statement(TeaCompiler* compiler)
+static void while_statement(TeaParser* parser)
 {
     TeaLoop loop;
-    begin_loop(compiler, &loop);
+    begin_loop(parser, &loop);
 
-    if(!check(compiler, TOKEN_LEFT_PAREN))
+    if(!check(parser, TOKEN_LEFT_PAREN))
     {
-        emit_byte(compiler, OP_TRUE);
+        emit_byte(parser, OP_TRUE);
     }
     else
     {
-        consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'while'");
-        expression(compiler);
-        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
+        consume(parser, TOKEN_LEFT_PAREN, "Expect '(' after 'while'");
+        expression(parser);
+        consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
     }
 
     /* Jump ot of the loop if the condition is false */
-    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_op(compiler, OP_POP);
+    parser->loop->end = emit_jump(parser, OP_JUMP_IF_FALSE);
+    emit_op(parser, OP_POP);
 
     /* Compile the body */
-    compiler->loop->body = compiler->function->chunk.count;
-    statement(compiler);
+    parser->loop->body = parser->function->chunk.count;
+    statement(parser);
 
     /* Loop back to the start */
-    emit_loop(compiler, compiler->loop->start);
-    end_loop(compiler);
+    emit_loop(parser, parser->loop->start);
+    end_loop(parser);
 }
 
-static void do_statement(TeaCompiler* compiler)
+static void do_statement(TeaParser* parser)
 {
     TeaLoop loop;
-    begin_loop(compiler, &loop);
+    begin_loop(parser, &loop);
 
-    compiler->loop->body = compiler->function->chunk.count;
-    statement(compiler);
+    parser->loop->body = parser->function->chunk.count;
+    statement(parser);
 
-    consume(compiler, TOKEN_WHILE, "Expect while after do statement");
+    consume(parser, TOKEN_WHILE, "Expect while after do statement");
 
-    if(!check(compiler, TOKEN_LEFT_PAREN))
+    if(!check(parser, TOKEN_LEFT_PAREN))
     {
-        emit_op(compiler, OP_TRUE);
+        emit_op(parser, OP_TRUE);
     }
     else
     {
-        consume(compiler, TOKEN_LEFT_PAREN, "Expect '(' after 'while'");
-        expression(compiler);
-        consume(compiler, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
+        consume(parser, TOKEN_LEFT_PAREN, "Expect '(' after 'while'");
+        expression(parser);
+        consume(parser, TOKEN_RIGHT_PAREN, "Expect ')' after condition");
     }
 
-    compiler->loop->end = emit_jump(compiler, OP_JUMP_IF_FALSE);
-    emit_op(compiler, OP_POP);
+    parser->loop->end = emit_jump(parser, OP_JUMP_IF_FALSE);
+    emit_op(parser, OP_POP);
 
-    emit_loop(compiler, compiler->loop->start);
-    end_loop(compiler);
+    emit_loop(parser, parser->loop->start);
+    end_loop(parser);
 }
 
-static void multiple_assignment(TeaCompiler* compiler)
+static void multiple_assignment(TeaParser* parser)
 {
     int expr_count = 0;
     int var_count = 0;
     TeaToken variables[255];
 
-    TeaToken previous = compiler->parser->previous;
+    TeaToken previous = parser->lex->previous;
 
-    if(!match(compiler, TOKEN_COMMA))
+    if(!match(parser, TOKEN_COMMA))
     {
-        recede(compiler);
-        compiler->parser->current = compiler->parser->previous;
-        expression_statement(compiler);
+        recede(parser);
+        parser->lex->current = parser->lex->previous;
+        expression_statement(parser);
         return;
     }
 
@@ -2524,29 +2523,29 @@ static void multiple_assignment(TeaCompiler* compiler)
 
     do
     {
-        consume(compiler, TOKEN_NAME, "Expect variable name");
-        variables[var_count] = compiler->parser->previous;
+        consume(parser, TOKEN_NAME, "Expect variable name");
+        variables[var_count] = parser->lex->previous;
         var_count++;
     }
-    while(match(compiler, TOKEN_COMMA));
+    while(match(parser, TOKEN_COMMA));
 
-    consume(compiler, TOKEN_EQUAL, "Expect '=' multiple assignment");
+    consume(parser, TOKEN_EQUAL, "Expect '=' multiple assignment");
 
     do
     {
-        expression(compiler);
+        expression(parser);
         expr_count++;
-        if(expr_count == 1 && (!check(compiler, TOKEN_COMMA)))
+        if(expr_count == 1 && (!check(parser, TOKEN_COMMA)))
         {
-            emit_argued(compiler, OP_UNPACK_LIST, var_count);
+            emit_argued(parser, OP_UNPACK_LIST, var_count);
             goto finish;
         }
     }
-    while(match(compiler, TOKEN_COMMA));
+    while(match(parser, TOKEN_COMMA));
 
     if(expr_count != var_count)
     {
-        error(compiler, "Not enough values to assign to");
+        error(parser, "Not enough values to assign to");
     }
 
     finish:
@@ -2555,21 +2554,21 @@ static void multiple_assignment(TeaCompiler* compiler)
         TeaToken token = variables[i];
 
         uint8_t set_op;
-        int arg = resolve_local(compiler, &token);
+        int arg = resolve_local(parser, &token);
         if(arg != -1)
         {
             set_op = OP_SET_LOCAL;
         }
-        else if((arg = resolve_upvalue(compiler, &token)) != -1)
+        else if((arg = resolve_upvalue(parser, &token)) != -1)
         {
             set_op = OP_SET_UPVALUE;
         }
         else
         {
-            arg = identifier_constant(compiler, &token);
-            TeaOString* string = tea_str_copy(compiler->parser->T, token.start, token.length);
+            arg = identifier_constant(parser, &token);
+            TeaOString* string = tea_str_copy(parser->lex->T, token.start, token.length);
             TeaValue value;
-            if(tea_tab_get(&compiler->parser->T->globals, string, &value))
+            if(tea_tab_get(&parser->lex->T->globals, string, &value))
             {
                 set_op = OP_SET_GLOBAL;
             }
@@ -2578,95 +2577,95 @@ static void multiple_assignment(TeaCompiler* compiler)
                 set_op = OP_SET_MODULE;
             }
         }
-        check_const(compiler, set_op, arg);
-        emit_argued(compiler, set_op, (uint8_t)arg);
-        emit_op(compiler, OP_POP);
+        check_const(parser, set_op, arg);
+        emit_argued(parser, set_op, (uint8_t)arg);
+        emit_op(parser, OP_POP);
     }
 }
 
-static void declaration(TeaCompiler* compiler)
+static void declaration(TeaParser* parser)
 {
-    if(match(compiler, TOKEN_CLASS))
+    if(match(parser, TOKEN_CLASS))
     {
-        class_declaration(compiler);
+        class_declaration(parser);
     }
-    else if(match(compiler, TOKEN_FUNCTION))
+    else if(match(parser, TOKEN_FUNCTION))
     {
-        function_declaration(compiler);
+        function_declaration(parser);
     }
-    else if(match(compiler, TOKEN_CONST))
+    else if(match(parser, TOKEN_CONST))
     {
-        var_declaration(compiler, true);
+        var_declaration(parser, true);
     }
-    else if(match(compiler, TOKEN_VAR))
+    else if(match(parser, TOKEN_VAR))
     {
-        var_declaration(compiler, false);
+        var_declaration(parser, false);
     }
     else
     {
-        statement(compiler);
+        statement(parser);
     }
 }
 
-static void statement(TeaCompiler* compiler)
+static void statement(TeaParser* parser)
 {
-    if(check(compiler, TOKEN_SEMICOLON))
+    if(check(parser, TOKEN_SEMICOLON))
     {
-        next(compiler);
+        next(parser);
     }
-    else if(match(compiler, TOKEN_FOR))
+    else if(match(parser, TOKEN_FOR))
     {
-        for_statement(compiler);
+        for_statement(parser);
     }
-    else if(match(compiler, TOKEN_IF))
+    else if(match(parser, TOKEN_IF))
     {
-        if_statement(compiler);
+        if_statement(parser);
     }
-    else if(match(compiler, TOKEN_SWITCH))
+    else if(match(parser, TOKEN_SWITCH))
     {
-        switch_statement(compiler);
+        switch_statement(parser);
     }
-    else if(match(compiler, TOKEN_RETURN))
+    else if(match(parser, TOKEN_RETURN))
     {
-        return_statement(compiler);
+        return_statement(parser);
     }
-    else if(match(compiler, TOKEN_WHILE))
+    else if(match(parser, TOKEN_WHILE))
     {
-        while_statement(compiler);
+        while_statement(parser);
     }
-    else if(match(compiler, TOKEN_DO))
+    else if(match(parser, TOKEN_DO))
     {
-        do_statement(compiler);
+        do_statement(parser);
     }
-    else if(match(compiler, TOKEN_IMPORT))
+    else if(match(parser, TOKEN_IMPORT))
     {
-        import_statement(compiler);
+        import_statement(parser);
     }
-    else if(match(compiler, TOKEN_FROM))
+    else if(match(parser, TOKEN_FROM))
     {
-        from_import_statement(compiler);
+        from_import_statement(parser);
     }
-    else if(match(compiler, TOKEN_BREAK))
+    else if(match(parser, TOKEN_BREAK))
     {
-        break_statement(compiler);
+        break_statement(parser);
     }
-    else if(match(compiler, TOKEN_CONTINUE))
+    else if(match(parser, TOKEN_CONTINUE))
     {
-        continue_statement(compiler);
+        continue_statement(parser);
     }
-    else if(match(compiler, TOKEN_NAME))
+    else if(match(parser, TOKEN_NAME))
     {
-        multiple_assignment(compiler);
+        multiple_assignment(parser);
     }
-    else if(match(compiler, TOKEN_LEFT_BRACE))
+    else if(match(parser, TOKEN_LEFT_BRACE))
     {
-        begin_scope(compiler);
-        block(compiler);
-        end_scope(compiler);
+        begin_scope(parser);
+        block(parser);
+        end_scope(parser);
     }
     else
     {
-        expression_statement(compiler);
+        expression_statement(parser);
     }
 }
 
@@ -2694,32 +2693,28 @@ static void tea_lex_all(TeaLexer* lex, const char* source)
 }
 #endif
 
-TeaOFunction* tea_compile(TeaState* T, TeaOModule* module, const char* source)
+TeaOFunction* tea_parse(TeaState* T, TeaOModule* module, const char* source)
 {
-    TeaParser parser;
-    parser.T = T;
-    parser.module = module;
-
-    TeaLexer lex;
-    tea_lex_init(T, &lex, source);
+    TeaLexer lexer;
+    lexer.T = T;
+    lexer.module = module;
+    tea_lex_init(T, &lexer, source);
 
 #ifdef TEA_DEBUG_TOKENS
     tea_lex_all(&lex, source);
 #endif
 
-    parser.lex = lex;
+    TeaParser parser;
+    init_compiler(&lexer, &parser, NULL, TYPE_SCRIPT);
 
-    TeaCompiler compiler;
-    init_compiler(&parser, &compiler, NULL, TYPE_SCRIPT);
+    next(&parser);
 
-    next(&compiler);
-
-    while(!match(&compiler, TOKEN_EOF))
+    while(!match(&parser, TOKEN_EOF))
     {
-        declaration(&compiler);
+        declaration(&parser);
     }
 
-    TeaOFunction* function = end_compiler(&compiler);
+    TeaOFunction* function = end_compiler(&parser);
 
     if(!T->repl)
     {
@@ -2729,14 +2724,14 @@ TeaOFunction* tea_compile(TeaState* T, TeaOModule* module, const char* source)
     return function;
 }
 
-void tea_compiler_mark_roots(TeaState* T, TeaCompiler* compiler)
+void tea_parser_mark_roots(TeaState* T, TeaParser* parser)
 {
-    tea_gc_markval(T, compiler->parser->previous.value);
-    tea_gc_markval(T, compiler->parser->current.value);
+    tea_gc_markval(T, parser->lex->previous.value);
+    tea_gc_markval(T, parser->lex->current.value);
 
-    while(compiler != NULL)
+    while(parser != NULL)
     {
-        tea_gc_markobj(T, (TeaObject*)compiler->function);
-        compiler = compiler->enclosing;
+        tea_gc_markobj(T, (TeaObject*)parser->function);
+        parser = parser->enclosing;
     }
 }

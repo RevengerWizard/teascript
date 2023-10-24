@@ -302,9 +302,9 @@ static void mark_roots(TeaState* T)
         tea_gc_markobj(T, (TeaObject*)T->opm_name[i]);
     }
 
-    if(T->compiler != NULL)
+    if(T->parser != NULL)
     {
-        tea_compiler_mark_roots(T, T->compiler);
+        tea_parser_mark_roots(T, T->parser);
     }
 }
 

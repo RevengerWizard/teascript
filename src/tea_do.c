@@ -309,7 +309,7 @@ static void f_parser(TeaState* T, void* ud)
 
     c = (struct PParser*)(ud);
 
-    function = tea_compile(T, c->module, c->source);
+    function = tea_parse(T, c->module, c->source);
     closure = tea_func_new_closure(T, function);
     tea_vm_push(T, OBJECT_VAL(closure));
 }

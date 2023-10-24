@@ -62,7 +62,7 @@ typedef struct TeaState
     TeaCallInfo* base_ci;
     int ci_size;
     TeaOUpvalue* open_upvalues;
-    TeaCompiler* compiler;
+    TeaParser* parser;
     TeaTable modules;
     TeaTable globals;
     TeaTable constants;

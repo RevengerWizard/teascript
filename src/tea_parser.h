@@ -3,8 +3,8 @@
 ** Teascript parser and compiler
 */
 
-#ifndef TEA_COMPILER_H
-#define TEA_COMPILER_H
+#ifndef TEA_PARSER_H
+#define TEA_PARSER_H
 
 #include "tea_lexer.h"
 #include "tea_object.h"
@@ -47,21 +47,12 @@ typedef struct
     bool constant;
 } TeaUpvalue;
 
-typedef struct
+typedef struct TeaClassParser
 {
-    TeaState* T;
-    TeaLexer lex;
-    TeaToken current;
-    TeaToken previous;
-    TeaOModule* module;
-} TeaParser;
-
-typedef struct TeaClassCompiler
-{
-    struct TeaClassCompiler* enclosing;
+    struct TeaClassParser* enclosing;
     bool is_static;
     bool has_superclass;
-} TeaClassCompiler;
+} TeaClassParser;
 
 typedef struct TeaLoop
 {
@@ -72,11 +63,11 @@ typedef struct TeaLoop
     int scope_depth;
 } TeaLoop;
 
-typedef struct TeaCompiler
+typedef struct TeaParser
 {
-    TeaParser* parser;
-    struct TeaCompiler* enclosing;
-    TeaClassCompiler* klass;
+    TeaLexer* lex;
+    struct TeaParser* enclosing;
+    TeaClassParser* klass;
     TeaLoop* loop;
     TeaOFunction* function;
     TeaFunctionType type;
@@ -85,9 +76,9 @@ typedef struct TeaCompiler
     TeaUpvalue upvalues[UINT8_COUNT];
     int slot_count;
     int scope_depth;
-} TeaCompiler;
+} TeaParser;
 
-typedef void (*TeaParseFn)(TeaCompiler* compiler, bool can_assign);
+typedef void (*TeaParseFn)(TeaParser* compiler, bool can_assign);
 
 typedef struct
 {
@@ -96,7 +87,7 @@ typedef struct
     TeaPrecedence precedence;
 } TeaParseRule;
 
-TEA_FUNC TeaOFunction* tea_compile(TeaState* T, TeaOModule* module, const char* source);
-TEA_FUNC void tea_compiler_mark_roots(TeaState* T, TeaCompiler* compiler);
+TEA_FUNC TeaOFunction* tea_parse(TeaState* T, TeaOModule* module, const char* source);
+TEA_FUNC void tea_parser_mark_roots(TeaState* T, TeaParser* compiler);
 
 #endif
