@@ -15,27 +15,58 @@
 
 static void range_start(TeaState* T)
 {
+    int count = tea_get_top(T);
+    TeaORange* range = AS_RANGE(T->base[0]);
     double start;
-    tea_get_range(T, 0, &start, NULL, NULL);
+    if(count == 1)
+    {
+        start = range->start;
+    }
+    else
+    {
+        start = tea_check_number(T, 1);
+        range->start = start;
+    }
     tea_push_number(T, start);
 }
 
 static void range_end(TeaState* T)
 {
+    int count = tea_get_top(T);
+    TeaORange* range = AS_RANGE(T->base[0]);
     double end;
-    tea_get_range(T, 0, NULL, &end, NULL);
+    if(count == 1)
+    {
+        end = range->end;
+    }
+    else
+    {
+        end = tea_check_number(T, 1);
+        range->end = end;
+    }
     tea_push_number(T, end);
 }
 
 static void range_step(TeaState* T)
 {
+    int count = tea_get_top(T);
+    TeaORange* range = AS_RANGE(T->base[0]);
     double step;
-    tea_get_range(T, 0, NULL, NULL, &step);
+    if(count == 1)
+    {
+        step = range->step;
+    }
+    else
+    {
+        step = tea_check_number(T, 1);
+        range->step = step;
+    }
     tea_push_number(T, step);
 }
 
 static void range_len(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     double start, end, step;
     tea_get_range(T, 0, &start, &end, &step);
     tea_push_number(T, (end - start) / step);

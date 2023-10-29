@@ -19,6 +19,7 @@
 
 static void string_len(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_number(T, tea_utf_length(AS_STRING(T->base[0])));
 }
 

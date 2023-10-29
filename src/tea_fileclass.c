@@ -33,16 +33,19 @@ static TeaOFile* get_file(TeaState* T)
 
 static void file_closed(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_bool(T, !get_file(T)->is_open);
 }
 
 static void file_path(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_vm_push(T, OBJECT_VAL(get_file(T)->path));
 }
 
 static void file_type(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_vm_push(T, OBJECT_VAL(get_file(T)->type));
 }
 

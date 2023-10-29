@@ -650,7 +650,11 @@ static void get_property(TeaState* T, TeaValue receiver, TeaOString* name, bool 
                 {
                     if(IS_NATIVE(value) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
                     {
-                        tea_do_precall(T, value, 0);
+                        if(!dopop)
+                        {
+                            tea_vm_push(T, receiver);
+                        }
+                        tea_do_call(T, value, 0);
                     }
                     else
                     {
@@ -705,7 +709,22 @@ static void set_property(TeaState* T, TeaOString* name, TeaValue receiver, TeaVa
                 return;
             }
             default:
+            {
+                TeaOClass* klass = tea_state_get_class(T, receiver);
+                if(klass != NULL)
+                {
+                    TeaValue value;
+                    if(tea_tab_get(&klass->methods, name, &value))
+                    {
+                        if(IS_NATIVE(value) && AS_NATIVE(value)->type == NATIVE_PROPERTY)
+                        {
+                            tea_do_call(T, value, 1);
+                            return;
+                        }
+                    }
+                }
                 break;
+            }
         }
     }
 
@@ -1181,6 +1200,7 @@ void tea_vm_run(TeaState* T)
                 TeaValue item = PEEK(0);
                 STORE_FRAME;
                 set_property(T, name, receiver, item);
+                READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(GET_SUPER):
@@ -1287,8 +1307,8 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(SUBSCRIPT):
             {
-                TeaValue index = PEEK(0);
                 TeaValue list = PEEK(1);
+                TeaValue index = PEEK(0);
                 STORE_FRAME;
                 subscript(T, index, list);
                 READ_FRAME();
@@ -1296,9 +1316,9 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(SUBSCRIPT_STORE):
             {
-                TeaValue item = PEEK(0);
-                TeaValue index = PEEK(1);
                 TeaValue list = PEEK(2);
+                TeaValue index = PEEK(1);
+                TeaValue item = PEEK(0);
                 STORE_FRAME;
                 subscript_store(T, item, index, list, true);
                 READ_FRAME();
@@ -1306,9 +1326,9 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(SUBSCRIPT_PUSH):
             {
-                TeaValue item = PEEK(0);
-                TeaValue index = PEEK(1);
                 TeaValue list = PEEK(2);
+                TeaValue index = PEEK(1);
+                TeaValue item = PEEK(0);
                 STORE_FRAME;
                 subscript_store(T, item, index, list, false);
                 READ_FRAME();
@@ -1316,10 +1336,10 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(SLICE):
             {
-                TeaValue step = PEEK(0);
-                TeaValue end = PEEK(1);
-                TeaValue start = PEEK(2);
                 TeaValue object = PEEK(3);
+                TeaValue start = PEEK(2);
+                TeaValue end = PEEK(1);
+                TeaValue step = PEEK(0);
                 STORE_FRAME;
                 slice(T, object, start, end, step);
                 DISPATCH();
@@ -1414,8 +1434,8 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(IN):
             {
-                TeaValue object = PEEK(0);
                 TeaValue value = PEEK(1);
+                TeaValue object = PEEK(0);
                 STORE_FRAME;
                 in_(T, object, value);
                 DISPATCH();

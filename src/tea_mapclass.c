@@ -12,11 +12,13 @@
 
 static void map_len(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_number(T, tea_len(T, 0));
 }
 
 static void map_keys(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     TeaOMap* map = AS_MAP(T->base[0]);
 
     tea_new_list(T);
@@ -31,6 +33,7 @@ static void map_keys(TeaState* T)
 
 static void map_values(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     TeaOMap* map = AS_MAP(T->base[0]);
 
     tea_new_list(T);

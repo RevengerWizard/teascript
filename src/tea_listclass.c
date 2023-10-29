@@ -17,6 +17,7 @@
 
 static void list_len(TeaState* T)
 {
+    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_number(T, tea_len(T, 0));
 }
 
