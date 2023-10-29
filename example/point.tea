@@ -1,0 +1,31 @@
+class Point
+{
+    constructor(x, y)
+    {
+        this.x = x
+        this.y = y
+    }
+
+    + (a, b)
+    {
+        assert(a is Point and b is Point)
+        return Point(a.x + b.x, a.y + b.y)
+    }
+
+    distance(other)
+    {
+        var dx = this.x - other.x
+        var dy = this.y - other.y
+        return (dx * dx + dy * dy) ** 0.5
+    }
+
+    tostring()
+    {
+        return f"({this.x}, {this.y})"
+    }
+}
+
+var p1 = Point(1, 2)
+var p2 = Point(4, 5)
+print(p1.distance(p2))
+print(p1 + p2)
