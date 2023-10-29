@@ -1652,6 +1652,7 @@ static void operator(TeaParser* parser)
 
     function(parser, TYPE_METHOD);
     emit_argued(parser, OP_METHOD, constant);
+    parser->klass->is_static = false;
 }
 
 static void method(TeaParser* parser, TeaFunctionType type)

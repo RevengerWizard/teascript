@@ -163,11 +163,7 @@ static TeaOString* list_tostring(TeaState* T, TeaOList* list, int depth)
         char* element;
         int element_size;
 
-#ifdef TEA_NAN_TAGGING
-        if(value == OBJECT_VAL(list))
-#else
         if(tea_val_rawequal(value, OBJECT_VAL(list)))
-#endif
         {
             element = "[...]";
             element_size = 5;
@@ -243,11 +239,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map, int depth)
         char* key;
         int key_size;
 
-#ifdef TEA_NAN_TAGGING
-        if(item->key == OBJECT_VAL(map))
-#else
         if(tea_val_rawequal(item->key, OBJECT_VAL(map)))
-#endif
         {
             key = "{...}";
             key_size = 5;
@@ -291,11 +283,7 @@ static TeaOString* map_tostring(TeaState* T, TeaOMap* map, int depth)
         char* element;
         int element_size;
 
-#ifdef TEA_NAN_TAGGING
-        if(item->value == OBJECT_VAL(map))
-#else
         if(tea_val_rawequal(item->value, OBJECT_VAL(map)))
-#endif
         {
             element = "{...}";
             element_size = 5;
@@ -358,8 +346,7 @@ static TeaOString* instance_tostring(TeaState* T, TeaOInstance* instance)
         tea_vm_push(T, OBJECT_VAL(instance));
         tea_do_call(T, tostring, 0);
 
-        TeaValue result = tea_vm_peek(T, 0);
-        T->base++;
+        TeaValue result = tea_vm_pop(T, 1);
         if(!IS_STRING(result))
         {
             tea_vm_error(T, "'tostring' must return a string");
