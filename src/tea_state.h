@@ -11,6 +11,7 @@
 #include "tea.h"
 
 #include "tea_def.h"
+#include "tea_parser.h"
 #include "tea_value.h"
 #include "tea_object.h"
 
@@ -23,8 +24,14 @@ typedef struct
     TeaOClosure* closure;
     TeaONative* native;
     uint8_t* ip;
+    int state;
     TeaValue* base;
 } TeaCallInfo;
+
+#define CIST_C    (1 << 0)
+#define CIST_REENTRY  (1 << 1)
+#define CIST_CALLING  (1 << 2)
+#define CIST_TEA   (1 << 3)
 
 typedef enum
 {

@@ -24,7 +24,7 @@
 #include "tea_import.h"
 #include "tea_do.h"
 
-static void invoke_from_class(TeaState* T, TeaOClass* klass, TeaOString* name, int arg_count)
+static bool invoke_from_class(TeaState* T, TeaOClass* klass, TeaOString* name, int arg_count)
 {
     TeaValue method;
     if(!tea_tab_get(&klass->methods, name, &method))
@@ -32,10 +32,10 @@ static void invoke_from_class(TeaState* T, TeaOClass* klass, TeaOString* name, i
         tea_vm_error(T, "Undefined method '%s'", name->chars);
     }
 
-    tea_do_precall(T, method, arg_count);
+    return tea_do_precall(T, method, arg_count);
 }
 
-static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_count)
+static bool invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_count)
 {
     if(!IS_OBJECT(receiver))
     {
@@ -51,8 +51,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_cou
             TeaValue value;
             if(tea_tab_get(&module->values, name, &value))
             {
-                tea_do_precall(T, value, arg_count);
-                return;
+                return tea_do_precall(T, value, arg_count);
             }
 
             tea_vm_error(T, "Undefined variable '%s' in '%s' module", name->chars, module->name->chars);
@@ -65,12 +64,10 @@ static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_cou
             if(tea_tab_get(&instance->fields, name, &value))
             {
                 T->top[-arg_count - 1] = value;
-                tea_do_precall(T, value, arg_count);
-                return;
+                return tea_do_precall(T, value, arg_count);
             }
 
-            invoke_from_class(T, instance->klass, name, arg_count);
-            return;
+            return invoke_from_class(T, instance->klass, name, arg_count);
         }
         case OBJ_CLASS:
         {
@@ -83,8 +80,7 @@ static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_cou
                     tea_vm_error(T, "'%s' is not static. Only static methods can be invoked directly from a class", name->chars);
                 }
 
-                tea_do_precall(T, method, arg_count);
-                return;
+                return tea_do_precall(T, method, arg_count);
             }
 
             tea_vm_error(T, "Undefined method '%s'", name->chars);
@@ -97,14 +93,14 @@ static void invoke(TeaState* T, TeaValue receiver, TeaOString* name, int arg_cou
                 TeaValue value;
                 if(tea_tab_get(&type->methods, name, &value))
                 {
-                    tea_do_precall(T, value, arg_count);
-                    return;
+                    return tea_do_precall(T, value, arg_count);
                 }
 
                 tea_vm_error(T, "%s has no method %s()", tea_obj_type(receiver), name->chars);
             }
         }
     }
+    return false;
 }
 
 static bool bind_method(TeaState* T, TeaOClass* klass, TeaOString* name)
@@ -336,7 +332,7 @@ static void subscript(TeaState* T, TeaValue index_value, TeaValue subscript_valu
             if(tea_tab_get(&instance->klass->methods, subs, &method))
             {
                 tea_vm_push(T, NULL_VAL);
-                tea_do_precall(T, method, 2);
+                tea_do_call(T, method, 2);
                 return;
             }
 
@@ -465,7 +461,7 @@ static void subscript_store(TeaState* T, TeaValue item_value, TeaValue index_val
             TeaValue method;
             if(tea_tab_get(&instance->klass->methods, subs, &method))
             {
-                tea_do_precall(T, method, 2);
+                tea_do_call(T, method, 2);
                 return;
             }
 
@@ -748,7 +744,7 @@ static void unary_arith(TeaState* T, TeaOpMethod op, TeaValue v)
     tea_vm_push(T, method);
     tea_vm_push(T, v);
     tea_vm_push(T, NULL_VAL);
-    tea_do_precall(T, method, 2);
+    tea_do_call(T, method, 2);
 }
 
 static void arith(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
@@ -770,7 +766,7 @@ static void arith(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
     tea_vm_push(T, method);
     tea_vm_push(T, a);
     tea_vm_push(T, b);
-    tea_do_precall(T, method, 2);
+    tea_do_call(T, method, 2);
 }
 
 static bool arith_comp(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
@@ -792,7 +788,7 @@ static bool arith_comp(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
     tea_vm_push(T, method);
     tea_vm_push(T, a);
     tea_vm_push(T, b);
-    tea_do_precall(T, method, 2);
+    tea_do_call(T, method, 2);
     return true;
 }
 
@@ -866,7 +862,7 @@ void tea_vm_error(TeaState* T, const char* format, ...)
     va_end(args);
     fputs("\n", stderr);
 
-    for(TeaCallInfo* ci = T->ci - 1; ci >= T->base_ci; ci--)
+    for(TeaCallInfo* ci = T->ci; ci > T->base_ci; ci--)
     {
         /* Skip stack trace for C functions */
         if(ci->closure == NULL) continue;
@@ -889,10 +885,6 @@ void tea_vm_error(TeaState* T, const char* format, ...)
 
 void tea_vm_run(TeaState* T)
 {
-    register TeaCallInfo* ci;
-    register uint8_t* ip;
-    register TeaValue* base;
-
 #define PUSH(value) (tea_vm_push(T, value))
 #define POP() (tea_vm_pop(T, 1))
 #define PEEK(distance) (tea_vm_peek(T, distance))
@@ -900,17 +892,16 @@ void tea_vm_run(TeaState* T)
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 
-#define STORE_FRAME (ci->ip = ip)
+#define STORE_FRAME (T->ci->ip = ip)
 #define READ_FRAME() \
     do \
     { \
-        ci = T->ci - 1; \
-	    ip = ci->ip; \
-	    base = ci->base; \
+	    ip = T->ci->ip; \
+	    base = T->ci->base; \
     } \
-    while(false) \
+    while(false)
 
-#define READ_CONSTANT() (ci->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT() (T->ci->closure->function->chunk.constants.values[READ_BYTE()])
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
 #define RUNTIME_ERROR(...) \
@@ -998,7 +989,11 @@ void tea_vm_run(TeaState* T)
     #define CASE_CODE(name) case OP_##name
 #endif
 
+    uint8_t* ip;
+    TeaValue* base;
+
     READ_FRAME();
+    (T->ci - 1)->state = CIST_REENTRY;
 
     while(true)
     {
@@ -1082,7 +1077,7 @@ void tea_vm_run(TeaState* T)
             {
                 TeaOString* name = READ_STRING();
                 TeaValue value;
-                if(!tea_tab_get(&ci->closure->function->module->values, name, &value))
+                if(!tea_tab_get(&T->ci->closure->function->module->values, name, &value))
                 {
                     RUNTIME_ERROR("Undefined variable '%s'", name->chars);
                 }
@@ -1092,9 +1087,9 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(SET_MODULE):
             {
                 TeaOString* name = READ_STRING();
-                if(tea_tab_set(T, &ci->closure->function->module->values, name, PEEK(0)))
+                if(tea_tab_set(T, &T->ci->closure->function->module->values, name, PEEK(0)))
                 {
-                    tea_tab_delete(&ci->closure->function->module->values, name);
+                    tea_tab_delete(&T->ci->closure->function->module->values, name);
                     RUNTIME_ERROR("Undefined variable '%s'", name->chars);
                 }
                 DISPATCH();
@@ -1105,7 +1100,8 @@ void tea_vm_run(TeaState* T)
                 int arity_optional = READ_BYTE();
                 int arg_count = T->top - base - arity_optional - 1;
 
-                /* Temp array while we shuffle the stack
+                /* 
+                ** Temp array while we shuffle the stack
                 ** Cannot have more than 255 args to a function, so
                 ** we can define this with a constant limit
                 */
@@ -1144,20 +1140,20 @@ void tea_vm_run(TeaState* T)
             CASE_CODE(DEFINE_MODULE):
             {
                 TeaOString* name = READ_STRING();
-                tea_tab_set(T, &ci->closure->function->module->values, name, PEEK(0));
+                tea_tab_set(T, &T->ci->closure->function->module->values, name, PEEK(0));
                 DROP(1);
                 DISPATCH();
             }
             CASE_CODE(GET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                PUSH(*ci->closure->upvalues[slot]->location);
+                PUSH(*T->ci->closure->upvalues[slot]->location);
                 DISPATCH();
             }
             CASE_CODE(SET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                *ci->closure->upvalues[slot]->location = PEEK(0);
+                *T->ci->closure->upvalues[slot]->location = PEEK(0);
                 DISPATCH();
             }
             CASE_CODE(GET_PROPERTY):
@@ -1440,8 +1436,11 @@ void tea_vm_run(TeaState* T)
                     READ_FRAME();
                     DISPATCH();
                 }
-                DROP(2);
-                PUSH(BOOL_VAL(tea_val_equal(a, b)));
+                else
+                {
+                    DROP(2);
+                    PUSH(BOOL_VAL(tea_val_equal(a, b)));
+                }
                 DISPATCH();
             }
             CASE_CODE(GREATER):
@@ -1703,7 +1702,10 @@ void tea_vm_run(TeaState* T)
             {
                 int arg_count = READ_BYTE();
                 STORE_FRAME;
-                tea_do_precall(T, PEEK(arg_count), arg_count);
+                if(tea_do_precall(T, PEEK(arg_count), arg_count))
+                {
+                    (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
+                }
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1712,7 +1714,10 @@ void tea_vm_run(TeaState* T)
                 TeaOString* method = READ_STRING();
                 int arg_count = READ_BYTE();
                 STORE_FRAME;
-                invoke(T, PEEK(arg_count), method, arg_count);
+                if(invoke(T, PEEK(arg_count), method, arg_count))
+                {
+                    (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
+                }
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1722,7 +1727,10 @@ void tea_vm_run(TeaState* T)
                 int arg_count = READ_BYTE();
                 TeaOClass* superclass = AS_CLASS(POP());
                 STORE_FRAME;
-                invoke_from_class(T, superclass, method, arg_count);
+                if(invoke_from_class(T, superclass, method, arg_count))
+                {
+                    (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
+                }
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1742,7 +1750,7 @@ void tea_vm_run(TeaState* T)
                     }
                     else
                     {
-                        closure->upvalues[i] = ci->closure->upvalues[index];
+                        closure->upvalues[i] = T->ci->closure->upvalues[index];
                     }
                 }
                 DISPATCH();
@@ -1759,22 +1767,18 @@ void tea_vm_run(TeaState* T)
                 tea_func_close(T, base);
                 STORE_FRAME;
                 T->ci--;
-                if(T->ci == T->base_ci)
+                if(!(T->ci->state & CIST_CALLING))
                 {
-                    T->base = base;
+                    T->base = T->ci->base;
                     T->top = base;
-                    return;
-                }
-
-                TeaCallInfo* last = T->ci - 1;
-                if(last->closure == NULL)
-                {
-                    T->base = last->base;
-                    T->top = base;
+                    if(T->ci->native != NULL && T->ci->native->type == NATIVE_FUNCTION)
+                    {
+                        T->base++;
+                    }
                     PUSH(result);
                     return;
                 }
-                T->base = base;
+                T->base = T->ci->base;
                 T->top = base;
                 PUSH(result);
                 READ_FRAME();
@@ -1841,7 +1845,7 @@ void tea_vm_run(TeaState* T)
             {
                 TeaOString* path_name = READ_STRING();
                 STORE_FRAME;
-                tea_imp_relative(T, ci->closure->function->module->path, path_name);
+                tea_imp_relative(T, T->ci->closure->function->module->path, path_name);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1873,7 +1877,7 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(IMPORT_END):
             {
-                T->last_module = ci->closure->function->module;
+                T->last_module = T->ci->closure->function->module;
                 DISPATCH();
             }
             CASE_CODE(END):

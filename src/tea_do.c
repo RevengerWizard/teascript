@@ -14,7 +14,6 @@
 #include "tea_func.h"
 #include "tea_vm.h"
 #include "tea_parser.h"
-#include "tea_debug.h"
 
 struct tea_longjmp
 {
@@ -29,10 +28,10 @@ void tea_do_realloc_ci(TeaState* T, int new_size)
     T->base_ci = TEA_GROW_ARRAY(T, TeaCallInfo, T->base_ci, T->ci_size, new_size);
     T->ci_size = new_size;
     T->ci = (T->ci - old_ci) + T->base_ci;
-    T->end_ci = T->base_ci + T->ci_size - 1;
+    T->end_ci = T->base_ci + T->ci_size;
 }
 
-void tea_do_grow_ci(TeaState* T)
+static void grow_ci(TeaState* T)
 {
     if(T->ci + 1 == T->end_ci)
     {
@@ -48,14 +47,14 @@ static void correct_stack(TeaState* T, TeaValue* old_stack)
 {
     T->top = (T->top - old_stack) + T->stack;
 
-    for(TeaCallInfo* ci = T->base_ci; ci <= T->ci; ci++)
-    {
-        ci->base = (ci->base - old_stack) + T->stack;
-    }
-
     for(TeaOUpvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
     {
         upvalue->location = (upvalue->location - old_stack) + T->stack;
+    }
+
+    for(TeaCallInfo* ci = T->base_ci; ci <= T->ci; ci++)
+    {
+        ci->base = (ci->base - old_stack) + T->stack;
     }
 
     T->base = (T->base - old_stack) + T->stack;
@@ -82,7 +81,7 @@ void tea_do_grow_stack(TeaState* T, int needed)
         tea_do_realloc_stack(T, T->stack_size + needed + EXTRA_STACK);
 }
 
-static void callt(TeaState* T, TeaOClosure* closure, int arg_count)
+static void adjust_args(TeaState* T, TeaOClosure* closure, int arg_count)
 {
     if(arg_count < closure->function->arity)
     {
@@ -130,29 +129,38 @@ static void callt(TeaState* T, TeaOClosure* closure, int arg_count)
         T->top -= 2;
         tea_vm_push(T, OBJECT_VAL(list));
     }
+}
 
-    tea_do_grow_ci(T);
+static bool callt(TeaState* T, TeaOClosure* closure, int arg_count)
+{
+    adjust_args(T, closure, arg_count);
+    
+    grow_ci(T);
     tea_do_checkstack(T, closure->function->max_slots);
 
-    TeaCallInfo* ci = T->ci++;
+    TeaCallInfo* ci = ++T->ci;
     ci->closure = closure;
     ci->native = NULL;
     ci->ip = closure->function->chunk.code;
+    ci->state = CIST_TEA;
     ci->base = T->top - arg_count - 1;
+
+    return true;
 }
 
-static void callc(TeaState* T, TeaONative* native, int arg_count)
+static bool callc(TeaState* T, TeaONative* native, int arg_count)
 {
-    tea_do_grow_ci(T);
+    grow_ci(T);
     tea_do_checkstack(T, BASE_STACK_SIZE);
 
-    TeaCallInfo* ci = T->ci++;
+    TeaCallInfo* ci = ++T->ci;
     ci->closure = NULL;
     ci->native = native;
     ci->ip = NULL;
+    ci->state = CIST_C;
     ci->base = T->top - arg_count - 1;
 
-    if(native->type > 0) 
+    if(native->type > NATIVE_FUNCTION)
         T->base = T->top - arg_count - 1;
     else 
         T->base = T->top - arg_count;
@@ -161,12 +169,13 @@ static void callc(TeaState* T, TeaONative* native, int arg_count)
     
     TeaValue res = T->top[-1];
 
-    ci = --T->ci;
+    ci = T->ci--;
 
     T->base = ci->base;
     T->top = ci->base;
-
     tea_vm_push(T, res);
+
+    return false;
 }
 
 bool tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
@@ -196,11 +205,9 @@ bool tea_do_precall(TeaState* T, TeaValue callee, uint8_t arg_count)
                 return false;
             }
             case OBJ_CLOSURE:
-                callt(T, AS_CLOSURE(callee), arg_count);
-                return true;
+                return callt(T, AS_CLOSURE(callee), arg_count);
             case OBJ_NATIVE:
-                callc(T, AS_NATIVE(callee), arg_count);
-                return false;
+                return callc(T, AS_NATIVE(callee), arg_count);
             default:
                 break; /* Non-callable object type */
         }
@@ -249,18 +256,24 @@ static void restore_stack_limit(TeaState* T)
     }
 }
 
-int tea_do_pcall(TeaState* T, TeaValue func, int arg_count)
+int tea_do_pcall(TeaState* T, ptrdiff_t old_top, TeaValue func, int arg_count)
 {
-    int status;
     struct PCall c;
     c.func = func;
     c.arg_count = arg_count;
-    status = tea_do_runprotected(T, f_call, &c);
-    if(status != TEA_OK)
+    
+    int oldnccalls = T->nccalls;
+    ptrdiff_t old_ci = saveci(T, T->ci);
+    int status = tea_do_runprotected(T, f_call, &c);
+    if(status != TEA_OK)    /* An error occurred? */
     {
-        T->top = T->base = T->stack;
-        T->ci = T->base_ci;
+        TeaValue* old = restorestack(T, old_top);
         T->open_upvalues = NULL;
+        T->nccalls = oldnccalls;
+        T->ci = restoreci(T, old_ci);
+        T->base = T->ci->base;
+        T->top = old;
+        tea_vm_push(T, NULL_VAL);
         restore_stack_limit(T);
     }
     return status;

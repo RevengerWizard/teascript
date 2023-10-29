@@ -33,12 +33,17 @@ static void init_stack(TeaState* T)
 {
     T->stack = TEA_ALLOCATE(T, TeaValue, BASE_STACK_SIZE + EXTRA_STACK);
     T->stack_size = BASE_STACK_SIZE + EXTRA_STACK;
-    T->base = T->top = T->stack;
+    T->top = T->stack;
     T->stack_last = T->stack + (T->stack_size - EXTRA_STACK) - 1;
     T->base_ci = TEA_ALLOCATE(T, TeaCallInfo, BASIC_CI_SIZE);
     T->ci_size = BASIC_CI_SIZE;
     T->ci = T->base_ci;
-    T->end_ci = T->base_ci + T->ci_size - 1;
+    T->ci->closure = NULL;
+    T->ci->native = NULL;
+    T->ci->state = CIST_C;
+    tea_vm_push(T, NULL_VAL);
+    T->base = T->ci->base = T->top;
+    T->end_ci = T->base_ci + T->ci_size;
 }
 
 static void t_panic(TeaState* T)
@@ -193,5 +198,5 @@ TEA_API int tea_interpret(TeaState* T, const char* module_name, const char* sour
     if(status != TEA_OK)
         return TEA_SYNTAX_ERROR;
 
-    return tea_do_pcall(T, T->top[-1], 0);
+    return tea_do_pcall(T, savestack(T, T->top - 1), T->top[-1], 0);
 }

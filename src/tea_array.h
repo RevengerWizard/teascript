@@ -6,6 +6,8 @@
 #ifndef TEA_ARRAY_H
 #define TEA_ARRAY_H
 
+#include "tea.h"
+
 #include "tea_def.h"
 #include "tea_value.h"
 

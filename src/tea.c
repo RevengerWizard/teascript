@@ -105,35 +105,21 @@ static void repl(TeaState* T)
     signal(SIGINT, tsignal);
     tea_set_repl(T, true);
 
-    char* line = calloc(MAX_INPUT, sizeof(char));
-    if(line == NULL)
-    {
-        t_message("not enough memory");
-        exit(1);
-    }
-    size_t line_length = 0;
-    size_t line_memory = MAX_INPUT;
+    const char* line;
 
     while(true)
     {
         line:
         write_prompt(true);
 
+        tea_push_literal(T, "");
+
         char buffer[MAX_INPUT];
         while(fgets(buffer, MAX_INPUT, stdin) != NULL)
         {
-            if(line_length + MAX_INPUT > line_memory)
-            {
-                line_memory *= 2;
-                line = realloc(line, line_memory);
-                if(line == NULL)
-                {
-                    t_message("not enough memory");
-                    exit(1);
-                }
-            }
-            strcat(line, buffer);
-            line_length += MAX_INPUT;
+            tea_push_string(T, buffer);
+            tea_concat(T);
+            line = tea_get_string(T, -1);
 
             if(!match_braces(line))
             {
@@ -147,9 +133,10 @@ static void repl(TeaState* T)
             }
         }
 
+        line = tea_get_string(T, -1);
+
         if(line[0] == '\0')
         {
-            putchar('\n');
             break;
         }
 
@@ -161,23 +148,24 @@ static void repl(TeaState* T)
         if(strcmp(line, "clear\n") == 0)
         {
             clear();
-            line_length = 0;
-            line[0] = '\0';
+            tea_pop(T, 1);
             goto line;
         }
 
         tea_interpret(T, "=<stdin>", line);
-        line_length = 0;
-        line[0] = '\0';
+        tea_pop(T, 1);
+        tea_pop(T, 1);
     }
 
-    free(line);
+    tea_set_top(T, 0);
+    putchar('\n');
 }
 
 static int handle_script(TeaState* T, char** argv)
 {
     char* path  = argv[0];
     int status = tea_dofile(T, path);
+    tea_pop(T, 1);
 
     if(status == TEA_SYNTAX_ERROR)
     {
@@ -255,6 +243,7 @@ static int run_args(TeaState* T, char** argv, int n)
                     chunk = argv[++i];
 
                 int status = tea_interpret(T, "=<stdin>", chunk);
+                tea_pop(T, 1);
                 if(status == TEA_SYNTAX_ERROR)
                 {
                     return 65;

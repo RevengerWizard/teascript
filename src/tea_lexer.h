@@ -6,8 +6,10 @@
 #ifndef TEA_LEXER_H
 #define TEA_LEXER_H
 
-#include "tea_state.h"
+#include "tea.h"
+
 #include "tea_token.h"
+#include "tea_object.h"
 
 typedef struct TeaLexer
 {

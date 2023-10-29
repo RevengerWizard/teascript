@@ -11,8 +11,6 @@
 #include "tea_def.h"
 #include "tea_array.h"
 
-typedef struct TeaState TeaState;
-typedef struct TeaParser TeaParser;
 typedef struct TeaObject TeaObject;
 typedef struct TeaOString TeaOString;
 typedef struct TeaOFile TeaOFile;
