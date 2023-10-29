@@ -515,10 +515,11 @@ TEA_API void tea_add_item(TeaState* T, int list)
     tea_pop(T, 1);
 }
 
-TEA_API void tea_get_field(TeaState* T, int obj)
+TEA_API bool tea_get_field(TeaState* T, int obj)
 {
     TeaValue object = index2value(T, obj);
     TeaValue key = tea_vm_peek(T, 0);
+    bool found = false;
 
     if(IS_OBJECT(object))
     {
@@ -532,6 +533,7 @@ TEA_API void tea_get_field(TeaState* T, int obj)
                 {
                     T->top--;
                     tea_vm_push(T, v);
+                    found = true;
                 }
                 break;
             }
@@ -539,6 +541,7 @@ TEA_API void tea_get_field(TeaState* T, int obj)
                 break;
         }
     }
+    return found;
 }
 
 TEA_API void tea_set_field(TeaState* T, int obj)
@@ -599,6 +602,12 @@ TEA_API void tea_set_key(TeaState* T, int obj, const char* key)
                 }
                 break;
             }
+            case OBJ_INSTANCE:
+            {
+                TeaOInstance* instance = AS_INSTANCE(object);
+                TeaOString* string = AS_STRING(tea_vm_peek(T, 0));
+                tea_tab_set(T, &instance->fields, string, item);
+            }
             default:
                 break;
         }
@@ -606,9 +615,10 @@ TEA_API void tea_set_key(TeaState* T, int obj, const char* key)
     tea_pop(T, 2);
 }
 
-TEA_API void tea_get_key(TeaState* T, int obj, const char* key)
+TEA_API bool tea_get_key(TeaState* T, int obj, const char* key)
 {
     TeaValue object = index2value(T, obj);
+    bool found = false;
 
     tea_push_string(T, key);
     if(IS_OBJECT(object))
@@ -624,6 +634,7 @@ TEA_API void tea_get_key(TeaState* T, int obj, const char* key)
                 {
                     T->top--;
                     tea_vm_push(T, v);
+                    found = true;
                 }
                 break;
             }
@@ -636,13 +647,27 @@ TEA_API void tea_get_key(TeaState* T, int obj, const char* key)
                 {
                     T->top--;
                     tea_vm_push(T, v);
+                    found = true;
                 }
                 break;
+            }
+            case OBJ_INSTANCE:
+            {
+                TeaOInstance* instance = AS_INSTANCE(object);
+                TeaOString* string = AS_STRING(tea_vm_peek(T, 0));
+                TeaValue v;
+                if(tea_tab_get(&instance->fields, string, &v))
+                {
+                    T->top--;
+                    tea_vm_push(T, v);
+                    found = true;
+                }
             }
             default:
                 break;
         }
     }
+    return found;
 }
 
 TEA_API bool tea_get_global(TeaState* T, const char* name)

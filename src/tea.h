@@ -146,11 +146,11 @@ TEA_API void tea_add_item(TeaState* T, int list);
 TEA_API void tea_get_item(TeaState* T, int list, int index);
 TEA_API void tea_set_item(TeaState* T, int list, int index);
 
-TEA_API void tea_get_field(TeaState* T, int obj);
+TEA_API bool tea_get_field(TeaState* T, int obj);
 TEA_API void tea_set_field(TeaState* T, int obj);
 
+TEA_API bool tea_get_key(TeaState* T, int obj, const char* key);
 TEA_API void tea_set_key(TeaState* T, int obj, const char* key);
-TEA_API void tea_get_key(TeaState* T, int obj, const char* key);
 
 TEA_API bool tea_get_global(TeaState* T, const char* name);
 TEA_API void tea_set_global(TeaState* T, const char* name);
