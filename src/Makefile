@@ -96,10 +96,10 @@ onetea:
 	$(CC) -O2 -o onetea onetea.c -lm
 
 linux:
-	$(MAKE) $(ALL) "SYSCFLAGS=-DTEA_OS=TEA_OS_LINUX" "SYSLIBS=-Wl,-E -ldl"
+	$(MAKE) $(ALL) "SYSCFLAGS=-DTEA_OS=TEA_OS_LINUX -DTEA_USE_READLINE" "SYSLIBS=-Wl,-E -ldl -readline"
 
 macosx:
-	$(MAKE) $(ALL) "SYSCFLAGS=-DTEA_OS=TEA_OS_MACOSX" "CC=cc"
+	$(MAKE) $(ALL) "SYSCFLAGS=-DTEA_OS=TEA_OS_MACOSX -DTEA_USE_READLINE" "CC=cc" "SYSLIBS=-readline"
 
 mingw:
 	$(MAKE) "TEA_A=tea0.dll" "TEA_T=tea.exe" \

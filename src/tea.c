@@ -15,7 +15,21 @@
 
 #include "tea_arch.h"
 
-#define PROMPT  "> "
+#if TEA_TARGET_POSIX
+#include <unistd.h>
+#define stdin_is_tty()  isatty(0)
+#elif TEA_TARGET_WINDOWS
+#include <io.h>
+#ifdef __BORLANDC__
+#define stdin_is_tty()  isatty(_fileno(stdin))
+#else
+#define stdin_is_tty()  _isatty(_fileno(stdin))
+#endif
+#else
+#define stdin_is_tty()  1
+#endif
+
+#define PROMPT1  "> "
 #define PROMPT2  "... "
 #define MAX_INPUT 512
 
@@ -64,14 +78,28 @@ static void t_message(const char* msg)
     fflush(stderr);
 }
 
-static void write_prompt(bool firstline)
+#if defined(TEA_USE_READLINE)
+#include <readline/readline.h>
+#include <readline/history.h>
+#define t_initreadline(T) ((void)T, rl_readline_name = "tea")
+#define t_readline(T, b, p) ((void)T, ((b) = readline(p)) != NULL)
+#define t_saveline(T, line) ((void)T, add_history(line))
+#define t_freeline(T, b) ((void)T, free(b))
+#else
+#define t_initreadline(T) ((void)T)
+#define t_readline(T, b, p) \
+    ((void)T, fputs(p, stdout), fflush(stdout), /* show prompt */ \
+    fgets(b, MAX_INPUT, stdin) != NULL)     /* get line */
+#define t_saveline(T, line) { (void)T; (void)line; }
+#define t_freeline(T, b) { (void)T; (void)b; }
+#endif
+
+static const char* get_prompt(bool firstline)
 {
-    const char* prompt = firstline ? PROMPT : PROMPT2;
-    fputs(prompt, stdout);
-    fflush(stdout);
+    return firstline ? PROMPT1 : PROMPT2;
 }
 
-static bool match_braces(const char* line)
+static bool multiline(const char* line)
 {
     int level = 0;
 
@@ -105,30 +133,35 @@ static void repl(TeaState* T)
     signal(SIGINT, tsignal);
     tea_set_repl(T, true);
 
+    t_initreadline(T);
     const char* line;
 
     while(true)
     {
         line:
-        write_prompt(true);
-
         tea_push_literal(T, "");
 
+        const char* prompt = get_prompt(true);
+
         char buffer[MAX_INPUT];
-        while(fgets(buffer, MAX_INPUT, stdin) != NULL)
+        char* b = buffer;
+        while(t_readline(T, b, prompt))
         {
-            tea_push_string(T, buffer);
+            tea_push_string(T, b);
             tea_concat(T);
             line = tea_get_string(T, -1);
 
-            if(!match_braces(line))
+            t_saveline(T, line);
+
+            if(!multiline(line))
             {
-                write_prompt(false);
+                prompt = get_prompt(false);
                 continue;
             }
 
-            if(strlen(buffer) != MAX_INPUT - 1 || buffer[MAX_INPUT-2] == '\n')
+            if(strlen(b) != MAX_INPUT - 1 || b[MAX_INPUT-2] == '\n')
             {
+                t_freeline(T, b);
                 break;
             }
         }
@@ -153,12 +186,33 @@ static void repl(TeaState* T)
         }
 
         tea_interpret(T, "=<stdin>", line);
-        tea_pop(T, 1);
-        tea_pop(T, 1);
+        tea_pop(T, 2);  /* result of interpret + input string */
     }
 
     tea_set_top(T, 0);
     putchar('\n');
+}
+
+static int report_status(int status, char* path)
+{
+    switch(status)
+    {
+        case TEA_SYNTAX_ERROR:
+            return 65;
+        case TEA_RUNTIME_ERROR:
+            return 70;
+        case TEA_FILE_ERROR:
+        {
+            fputs("tea: ", stderr);
+            fprintf(stderr, "Cannot open '%s': No such file or directory", path);
+            fputc('\n', stderr);
+            fflush(stderr);
+            return 75;
+        }
+        default:
+            break;
+    }
+    return status;
 }
 
 static int handle_script(TeaState* T, char** argv)
@@ -167,23 +221,7 @@ static int handle_script(TeaState* T, char** argv)
     int status = tea_dofile(T, path);
     tea_pop(T, 1);
 
-    if(status == TEA_SYNTAX_ERROR)
-    {
-        return 65;
-    }
-    if(status == TEA_RUNTIME_ERROR)
-    {
-        return 70;
-    }
-    if(status == TEA_FILE_ERROR)
-    {
-        fputs("tea: ", stderr);
-        fprintf(stderr, "Cannot open '%s': No such file or directory", path);
-        fputc('\n', stderr);
-        fflush(stderr);
-        return 75;
-    }
-    return status;
+    return report_status(status, path);
 }
 
 #define notail(x)   { if ((x)[2] != '\0') return -1; }
@@ -244,15 +282,8 @@ static int run_args(TeaState* T, char** argv, int n)
 
                 int status = tea_interpret(T, "=<stdin>", chunk);
                 tea_pop(T, 1);
-                if(status == TEA_SYNTAX_ERROR)
-                {
-                    return 65;
-                }
-                if(status == TEA_RUNTIME_ERROR)
-                {
-                    return 70;
-                }
-                break;
+
+                return report_status(status, NULL);
             }
         }
     }
@@ -291,8 +322,11 @@ int main(int argc, char** argv)
         repl(T);
     else if(script == argc && !(flags & (FLAG_E | FLAG_V)))
     {
-        print_version();
-        repl(T);
+        if(stdin_is_tty())
+        {
+            print_version();
+            repl(T);
+        }
     }
 
     finish:
