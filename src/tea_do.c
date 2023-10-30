@@ -81,7 +81,7 @@ void tea_do_grow_stack(TeaState* T, int needed)
         tea_do_realloc_stack(T, T->stack_size + needed + EXTRA_STACK);
 }
 
-static void adjust_args(TeaState* T, TeaOClosure* closure, int arg_count)
+static bool callt(TeaState* T, TeaOClosure* closure, int arg_count)
 {
     if(arg_count < closure->function->arity)
     {
@@ -129,11 +129,6 @@ static void adjust_args(TeaState* T, TeaOClosure* closure, int arg_count)
         T->top -= 2;
         tea_vm_push(T, OBJECT_VAL(list));
     }
-}
-
-static bool callt(TeaState* T, TeaOClosure* closure, int arg_count)
-{
-    adjust_args(T, closure, arg_count);
     
     grow_ci(T);
     tea_do_checkstack(T, closure->function->max_slots);
