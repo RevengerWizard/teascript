@@ -1,0 +1,34 @@
+class Counter 
+{
+    constructor(start, end) 
+    {
+        this.start = start
+        this.end = end
+        this.current = start
+    }
+
+    iterate(iter) 
+    {
+        if(this.current <= this.end) 
+        {
+            iter = this.current
+            this.current++
+            return iter
+        } 
+        else 
+        {
+            return null
+        }
+    }
+
+    iteratorvalue(iter) 
+    {
+        return iter
+    }
+}
+
+var counter = Counter(1, 100)
+for(const i in counter)
+{
+    print(i)
+}

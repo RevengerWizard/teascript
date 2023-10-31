@@ -1,0 +1,39 @@
+class PersonList 
+{
+    constructor(...people)
+    {
+        this.people = people
+        this.current = 0
+    }
+
+    iterate(iter)
+    {
+        if(this.current < this.people.len)
+        {
+            iter = [this.people[this.current].name, this.people[this.current].age]
+            this.current++
+            return iter
+        } 
+        else
+        {
+            return null
+        }
+    }
+
+    iteratorvalue(iter)
+    {
+        return iter
+    }
+}
+
+const alice = {name = 'Alice', age = 25}
+const bob = {name = 'Bob', age = 30}
+const charlie = {name = 'Charlie', age = 35}
+const luigi = {name = 'Luigi', age = 56}
+
+const personList = PersonList(alice, bob, charlie, luigi)
+
+for(const name, age in personList)
+{
+    print(f"{name} is {age} years old")
+}
