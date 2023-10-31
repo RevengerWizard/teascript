@@ -259,13 +259,14 @@ void tea_debug_stack(TeaState* T)
 int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
 {
     printf("%04d ", offset);
-    if(offset > 0 && tea_chunk_getline(chunk, offset - 1))
+    int line = tea_chunk_getline(chunk, offset);
+    if(offset > 0 && line == tea_chunk_getline(chunk, offset - 1))
     {
         printf("   | ");
     }
     else
     {
-        printf("%4d ", tea_chunk_getline(chunk, offset));
+        printf("%4d ", line);
     }
 
     uint8_t instruction = chunk->code[offset];
