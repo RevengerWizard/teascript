@@ -56,6 +56,8 @@ typedef enum
     MT_TOSTRING,    /* tostring */
     MT_ITER,        /* iterate */
     MT_NEXT,        /* iteratorvalue */
+    MT_CONTAINS,    /* contains */
+    MT_GC,          /* gc */
     MT_END
 } TeaOpMethod;
 

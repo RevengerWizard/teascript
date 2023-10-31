@@ -265,6 +265,27 @@ static void map_iteratorvalue(TeaState* T)
     tea_add_item(T, 2);
 }
 
+static void map_opadd(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 2);
+
+    tea_check_map(T, 1);
+    tea_check_map(T, 2);
+
+    TeaOMap* m1 = AS_MAP(T->base[1]);
+    TeaOMap* m2 = AS_MAP(T->base[2]);
+
+    TeaOMap* new = tea_map_new(T);
+    tea_vm_push(T, OBJECT_VAL(new));
+
+    tea_map_addall(T, m1, new);
+    tea_map_addall(T, m2, new);
+
+    tea_pop(T, 3);
+    tea_vm_push(T, OBJECT_VAL(new));
+}
+
 static const TeaClass map_class[] = {
     { "len", "property", map_len },
     { "keys", "property", map_keys },
@@ -279,6 +300,7 @@ static const TeaClass map_class[] = {
     { "foreach", "method", map_foreach },
     { "iterate", "method", map_iterate },
     { "iteratorvalue", "method", map_iteratorvalue },
+    { "+", "method", map_opadd },
     { NULL, NULL, NULL }
 };
 

@@ -684,6 +684,34 @@ static void list_iteratorvalue(TeaState* T)
     tea_get_item(T, 0, index);
 }
 
+static void list_opadd(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 2);
+
+    tea_check_list(T, 1);
+    tea_check_list(T, 2);
+
+    TeaOList* l1 = AS_LIST(T->base[1]);
+    TeaOList* l2 = AS_LIST(T->base[2]);
+
+    TeaOList* new = tea_obj_new_list(T);
+    tea_vm_push(T, OBJECT_VAL(new));
+
+    for(int i = 0; i < l1->items.count; i++)
+    {
+        tea_write_value_array(T, &new->items, l1->items.values[i]);
+    }
+
+    for(int i = 0; i < l2->items.count; i++)
+    {
+        tea_write_value_array(T, &new->items, l2->items.values[i]);
+    }
+
+    tea_pop(T, 3);
+    tea_vm_push(T, OBJECT_VAL(new));
+}
+
 static const TeaClass list_class[] = {
     { "len", "property", list_len },
     { "add", "method", list_add },
@@ -709,6 +737,7 @@ static const TeaClass list_class[] = {
     { "foreach", "method", list_foreach },
     { "iterate", "method", list_iterate },
     { "iteratorvalue", "method", list_iteratorvalue },
+    { "+", "method", list_opadd },
     { NULL, NULL, NULL }
 };
 

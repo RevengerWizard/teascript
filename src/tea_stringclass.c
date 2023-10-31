@@ -472,6 +472,79 @@ static void string_iteratorvalue(TeaState* T)
     tea_vm_push(T, OBJECT_VAL(tea_utf_codepoint_at(T, AS_STRING(T->base[0]), index)));
 }
 
+static void string_opadd(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 2);
+
+    tea_check_string(T, 1);
+    tea_check_string(T, 2);
+
+    tea_vm_concat(T);
+}
+
+static bool repeat(TeaState* T)
+{
+    TeaOString* string;
+    int n;
+
+    if(IS_STRING(tea_vm_peek(T, 0)) && IS_NUMBER(tea_vm_peek(T, 1)))
+    {
+        string = AS_STRING(tea_vm_peek(T, 0));
+        n = AS_NUMBER(tea_vm_peek(T, 1));
+    }
+    else if(IS_NUMBER(tea_vm_peek(T, 0)) && IS_STRING(tea_vm_peek(T, 1)))
+    {
+        n = AS_NUMBER(tea_vm_peek(T, 0));
+        string = AS_STRING(tea_vm_peek(T, 1));
+    }
+    else
+    {
+        return false;
+    }
+
+    if(n <= 0)
+    {
+        TeaOString* s = tea_str_literal(T, "");
+        tea_vm_pop(T, 2);
+        tea_vm_push(T, OBJECT_VAL(s));
+        return true;
+    }
+    else if(n == 1)
+    {
+        tea_vm_pop(T, 2);
+        tea_vm_push(T, OBJECT_VAL(string));
+        return true;
+    }
+
+    int length = string->length;
+    char* chars = TEA_ALLOCATE(T, char, (n * length) + 1);
+
+    int i;
+    char* p;
+    for(i = 0, p = chars; i < n; ++i, p += length)
+    {
+        memcpy(p, string->chars, length);
+    }
+    *p = '\0';
+
+    TeaOString* result = tea_str_take(T, chars, strlen(chars));
+    tea_vm_pop(T, 2);
+    tea_vm_push(T, OBJECT_VAL(result));
+    return true;
+}
+
+static void string_opmultiply(TeaState* T)
+{
+    int count = tea_get_top(T);
+    tea_ensure_min_args(T, count, 2);
+
+    if(!repeat(T))
+    {
+        tea_error(T, "string multiply error");
+    }
+}
+
 static const TeaClass string_class[] = {
     { "len", "property", string_len },
     { "constructor", "method", string_constructor },
@@ -491,6 +564,8 @@ static const TeaClass string_class[] = {
     { "replace", "method", string_replace },
     { "iterate", "method", string_iterate },
     { "iteratorvalue", "method", string_iteratorvalue },
+    { "+", "method", string_opadd },
+    { "*", "method", string_opmultiply },
     { NULL, NULL, NULL }
 };
 

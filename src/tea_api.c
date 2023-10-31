@@ -724,6 +724,17 @@ TEA_API bool tea_has_module(TeaState* T, const char* module)
     return found;
 }
 
+TEA_API void tea_set_instanceud(TeaState* T, int index)
+{
+    TeaValue v = index2value(T, index);
+    TeaValue ud = tea_vm_peek(T, 0);
+
+    TeaOInstance* instance = AS_INSTANCE(v);
+    TeaOString* s = tea_str_literal(T, "_udata ");
+    tea_tab_set(T, &instance->fields, s, ud);
+    tea_pop(T, 1);
+}
+
 static void expected(TeaState* T, const char* type, int index)
 {
     tea_error(T, "Expected %s, got %s", type, tea_type_name(T, index));

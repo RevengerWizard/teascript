@@ -117,94 +117,6 @@ static bool bind_method(TeaState* T, TeaOClass* klass, TeaOString* name)
     return true;
 }
 
-static void in_(TeaState* T, TeaValue object, TeaValue value)
-{
-    if(IS_OBJECT(object))
-    {
-        switch(OBJECT_TYPE(object))
-        {
-            case OBJ_STRING:
-            {
-                if(!IS_STRING(value))
-                {
-                    tea_vm_pop(T, 2);
-                    tea_vm_push(T, FALSE_VAL);
-                    return;
-                }
-
-                TeaOString* string = AS_STRING(object);
-                TeaOString* sub = AS_STRING(value);
-
-                if(sub == string)
-                {
-                    tea_vm_pop(T, 2);
-                    tea_vm_push(T, TRUE_VAL);
-                    return;
-                }
-
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, BOOL_VAL(strstr(string->chars, sub->chars) != NULL));
-                return;
-            }
-            case OBJ_RANGE:
-            {
-                if(!IS_NUMBER(value))
-                {
-                    tea_vm_push(T, FALSE_VAL);
-                    return;
-                }
-
-                double number = AS_NUMBER(value);
-                TeaORange* range = AS_RANGE(object);
-                int start = range->start;
-                int end = range->end;
-
-                if(number < start || number > end)
-                {
-                    tea_vm_pop(T, 2);
-                    tea_vm_push(T, FALSE_VAL);
-                    return;
-                }
-
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, TRUE_VAL);
-                return;
-            }
-            case OBJ_LIST:
-            {
-                TeaOList* list = AS_LIST(object);
-
-                for(int i = 0; i < list->items.count; i++)
-                {
-                    if(tea_val_equal(list->items.values[i], value))
-                    {
-                        tea_vm_pop(T, 2);
-                        tea_vm_push(T, TRUE_VAL);
-                        return;
-                    }
-                }
-
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, FALSE_VAL);
-                return;
-            }
-            case OBJ_MAP:
-            {
-                TeaOMap* map = AS_MAP(object);
-                TeaValue _;
-
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, BOOL_VAL(tea_map_get(map, value, &_)));
-                return;
-            }
-            default:
-                break;
-        }
-    }
-
-    tea_vm_error(T, "%s is not an iterable", tea_val_type(object));
-}
-
 static bool slice(TeaState* T, TeaValue object, TeaValue start_index, TeaValue end_index, TeaValue step_index)
 {
     if(!IS_NUMBER(step_index) || (!IS_NUMBER(end_index) && !IS_NULL(end_index)) || !IS_NUMBER(step_index))
@@ -740,13 +652,13 @@ static void define_method(TeaState* T, TeaOString* name)
     tea_vm_pop(T, 1);
 }
 
-static bool get_op_method(TeaOString* key, TeaValue v, TeaValue* method)
+static bool get_op_method(TeaState* T, TeaOString* key, TeaValue v, TeaValue* method)
 {
-    if(!IS_INSTANCE(v))
+    TeaOClass* klass = tea_state_get_class(T, v);
+    if(klass == NULL)
         return false;
 
-    TeaOInstance* instance = AS_INSTANCE(v);
-    return tea_tab_get(&instance->klass->methods, key, method);
+    return tea_tab_get(&klass->methods, key, method);
 }
 
 static void unary_arith(TeaState* T, TeaOpMethod op, TeaValue v)
@@ -754,7 +666,7 @@ static void unary_arith(TeaState* T, TeaOpMethod op, TeaValue v)
     TeaOString* method_name = T->opm_name[op];
 
     TeaValue method;
-    if(!get_op_method(method_name, v, &method))
+    if(!get_op_method(T, method_name, v, &method))
     {
         tea_vm_error(T, "Attempt to use '%s' unary operator with %s", method_name->chars, tea_val_type(v));
     }
@@ -771,10 +683,10 @@ static void arith(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
     TeaOString* method_name = T->opm_name[op];
 
     TeaValue method;
-    bool found = get_op_method(method_name, a, &method);    /* try first operand */
+    bool found = get_op_method(T, method_name, a, &method);    /* try first operand */
     if(!found)
     {
-        found = get_op_method(method_name, b, &method); /* try second operand */
+        found = get_op_method(T, method_name, b, &method); /* try second operand */
     }
     if(!found)
     {
@@ -793,10 +705,10 @@ static bool arith_comp(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
     TeaOString* method_name = T->opm_name[op];
 
     TeaValue method;
-    bool found = get_op_method(method_name, a, &method);    /* try first operand */
+    bool found = get_op_method(T, method_name, a, &method);    /* try first operand */
     if(!found)
     {
-        found = get_op_method(method_name, b, &method); /* try second operand */
+        found = get_op_method(T, method_name, b, &method); /* try second operand */
     }
     if(!found)
     {
@@ -816,72 +728,16 @@ static bool iterator_call(TeaState* T, TeaOpMethod op, TeaValue receiver)
     TeaOString* method_name = T->opm_name[op];
 
     TeaValue method;
-    if(!IS_INSTANCE(receiver))
-    {
-        TeaOClass* klass = tea_state_get_class(T, receiver);
-        if(klass != NULL && tea_tab_get(&klass->methods, method_name, &method))
-        {
-            tea_do_call(T, method, 1);
-            return true;
-        }
+    TeaOClass* klass = tea_state_get_class(T, receiver);
+    if(klass == NULL)
         return false;
-    }
-    else
-    {
-        TeaOInstance* instance = AS_INSTANCE(receiver);
-        if(tea_tab_get(&instance->klass->methods, method_name, &method))
-        {
-            tea_do_call(T, method, 1);
-            return true;
-        }
-        return false;
-    }
-}
 
-static void repeat(TeaState* T)
-{
-    TeaOString* string;
-    int n;
-
-    if(IS_STRING(tea_vm_peek(T, 0)) && IS_NUMBER(tea_vm_peek(T, 1)))
+    if(tea_tab_get(&klass->methods, method_name, &method))
     {
-        string = AS_STRING(tea_vm_peek(T, 0));
-        n = AS_NUMBER(tea_vm_peek(T, 1));
+        tea_do_call(T, method, 1);
+        return true;
     }
-    else if(IS_NUMBER(tea_vm_peek(T, 0)) && IS_STRING(tea_vm_peek(T, 1)))
-    {
-        n = AS_NUMBER(tea_vm_peek(T, 0));
-        string = AS_STRING(tea_vm_peek(T, 1));
-    }
-
-    if(n <= 0)
-    {
-        TeaOString* s = tea_str_literal(T, "");
-        tea_vm_pop(T, 2);
-        tea_vm_push(T, OBJECT_VAL(s));
-        return;
-    }
-    else if(n == 1)
-    {
-        tea_vm_pop(T, 2);
-        tea_vm_push(T, OBJECT_VAL(string));
-        return;
-    }
-
-    int length = string->length;
-    char* chars = TEA_ALLOCATE(T, char, (n * length) + 1);
-
-    int i;
-    char* p;
-    for(i = 0, p = chars; i < n; ++i, p += length)
-    {
-        memcpy(p, string->chars, length);
-    }
-    *p = '\0';
-
-    TeaOString* result = tea_str_take(T, chars, strlen(chars));
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, OBJECT_VAL(result));
+    return false;
 }
 
 void tea_vm_concat(TeaState* T)
@@ -963,7 +819,9 @@ void tea_vm_run(TeaState* T)
 #define BINARY_OP(value_type, expr, op_method, type) \
     do \
     { \
-        if(IS_NUMBER(PEEK(0)) && IS_NUMBER(PEEK(1))) \
+        TeaValue v1 = PEEK(1); \
+        TeaValue v2 = PEEK(0); \
+        if(IS_NUMBER(v1) && IS_NUMBER(v2)) \
         { \
             type b = AS_NUMBER(POP()); \
             type a = AS_NUMBER(PEEK(0)); \
@@ -972,7 +830,7 @@ void tea_vm_run(TeaState* T)
         else \
         { \
             STORE_FRAME; \
-            arith(T, op_method, PEEK(1), PEEK(0)); \
+            arith(T, op_method, v1, v2); \
             READ_FRAME(); \
         } \
     } \
@@ -981,15 +839,16 @@ void tea_vm_run(TeaState* T)
 #define UNARY_OP(value_type, expr, op_method, type) \
     do \
     { \
-        if(IS_NUMBER(PEEK(0))) \
+        TeaValue v1 = PEEK(0); \
+        if(IS_NUMBER(v1)) \
         { \
-            type v = AS_NUMBER(PEEK(0)); \
+            type v = AS_NUMBER(v1); \
             T->top[-1] = value_type(expr); \
         } \
         else \
         { \
             STORE_FRAME; \
-            unary_arith(T, op_method, PEEK(0)); \
+            unary_arith(T, op_method, v1); \
             READ_FRAME(); \
         } \
     } \
@@ -1146,7 +1005,7 @@ void tea_vm_run(TeaState* T)
                 int arity_optional = READ_BYTE();
                 int arg_count = T->top - base - arity_optional - 1;
 
-                /* 
+                /*
                 ** Temp array while we shuffle the stack
                 ** Cannot have more than 255 args to a function, so
                 ** we can define this with a constant limit
@@ -1375,7 +1234,7 @@ void tea_vm_run(TeaState* T)
             {
                 TeaOList* list = AS_LIST(PEEK(1));
                 TeaValue item = PEEK(0);
-                
+
                 if(IS_RANGE(item))
                 {
                     TeaORange* range = AS_RANGE(item);
@@ -1432,14 +1291,14 @@ void tea_vm_run(TeaState* T)
                     RUNTIME_ERROR("Right operand must be a class");
                 }
 
-                if(!IS_INSTANCE(instance))
+                TeaOClass* instance_klass = tea_state_get_class(T, instance);
+                if(instance_klass == NULL)
                 {
                     DROP(2); /* Drop the instance and class */
                     PUSH(FALSE_VAL);
                     DISPATCH();
                 }
 
-                TeaOClass* instance_klass = AS_INSTANCE(instance)->klass;
                 TeaOClass* type = AS_CLASS(klass);
                 bool found = false;
 
@@ -1456,15 +1315,20 @@ void tea_vm_run(TeaState* T)
 
                 DROP(2); /* Drop the instance and class */
                 PUSH(BOOL_VAL(found));
-
                 DISPATCH();
             }
             CASE_CODE(IN):
             {
                 TeaValue value = PEEK(1);
                 TeaValue object = PEEK(0);
+                DROP(2);
+                PUSH(object); PUSH(value);
                 STORE_FRAME;
-                in_(T, object, value);
+                if(!iterator_call(T, MT_CONTAINS, object))
+                {
+                    RUNTIME_ERROR("'%s' is not iterable", tea_val_type(object));
+                }
+                READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(EQUAL):
@@ -1512,59 +1376,7 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(ADD):
             {
-                TeaValue a = PEEK(1);
-                TeaValue b = PEEK(0);
-                if(IS_NUMBER(a) && IS_NUMBER(b))
-                {
-                    double b = AS_NUMBER(POP());
-                    double a = AS_NUMBER(PEEK(0));
-                    T->top[-1] = NUMBER_VAL(a + b);
-                }
-                else if(IS_STRING(a) && IS_STRING(b))
-                {
-                    tea_vm_concat(T);
-                }
-                else if(IS_LIST(a) && IS_LIST(b))
-                {
-                    TeaOList* l1 = AS_LIST(a);
-                    TeaOList* l2 = AS_LIST(b);
-
-                    TeaOList* new = tea_obj_new_list(T);
-                    PUSH(OBJECT_VAL(new));
-
-                    for(int i = 0; i < l1->items.count; i++)
-                    {
-                        tea_write_value_array(T, &new->items, l1->items.values[i]);
-                    }
-
-                    for(int i = 0; i < l2->items.count; i++)
-                    {
-                        tea_write_value_array(T, &new->items, l2->items.values[i]);
-                    }
-
-                    DROP(3);
-                    PUSH(OBJECT_VAL(new));
-                }
-                else if(IS_MAP(a) && IS_MAP(b))
-                {
-                    TeaOMap* m1 = AS_MAP(a);
-                    TeaOMap* m2 = AS_MAP(b);
-
-                    TeaOMap* new = tea_map_new(T);
-                    PUSH(OBJECT_VAL(new));
-
-                    tea_map_addall(T, m1, new);
-                    tea_map_addall(T, m2, new);
-
-                    DROP(3);
-                    PUSH(OBJECT_VAL(new));
-                }
-                else
-                {
-                    STORE_FRAME;
-                    arith(T, MT_PLUS, a, b);
-                    READ_FRAME();
-                }
+                BINARY_OP(NUMBER_VAL, (a + b), MT_PLUS, double);
                 DISPATCH();
             }
             CASE_CODE(SUBTRACT):
@@ -1574,24 +1386,7 @@ void tea_vm_run(TeaState* T)
             }
             CASE_CODE(MULTIPLY):
             {
-                TeaValue a = PEEK(1);
-                TeaValue b = PEEK(0);
-                if(IS_NUMBER(a) && IS_NUMBER(b))
-                {
-                    double b = AS_NUMBER(POP());
-                    double a = AS_NUMBER(PEEK(0));
-                    T->top[-1] = NUMBER_VAL(a * b);
-                }
-                else if((IS_STRING(a) && IS_NUMBER(b)) || (IS_NUMBER(a) && IS_STRING(b)))
-                {
-                    repeat(T);
-                }
-                else
-                {
-                    STORE_FRAME;
-                    arith(T, MT_MULT, a, b);
-                    READ_FRAME();
-                }
+                BINARY_OP(NUMBER_VAL, (a * b), MT_MULT, double);
                 DISPATCH();
             }
             CASE_CODE(DIVIDE):
@@ -1846,7 +1641,7 @@ void tea_vm_run(TeaState* T)
                 STORE_FRAME;
                 if(!iterator_call(T, MT_ITER, seq))
                 {
-                    RUNTIME_ERROR("'%s' is not iterable aaa", tea_val_type(seq));
+                    RUNTIME_ERROR("'%s' is not iterable", tea_val_type(seq));
                 }
                 READ_FRAME();
 

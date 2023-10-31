@@ -72,7 +72,9 @@ static void init_opmethods(TeaState* T)
         "+", "-", "*", "/", "%", "**",
         "&", "|", "~", "^", "<<", ">>",
         "<", "<=", ">", ">=", "==",
-        "[]", "tostring", "iterate", "iteratorvalue"
+        "[]", "tostring", 
+        "iterate", "iteratorvalue", 
+        "contains", "gc"
     };
     for(int i = 0; i < MT_END; i++)
     {
@@ -155,12 +157,20 @@ TeaOClass* tea_state_get_class(TeaState* T, TeaValue value)
     {
         switch(OBJECT_TYPE(value))
         {
-            case OBJ_LIST: return T->list_class;
-            case OBJ_MAP: return T->map_class;
-            case OBJ_STRING: return T->string_class;
-            case OBJ_RANGE: return T->range_class;
-            case OBJ_FILE: return T->file_class;
-            default: return NULL;
+            case OBJ_INSTANCE:
+                return AS_INSTANCE(value)->klass;
+            case OBJ_LIST: 
+                return T->list_class;
+            case OBJ_MAP: 
+                return T->map_class;
+            case OBJ_STRING: 
+                return T->string_class;
+            case OBJ_RANGE: 
+                return T->range_class;
+            case OBJ_FILE: 
+                return T->file_class;
+            default: 
+                return NULL;
         }
     }
     return NULL;

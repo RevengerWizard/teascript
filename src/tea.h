@@ -18,7 +18,7 @@
 #define TEA_VERSION_MINOR 0
 #define TEA_VERSION_PATCH 0
 
-#define TEA_VERSION_NUMBER (TEA_VERSION_MAJOR * 100 + TEA_VERSION_MINOR * 10 + TEA_VERSION_PATCH)
+#define TEA_VERSION_NUMBER (TEA_VERSION_MAJOR * 10000 + TEA_VERSION_MINOR * 100 + TEA_VERSION_PATCH)
 
 #define TEA_VERSION "0.0.0"
 
@@ -157,6 +157,8 @@ TEA_API void tea_set_global(TeaState* T, const char* name);
 TEA_API void tea_set_funcs(TeaState* T, const TeaReg* reg);
 
 TEA_API bool tea_has_module(TeaState* T, const char* module);
+
+TEA_API void tea_set_instanceud(TeaState* T, int index);
 
 TEA_API void tea_check_type(TeaState* T, int index, int type);
 TEA_API void tea_check_any(TeaState* T, int index);
