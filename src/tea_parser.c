@@ -2020,6 +2020,8 @@ static int get_arg_count(uint8_t* code, const TeaValueArray constants, int ip)
         case OP_LOOP:
         case OP_INVOKE:
         case OP_SUPER:
+        case OP_GET_ITER:
+        case OP_FOR_ITER:
             return 2;
         case OP_CLOSURE:
         {
@@ -2104,17 +2106,14 @@ static void for_in_statement(TeaParser* parser, TeaToken var, bool constant)
     begin_loop(parser, &loop);
 
     /* Get the iterator index. If it's null, it means the loop is over */
-    emit_argued(parser, OP_GET_LOCAL, seq_slot);
-    emit_argued(parser, OP_GET_LOCAL, iter_slot);
-    invoke_method(parser, 1, "iterate");
-    emit_argued(parser, OP_SET_LOCAL, iter_slot);
+    emit_op(parser, OP_GET_ITER);
+    emit_bytes(parser, seq_slot, iter_slot);
     parser->loop->end = emit_jump(parser, OP_JUMP_IF_NULL);
     emit_op(parser, OP_POP);
 
     /* Get the iterator value */
-    emit_argued(parser, OP_GET_LOCAL, seq_slot);
-    emit_argued(parser, OP_GET_LOCAL, iter_slot);
-    invoke_method(parser, 1, "iteratorvalue");
+    emit_op(parser, OP_FOR_ITER);
+    emit_bytes(parser, seq_slot, iter_slot);
 
     begin_scope(parser);
 

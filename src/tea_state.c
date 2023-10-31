@@ -72,7 +72,7 @@ static void init_opmethods(TeaState* T)
         "+", "-", "*", "/", "%", "**",
         "&", "|", "~", "^", "<<", ">>",
         "<", "<=", ">", ">=", "==",
-        "[]", "tostring"
+        "[]", "tostring", "iterate", "iteratorvalue"
     };
     for(int i = 0; i < MT_END; i++)
     {

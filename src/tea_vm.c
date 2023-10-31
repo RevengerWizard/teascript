@@ -811,6 +811,33 @@ static bool arith_comp(TeaState* T, TeaOpMethod op, TeaValue a, TeaValue b)
     return true;
 }
 
+static bool iterator_call(TeaState* T, TeaOpMethod op, TeaValue receiver)
+{
+    TeaOString* method_name = T->opm_name[op];
+
+    TeaValue method;
+    if(!IS_INSTANCE(receiver))
+    {
+        TeaOClass* klass = tea_state_get_class(T, receiver);
+        if(klass != NULL && tea_tab_get(&klass->methods, method_name, &method))
+        {
+            tea_do_call(T, method, 1);
+            return true;
+        }
+        return false;
+    }
+    else
+    {
+        TeaOInstance* instance = AS_INSTANCE(receiver);
+        if(tea_tab_get(&instance->klass->methods, method_name, &method))
+        {
+            tea_do_call(T, method, 1);
+            return true;
+        }
+        return false;
+    }
+}
+
 static void repeat(TeaState* T)
 {
     TeaOString* string;
@@ -1801,6 +1828,50 @@ void tea_vm_run(TeaState* T)
                 T->base = T->ci->base;
                 T->top = base;
                 PUSH(result);
+                READ_FRAME();
+                DISPATCH();
+            }
+            CASE_CODE(GET_ITER):
+            {
+                uint8_t slot1 = READ_BYTE();    /* seq */
+                uint8_t slot2 = READ_BYTE();    /* iter */
+
+                TeaValue seq = base[slot1];
+                TeaValue iter = base[slot2];
+
+                PUSH(seq);
+                PUSH(iter);
+
+                /* iterate */
+                STORE_FRAME;
+                if(!iterator_call(T, MT_ITER, seq))
+                {
+                    RUNTIME_ERROR("'%s' is not iterable aaa", tea_val_type(seq));
+                }
+                READ_FRAME();
+
+                base[slot2] = PEEK(0);
+
+                iter = base[slot2];
+                DISPATCH();
+            }
+            CASE_CODE(FOR_ITER):
+            {
+                uint8_t slot1 = READ_BYTE();    /* seq */
+                uint8_t slot2 = READ_BYTE();    /* iter */
+
+                TeaValue seq = base[slot1];
+                TeaValue iter = base[slot2];
+
+                PUSH(seq);
+                PUSH(iter);
+
+                /* iteratorvalue */
+                STORE_FRAME;
+                if(!iterator_call(T, MT_NEXT, seq))
+                {
+                    RUNTIME_ERROR("'%s' is not iterable", tea_val_type(seq));
+                }
                 READ_FRAME();
                 DISPATCH();
             }

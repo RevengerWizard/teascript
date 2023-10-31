@@ -54,6 +54,8 @@ typedef enum
     MT_EQ,          /* == */
     MT_SUBSCRIPT,   /* [] */
     MT_TOSTRING,    /* tostring */
+    MT_ITER,        /* iterate */
+    MT_NEXT,        /* iteratorvalue */
     MT_END
 } TeaOpMethod;
 

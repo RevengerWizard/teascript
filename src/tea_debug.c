@@ -81,6 +81,8 @@ static const char* const opnames[] = {
     "CLOSURE",
     "CLOSE_UPVALUE",
     "RETURN",
+    "GET_ITER",
+    "FOR_ITER",
     "CLASS",
     "SET_CLASS_VAR",
     "INHERIT",
@@ -220,6 +222,15 @@ static int byte_instruction(TeaChunk* chunk, int offset)
     return offset + 2;
 }
 
+static int iter_instruction(TeaChunk* chunk, int offset)
+{
+    uint8_t seq = chunk->code[offset + 1];
+    uint8_t iter = chunk->code[offset + 2];
+    printf("%4d     %4d\n", seq, iter);
+    
+    return offset + 3;
+}
+
 static int jump_instruction(int sign, TeaChunk* chunk, int offset)
 {
     uint16_t jump = (uint16_t)(chunk->code[offset + 1] << 8);
@@ -289,6 +300,9 @@ int tea_debug_instruction(TeaState* T, TeaChunk* chunk, int offset)
         case OP_IMPORT_NAME:
         case OP_IMPORT_VARIABLE:
             return constant_instruction(chunk, offset);
+        case OP_FOR_ITER:
+        case OP_GET_ITER:
+            return iter_instruction(chunk, offset);
         case OP_NULL:
         case OP_TRUE:
         case OP_FALSE:
