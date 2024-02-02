@@ -1,6 +1,6 @@
 /*
 ** tea_loadlib.c
-** Dynamic library loader for Teascript
+** Dynamic library loader
 */
 
 #define tea_loadlib_c
@@ -8,6 +8,7 @@
 
 #include "tea.h"
 
+#include "tea_def.h"
 #include "tea_arch.h"
 
 #if TEA_TARGET_DLOPEN
@@ -19,7 +20,7 @@ void tea_ll_unload(void* lib)
     dlclose(lib);
 }
 
-void* tea_ll_load(TeaState* T, const char* path)
+void* tea_ll_load(tea_State* T, const char* path)
 {
     void* lib = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
     if(lib == NULL)
@@ -27,9 +28,9 @@ void* tea_ll_load(TeaState* T, const char* path)
     return lib;
 }
 
-TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym)
+tea_CFunction tea_ll_sym(tea_State* T, void* lib, const char* sym)
 {
-    TeaCFunction f = (TeaCFunction)dlsym(lib, sym);
+    tea_CFunction f = (tea_CFunction)dlsym(lib, sym);
     if(f == NULL)
         tea_error(T, dlerror());
     return f;
@@ -39,7 +40,7 @@ TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym)
 
 #include <windows.h>
 
-static void lib_error(TeaState* T)
+static void lib_error(tea_State* T)
 {
     int error = GetLastError();
     char buffer[128];
@@ -54,7 +55,7 @@ void tea_ll_unload(void* lib)
     FreeLibrary((HMODULE)lib);
 }
 
-void* tea_ll_load(TeaState* T, const char* path)
+void* tea_ll_load(tea_State* T, const char* path)
 {
     HMODULE lib = LoadLibraryExA(path, NULL, 0);
     if(lib == NULL)
@@ -62,9 +63,9 @@ void* tea_ll_load(TeaState* T, const char* path)
     return lib;
 }
 
-TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym)
+tea_CFunction tea_ll_sym(tea_State* T, void* lib, const char* sym)
 {
-    TeaCFunction f = (TeaCFunction)GetProcAddress((HMODULE)lib, sym);
+    tea_CFunction f = (tea_CFunction)GetProcAddress((HMODULE)lib, sym);
     if(f == NULL)
         lib_error(T);
     return f;
@@ -76,17 +77,20 @@ TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym)
 
 void tea_ll_unload(void* lib)
 {
-    /* not used */
+    /* Not used */
+    UNUSED(lib);
 }
 
-void* tea_ll_load(TeaState* T, const char* path)
+void* tea_ll_load(tea_State* T, const char* path)
 {
+    UNUSED(path);
     tea_error(T, DLMSG);
     return NULL;
 }
 
-TeaCFunction tea_ll_sym(TeaState* T, void* lib, const char* sym)
+tea_CFunction tea_ll_sym(tea_State* T, void* lib, const char* sym)
 {
+    UNUSED(lib); UNUSED(sym);
     tea_error(T, DLMSG);
     return NULL;
 }

@@ -1,0 +1,41 @@
+/*
+** lib_io.c
+** Teascript io module
+*/
+
+#define lib_io_c
+#define TEA_LIB
+
+#include "stdio.h"
+
+#include "tea.h"
+#include "tealib.h"
+
+#include "tea_str.h"
+#include "tea_import.h"
+#include "tea_vm.h"
+
+static void io_stdfile(tea_State* T, FILE* f, const char* name, const char* mode)
+{
+    GCfile* file = tea_obj_new_file(T, tea_str_lit(T, ""), tea_str_new(T, mode));
+    file->file = f;
+    file->is_open = -1;
+
+    tea_vm_push(T, OBJECT_VAL(file));
+    tea_set_key(T, 0, name);
+}
+
+static const tea_Module io_module[] = {
+    { "stdin", NULL },
+    { "stdout", NULL },
+    { "stderr", NULL },
+    { NULL, NULL }
+};
+
+TEAMOD_API void tea_import_io(tea_State* T)
+{
+    tea_create_module(T, TEA_MODULE_IO, io_module);
+    io_stdfile(T, stdout, "stdout", "w");
+    io_stdfile(T, stdin, "stdin", "r");
+    io_stdfile(T, stderr, "stderr", "w");
+}

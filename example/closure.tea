@@ -1,0 +1,15 @@
+function outer(x) 
+{
+    function inner(y) 
+    {
+        print(x + " " + y)
+    }
+
+    return inner
+}
+
+var f1 = outer("Hi")
+var f2 = outer("Hello")
+
+f1("there")
+f2("there")

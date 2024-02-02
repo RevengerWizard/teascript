@@ -1,22 +1,21 @@
 /*
 ** tea_map.h
-** Teascript map implementation
+** Map handling
 */
 
-#ifndef TEA_MAP_H
-#define TEA_MAP_H
+#ifndef _TEA_MAP_H
+#define _TEA_MAP_H
 
-#include "tea_object.h"
+#include "tea_obj.h"
 
-TEA_FUNC TeaOMap* tea_map_new(TeaState* T);
+TEA_FUNC GCmap* tea_map_new(tea_State* T);
+TEA_FUNC void tea_map_clear(tea_State* T, GCmap* map);
+TEA_FUNC bool tea_map_set(tea_State* T, GCmap* map, Value key, Value value);
+TEA_FUNC bool tea_map_get(GCmap* map, Value key, Value* value);
+TEA_FUNC bool tea_map_delete(tea_State* T, GCmap* map, Value key);
+TEA_FUNC void tea_map_addall(tea_State* T, GCmap* from, GCmap* to);
 
-TEA_FUNC void tea_map_clear(TeaState* T, TeaOMap* map);
-TEA_FUNC bool tea_map_set(TeaState* T, TeaOMap* map, TeaValue key, TeaValue value);
-TEA_FUNC bool tea_map_get(TeaOMap* map, TeaValue key, TeaValue* value);
-TEA_FUNC bool tea_map_delete(TeaState* T, TeaOMap* map, TeaValue key);
-TEA_FUNC void tea_map_addall(TeaState* T, TeaOMap* from, TeaOMap* to);
-
-static inline bool tea_map_hashable(TeaValue value)
+static TEA_INLINE bool tea_map_hashable(Value value)
 {
     return IS_NULL(value) || IS_BOOL(value) || IS_NUMBER(value) ||
     IS_STRING(value);

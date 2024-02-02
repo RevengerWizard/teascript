@@ -1,0 +1,33 @@
+class Person 
+{
+    constructor(name) 
+    {
+        this.name = name
+        this.eyes = 2
+        this.mouth = 1
+    }
+
+    sleep() 
+    {
+        return 'slept'
+    }
+}
+
+var p1 = Person("john")
+print(p1.name)  // "john"
+print(p1.sleep())   // "slept"
+
+class Employee : Person
+{
+    constructor(name, salary)
+    {
+        super(name)
+        this.salary = salary
+    }
+}
+
+var e1 = Employee("smith", 300000)
+print(e1.name)  // "smith"
+print(e1.eyes)  // 2
+print(e1.salary)    // 300000
+print(e1.sleep())   // "slept"

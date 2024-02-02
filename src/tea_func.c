@@ -1,6 +1,6 @@
 /*
 ** tea_func.c
-** Teascript closures, functions and upvalues
+** Function handling (prototypes, functions and upvalues)
 */
 
 #define tea_func_c
@@ -8,63 +8,95 @@
 
 #include "tea_state.h"
 #include "tea_vm.h"
-#include "tea_chunk.h"
 
-TeaONative* tea_func_new_native(TeaState* T, TeaNativeType type, TeaCFunction fn)
+GCfuncC* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs)
 {
-    TeaONative* native = TEA_ALLOCATE_OBJECT(T, TeaONative, OBJ_NATIVE);
-    native->type = type;
-    native->fn = fn;
+    GCfuncC* func = tea_obj_new(T, GCfuncC, OBJ_CFUNC);
+    func->type = type;
+    func->fn = fn;
+    func->nargs = nargs;
 
-    return native;
+    return func;
 }
 
-TeaOClosure* tea_func_new_closure(TeaState* T, TeaOFunction* function)
+GCfuncT* tea_func_newT(tea_State* T, GCproto* proto)
 {
-    TeaOUpvalue** upvalues = TEA_ALLOCATE(T, TeaOUpvalue*, function->upvalue_count);
-    for(int i = 0; i < function->upvalue_count; i++)
+    GCupvalue** upvalues = tea_mem_new(T, GCupvalue*, proto->upvalue_count);
+    for(int i = 0; i < proto->upvalue_count; i++)
     {
         upvalues[i] = NULL;
     }
 
-    TeaOClosure* closure = TEA_ALLOCATE_OBJECT(T, TeaOClosure, OBJ_CLOSURE);
-    closure->function = function;
-    closure->upvalues = upvalues;
-    closure->upvalue_count = function->upvalue_count;
+    GCfuncT* func = tea_obj_new(T, GCfuncT, OBJ_FUNC);
+    func->proto = proto;
+    func->upvalues = upvalues;
+    func->upvalue_count = proto->upvalue_count;
 
-    return closure;
+    return func;
 }
 
-TeaOFunction* tea_func_new_function(TeaState* T, TeaFunctionType type, TeaOModule* module, int max_slots)
+GCproto* tea_func_newproto(tea_State* T, ProtoType type, GCmodule* module, int max_slots)
 {
-    TeaOFunction* function = TEA_ALLOCATE_OBJECT(T, TeaOFunction, OBJ_FUNCTION);
-    function->arity = 0;
-    function->arity_optional = 0;
-    function->variadic = 0;
-    function->upvalue_count = 0;
-    function->max_slots = max_slots;
-    function->type = type;
-    function->name = NULL;
-    function->module = module;
-    tea_chunk_init(&function->chunk);
+    GCproto* pt = tea_obj_new(T, GCproto, OBJ_PROTO);
+    pt->arity = 0;
+    pt->arity_optional = 0;
+    pt->variadic = 0;
+    pt->upvalue_count = 0;
+    pt->max_slots = max_slots;
+    pt->type = type;
+    pt->name = NULL;
+    pt->module = module;
+    pt->count = 0;
+    pt->size = 0;
+    pt->code = NULL;
+    pt->line_count = 0;
+    pt->line_size = 0;
+    pt->lines = NULL;
+    pt->k = NULL;
+    pt->k_size = 0;
+    pt->k_count = 0;
 
-    return function;
+    return pt;
 }
 
-TeaOUpvalue* tea_func_new_upvalue(TeaState* T, TeaValue* slot)
+int tea_func_getline(GCproto* f, int instruction)
 {
-    TeaOUpvalue* upvalue = TEA_ALLOCATE_OBJECT(T, TeaOUpvalue, OBJ_UPVALUE);
-    upvalue->closed = NULL_VAL;
-    upvalue->location = slot;
-    upvalue->next = NULL;
+    int start = 0;
+    int end = f->line_count - 1;
 
-    return upvalue;
+    while(true)
+    {
+        int mid = (start + end) / 2;
+        LineStart* line = &f->lines[mid];
+        if(instruction < line->offset)
+        {
+            end = mid - 1;
+        }
+        else if(mid == f->line_count - 1 || instruction < f->lines[mid + 1].offset)
+        {
+            return line->line;
+        }
+        else
+        {
+            start = mid + 1;
+        }
+    }
 }
 
-TeaOUpvalue* tea_func_capture(TeaState* T, TeaValue* local)
+GCupvalue* tea_func_new_upvalue(tea_State* T, Value* slot)
 {
-    TeaOUpvalue* prev_upvalue = NULL;
-    TeaOUpvalue* upvalue = T->open_upvalues;
+    GCupvalue* uv = tea_obj_new(T, GCupvalue, OBJ_UPVALUE);
+    uv->closed = NULL_VAL;
+    uv->location = slot;
+    uv->next = NULL;
+
+    return uv;
+}
+
+GCupvalue* tea_func_capture(tea_State* T, Value* local)
+{
+    GCupvalue* prev_upvalue = NULL;
+    GCupvalue* upvalue = T->open_upvalues;
     while(upvalue != NULL && upvalue->location > local)
     {
         prev_upvalue = upvalue;
@@ -76,7 +108,7 @@ TeaOUpvalue* tea_func_capture(TeaState* T, TeaValue* local)
         return upvalue;
     }
 
-    TeaOUpvalue* created_upvalue = tea_func_new_upvalue(T, local);
+    GCupvalue* created_upvalue = tea_func_new_upvalue(T, local);
     created_upvalue->next = upvalue;
 
     if(prev_upvalue == NULL)
@@ -91,11 +123,11 @@ TeaOUpvalue* tea_func_capture(TeaState* T, TeaValue* local)
     return created_upvalue;
 }
 
-void tea_func_close(TeaState* T, TeaValue* last)
+void tea_func_close(tea_State* T, Value* last)
 {
     while(T->open_upvalues != NULL && T->open_upvalues->location >= last)
     {
-        TeaOUpvalue* upvalue = T->open_upvalues;
+        GCupvalue* upvalue = T->open_upvalues;
         upvalue->closed = *upvalue->location;
         upvalue->location = &upvalue->closed;
         T->open_upvalues = upvalue->next;

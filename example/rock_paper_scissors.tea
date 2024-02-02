@@ -1,0 +1,42 @@
+from random import range
+
+var t = ["Rock", "Paper", "Scissors"]
+
+var computer = t[range(0..2)]
+
+var player = false
+
+while(not player)
+{
+    player = input("Rock, Paper, Scissors? ")
+    switch(player)
+    {
+        case computer:
+            print("Tie!\n")
+        case "Rock":
+        {
+            if(computer == "Paper")
+                print("You lose! ${computer} covers ${player}\n")
+            else
+                print("You win! ${player} smashes ${computer}\n")
+        }
+        case "Paper":
+        {
+            if(computer == "Scissors")
+                print("You lose! ${computer} cut ${player}\n")
+            else
+                print("You win! ${player} covers ${computer}\n")
+        }
+        case "Scissors":
+        {
+            if(computer == "Rock")
+                print("You lose! ${computer} smashes ${player}\n")
+            else
+                print("You win! ${player} cut ${computer}\n")
+        }
+        default:
+            print("That's not a valid play. Check your spelling!\n")
+    }
+    player = false
+    computer = t[range(0..2)]
+}

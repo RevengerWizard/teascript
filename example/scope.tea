@@ -1,0 +1,28 @@
+var x = "global x"
+
+function level_six()
+{
+    var z = "outer z"
+
+    function donky()
+    {
+        function inner(y)
+        {
+            return [x, y, z]
+        }
+
+        var z = "donky z"
+        return inner
+    }
+
+    function chonky()
+    {
+        var x = "chonky x"
+        var f = donky()
+        return f("y arg")
+    }
+
+    return chonky()
+}
+
+print(level_six())

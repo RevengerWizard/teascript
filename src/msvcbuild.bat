@@ -32,15 +32,15 @@
 @set TEALINK=%TEALINK% /%BUILDTYPE%
 @if "%1"=="onetea" goto :ONETEADLL
 @if "%1"=="static" goto :STATIC
-%TEACOMPILE% /MD /DTEA_BUILD_AS_DLL tea_*.c
+%TEACOMPILE% /MD /DTEA_BUILD_AS_DLL tea_*.c lib_*.c
 @if errorlevel 1 goto :BAD
-%TEALINK% /DLL /out:%TEADLLNAME% tea_*.obj
+%TEALINK% /DLL /out:%TEADLLNAME% tea_*.obj lib_*.obj
 @if errorlevel 1 goto :BAD
 @goto :MTDLL
 :STATIC
 %TEACOMPILE% tea_*.c
 @if errorlevel 1 goto :BAD
-%TEALIB% /OUT:%TEALIBNAME% tea_*.obj
+%TEALIB% /OUT:%TEALIBNAME% tea_*.obj lib_*.obj
 @if errorlevel 1 goto :BAD
 @goto :MTDLL
 :ONETEADLL

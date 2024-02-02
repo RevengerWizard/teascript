@@ -10,7 +10,7 @@ CCDEBUG =
 CCWARN = -Wall
 #CCWARN+= -Wextra
 
-CCOPT = -O2
+CCOPT = -O0 -g
 
 CFLAGS = $(CCOPT) $(CCWARN) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
@@ -20,7 +20,7 @@ AR = ar rcu
 RANLIB = ranlib
 RM = del
 
-SYSCFLAGS =
+SYSCFLAGS = #-DTEA_DEBUG_PRINT_CODE
 SYSLDFLAGS =
 SYSLIBS =
 
@@ -34,14 +34,15 @@ MYOBJS =
 PLATS = generic linux macosx mingw emscripten
 
 TEA_A = libtea.a
-CORE_O = tea_api.o tea_chunk.o tea_parser.o tea_core.o tea_debug.o \
-    tea_do.o tea_gc.o tea_import.o tea_memory.o tea_object.o tea_func.o tea_map.o tea_string.o tea_lexer.o tea_loadlib.o \
-    tea_state.o tea_table.o tea_utf.o tea_util.o tea_value.o tea_vm.o \
-	tea_dump.o tea_undump.o \
-	tea_fileclass.o tea_listclass.o tea_mapclass.o tea_rangeclass.o \
-    tea_stringclass.o
-LIB_O = tea_iolib.o tea_oslib.o tea_randomlib.o tea_mathlib.o \
-    tea_syslib.o tea_timelib.o
+CORE_O = tea_api.o tea_load.o tea_bcwrite.o tea_bcread.o \
+	tea_bc.o tea_parse.o tea_debug.o \
+    tea_err.o tea_gc.o tea_import.o tea_obj.o tea_func.o tea_map.o tea_str.o tea_lex.o tea_loadlib.o tea_buf.o \
+    tea_state.o tea_tab.o tea_utf.o tea_vm.o \
+	lib_core.o \
+	lib_file.o lib_list.o lib_map.o lib_range.o \
+    lib_string.o
+LIB_O = lib_io.o lib_os.o lib_random.o lib_math.o \
+    lib_sys.o lib_time.o
 BASE_O = $(CORE_O) $(LIB_O) $(MYOBJS)
 
 TEA_T = tea
@@ -50,6 +51,9 @@ TEA_O = tea.o
 ALL_O = $(CORE_O) $(LIB_O) $(TEA_O)
 ALL_T = $(TEA_A) $(TEA_T)
 ALL_A = $(TEA_A)
+
+Q = @
+E = @echo
 
 # Targets start here
 default: $(PLAT)

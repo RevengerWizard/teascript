@@ -1,0 +1,28 @@
+class Bird
+{
+    fly()
+    {
+        print("the bird can fly")
+    }
+}
+
+class Parrot : Bird
+{
+    speak()
+    {
+        print("the parrot can speak")
+    }
+}
+
+class Eagle : Parrot
+{
+    vision()
+    {
+        print("The eagle has a sharp vision")
+    }
+}
+
+var eagle = Eagle()
+eagle.speak()
+eagle.fly()
+eagle.vision()

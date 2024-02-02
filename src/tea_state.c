@@ -3,60 +3,65 @@
 ** Teascript global state
 */
 
-#include <stdlib.h>
-#include <string.h>
-
 #define tea_state_c
 #define TEA_CORE
 
+#include <stdlib.h>
+#include <string.h>
+
+#include "tealib.h"
+
+#include "tea_def.h"
 #include "tea_state.h"
-#include "tea_core.h"
 #include "tea_vm.h"
-#include "tea_memory.h"
-#include "tea_string.h"
-#include "tea_util.h"
-#include "tea_do.h"
+#include "tea_str.h"
+#include "tea_import.h"
+#include "tea_err.h"
 #include "tea_gc.h"
+#include "tea_tab.h"
 
-static void free_state(TeaState* T)
+static void state_free(tea_State* T)
 {
-    (*T->frealloc)(T->ud, T, sizeof(*T), 0);
+    T->allocf(T->allocd, T, sizeof(*T), 0);
 }
 
-static void free_stack(TeaState* T)
+static void stack_free(tea_State* T)
 {
-    TEA_FREE_ARRAY(T, TeaCallInfo, T->base_ci, T->ci_size);
-    TEA_FREE_ARRAY(T, TeaValue, T->stack, T->stack_size);
+    tea_mem_freevec(T, CallInfo, T->ci_base, T->ci_size);   /* Free CallInfo array */
+    tea_mem_freevec(T, Value, T->stack, T->stack_size);    /* Free stack array */
 }
 
-static void init_stack(TeaState* T)
+static void stack_init(tea_State* T)
 {
-    T->stack = TEA_ALLOCATE(T, TeaValue, BASE_STACK_SIZE + EXTRA_STACK);
+    /* Initialize stack array */
+    T->stack = tea_mem_new(T, Value, BASE_STACK_SIZE + EXTRA_STACK);
     T->stack_size = BASE_STACK_SIZE + EXTRA_STACK;
     T->top = T->stack;
-    T->stack_last = T->stack + (T->stack_size - EXTRA_STACK) - 1;
-    T->base_ci = TEA_ALLOCATE(T, TeaCallInfo, BASIC_CI_SIZE);
+    T->stack_max = T->stack + (T->stack_size - EXTRA_STACK) - 1;
+    /* Initialize CallInfo array */
+    T->ci_base = tea_mem_new(T, CallInfo, BASIC_CI_SIZE);
     T->ci_size = BASIC_CI_SIZE;
-    T->ci = T->base_ci;
-    T->ci->closure = NULL;
-    T->ci->native = NULL;
+    T->ci = T->ci_base;
+    T->base = T->ci->base = T->top;
+    T->ci_end = T->ci_base + T->ci_size;
+    /* Initialize first ci */
+    T->ci->func = NULL;
+    T->ci->cfunc = NULL;
     T->ci->state = CIST_C;
     tea_vm_push(T, NULL_VAL);
-    T->base = T->ci->base = T->top;
-    T->end_ci = T->base_ci + T->ci_size;
 }
 
-static void t_panic(TeaState* T)
+static void panic_f(tea_State* T)
 {
     fputs("PANIC: unprotected error in call to Teascript API", stderr);
     fputc('\n', stderr);
     fflush(stderr);
 }
 
-static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
+static void* alloc_f(void* ud, void* ptr, size_t osize, size_t nsize)
 {
-    (void)ud;
-    (void)osize;
+    UNUSED(ud);
+    UNUSED(osize);
     if(nsize == 0)
     {
         free(ptr);
@@ -66,38 +71,96 @@ static void* t_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
     return realloc(ptr, nsize);
 }
 
-static void init_opmethods(TeaState* T)
+static const char* const opmnames[] = {
+#define MMSTR(_, name) #name,
+    MMDEF(MMSTR)
+#undef MMSTR
+};
+
+static void state_init_mms(tea_State* T)
 {
-    static const char* const opmnames[] = {
-        "+", "-", "*", "/", "%", "**",
-        "&", "|", "~", "^", "<<", ">>",
-        "<", "<=", ">", ">=", "==",
-        "[]", "tostring", 
-        "iterate", "iteratorvalue", 
-        "contains", "gc"
-    };
-    for(int i = 0; i < MT_END; i++)
+    for(int i = 0; i < MM__MAX; i++)
     {
         T->opm_name[i] = tea_str_new(T, opmnames[i]);
     }
 }
 
-TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
+static void state_correct_stack(tea_State* T, Value* old_stack)
 {
-    TeaState* T;
-    f = (f != NULL) ? f : t_alloc;
-    T = (TeaState*)((*f)(ud, NULL, 0, sizeof(*T)));
+    T->top = (T->top - old_stack) + T->stack;
+
+    for(GCupvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+    {
+        upvalue->location = (upvalue->location - old_stack) + T->stack;
+    }
+
+    for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
+    {
+        ci->base = (ci->base - old_stack) + T->stack;
+    }
+
+    T->base = (T->base - old_stack) + T->stack;
+}
+
+static void state_realloc_stack(tea_State* T, int new_size)
+{
+	Value* old_stack = T->stack;
+	T->stack = tea_mem_reallocvec(T, Value, T->stack, T->stack_size, new_size);
+	T->stack_size = new_size;
+    T->stack_max = T->stack + new_size - 1 - EXTRA_STACK;
+
+    if(old_stack != T->stack)
+    {
+        state_correct_stack(T, old_stack);
+    }
+}
+
+void tea_state_reallocci(tea_State* T, int new_size)
+{
+    CallInfo* old_ci = T->ci_base;
+    T->ci_base = tea_mem_reallocvec(T, CallInfo, T->ci_base, T->ci_size, new_size);
+    T->ci_size = new_size;
+    T->ci = (T->ci - old_ci) + T->ci_base;
+    T->ci_end = T->ci_base + T->ci_size;
+}
+
+void tea_state_growstack(tea_State* T, int needed)
+{
+	if(needed <= T->stack_size)
+        state_realloc_stack(T, 2 * T->stack_size);
+    else
+        state_realloc_stack(T, T->stack_size + needed + EXTRA_STACK);
+}
+
+void tea_state_growci(tea_State* T)
+{
+    if(T->ci + 1 == T->ci_end)
+    {
+        tea_state_reallocci(T, T->ci_size * 2);
+    }
+    if(T->ci_size > TEA_MAX_CALLS)
+    {
+        tea_err_run(T, "Stack overflow");
+    }
+}
+
+TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
+{
+    tea_State* T;
+    allocf = (allocf != NULL) ? allocf : alloc_f;
+    T = (tea_State*)allocf(ud, NULL, 0, sizeof(*T));
     if(T == NULL)
         return T;
-    T->frealloc = f;
-    T->ud = ud;
+    T->allocf = allocf;
+    T->allocd = ud;
     T->error_jump = NULL;
+    T->parser = NULL;
     T->nccalls = 0;
     T->objects = NULL;
     T->last_module = NULL;
     T->bytes_allocated = 0;
     T->next_gc = 1024 * 1024;
-    T->panic = t_panic;
+    T->panic = panic_f;
     T->argc = 0;
     T->argv = NULL;
     T->argf = 0;
@@ -105,53 +168,47 @@ TEA_API TeaState* tea_new_state(TeaAlloc f, void* ud)
     T->open_upvalues = NULL;
     T->gray_stack = NULL;
     T->gray_count = 0;
-    T->gray_capacity = 0;
+    T->gray_size = 0;
     T->list_class = NULL;
     T->string_class = NULL;
     T->map_class = NULL;
     T->file_class = NULL;
     T->range_class = NULL;
-    init_stack(T);
+    stack_init(T);
+    tea_buf_init(&T->tmpbuf);
     tea_tab_init(&T->modules);
     tea_tab_init(&T->globals);
     tea_tab_init(&T->constants);
     tea_tab_init(&T->strings);
-    T->constructor_string = tea_str_literal(T, "constructor");
-    T->repl_string = tea_str_literal(T, "_");
-    T->memerr = tea_str_literal(T, MEMERR_MESSAGE);
-    init_opmethods(T);
+    T->constructor_string = tea_str_lit(T, "constructor");
+    T->repl_string = tea_str_lit(T, "_");
+    T->memerr = tea_str_lit(T, TEA_MEM_ERR);
+    state_init_mms(T);
     tea_open_core(T);
     return T;
 }
 
-TEA_API void tea_close(TeaState* T)
+TEA_API void tea_close(tea_State* T)
 {
-    T->constructor_string = NULL;
-    T->repl_string = NULL;
-    T->memerr = NULL;
-    for(int i = 0; i < MT_END; i++)
-    {
-        T->opm_name[i] = NULL;
-    }
-
     if(T->repl)
         tea_tab_free(T, &T->constants);
 
+    tea_buf_free(T, &T->tmpbuf);
     tea_tab_free(T, &T->modules);
     tea_tab_free(T, &T->globals);
     tea_tab_free(T, &T->constants);
     tea_tab_free(T, &T->strings);
-    free_stack(T);
-    tea_gc_free_objects(T);
+    stack_free(T);
+    tea_gc_freeall(T);
 
 #if defined(TEA_DEBUG_TRACE_MEMORY) || defined(TEA_DEBUG_FINAL_MEMORY)
-    printf("total bytes lost: %zu\n", T->bytes_allocated);
+    printf("total bytes lost: %llu\n", T->bytes_allocated);
 #endif
 
-    free_state(T);
+    state_free(T);
 }
 
-TeaOClass* tea_state_get_class(TeaState* T, TeaValue value)
+GCclass* tea_state_get_class(tea_State* T, Value value)
 {
     if(IS_OBJECT(value))
     {
@@ -176,37 +233,11 @@ TeaOClass* tea_state_get_class(TeaState* T, TeaValue value)
     return NULL;
 }
 
-bool tea_state_isclass(TeaState* T, TeaOClass* klass)
+bool tea_state_isclass(tea_State* T, GCclass* klass)
 {
     return (klass == T->list_class ||
            klass == T->map_class ||
            klass == T->string_class ||
            klass == T->range_class ||
            klass == T->file_class);
-}
-
-TEA_API int tea_interpret(TeaState* T, const char* module_name, const char* source)
-{
-    TeaOString* name = tea_str_new(T, module_name);
-    tea_vm_push(T, OBJECT_VAL(name));
-    TeaOModule* module = tea_obj_new_module(T, name);
-    tea_vm_pop(T, 1);
-
-    char c = module_name[0];
-    tea_vm_push(T, OBJECT_VAL(module));
-    if(c != '<' && c != '?' && c != '=')
-    {
-        module->path = tea_util_get_directory(T, (char*)module_name);
-    }
-    else
-    {
-        module->path = tea_str_literal(T, ".");
-    }
-    tea_vm_pop(T, 1);
-
-    int status = tea_do_protectedparser(T, module, source);
-    if(status != TEA_OK)
-        return TEA_SYNTAX_ERROR;
-
-    return tea_do_pcall(T, savestack(T, T->top - 1), T->top[-1], 0);
 }

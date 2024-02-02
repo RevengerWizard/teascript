@@ -3,13 +3,13 @@
 ** Teascript standalone interpreter
 */
 
+#define tea_c
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <signal.h>
-
-#define tea_c
 
 #include "tea.h"
 
@@ -33,7 +33,7 @@
 #define PROMPT2  "... "
 #define MAX_INPUT 512
 
-static TeaState* global = NULL;
+static tea_State* global = NULL;
 
 void tsignal(int id)
 {
@@ -78,6 +78,15 @@ static void t_message(const char* msg)
     fflush(stderr);
 }
 
+static int interpret(tea_State* T, const char* s)
+{
+    if(tea_load_buffer(T, s, strlen(s), "=<stdin>") != TEA_OK)
+    {
+        return TEA_ERROR_SYNTAX;
+    }
+    return tea_pcall(T, 0);
+}
+
 #if defined(TEA_USE_READLINE)
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -120,14 +129,14 @@ static bool multiline(const char* line)
 
         if(level < 0)
         {
-            return true; // closed brace before opening, end line now
+            return true; /* closed brace before opening, end line now */
         }
     }
 
     return level == 0;
 }
 
-static void repl(TeaState* T)
+static void repl(tea_State* T)
 {
     global = T;
     signal(SIGINT, tsignal);
@@ -159,7 +168,7 @@ static void repl(TeaState* T)
                 continue;
             }
 
-            if(strlen(b) != MAX_INPUT - 1 || b[MAX_INPUT-2] == '\n')
+            if(strlen(b) != MAX_INPUT - 1 || b[MAX_INPUT - 2] == '\n')
             {
                 t_freeline(T, b);
                 break;
@@ -185,7 +194,7 @@ static void repl(TeaState* T)
             goto line;
         }
 
-        tea_interpret(T, "=<stdin>", line);
+        interpret(T, line);
         tea_pop(T, 2);  /* result of interpret + input string */
     }
 
@@ -197,11 +206,11 @@ static int report_status(int status, char* path)
 {
     switch(status)
     {
-        case TEA_SYNTAX_ERROR:
+        case TEA_ERROR_SYNTAX:
             return 65;
-        case TEA_RUNTIME_ERROR:
+        case TEA_ERROR_RUNTIME:
             return 70;
-        case TEA_FILE_ERROR:
+        case TEA_ERROR_FILE:
         {
             fputs("tea: ", stderr);
             fprintf(stderr, "Cannot open '%s': No such file or directory", path);
@@ -215,10 +224,18 @@ static int report_status(int status, char* path)
     return status;
 }
 
-static int handle_script(TeaState* T, char** argv)
+static int handle_script(tea_State* T, char** argv)
 {
     char* path  = argv[0];
-    int status = tea_dofile(T, path);
+    int status = tea_load_file(T, path);
+
+    if(status != 0)
+    {
+        tea_pop(T, 1);
+        return report_status(status, path);
+    }
+
+    status = tea_pcall(T, 0);
     tea_pop(T, 1);
 
     return report_status(status, path);
@@ -267,7 +284,7 @@ static int collect_args(char** argv, int* flags)
     return i;
 }
 
-static int run_args(TeaState* T, char** argv, int n)
+static int run_args(tea_State* T, char** argv, int n)
 {
     int i;
     for(i = 1; i < n; i++)
@@ -276,11 +293,11 @@ static int run_args(TeaState* T, char** argv, int n)
         {
             case 'e':
             {
-                char* chunk = argv[i] + 2;
-                if(*chunk == '\0')
-                    chunk = argv[++i];
+                const char* code = argv[i] + 2;
+                if(*code == '\0')
+                    code = argv[++i];
 
-                int status = tea_interpret(T, "=<stdin>", chunk);
+                int status = interpret(T, code);
                 tea_pop(T, 1);
 
                 return report_status(status, NULL);
@@ -292,7 +309,7 @@ static int run_args(TeaState* T, char** argv, int n)
 
 int main(int argc, char** argv)
 {
-    TeaState* T = tea_open();
+    tea_State* T = tea_open();
     if(T == NULL)
     {
         t_message("Cannot create state: not enough memory");

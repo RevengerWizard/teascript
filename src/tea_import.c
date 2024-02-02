@@ -1,23 +1,27 @@
 /*
 ** tea_import.c
-** Teascript import loading
+** Import loader
 */
 
 #define tea_import_c
 #define TEA_CORE
+
+#include <stdlib.h>
+#include <string.h>
 
 #include "tea.h"
 #include "tealib.h"
 
 #include "tea_arch.h"
 #include "tea_state.h"
+#include "tea_vm.h"
 #include "tea_import.h"
-#include "tea_util.h"
-#include "tea_string.h"
-#include "tea_do.h"
+#include "tea_str.h"
+#include "tea_err.h"
 #include "tea_loadlib.h"
+#include "tea_tab.h"
 
-static const TeaReg modules[] = {
+static const tea_Reg modules[] = {
     { TEA_MODULE_MATH, tea_import_math },
     { TEA_MODULE_TIME, tea_import_time },
     { TEA_MODULE_OS, tea_import_os },
@@ -27,17 +31,89 @@ static const TeaReg modules[] = {
     { NULL, NULL }
 };
 
-static void call_native_module(TeaState* T, int index)
+GCstr* tea_imp_dirname(tea_State* T, char* path, int len) 
 {
-    tea_push_cfunction(T, modules[index].fn);
+    if(!len) 
+    {
+        return tea_str_lit(T, ".");
+    }
+
+    char* sep = path + len;
+
+    /* Trailing slashes */
+    while(sep != path) 
+    {
+        if(0 == IS_DIR_SEP(*sep))
+            break;
+        sep--;
+    }
+
+    /* First found */
+    while(sep != path) 
+    {
+        if(IS_DIR_SEP(*sep))
+            break;
+        sep--;
+    }
+
+    /* Trim again */
+    while(sep != path) 
+    {
+        if(0 == IS_DIR_SEP(*sep))
+            break;
+        sep--;
+    }
+
+    if(sep == path && !IS_DIR_SEP(*sep)) 
+    {
+        return tea_str_lit(T, ".");
+    }
+
+    len = sep - path + 1;
+
+    return tea_str_copy(T, path, len);
+}
+
+bool tea_imp_resolvepath(char* directory, char* path, char* ret) 
+{
+    char buf[PATH_MAX];
+
+    snprintf(buf, PATH_MAX, "%s%c%s", directory, DIR_SEP, path);
+
+#if TEA_TARGET_WINDOWS
+    _fullpath(ret, buf, PATH_MAX);
+#else
+    if(realpath(buf, ret) == NULL) 
+    {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
+GCstr* tea_imp_getdir(tea_State* T, char* source) 
+{
+    char res[PATH_MAX];
+    if(!tea_imp_resolvepath(".", source, res)) 
+    {
+        tea_err_run(T, "Unable to resolve path '%s'", source);
+    }
+
+    return tea_imp_dirname(T, res, strlen(res));
+}
+
+static void call_native_module(tea_State* T, int index)
+{
+    tea_push_cfunction(T, modules[index].fn, 0);
     tea_call(T, 0);
 }
 
-static int find_native_module(char* name, int length)
+static int find_native_module(char* name, int len)
 {
     for(int i = 0; modules[i].name != NULL; i++) 
     {
-        if(strncmp(modules[i].name, name, length) == 0) 
+        if(strncmp(modules[i].name, name, len) == 0) 
         {
             return i;
         }
@@ -70,46 +146,46 @@ static bool readable(const char* filename)
 #define SHARED_EXT  ".so"
 #endif
 
-static TeaOString* resolve_filename(TeaState* T, char* dir, char* path_name)
+static GCstr* resolve_filename(tea_State* T, char* dir, char* path_name)
 {
-    TeaOString* file = NULL;
+    GCstr* file = NULL;
 
-    const char* exts[] = { ".tea", /* ".tbc",*/ SHARED_EXT, "/init.tea" };
+    const char* exts[] = { ".tea", ".tbc", SHARED_EXT, "/init.tea" };
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     size_t l;
     for(int i = 0; i < n; i++) 
     {
         l = strlen(path_name) + strlen(exts[i]);
-        char* filename = TEA_ALLOCATE(T, char, l + 1);
+        char* filename = tea_mem_new(T, char, l + 1);
         sprintf(filename, "%s%s", path_name, exts[i]);
 
         char path[PATH_MAX];
-        if(tea_util_resolve_path(dir, filename, path))
+        if(tea_imp_resolvepath(dir, filename, path))
         {
             if(readable(path))
             {
                 file = tea_str_copy(T, path, strlen(path));
-                TEA_FREE_ARRAY(T, char, filename, l + 1);
+                tea_mem_freevec(T, char, filename, l + 1);
                 break;
             }
         }
 
-        TEA_FREE_ARRAY(T, char, filename, l + 1);
+        tea_mem_freevec(T, char, filename, l + 1);
     }
 
     return file;
 }
 
-void tea_imp_relative(TeaState* T, TeaOString* dir, TeaOString* path_name)
+void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
 {
-    TeaOString* path = resolve_filename(T, dir->chars, path_name->chars);
+    GCstr* path = resolve_filename(T, dir->chars, path_name->chars);
     if(path == NULL)
     {
-        tea_vm_error(T, "Could not resolve path \"%s\"", path_name->chars);
+        tea_err_run(T, "Could not resolve path \"%s\"", path_name->chars);
     }
 
-    TeaValue v;
+    Value v;
     if(tea_tab_get(&T->modules, path, &v)) 
     {
         T->last_module = AS_MODULE(v);
@@ -117,29 +193,28 @@ void tea_imp_relative(TeaState* T, TeaOString* dir, TeaOString* path_name)
         return;
     }
 
-    char* source = tea_util_read_file(T, path->chars);
-
-    if(source == NULL) 
-    {
-        tea_vm_error(T, "Could not read \"%s\"", path_name->chars);
-    }
-
-    TeaOModule* module = tea_obj_new_module(T, path);
-    module->path = tea_util_dirname(T, path->chars, path->length);
+    GCmodule* module = tea_obj_new_module(T, path);
+    module->path = tea_imp_dirname(T, path->chars, path->len);
     T->last_module = module;
 
-    int status = tea_do_protectedparser(T, module, source);
-    TEA_FREE_ARRAY(T, char, source, strlen(source) + 1);
+    int status = tea_load_file(T, path->chars);
+    if(status == TEA_ERROR_FILE)
+    {
+        tea_err_run(T, "Could not read \"%s\"", path_name->chars);
+    }
 
     if(status != TEA_OK)
-        tea_do_throw(T, TEA_SYNTAX_ERROR);
+    {
+        tea_pop(T, 1);
+        tea_err_throw(T, TEA_ERROR_SYNTAX);
+    }
 
-    tea_do_call(T, T->top[-1], 0);
+    tea_call(T, 0);
 }
 
-void tea_imp_logical(TeaState* T, TeaOString* name)
+void tea_imp_logical(tea_State* T, GCstr* name)
 {
-    TeaValue v;
+    Value v;
     if(tea_tab_get(&T->modules, name, &v))
     {
         T->last_module = AS_MODULE(v);
@@ -147,37 +222,37 @@ void tea_imp_logical(TeaState* T, TeaOString* name)
         return;
     }
 
-    int index = find_native_module(name->chars, name->length);
+    int index = find_native_module(name->chars, name->len);
     if(index != -1) 
     {
         call_native_module(T, index);
     }
     else
     {
-        TeaOString* module = resolve_filename(T, ".", name->chars);
+        GCstr* module = resolve_filename(T, ".", name->chars);
         if(module == NULL)
         {
-            tea_vm_error(T, "Unknown module \"%s\"", name->chars);
+            tea_err_run(T, "Unknown module \"%s\"", name->chars);
         }
 
         printf("shared %s\n", module->chars);
         if(get_filename_ext(module->chars, SHARED_EXT))
         {
-            const char* symname = tea_push_fstring(T, TEA_POF "%s", name->chars);
+            const char* symname = tea_push_fstring(T, TEA_LL_SYM "%s", name->chars);
 
             void* lib = tea_ll_load(T, module->chars);
-            TeaCFunction fn = tea_ll_sym(T, lib, symname);
+            tea_CFunction fn = tea_ll_sym(T, lib, symname);
             T->top--;
 
-            tea_push_cfunction(T, fn);
+            tea_push_cfunction(T, fn, 0);
             tea_call(T, 0);
         }
         else
         {
-            tea_vm_error(T, "Unknown module \"%s\"", name->chars);
+            tea_err_run(T, "Unknown module \"%s\"", name->chars);
         }
     }
 
-    TeaValue module = T->top[-1];
+    Value module = T->top[-1];
     T->last_module = AS_MODULE(module);
 }

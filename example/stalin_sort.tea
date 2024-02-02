@@ -1,0 +1,21 @@
+// "A single death is a tragedy; a million deaths is a statistic"
+// - Joseph Stalin
+function stalin_sort(array)
+{
+    var l = []
+    var last
+    for(var item in array)
+    {
+        if(not last)
+            last = item
+        if(last <= item)
+        {
+            last = item
+            l.add(item)
+        }
+    }
+    return l
+}
+
+var l = [1, 2, 3, 2, 6, 5, 7, 8, 9]
+print(stalin_sort(l))   // [1, 2, 3, 6, 7, 8, 9]

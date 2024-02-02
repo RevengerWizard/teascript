@@ -1,25 +1,22 @@
 /*
 ** tea_utf.h
-** UTF-8 functions for Teascript
+** UTF-8 functions
 */
 
-#ifndef TEA_UTF_H
-#define TEA_UTF_H
+#ifndef _TEA_UTF_H
+#define _TEA_UTF_H
 
 #include "tea_def.h"
-#include "tea_value.h"
+#include "tea_obj.h"
 
-TEA_FUNC int tea_utf_decode_bytes(uint8_t byte);
-TEA_FUNC int tea_utf_encode_bytes(int value);
-
-TEA_FUNC int tea_utf_length(TeaOString* string);
-TEA_FUNC int tea_utf_decode(const uint8_t* bytes, uint32_t length);
+TEA_FUNC int tea_utf_len(GCstr* string);
+TEA_FUNC int tea_utf_decode(const uint8_t* bytes, uint32_t len);
 TEA_FUNC int tea_utf_encode(int value, uint8_t* bytes);
 
-TEA_FUNC TeaOString* tea_utf_codepoint_at(TeaState* T, TeaOString* string, uint32_t index);
-TEA_FUNC TeaOString* tea_utf_from_codepoint(TeaState* T, int value);
-TEA_FUNC TeaOString* tea_utf_from_range(TeaState* T, TeaOString* source, int start, uint32_t count, int step);
-TEA_FUNC TeaOString* tea_utf_reverse(TeaState* T, TeaOString* string);
+TEA_FUNC GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* string, uint32_t index);
+TEA_FUNC GCstr* tea_utf_from_codepoint(tea_State* T, int value);
+TEA_FUNC GCstr* tea_utf_from_range(tea_State* T, GCstr* source, int start, uint32_t count, int step);
+TEA_FUNC GCstr* tea_utf_reverse(tea_State* T, GCstr* string);
 
 TEA_FUNC int tea_utf_char_offset(char* str, int index);
 

@@ -1,6 +1,6 @@
 /*
 ** tea_arch.h
-** Teascript os defines
+** Target OS definitions
 */
 
 #ifndef TEA_ARCH_H

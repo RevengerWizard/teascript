@@ -4,7 +4,7 @@ A nice and calm dynamically typed programming language.
 
 It tries to mix the familiarity of Javascript, the simplicity of Python and the ease of use of Lua's C API.
 
-You can now try Teascript [in your browser](https://revengerwizard.github.io/wasm-tea)
+You can now try Teascript [inside your browser](https://revengerwizard.github.io/wasm-tea)
 
 ## Building
 
@@ -15,13 +15,13 @@ git clone https://github.com/RevengerWizard/teascript && cd teascript
 make
 ```
 
-Once it's been compiled, you should now be able to access `tea` within your console. Let's write our simple first program:
+Once it's been compiled, you should now be able to access the program `tea` from within your terminal console. Let's write our first simple program:
 
-```js
+```tea
 print("Hello World!")
 ```
 
-Now that you've done that, run it using `tea`, followed by the name of the file ending with a `.tea` extension:
+Now that you've done that, run it using `tea`, followed by the name of the file ending with the `.tea` extension:
 
 ```bash
 tea hello.tea

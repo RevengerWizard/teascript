@@ -1,0 +1,14 @@
+var fact = x => {
+    if(x == 0)
+        return 1
+    else
+        return x * fact(x - 1)
+}
+print(fact(10))
+
+print((a => v => a(a, v))((s, x) => { return (x == 0) ? 1 : x * s(s, x - 1) })(10))
+
+var a = (a => v => a(a, v))((s, x) => { return (x == 0) ? 1 : x * s(s, x - 1) })(10)
+print(a);
+
+(a => v => a(a, v))((s, x) => { return (x == 0) ? 1 : x * s(s, x - 1) })(10)
