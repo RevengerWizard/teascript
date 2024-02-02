@@ -40,22 +40,23 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     tea_vm_pop(T, 1);
     if(T->last_module != NULL && T->last_module->name == module->name)
     {
-        goto skip;
-    }
-
-    char c = name[0];
-    tea_vm_push(T, OBJECT_VAL(module));
-    if(c != '<' && c != '?' && c != '=')
-    {
-        module->path = tea_imp_getdir(T, (char*)name);
+        /* Already found the path */
     }
     else
     {
-        module->path = tea_str_lit(T, ".");
+        char c = name[0];
+        tea_vm_push(T, OBJECT_VAL(module));
+        if(c != '<' && c != '?' && c != '=')
+        {
+            module->path = tea_imp_getdir(T, (char*)name);
+        }
+        else
+        {
+            module->path = tea_str_lit(T, ".");
+        }
+        tea_vm_pop(T, 1);
     }
-    tea_vm_pop(T, 1);
 
-    skip:
     Lexer lex;
     lex.module = module;
     lex.reader = reader;
