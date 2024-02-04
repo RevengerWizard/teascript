@@ -28,6 +28,11 @@ TEA_DATADEF const char* const tea_val_typenames[] = {
     "string", "range", "function", "module", "class", "instance", "list", "map", "file"
 };
 
+TEA_DATADEF const char* const tea_obj_typenames[] = {
+    "string", "range", "proto", "function", "module", "function", "upvalue",
+    "class", "instance", "function", "list", "map", "file"
+};
+
 GCobj* tea_obj_alloc(tea_State* T, size_t size, ObjType type)
 {
     GCobj* object = (GCobj*)tea_mem_realloc(T, NULL, 0, size);
@@ -578,50 +583,6 @@ bool tea_val_equal(Value a, Value b)
 #endif
 }
 
-static const char* obj_type(Value a)
-{
-    switch(OBJECT_TYPE(a))
-    {
-        case OBJ_UPVALUE:
-            return "upvalue";
-        case OBJ_FILE:
-            return "file";
-        case OBJ_RANGE:
-            return "range";
-        case OBJ_MODULE:
-            return "module";
-        case OBJ_CLASS:
-            return "class";
-        case OBJ_METHOD:
-            return "method";
-        case OBJ_INSTANCE:
-            return "instance";
-        case OBJ_STRING:
-            return "string";
-        case OBJ_LIST:
-            return "list";
-        case OBJ_MAP:
-            return "map";
-        case OBJ_CFUNC:
-        {
-            switch(AS_CFUNC(a)->type)
-            {
-                case C_FUNCTION:
-                case C_METHOD:
-                    return "function";
-                case C_PROPERTY:
-                    return "property";
-            }
-        }
-        case OBJ_FUNC:
-        case OBJ_PROTO:
-            return "function";
-        default:
-            break;
-    }
-    return "unknown";
-}
-
 const char* tea_val_type(Value a)
 {
 #ifdef TEA_NAN_TAGGING
@@ -639,7 +600,7 @@ const char* tea_val_type(Value a)
     }
     else if(IS_OBJECT(a))
     {
-        return obj_type(a);
+        return tea_obj_typenames[OBJECT_TYPE(a)];
     }
 #else
     switch(a.type)
@@ -651,7 +612,7 @@ const char* tea_val_type(Value a)
         case VAL_NUMBER:
             return "number";
         case VAL_OBJECT:
-            return obj_type(a);
+            return tea_obj_typenames[OBJECT_TYPE(a)];
         default:
             break;
     }

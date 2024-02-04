@@ -30,16 +30,16 @@
 
 typedef uint64_t Value;
 
-#define IS_BOOL(value)      (((value) | 1) == TRUE_VAL)
-#define IS_NULL(value)      ((value) == NULL_VAL)
-#define IS_NUMBER(value)    (((value) & QNAN) != QNAN)
-#define IS_OBJECT(value) \
-    (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
+#define IS_BOOL(v)      (((v) | 1) == TRUE_VAL)
+#define IS_NULL(v)      ((v) == NULL_VAL)
+#define IS_NUMBER(v)    (((v) & QNAN) != QNAN)
+#define IS_OBJECT(v) \
+    (((v) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
 
-#define AS_BOOL(value)      ((value) == TRUE_VAL)
-#define AS_NUMBER(value) value2num(value)
-#define AS_OBJECT(value) \
-    ((GCobj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
+#define AS_BOOL(v)      ((v) == TRUE_VAL)
+#define AS_NUMBER(v) value2num(v)
+#define AS_OBJECT(v) \
+    ((GCobj*)(uintptr_t)((v) & ~(SIGN_BIT | QNAN)))
 
 #define BOOL_VAL(b)     ((b) ? TRUE_VAL : FALSE_VAL)
 #define FALSE_VAL       ((Value)(uint64_t)(QNAN | TAG_FALSE))
@@ -100,7 +100,7 @@ typedef struct
 #define TRUE_VAL ((Value){VAL_BOOL, {.boolean = true}})
 #define NULL_VAL ((Value){VAL_NULL, {.number = 0}})
 #define NUMBER_VAL(v) ((Value){VAL_NUMBER, {.number = v}})
-#define OBJECT_VAL(object) ((Value){VAL_OBJECT, {.obj = (GCobj*)object}})
+#define OBJECT_VAL(obj) ((Value){VAL_OBJECT, {.obj = (GCobj*)obj}})
 
 #endif
 
@@ -342,6 +342,7 @@ TEA_FUNC double tea_val_tonumber(Value value, bool* x);
 TEA_FUNC GCstr* tea_val_tostring(tea_State* T, Value value, int depth);
 
 TEA_DATA const char* const tea_val_typenames[];
+TEA_DATA const char* const tea_obj_typenames[];
 
 static TEA_INLINE bool tea_obj_istype(Value value, ObjType type)
 {
