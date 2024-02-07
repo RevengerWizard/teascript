@@ -177,13 +177,13 @@ static void bcemit_return(Parser* parser)
     bcemit_byte(parser, BC_RETURN);
 }
 
-static int add_constant(tea_State* T, GCproto* f, Value value)
+static int add_constant(tea_State* T, GCproto* f, TValue value)
 {
     tea_vm_push(T, value);
 
     if(f->k_size < f->k_count + 1)
     {
-        f->k = tea_mem_growvec(T, Value, f->k, f->k_size, INT_MAX);
+        f->k = tea_mem_growvec(T, TValue, f->k, f->k_size, INT_MAX);
     }
     f->k[f->k_count] = value;
     f->k_count++;
@@ -193,7 +193,7 @@ static int add_constant(tea_State* T, GCproto* f, Value value)
     return f->k_count - 1;
 }
 
-static uint8_t make_constant(Parser* parser, Value value)
+static uint8_t make_constant(Parser* parser, TValue value)
 {
     int constant = add_constant(parser->lex->T, parser->proto, value);
     if(constant > UINT8_MAX)
@@ -210,7 +210,7 @@ static void bcemit_invoke(Parser* parser, int args, const char* name)
     bcemit_byte(parser, args);
 }
 
-static void bcemit_constant(Parser* parser, Value value)
+static void bcemit_constant(Parser* parser, TValue value)
 {
     bcemit_argued(parser, BC_CONSTANT, make_constant(parser, value));
 }
@@ -362,7 +362,7 @@ static void parse_block(Parser* parser);
 
 static uint8_t identifier_constant(Parser* parser, Token* name)
 {
-    return make_constant(parser, OBJECT_VAL(name->value));
+    return make_constant(parser, name->value);
 }
 
 static bool identifiers_equal(Token* a, Token* b)
@@ -512,7 +512,7 @@ static void define_variable(Parser* parser, uint8_t global, bool constant)
         tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL_VAL);
     }
 
-    Value value;
+    TValue value;
     if(tea_tab_get(&parser->lex->T->globals, string, &value))
     {
         bcemit_argued(parser, BC_DEFINE_GLOBAL, global);
@@ -852,7 +852,7 @@ static void expr_map(Parser* parser, bool assign)
             else
             {
                 lex_consume(parser, TK_NAME, "Expect key name");
-                bcemit_constant(parser, OBJECT_VAL(parser->lex->prev.value));
+                bcemit_constant(parser, parser->lex->prev.value);
                 lex_consume(parser, '=', "Expected '=' after key name");
                 expr(parser);
             }
@@ -1057,7 +1057,7 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
         case BC_SET_MODULE:
         {
             GCstr* string = AS_STRING(parser->proto->k[arg]);
-            Value _;
+            TValue _;
             if(tea_tab_get(&parser->lex->T->constants, string, &_))
             {
                 error(parser, "Cannot assign to a constant");
@@ -1101,7 +1101,7 @@ static void named_variable(Parser* parser, Token name, bool assign)
     {
         arg = identifier_constant(parser, &name);
         GCstr* string = AS_STRING(name.value);
-        Value value;
+        TValue value;
         if(tea_tab_get(&parser->lex->T->globals, string, &value))
         {
             get_op = BC_GET_GLOBAL;
@@ -1969,7 +1969,7 @@ static void parse_expr_stmt(Parser* parser)
 }
 
 /* Get the number of bytes for the arguments of bytecode instructions */
-static int get_arg_count(uint8_t* code, const Value* constants, int ip)
+static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
 {
     switch(code[ip])
     {
@@ -2413,7 +2413,7 @@ static void parse_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
     {
-        int import_constant = make_constant(parser, OBJECT_VAL(parser->lex->prev.value));
+        int import_constant = make_constant(parser, parser->lex->prev.value);
 
         bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
         bcemit_op(parser, BC_POP);
@@ -2464,7 +2464,7 @@ static void parse_from_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
     {
-        int import_constant = make_constant(parser, OBJECT_VAL(parser->lex->prev.value));
+        int import_constant = make_constant(parser, parser->lex->prev.value);
 
         lex_consume(parser, TK_IMPORT, "Expect 'import' after path");
         bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
@@ -2625,7 +2625,7 @@ static void parse_multiple_assign(Parser* parser)
         {
             arg = identifier_constant(parser, &token);
             GCstr* string = AS_STRING(token.value);
-            Value value;
+            TValue value;
             if(tea_tab_get(&parser->lex->T->globals, string, &value))
             {
                 set_op = BC_SET_GLOBAL;

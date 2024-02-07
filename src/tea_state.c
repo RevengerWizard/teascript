@@ -28,13 +28,13 @@ static void state_free(tea_State* T)
 static void stack_free(tea_State* T)
 {
     tea_mem_freevec(T, CallInfo, T->ci_base, T->ci_size);   /* Free CallInfo array */
-    tea_mem_freevec(T, Value, T->stack, T->stack_size);    /* Free stack array */
+    tea_mem_freevec(T, TValue, T->stack, T->stack_size);    /* Free stack array */
 }
 
 static void stack_init(tea_State* T)
 {
     /* Initialize stack array */
-    T->stack = tea_mem_new(T, Value, BASE_STACK_SIZE + EXTRA_STACK);
+    T->stack = tea_mem_new(T, TValue, BASE_STACK_SIZE + EXTRA_STACK);
     T->stack_size = BASE_STACK_SIZE + EXTRA_STACK;
     T->top = T->stack;
     T->stack_max = T->stack + (T->stack_size - EXTRA_STACK) - 1;
@@ -85,7 +85,7 @@ static void state_init_mms(tea_State* T)
     }
 }
 
-static void state_correct_stack(tea_State* T, Value* old_stack)
+static void state_correct_stack(tea_State* T, TValue* old_stack)
 {
     T->top = (T->top - old_stack) + T->stack;
 
@@ -104,8 +104,8 @@ static void state_correct_stack(tea_State* T, Value* old_stack)
 
 static void state_realloc_stack(tea_State* T, int new_size)
 {
-	Value* old_stack = T->stack;
-	T->stack = tea_mem_reallocvec(T, Value, T->stack, T->stack_size, new_size);
+	TValue* old_stack = T->stack;
+	T->stack = tea_mem_reallocvec(T, TValue, T->stack, T->stack_size, new_size);
 	T->stack_size = new_size;
     T->stack_max = T->stack + new_size - 1 - EXTRA_STACK;
 
@@ -208,7 +208,7 @@ TEA_API void tea_close(tea_State* T)
     state_free(T);
 }
 
-GCclass* tea_state_get_class(tea_State* T, Value value)
+GCclass* tea_state_get_class(tea_State* T, TValue value)
 {
     if(IS_OBJECT(value))
     {

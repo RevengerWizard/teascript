@@ -83,7 +83,7 @@ int tea_func_getline(GCproto* f, int instruction)
     }
 }
 
-GCupvalue* tea_func_new_upvalue(tea_State* T, Value* slot)
+GCupvalue* tea_func_new_upvalue(tea_State* T, TValue* slot)
 {
     GCupvalue* uv = tea_obj_new(T, GCupvalue, OBJ_UPVALUE);
     uv->closed = NULL_VAL;
@@ -93,7 +93,7 @@ GCupvalue* tea_func_new_upvalue(tea_State* T, Value* slot)
     return uv;
 }
 
-GCupvalue* tea_func_capture(tea_State* T, Value* local)
+GCupvalue* tea_func_capture(tea_State* T, TValue* local)
 {
     GCupvalue* prev_upvalue = NULL;
     GCupvalue* upvalue = T->open_upvalues;
@@ -123,7 +123,7 @@ GCupvalue* tea_func_capture(tea_State* T, Value* local)
     return created_upvalue;
 }
 
-void tea_func_close(tea_State* T, Value* last)
+void tea_func_close(tea_State* T, TValue* last)
 {
     while(T->open_upvalues != NULL && T->open_upvalues->location >= last)
     {

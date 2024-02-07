@@ -147,7 +147,7 @@ TEA_API int tea_load_string(tea_State* T, const char* s)
 
 TEA_API int tea_dump(tea_State* T, tea_Writer writer, void* data)
 {
-    Value o = tea_vm_peek(T, 0);
+    TValue o = tea_vm_peek(T, 0);
     if(IS_FUNC(o))
     {
         return tea_bcwrite(T, AS_FUNC(o)->proto, writer, data);

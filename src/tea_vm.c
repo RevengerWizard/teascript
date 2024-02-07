@@ -111,7 +111,7 @@ static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
 
     cfunc->fn(T);
     
-    Value res = T->top[-1];
+    TValue res = T->top[-1];
 
     ci = T->ci--;
 
@@ -122,7 +122,7 @@ static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
     return false;
 }
 
-bool vm_precall(tea_State* T, Value callee, uint8_t arg_count)
+bool vm_precall(tea_State* T, TValue callee, uint8_t arg_count)
 {
     if(IS_OBJECT(callee))
     {
@@ -163,7 +163,7 @@ bool vm_precall(tea_State* T, Value callee, uint8_t arg_count)
 
 static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int arg_count)
 {
-    Value method;
+    TValue method;
     if(!tea_tab_get(&klass->methods, name, &method))
     {
         tea_err_run(T, "Undefined method '%s'", name->chars);
@@ -172,7 +172,7 @@ static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int 
     return vm_precall(T, method, arg_count);
 }
 
-static bool vm_invoke(tea_State* T, Value receiver, GCstr* name, int arg_count)
+static bool vm_invoke(tea_State* T, TValue receiver, GCstr* name, int arg_count)
 {
     if(!IS_OBJECT(receiver))
     {
@@ -185,7 +185,7 @@ static bool vm_invoke(tea_State* T, Value receiver, GCstr* name, int arg_count)
         {
             GCmodule* module = AS_MODULE(receiver);
 
-            Value value;
+            TValue value;
             if(tea_tab_get(&module->values, name, &value))
             {
                 return vm_precall(T, value, arg_count);
@@ -197,7 +197,7 @@ static bool vm_invoke(tea_State* T, Value receiver, GCstr* name, int arg_count)
         {
             GCinstance* instance = AS_INSTANCE(receiver);
 
-            Value value;
+            TValue value;
             if(tea_tab_get(&instance->fields, name, &value))
             {
                 T->top[-arg_count - 1] = value;
@@ -209,7 +209,7 @@ static bool vm_invoke(tea_State* T, Value receiver, GCstr* name, int arg_count)
         case OBJ_CLASS:
         {
             GCclass* klass = AS_CLASS(receiver);
-            Value method;
+            TValue method;
             if(tea_tab_get(&klass->methods, name, &method))
             {
                 if(IS_CFUNC(method) || AS_FUNC(method)->proto->type != PROTO_STATIC)
@@ -227,7 +227,7 @@ static bool vm_invoke(tea_State* T, Value receiver, GCstr* name, int arg_count)
             GCclass* type = tea_state_get_class(T, receiver);
             if(type != NULL)
             {
-                Value value;
+                TValue value;
                 if(tea_tab_get(&type->methods, name, &value))
                 {
                     return vm_precall(T, value, arg_count);
@@ -242,7 +242,7 @@ static bool vm_invoke(tea_State* T, Value receiver, GCstr* name, int arg_count)
 
 static bool vm_bind_method(tea_State* T, GCclass* klass, GCstr* name)
 {
-    Value method;
+    TValue method;
     if(!tea_tab_get(&klass->methods, name, &method))
     {
         tea_err_run(T, "Undefined method '%s'", name->chars);
@@ -254,7 +254,7 @@ static bool vm_bind_method(tea_State* T, GCclass* klass, GCstr* name)
     return true;
 }
 
-static bool vm_slice(tea_State* T, Value object, Value start_index, Value end_index, Value step_index)
+static bool vm_slice(tea_State* T, TValue object, TValue start_index, TValue end_index, TValue step_index)
 {
     if(!IS_NUMBER(step_index) || (!IS_NUMBER(end_index) && !IS_NULL(end_index)) || !IS_NUMBER(step_index))
     {
@@ -362,7 +362,7 @@ static bool vm_slice(tea_State* T, Value object, Value start_index, Value end_in
     return false;
 }
 
-static void vm_subscript(tea_State* T, Value index_value, Value subscript_value)
+static void vm_subscript(tea_State* T, TValue index_value, TValue subscript_value)
 {
     if(!IS_OBJECT(subscript_value))
     {
@@ -377,7 +377,7 @@ static void vm_subscript(tea_State* T, Value index_value, Value subscript_value)
 
             GCstr* subs = T->opm_name[MM_INDEX];
 
-            Value method;
+            TValue method;
             if(tea_tab_get(&instance->klass->methods, subs, &method))
             {
                 tea_vm_push(T, NULL_VAL);
@@ -448,7 +448,7 @@ static void vm_subscript(tea_State* T, Value index_value, Value subscript_value)
                 tea_err_run(T, "Map key isn't hashable");
             }
 
-            Value value;
+            TValue value;
             tea_vm_pop(T, 2);
             if(tea_map_get(map, index_value, &value))
             {
@@ -492,7 +492,7 @@ static void vm_subscript(tea_State* T, Value index_value, Value subscript_value)
     tea_err_run(T, "'%s' is not subscriptable", tea_val_type(subscript_value));
 }
 
-static void vm_subscript_store(tea_State* T, Value item_value, Value index_value, Value subscript_value, bool assign)
+static void vm_subscript_store(tea_State* T, TValue item_value, TValue index_value, TValue subscript_value, bool assign)
 {
     if(!IS_OBJECT(subscript_value))
     {
@@ -507,7 +507,7 @@ static void vm_subscript_store(tea_State* T, Value item_value, Value index_value
 
             GCstr* subs = T->opm_name[MM_INDEX];
 
-            Value method;
+            TValue method;
             if(tea_tab_get(&instance->klass->methods, subs, &method))
             {
                 tea_vm_call(T, method, 2);
@@ -565,7 +565,7 @@ static void vm_subscript_store(tea_State* T, Value item_value, Value index_value
             }
             else
             {
-                Value map_value;
+                TValue map_value;
                 if(!tea_map_get(map, index_value, &map_value))
                 {
                     tea_err_run(T, "Key does not exist within the map");
@@ -582,7 +582,7 @@ static void vm_subscript_store(tea_State* T, Value item_value, Value index_value
     tea_err_run(T, "'%s' does not support item assignment", tea_val_type(subscript_value));
 }
 
-static void vm_get_property(tea_State* T, Value receiver, GCstr* name, bool dopop)
+static void vm_get_property(tea_State* T, TValue receiver, GCstr* name, bool dopop)
 {
     if(!IS_OBJECT(receiver))
     {
@@ -595,7 +595,7 @@ static void vm_get_property(tea_State* T, Value receiver, GCstr* name, bool dopo
         {
             GCinstance* instance = AS_INSTANCE(receiver);
 
-            Value value;
+            TValue value;
             if(tea_tab_get(&instance->fields, name, &value))
             {
                 if(dopop)
@@ -634,7 +634,7 @@ static void vm_get_property(tea_State* T, Value receiver, GCstr* name, bool dopo
 
             while(klass != NULL)
             {
-                Value value;
+                TValue value;
                 if(tea_tab_get(&klass->statics, name, &value))
                 {
                     if(dopop)
@@ -654,7 +654,7 @@ static void vm_get_property(tea_State* T, Value receiver, GCstr* name, bool dopo
         {
             GCmodule* module = AS_MODULE(receiver);
 
-            Value value;
+            TValue value;
             if(tea_tab_get(&module->values, name, &value))
             {
                 if(dopop)
@@ -671,7 +671,7 @@ static void vm_get_property(tea_State* T, Value receiver, GCstr* name, bool dopo
         {
             GCmap* map = AS_MAP(receiver);
 
-            Value value;
+            TValue value;
             if(tea_map_get(map, OBJECT_VAL(name), &value))
             {
                 if(dopop)
@@ -694,7 +694,7 @@ static void vm_get_property(tea_State* T, Value receiver, GCstr* name, bool dopo
             GCclass* klass = tea_state_get_class(T, receiver);
             if(klass != NULL)
             {
-                Value value;
+                TValue value;
                 if(tea_tab_get(&klass->methods, name, &value))
                 {
                     if(IS_CFUNC(value) && AS_CFUNC(value)->type == C_PROPERTY)
@@ -719,7 +719,7 @@ static void vm_get_property(tea_State* T, Value receiver, GCstr* name, bool dopo
     tea_err_run(T, "'%s' has no property '%s'", tea_val_type(receiver), name->chars);
 }
 
-static void vm_set_property(tea_State* T, GCstr* name, Value receiver, Value item)
+static void vm_set_property(tea_State* T, GCstr* name, TValue receiver, TValue item)
 {
     if(IS_OBJECT(receiver))
     {
@@ -762,7 +762,7 @@ static void vm_set_property(tea_State* T, GCstr* name, Value receiver, Value ite
                 GCclass* klass = tea_state_get_class(T, receiver);
                 if(klass != NULL)
                 {
-                    Value value;
+                    TValue value;
                     if(tea_tab_get(&klass->methods, name, &value))
                     {
                         if(IS_CFUNC(value) && AS_CFUNC(value)->type == C_PROPERTY)
@@ -782,14 +782,14 @@ static void vm_set_property(tea_State* T, GCstr* name, Value receiver, Value ite
 
 static void vm_define_method(tea_State* T, GCstr* name)
 {
-    Value method = tea_vm_peek(T, 0);
+    TValue method = tea_vm_peek(T, 0);
     GCclass* klass = AS_CLASS(tea_vm_peek(T, 1));
     tea_tab_set(T, &klass->methods, name, method);
     if(name == T->constructor_string) klass->constructor = method;
     tea_vm_pop(T, 1);
 }
 
-static bool vm_get_opmethod(tea_State* T, GCstr* key, Value v, Value* method)
+static bool vm_get_opmethod(tea_State* T, GCstr* key, TValue v, TValue* method)
 {
     GCclass* klass = tea_state_get_class(T, v);
     if(klass == NULL)
@@ -798,11 +798,11 @@ static bool vm_get_opmethod(tea_State* T, GCstr* key, Value v, Value* method)
     return tea_tab_get(&klass->methods, key, method);
 }
 
-static void vm_unary_arith(tea_State* T, MMS op, Value v)
+static void vm_unary_arith(tea_State* T, MMS op, TValue v)
 {
     GCstr* method_name = T->opm_name[op];
 
-    Value method;
+    TValue method;
     if(!vm_get_opmethod(T, method_name, v, &method))
     {
         tea_err_run(T, "Attempt to use '%s' unary operator with %s", method_name->chars, tea_val_type(v));
@@ -815,11 +815,11 @@ static void vm_unary_arith(tea_State* T, MMS op, Value v)
     tea_vm_call(T, method, 2);
 }
 
-static void vm_arith(tea_State* T, MMS op, Value a, Value b)
+static void vm_arith(tea_State* T, MMS op, TValue a, TValue b)
 {
     GCstr* method_name = T->opm_name[op];
 
-    Value method;
+    TValue method;
     bool found = vm_get_opmethod(T, method_name, a, &method);    /* try first operand */
     if(!found)
     {
@@ -837,11 +837,11 @@ static void vm_arith(tea_State* T, MMS op, Value a, Value b)
     tea_vm_call(T, method, 2);
 }
 
-static bool vm_arith_comp(tea_State* T, MMS op, Value a, Value b)
+static bool vm_arith_comp(tea_State* T, MMS op, TValue a, TValue b)
 {
     GCstr* method_name = T->opm_name[op];
 
-    Value method;
+    TValue method;
     bool found = vm_get_opmethod(T, method_name, a, &method);    /* try first operand */
     if(!found)
     {
@@ -860,11 +860,11 @@ static bool vm_arith_comp(tea_State* T, MMS op, Value a, Value b)
     return true;
 }
 
-static bool vm_iterator_call(tea_State* T, MMS op, Value receiver)
+static bool vm_iterator_call(tea_State* T, MMS op, TValue receiver)
 {
     GCstr* method_name = T->opm_name[op];
 
-    Value method;
+    TValue method;
     GCclass* klass = tea_state_get_class(T, receiver);
     if(klass == NULL)
         return false;
@@ -911,8 +911,8 @@ static void vm_execute(tea_State* T)
 #define BINARY_OP(value_type, expr, op_method, type) \
     do \
     { \
-        Value v1 = PEEK(1); \
-        Value v2 = PEEK(0); \
+        TValue v1 = PEEK(1); \
+        TValue v2 = PEEK(0); \
         if(IS_NUMBER(v1) && IS_NUMBER(v2)) \
         { \
             type b = AS_NUMBER(POP()); \
@@ -931,7 +931,7 @@ static void vm_execute(tea_State* T)
 #define UNARY_OP(value_type, expr, op_method, type) \
     do \
     { \
-        Value v1 = PEEK(0); \
+        TValue v1 = PEEK(0); \
         if(IS_NUMBER(v1)) \
         { \
             type v = AS_NUMBER(v1); \
@@ -973,7 +973,7 @@ static void vm_execute(tea_State* T)
 #endif
 
     uint8_t* ip;
-    Value* base;
+    TValue* base;
 
     READ_FRAME();
     (T->ci - 1)->state = CIST_REENTRY;
@@ -1011,7 +1011,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_PRINT):
             {
-                Value value = PEEK(0);
+                TValue value = PEEK(0);
                 if(!IS_NULL(value))
                 {
                     tea_tab_set(T, &T->globals, T->repl_string, value);
@@ -1039,7 +1039,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_GET_GLOBAL):
             {
                 GCstr* name = READ_STRING();
-                Value value;
+                TValue value;
                 if(!tea_tab_get(&T->globals, name, &value))
                 {
                     RUNTIME_ERROR("Undefined variable '%s'", name->chars);
@@ -1060,7 +1060,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_GET_MODULE):
             {
                 GCstr* name = READ_STRING();
-                Value value;
+                TValue value;
                 if(!tea_tab_get(&T->ci->func->proto->module->values, name, &value))
                 {
                     RUNTIME_ERROR("Undefined variable '%s'", name->chars);
@@ -1089,7 +1089,7 @@ static void vm_execute(tea_State* T)
                 ** Cannot have more than 255 args to a function, so
                 ** we can define this with a constant limit
                 */
-                Value values[255];
+                TValue values[255];
                 int index;
 
                 for(index = 0; index < arity_optional + arg_count; index++)
@@ -1142,7 +1142,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_GET_PROPERTY):
             {
-                Value receiver = PEEK(0);
+                TValue receiver = PEEK(0);
                 GCstr* name = READ_STRING();
                 STORE_FRAME;
                 vm_get_property(T, receiver, name, true);
@@ -1151,7 +1151,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_GET_PROPERTY_NO_POP):
             {
-                Value receiver = PEEK(0);
+                TValue receiver = PEEK(0);
                 GCstr* name = READ_STRING();
                 STORE_FRAME;
                 vm_get_property(T, receiver, name, false);
@@ -1161,8 +1161,8 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_SET_PROPERTY):
             {
                 GCstr* name = READ_STRING();
-                Value receiver = PEEK(1);
-                Value item = PEEK(0);
+                TValue receiver = PEEK(1);
+                TValue item = PEEK(0);
                 STORE_FRAME;
                 vm_set_property(T, name, receiver, item);
                 READ_FRAME();
@@ -1178,9 +1178,9 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_RANGE):
             {
-                Value c = POP();
-                Value b = POP();
-                Value a = POP();
+                TValue c = POP();
+                TValue b = POP();
+                TValue a = POP();
 
                 if(!IS_NUMBER(a) || !IS_NUMBER(b) || !IS_NUMBER(c))
                 {
@@ -1272,8 +1272,8 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_SUBSCRIPT):
             {
-                Value list = PEEK(1);
-                Value index = PEEK(0);
+                TValue list = PEEK(1);
+                TValue index = PEEK(0);
                 STORE_FRAME;
                 vm_subscript(T, index, list);
                 READ_FRAME();
@@ -1281,9 +1281,9 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_SUBSCRIPT_STORE):
             {
-                Value list = PEEK(2);
-                Value index = PEEK(1);
-                Value item = PEEK(0);
+                TValue list = PEEK(2);
+                TValue index = PEEK(1);
+                TValue item = PEEK(0);
                 STORE_FRAME;
                 vm_subscript_store(T, item, index, list, true);
                 READ_FRAME();
@@ -1291,9 +1291,9 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_SUBSCRIPT_PUSH):
             {
-                Value list = PEEK(2);
-                Value index = PEEK(1);
-                Value item = PEEK(0);
+                TValue list = PEEK(2);
+                TValue index = PEEK(1);
+                TValue item = PEEK(0);
                 STORE_FRAME;
                 vm_subscript_store(T, item, index, list, false);
                 READ_FRAME();
@@ -1301,10 +1301,10 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_SLICE):
             {
-                Value object = PEEK(3);
-                Value start = PEEK(2);
-                Value end = PEEK(1);
-                Value step = PEEK(0);
+                TValue object = PEEK(3);
+                TValue start = PEEK(2);
+                TValue end = PEEK(1);
+                TValue step = PEEK(0);
                 STORE_FRAME;
                 vm_slice(T, object, start, end, step);
                 DISPATCH();
@@ -1312,7 +1312,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_LIST_ITEM):
             {
                 GClist* list = AS_LIST(PEEK(1));
-                Value item = PEEK(0);
+                TValue item = PEEK(0);
 
                 if(IS_RANGE(item))
                 {
@@ -1348,8 +1348,8 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_MAP_FIELD):
             {
                 GCmap* map = AS_MAP(PEEK(2));
-                Value key = PEEK(1);
-                Value value = PEEK(0);
+                TValue key = PEEK(1);
+                TValue value = PEEK(0);
 
                 if(!tea_map_hashable(key))
                 {
@@ -1362,8 +1362,8 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_IS):
             {
-                Value instance = PEEK(1);
-                Value klass = PEEK(0);
+                TValue instance = PEEK(1);
+                TValue klass = PEEK(0);
 
                 if(!IS_CLASS(klass))
                 {
@@ -1398,8 +1398,8 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_IN):
             {
-                Value value = PEEK(1);
-                Value object = PEEK(0);
+                TValue value = PEEK(1);
+                TValue object = PEEK(0);
                 DROP(2);
                 PUSH(object); PUSH(value);
                 STORE_FRAME;
@@ -1412,8 +1412,8 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_EQUAL):
             {
-                Value a = PEEK(1);
-                Value b = PEEK(0);
+                TValue a = PEEK(1);
+                TValue b = PEEK(0);
                 if(IS_INSTANCE(a) || IS_INSTANCE(b))
                 {
                     STORE_FRAME;
@@ -1526,8 +1526,8 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_MULTI_CASE):
             {
                 int count = READ_BYTE();
-                Value switch_value = PEEK(count + 1);
-                Value case_value = POP();
+                TValue switch_value = PEEK(count + 1);
+                TValue case_value = POP();
                 for(int i = 0; i < count; i++)
                 {
                     if(tea_val_equal(switch_value, case_value))
@@ -1548,7 +1548,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_COMPARE_JUMP):
             {
                 uint16_t offset = READ_SHORT();
-                Value a = POP();
+                TValue a = POP();
                 if(!tea_val_equal(PEEK(0), a))
                 {
                     ip += offset;
@@ -1654,7 +1654,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_RETURN):
             {
-                Value result = POP();
+                TValue result = POP();
                 tea_func_close(T, base);
                 STORE_FRAME;
                 T->ci--;
@@ -1680,8 +1680,8 @@ static void vm_execute(tea_State* T)
                 uint8_t slot1 = READ_BYTE();    /* seq */
                 uint8_t slot2 = READ_BYTE();    /* iter */
 
-                Value seq = base[slot1];
-                Value iter = base[slot2];
+                TValue seq = base[slot1];
+                TValue iter = base[slot2];
 
                 PUSH(seq);
                 PUSH(iter);
@@ -1704,8 +1704,8 @@ static void vm_execute(tea_State* T)
                 uint8_t slot1 = READ_BYTE();    /* seq */
                 uint8_t slot2 = READ_BYTE();    /* iter */
 
-                Value seq = base[slot1];
-                Value iter = base[slot2];
+                TValue seq = base[slot1];
+                TValue iter = base[slot2];
 
                 PUSH(seq);
                 PUSH(iter);
@@ -1735,7 +1735,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_INHERIT):
             {
-                Value super = PEEK(1);
+                TValue super = PEEK(1);
 
                 if(!IS_CLASS(super))
                 {
@@ -1796,7 +1796,7 @@ static void vm_execute(tea_State* T)
             {
                 GCstr* variable = READ_STRING();
 
-                Value module_variable;
+                TValue module_variable;
                 if(!tea_tab_get(&T->last_module->values, variable, &module_variable))
                 {
                     RUNTIME_ERROR("%s can't be found in module %s", variable->chars, T->last_module->name->chars);
@@ -1855,7 +1855,7 @@ int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
     int status = tea_err_protected(T, func, u);
     if(status != TEA_OK)    /* An error occurred? */
     {
-        Value* old = stackrestore(T, old_top);
+        TValue* old = stackrestore(T, old_top);
         T->open_upvalues = NULL;
         T->nccalls = oldnccalls;
         T->ci = cirestore(T, old_ci);
@@ -1867,7 +1867,7 @@ int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
     return status;
 }
 
-void tea_vm_call(tea_State* T, Value func, int arg_count)
+void tea_vm_call(tea_State* T, TValue func, int arg_count)
 {
     if(++T->nccalls >= TEA_MAX_CCALLS)
     {

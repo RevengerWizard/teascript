@@ -57,7 +57,7 @@ static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
     }
 }
 
-bool tea_tab_get(Table* table, GCstr* key, Value* value)
+bool tea_tab_get(Table* table, GCstr* key, TValue* value)
 {
     if(table->count == 0)
         return false;
@@ -100,7 +100,7 @@ static void tab_adjust_size(tea_State* T, Table* table, int size)
 
 #define TABLE_MAX_LOAD 0.75
 
-bool tea_tab_set(tea_State* T, Table* table, GCstr* key, Value value)
+bool tea_tab_set(tea_State* T, Table* table, GCstr* key, TValue value)
 {
     if(table->count + 1 > table->size * TABLE_MAX_LOAD)
     {

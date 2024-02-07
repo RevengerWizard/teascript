@@ -57,8 +57,9 @@ typedef tea_Class tea_Instance;
 
 #define TEA_MASK_NONE       (1 << TEA_TYPE_NONE)
 #define TEA_MASK_NULL       (1 << TEA_TYPE_NULL)
-#define TEA_MASK_NUMBER     (1 << TEA_TYPE_NUMBER)
 #define TEA_MASK_BOOL       (1 << TEA_TYPE_BOOL)
+#define TEA_MASK_NUMBER     (1 << TEA_TYPE_NUMBER)
+#define TEA_MASK_POINTER    (1 << TEA_TYPE_POINTER)
 #define TEA_MASK_STRING     (1 << TEA_TYPE_STRING)
 #define TEA_MASK_RANGE      (1 << TEA_TYPE_RANGE)
 #define TEA_MASK_FUNCTION   (1 << TEA_TYPE_FUNCTION)
@@ -85,8 +86,9 @@ enum
 {
     TEA_TYPE_NONE,
     TEA_TYPE_NULL,
-    TEA_TYPE_NUMBER,
     TEA_TYPE_BOOL,
+    TEA_TYPE_NUMBER,
+    TEA_TYPE_POINTER,
     TEA_TYPE_STRING,
     TEA_TYPE_RANGE,
     TEA_TYPE_FUNCTION,
@@ -124,6 +126,7 @@ TEA_API double tea_get_number(tea_State* T, int index);
 TEA_API bool tea_get_bool(tea_State* T, int index);
 TEA_API void tea_get_range(tea_State* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_get_lstring(tea_State* T, int index, int* len);
+TEA_API const void* tea_get_pointer(tea_State* T, int index);
 
 TEA_API bool tea_is_object(tea_State* T, int index);
 TEA_API bool tea_is_cfunction(tea_State* T, int index);
@@ -132,6 +135,7 @@ TEA_API bool tea_to_bool(tea_State* T, int index);
 TEA_API double tea_to_numberx(tea_State* T, int index, bool* is_num);
 TEA_API const char* tea_to_lstring(tea_State* T, int index, int* len);
 TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int index);
+TEA_API const void* tea_to_pointer(tea_State* T, int index);
 
 TEA_API bool tea_equal(tea_State* T, int index1, int index2);
 TEA_API bool tea_rawequal(tea_State* T, int index1, int index2);
@@ -140,6 +144,7 @@ TEA_API void tea_concat(tea_State* T);
 
 TEA_API void tea_pop(tea_State* T, int n);
 
+TEA_API void tea_push_pointer(tea_State* T, void* p);
 TEA_API void tea_push_null(tea_State* T);
 TEA_API void tea_push_true(tea_State* T);
 TEA_API void tea_push_false(tea_State* T);
@@ -186,12 +191,14 @@ TEA_API bool tea_check_bool(tea_State* T, int index);
 TEA_API void tea_check_range(tea_State* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_check_lstring(tea_State* T, int index, int* len);
 TEA_API tea_CFunction tea_check_cfunction(tea_State* T, int index);
+TEA_API const void* tea_check_pointer(tea_State* T, int index);
 TEA_API int tea_check_option(tea_State* T, int index, const char* def, const char* const options[]);
 
 TEA_API void tea_opt_any(tea_State* T, int index);
 TEA_API bool tea_opt_bool(tea_State* T, int index, bool def);
 TEA_API double tea_opt_number(tea_State* T, int index, double def);
 TEA_API const char* tea_opt_lstring(tea_State* T, int index, const char* def, int* len);
+TEA_API const void* tea_opt_pointer(tea_State* T, int index, void* def);
 
 TEA_API int tea_gc(tea_State* T);
 
@@ -234,6 +241,7 @@ TEA_API void tea_error(tea_State* T, const char* fmt, ...);
 #define tea_is_mask(T, n, m) (tea_get_mask(T, n) & (m))
 #define tea_is_nonenull(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NONE)
 #define tea_is_none(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NONE)
+#define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
 #define tea_is_null(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
 #define tea_is_number(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NUMBER)
 #define tea_is_bool(T, n) (tea_get_type(T, (n)) == TEA_TYPE_BOOL)

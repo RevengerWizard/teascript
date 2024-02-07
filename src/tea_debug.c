@@ -13,7 +13,7 @@
 #include "tea_func.h"
 #include "tea_bc.h"
 
-static void debug_object(Value object)
+static void debug_object(TValue object)
 {
     switch(OBJECT_TYPE(object))
     {
@@ -72,7 +72,7 @@ static void debug_object(Value object)
     }
 }
 
-void tea_debug_value(Value value)
+void tea_debug_value(TValue value)
 {
     if(IS_BOOL(value))
     {
@@ -159,7 +159,7 @@ static int debug_jump(int sign, GCproto* f, int offset)
 void tea_debug_stack(tea_State* T)
 {
     printf("          ");
-    for(Value* slot = T->stack; slot < T->top; slot++)
+    for(TValue* slot = T->stack; slot < T->top; slot++)
     {
         if(slot == T->base)
             printf("[ ^");

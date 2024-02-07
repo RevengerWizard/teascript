@@ -48,7 +48,7 @@ void tea_gc_markobj(tea_State* T, GCobj* object)
     T->gray_stack[T->gray_count++] = object;
 }
 
-void tea_gc_markval(tea_State* T, Value value)
+void tea_gc_markval(tea_State* T, TValue value)
 {
     if(IS_OBJECT(value))
         tea_gc_markobj(T, AS_OBJECT(value));
@@ -60,7 +60,7 @@ static void gc_blacken_object(tea_State* T, GCobj* object)
     printf("%p blacken %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
 #endif
 
-    switch(object->type)
+    switch(object->tt)
     {
         case OBJ_FILE:
         {
@@ -161,7 +161,7 @@ static void gc_free_object(tea_State* T, GCobj* object)
     printf("%p free %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
 #endif
 
-    switch(object->type)
+    switch(object->tt)
     {
         case OBJ_RANGE:
         {
@@ -188,7 +188,7 @@ static void gc_free_object(tea_State* T, GCobj* object)
         case OBJ_LIST:
         {
             GClist* list = (GClist*)object;
-            tea_mem_freevec(T, Value, list->items, list->size);
+            tea_mem_freevec(T, TValue, list->items, list->size);
 		    list->items = NULL;
             list->count = 0;
             list->size = 0;
@@ -227,7 +227,7 @@ static void gc_free_object(tea_State* T, GCobj* object)
             GCproto* proto = (GCproto*)object;
             tea_mem_freevec(T, uint8_t, proto->code, proto->size);
             tea_mem_freevec(T, LineStart, proto->lines, proto->line_size);
-            tea_mem_freevec(T, Value, proto->k, proto->k_size);
+            tea_mem_freevec(T, TValue, proto->k, proto->k_size);
             tea_mem_free(T, GCproto, object);
             break;
         }
@@ -260,7 +260,7 @@ static void gc_free_object(tea_State* T, GCobj* object)
 
 static void gc_mark_roots(tea_State* T)
 {
-    for(Value* slot = T->stack; slot < T->top; slot++)
+    for(TValue* slot = T->stack; slot < T->top; slot++)
     {
         tea_gc_markval(T, *slot);
     }

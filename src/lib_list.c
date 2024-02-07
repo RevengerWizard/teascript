@@ -87,7 +87,7 @@ static void list_remove(tea_State* T)
         return;
     }
 
-    tea_error(T, "Value does not exist within the list");
+    tea_error(T, "TValue does not exist within the list");
 }
 
 static void list_delete(tea_State* T)
@@ -128,7 +128,7 @@ static void list_clear(tea_State* T)
 static void list_insert(tea_State* T)
 {
     GClist* list = AS_LIST(T->base[0]);
-    Value insert_value = T->base[1];
+    TValue insert_value = T->base[1];
     int index = tea_check_number(T, 2);
 
     if(index < 0 || index > list->count)
@@ -140,7 +140,7 @@ static void list_insert(tea_State* T)
     {
         int old_size = list->size;
         list->size = TEA_MEM_GROW(old_size);
-        list->items = tea_mem_reallocvec(T, Value, list->items, old_size, list->size);
+        list->items = tea_mem_reallocvec(T, TValue, list->items, old_size, list->size);
     }
 
     list->count++;

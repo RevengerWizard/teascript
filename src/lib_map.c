@@ -60,9 +60,9 @@ static void map_get(tea_State* T)
     tea_opt_any(T, 2);
 
     GCmap* map = AS_MAP(T->base[0]);
-    Value key = T->base[1];
+    TValue key = T->base[1];
 
-    Value value;
+    TValue value;
     bool b = tea_map_get(map, key, &value);
 
     if(b)
@@ -79,8 +79,8 @@ static void map_set(tea_State* T)
     tea_opt_any(T, 2);
 
     GCmap* map = AS_MAP(T->base[0]);
-    Value key = T->base[1];
-    Value value = T->base[2];
+    TValue key = T->base[1];
+    TValue value = T->base[2];
 
     bool b = tea_map_set(T, map, key, value);
 
@@ -117,16 +117,16 @@ static void map_contains(tea_State* T)
         tea_error(T, "Map key isn't hashable");
     }
 
-    Value _;
+    TValue _;
     tea_push_bool(T, tea_map_get(map, T->base[1], &_));
 }
 
 static void map_delete(tea_State* T)
 {
     GCmap* map = AS_MAP(T->base[0]);
-    Value key = T->base[1];
+    TValue key = T->base[1];
 
-    Value _;
+    TValue _;
     if(!tea_map_hashable(key))
     {
         tea_error(T, "Map key isn't hashable");
@@ -166,8 +166,8 @@ static void map_foreach(tea_State* T)
     {
         if(map->entries[i].empty) continue;
 
-        Value key = map->entries[i].key;
-        Value value = map->entries[i].value;
+        TValue key = map->entries[i].key;
+        TValue value = map->entries[i].value;
 
         tea_push_value(T, 1);
         tea_vm_push(T, key);

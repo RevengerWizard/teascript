@@ -43,18 +43,14 @@ static TEA_INLINE uint32_t map_hash(uint64_t hash)
     return (uint32_t)(hash & 0x3fffffff);
 }
 
-static TEA_INLINE uint32_t map_hash_number(double number)
+static TEA_AINLINE uint32_t map_hash_number(double number)
 {
-#ifdef TEA_NAN_TAGGING
-    return map_hash(num2value(number));
-#else
     return map_hash(number);
-#endif
 }
 
 static uint32_t map_hash_object(GCobj* object)
 {
-    switch(object->type)
+    switch(object->tt)
     {
         case OBJ_STRING:
             return ((GCstr*)object)->hash;
@@ -63,15 +59,9 @@ static uint32_t map_hash_object(GCobj* object)
     }
 }
 
-static uint32_t map_hash_value(Value value)
+static uint32_t map_hash_value(TValue value)
 {
-#ifdef TEA_NAN_TAGGING
-    if(IS_OBJECT(value)) return map_hash_object(AS_OBJECT(value));
-
-    /* Hash the raw bits of the unboxed value */
-    return map_hash(value);
-#else
-    switch(value.type)
+    switch(value.tt)
     {
         case VAL_NULL:  return 1;
         case VAL_NUMBER:   return map_hash_number(AS_NUMBER(value));
@@ -80,10 +70,9 @@ static uint32_t map_hash_value(Value value)
         default:;
     }
     return 0;
-#endif
 }
 
-static MapEntry* map_find_entry(MapEntry* items, int size, Value key)
+static MapEntry* map_find_entry(MapEntry* items, int size, TValue key)
 {
     uint32_t hash = map_hash_value(key);
     uint32_t index = hash & (size - 1);
@@ -116,7 +105,7 @@ static MapEntry* map_find_entry(MapEntry* items, int size, Value key)
     }
 }
 
-bool tea_map_get(GCmap* map, Value key, Value* value)
+bool tea_map_get(GCmap* map, TValue key, TValue* value)
 {
     if(map->count == 0)
         return false;
@@ -161,7 +150,7 @@ static void map_adjust_size(tea_State* T, GCmap* map, int size)
     map->size = size;
 }
 
-bool tea_map_set(tea_State* T, GCmap* map, Value key, Value value)
+bool tea_map_set(tea_State* T, GCmap* map, TValue key, TValue value)
 {
     if(map->count + 1 > map->size * MAP_MAX_LOAD)
     {
@@ -182,7 +171,7 @@ bool tea_map_set(tea_State* T, GCmap* map, Value key, Value value)
     return is_new_key;
 }
 
-bool tea_map_delete(tea_State* T, GCmap* map, Value key)
+bool tea_map_delete(tea_State* T, GCmap* map, TValue key)
 {
     if(map->count == 0)
         return false;

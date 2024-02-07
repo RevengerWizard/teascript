@@ -24,7 +24,7 @@
 
 /* Value type names */
 TEA_DATADEF const char* const tea_val_typenames[] = {
-    "null", "number", "bool",
+    "null", "bool", "number", "pointer",
     "string", "range", "function", "module", "class", "instance", "list", "map", "file"
 };
 
@@ -36,7 +36,7 @@ TEA_DATADEF const char* const tea_obj_typenames[] = {
 GCobj* tea_obj_alloc(tea_State* T, size_t size, ObjType type)
 {
     GCobj* object = (GCobj*)tea_mem_realloc(T, NULL, 0, size);
-    object->type = type;
+    object->tt = type;
     object->marked = false;
 
     object->next = T->objects;
@@ -49,7 +49,7 @@ GCobj* tea_obj_alloc(tea_State* T, size_t size, ObjType type)
     return object;
 }
 
-GCmethod* tea_obj_new_method(tea_State* T, Value receiver, Value method)
+GCmethod* tea_obj_new_method(tea_State* T, TValue receiver, TValue method)
 {
     GCmethod* bound = tea_obj_new(T, GCmethod, OBJ_METHOD);
     bound->receiver = receiver;
@@ -89,11 +89,11 @@ GClist* tea_obj_new_list(tea_State* T)
     return list;
 }
 
-void tea_list_append(tea_State* T, GClist* list, Value value)
+void tea_list_append(tea_State* T, GClist* list, TValue value)
 {
     if(list->size < list->count + 1)
     {
-        list->items = tea_mem_growvec(T, Value, list->items, list->size, INT_MAX);
+        list->items = tea_mem_growvec(T, TValue, list->items, list->size, INT_MAX);
     }
     list->items[list->count] = value;
     list->count++;
@@ -103,7 +103,7 @@ GCmodule* tea_obj_new_module(tea_State* T, GCstr* name)
 {
     char c = name->chars[0];
 
-    Value module_val;
+    TValue module_val;
     if(c != '?' && tea_tab_get(&T->modules, name, &module_val))
     {
         return AS_MODULE(module_val);
@@ -164,7 +164,7 @@ static GCstr* obj_list_tostring(tea_State* T, GClist* list, int depth)
 
     for(int i = 0; i < list->count; i++)
     {
-        Value value = list->items[i];
+        TValue value = list->items[i];
 
         char* element;
         int element_size;
@@ -367,14 +367,14 @@ static GCstr* obj_range_tostring(tea_State* T, GCrange* range)
 
 static GCstr* obj_instance_tostring(tea_State* T, GCinstance* instance)
 {
-    Value tostring;
+    TValue tostring;
     GCstr* _tostring = T->opm_name[MM_TOSTRING];
     if(tea_tab_get(&instance->klass->methods, _tostring, &tostring))
     {
         tea_vm_push(T, OBJECT_VAL(instance));
         tea_vm_call(T, tostring, 0);
 
-        Value result = tea_vm_pop(T, 1);
+        TValue result = tea_vm_pop(T, 1);
         if(!IS_STRING(result))
         {
             tea_err_run(T, "'tostring' must return a string");
@@ -386,7 +386,7 @@ static GCstr* obj_instance_tostring(tea_State* T, GCinstance* instance)
     return tea_str_format(T, "<@ instance>", instance->klass->name);
 }
 
-static GCstr* obj_tostring(tea_State* T, Value value, int depth)
+static GCstr* obj_tostring(tea_State* T, TValue value, int depth)
 {
     if(depth > MAX_TOSTRING_DEPTH)
     {
@@ -438,40 +438,23 @@ static GCstr* obj_tostring(tea_State* T, Value value, int depth)
     return tea_str_lit(T, "unknown");
 }
 
-GCstr* tea_val_tostring(tea_State* T, Value value, int depth)
+GCstr* tea_val_tostring(tea_State* T, TValue value, int depth)
 {
-#ifdef TEA_NAN_TAGGING
-    if(IS_BOOL(value))
-    {
-        return AS_BOOL(value) ? tea_str_lit(T, "true") : tea_str_lit(T, "false");
-    }
-    else if(IS_NULL(value))
-    {
-        return tea_str_lit(T, "null");
-    }
-    else if(IS_NUMBER(value))
-    {
-        return val_numtostring(T, AS_NUMBER(value));
-    }
-    else if(IS_OBJECT(value))
-    {
-        return obj_tostring(T, value, depth);
-    }
-#else
-    switch(value.type)
+    switch(value.tt)
     {
         case VAL_BOOL:
             return AS_BOOL(value) ? tea_str_lit(T, "true") : tea_str_lit(T, "false");
+        case VAL_POINTER:
+            return tea_str_lit(T, "pointer");
         case VAL_NULL:
             return tea_str_lit(T, "null");
         case VAL_NUMBER:
             return val_numtostring(T, AS_NUMBER(value));
         case VAL_OBJECT:
-            return obj_tostring(T, value);
+            return obj_tostring(T, value, depth);
         default:
             break;
     }
-#endif
     return tea_str_lit(T, "unknown");
 }
 
@@ -519,7 +502,7 @@ static bool obj_map_equals(GCmap* a, GCmap* b)
             continue;
         }
 
-        Value value;
+        TValue value;
         if(!tea_map_get(b, entry->key, &value))
         {
             return false;
@@ -534,7 +517,7 @@ static bool obj_map_equals(GCmap* a, GCmap* b)
     return true;
 }
 
-static bool obj_equal(Value a, Value b)
+static bool obj_equal(TValue a, TValue b)
 {
     if(OBJECT_TYPE(a) != OBJECT_TYPE(b)) return false;
 
@@ -552,25 +535,16 @@ static bool obj_equal(Value a, Value b)
     return AS_OBJECT(a) == AS_OBJECT(b);
 }
 
-bool tea_val_equal(Value a, Value b)
+bool tea_val_equal(TValue a, TValue b)
 {
-#ifdef TEA_NAN_TAGGING
-    if(IS_NUMBER(a) && IS_NUMBER(b))
-    {
-        return AS_NUMBER(a) == AS_NUMBER(b);
-    }
-    else if(IS_OBJECT(a) && IS_OBJECT(b))
-    {
-        return obj_equal(a, b);
-    }
-    return a == b;
-#else
-    if(a.type != b.type)
+    if(a.tt != b.tt)
         return false;
-    switch(a.type)
+    switch(a.tt)
     {
         case VAL_BOOL:
             return AS_BOOL(a) == AS_BOOL(b);
+        case VAL_POINTER:
+            return AS_POINTER(a) == AS_POINTER(b);
         case VAL_NULL:
             return true;
         case VAL_NUMBER:
@@ -580,31 +554,14 @@ bool tea_val_equal(Value a, Value b)
         default:
             return false; /* Unreachable */
     }
-#endif
 }
 
-const char* tea_val_type(Value a)
+const char* tea_val_type(TValue a)
 {
-#ifdef TEA_NAN_TAGGING
-    if(IS_BOOL(a))
+    switch(a.tt)
     {
-        return "bool";
-    }
-    else if(IS_NULL(a))
-    {
-        return "null";
-    }
-    else if(IS_NUMBER(a))
-    {
-        return "number";
-    }
-    else if(IS_OBJECT(a))
-    {
-        return tea_obj_typenames[OBJECT_TYPE(a)];
-    }
-#else
-    switch(a.type)
-    {
+        case VAL_POINTER:
+            return "pointer";
         case VAL_BOOL:
             return "bool";
         case VAL_NULL:
@@ -616,23 +573,17 @@ const char* tea_val_type(Value a)
         default:
             break;
     }
-#endif
     return "unknown";
 }
 
-bool tea_val_rawequal(Value a, Value b)
+bool tea_val_rawequal(TValue a, TValue b)
 {
-#ifdef TEA_NAN_TAGGING
-    if(IS_NUMBER(a) && IS_NUMBER(b))
-    {
-        return AS_NUMBER(a) == AS_NUMBER(b);
-    }
-    return a == b;
-#else
-    if(a.type != b.type)
+    if(a.tt != b.tt)
         return false;
-    switch(a.type)
+    switch(a.tt)
     {
+        case VAL_POINTER:
+            return AS_POINTER(a) == AS_POINTER(b);
         case VAL_BOOL:
             return AS_BOOL(a) == AS_BOOL(b);
         case VAL_NULL:
@@ -644,10 +595,9 @@ bool tea_val_rawequal(Value a, Value b)
         default:
             return false; /* Unreachable */
     }
-#endif
 }
 
-double tea_val_tonumber(Value value, bool* x)
+double tea_val_tonumber(TValue value, bool* x)
 {
     if(x != NULL)
         *x = true;

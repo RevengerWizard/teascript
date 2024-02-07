@@ -29,7 +29,7 @@ typedef struct
     GCfuncC* cfunc;
     uint8_t* ip;
     int state;
-    Value* base; /* Base for this function */
+    TValue* base; /* Base for this function */
 } CallInfo;
 
 /*
@@ -62,10 +62,10 @@ MMDEF(MMENUM)
 */
 typedef struct tea_State
 {
-    Value* stack_max;   /* Last free slot in the stack */
-    Value* stack;    /* Stack base */
-    Value* top;  /* First free slot in the stack */
-    Value* base; /* Base of current function */
+    TValue* stack_max;   /* Last free slot in the stack */
+    TValue* stack;    /* Stack base */
+    TValue* top;  /* First free slot in the stack */
+    TValue* base; /* Base of current function */
     int stack_size; 
     CallInfo* ci;    /* CallInfo for current function */
     CallInfo* ci_end;    /* Points after end of ci array */
@@ -109,7 +109,7 @@ typedef struct tea_State
 #define TEA_TRY(T, c, a)    if(setjmp((c)->buf) == 0) { a }
 
 #define stacksave(T, p) ((char*)(p) - (char*)T->stack)
-#define stackrestore(T, n)  ((Value*)((char*)T->stack + (n)))
+#define stackrestore(T, n)  ((TValue*)((char*)T->stack + (n)))
 
 #define cisave(T, p)        ((char*)(p) - (char*)T->ci_base)
 #define cirestore(T, n)     ((CallInfo*)((char*)T->ci_base + (n)))
@@ -121,11 +121,11 @@ TEA_FUNC void tea_state_growci(tea_State* T);
 static TEA_AINLINE void tea_state_checkstack(tea_State* T, int need)
 {
     if((char*)T->stack_max - (char*)T->top <= 
-       (ptrdiff_t)(need)*(ptrdiff_t)sizeof(Value))
+       (ptrdiff_t)(need)*(ptrdiff_t)sizeof(TValue))
         tea_state_growstack(T, need);
 }
 
-TEA_FUNC GCclass* tea_state_get_class(tea_State* T, Value value);
+TEA_FUNC GCclass* tea_state_get_class(tea_State* T, TValue value);
 TEA_FUNC bool tea_state_isclass(tea_State* T, GCclass* klass);
 
 #endif

@@ -71,7 +71,7 @@ static void random_shuffle(tea_State* T)
     for(int i = 0; i < list->count - 1; i++)
     {
         int j = floor(i + rand() / (RAND_MAX / (list->count - i) + 1));
-        Value value = list->items[j];
+        TValue value = list->items[j];
         list->items[j] = list->items[i];
         list->items[i] = value;
     }

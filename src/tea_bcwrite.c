@@ -31,7 +31,7 @@ static char* bcwrite_wuleb128(char* p, uint32_t v)
 }
 
 /* Write number from constants */
-static void bcwrite_knum(BCWriteCtx* ctx, Value v)
+static void bcwrite_knum(BCWriteCtx* ctx, TValue v)
 {
     char* p = tea_buf_more(ctx->T, &ctx->sbuf, 10);
     double num = AS_NUMBER(v);
@@ -61,7 +61,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
 {
     for(int i = 0; i < pt->k_count; i++)
     {
-        Value v = pt->k[i];
+        TValue v = pt->k[i];
         size_t type = 0;
         size_t need = 1;
         char* p;
@@ -114,7 +114,7 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     /* Recursively write children of prototype */
     for(int i = pt->k_count - 1; i >= 0; i--)
     {
-        Value v = pt->k[i];
+        TValue v = pt->k[i];
         if(IS_PROTO(v))
         {
             bcwrite_proto(ctx, AS_PROTO(v));

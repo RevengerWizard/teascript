@@ -1,6 +1,6 @@
 /*
 ** tea_obj.h
-** Teascript values and objects
+** Teascript VM tags, values and objects
 */
 
 #ifndef _TEA_OBJ_H
@@ -13,98 +13,48 @@
 
 #include "tea_def.h"
 
-#ifdef TEA_NAN_TAGGING
-
-#define SIGN_BIT ((uint64_t)0x8000000000000000)
-#define QNAN ((uint64_t)0x7ffc000000000000)
-
-#define MASK_TAG        (7)
-
-#define TAG_NULL        (1)
-#define TAG_FALSE       (2)
-#define TAG_TRUE        (3)
-#define TAG_UNUSED1     (4)
-#define TAG_UNUSED2     (5)
-#define TAG_UNUSED3     (6)
-#define TAG_UNUSED4     (7)
-
-typedef uint64_t Value;
-
-#define IS_BOOL(v)      (((v) | 1) == TRUE_VAL)
-#define IS_NULL(v)      ((v) == NULL_VAL)
-#define IS_NUMBER(v)    (((v) & QNAN) != QNAN)
-#define IS_OBJECT(v) \
-    (((v) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
-
-#define AS_BOOL(v)      ((v) == TRUE_VAL)
-#define AS_NUMBER(v) value2num(v)
-#define AS_OBJECT(v) \
-    ((GCobj*)(uintptr_t)((v) & ~(SIGN_BIT | QNAN)))
-
-#define BOOL_VAL(b)     ((b) ? TRUE_VAL : FALSE_VAL)
-#define FALSE_VAL       ((Value)(uint64_t)(QNAN | TAG_FALSE))
-#define TRUE_VAL        ((Value)(uint64_t)(QNAN | TAG_TRUE))
-#define NULL_VAL        ((Value)(uint64_t)(QNAN | TAG_NULL))
-#define NUMBER_VAL(num) num2value(num)
-#define OBJECT_VAL(obj) \
-    (Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
-
-#define GET_TAG(value)  ((int)((value) & MASK_TAG))
-
-static TEA_INLINE double value2num(Value value)
-{
-    double num;
-    memcpy(&num, &value, sizeof(Value));
-    return num;
-}
-
-static TEA_INLINE Value num2value(double num)
-{
-    Value value;
-    memcpy(&value, &num, sizeof(double));
-    return value;
-}
-
-#else
-
-typedef enum
+enum
 {
     VAL_NULL,
     VAL_BOOL,
     VAL_NUMBER,
+    VAL_POINTER,
     VAL_OBJECT
-} ValueType;
+};
 
+/* Tagged value */
 typedef struct
 {
-    uint8_t type;
+    uint8_t tt;
     union
     {
-        bool boolean;
-        double number;
-        GCobj* obj;
+        bool b;
+        void* p;
+        double n;
+        struct GCobj* gc;
     } as;
-} Value;
+} TValue;
 
-#define IS_BOOL(v) ((v).type == VAL_BOOL)
-#define IS_NULL(v) ((v).type == VAL_NULL)
-#define IS_NUMBER(v) ((v).type == VAL_NUMBER)
-#define IS_OBJECT(v) ((v).type == VAL_OBJECT)
+#define IS_NULL(v) ((v).tt == VAL_NULL)
+#define IS_BOOL(v) ((v).tt == VAL_BOOL)
+#define IS_NUMBER(v) ((v).tt == VAL_NUMBER)
+#define IS_POINTER(v) ((v).tt == VAL_POINTER)
+#define IS_OBJECT(v) ((v).tt == VAL_OBJECT)
 
-#define AS_OBJECT(v) ((v).as.obj)
-#define AS_BOOL(v) ((v).as.boolean)
-#define AS_NUMBER(v) ((v).as.number)
+#define AS_BOOL(v) ((v).as.b)
+#define AS_NUMBER(v) ((v).as.n)
+#define AS_POINTER(v) ((v).as.p)
+#define AS_OBJECT(v) ((v).as.gc)
 
-#define BOOL_VAL(v) ((Value){VAL_BOOL, {.boolean = v}})
-#define FALSE_VAL ((Value){VAL_BOOL, {.boolean = false}})
-#define TRUE_VAL ((Value){VAL_BOOL, {.boolean = true}})
-#define NULL_VAL ((Value){VAL_NULL, {.number = 0}})
-#define NUMBER_VAL(v) ((Value){VAL_NUMBER, {.number = v}})
-#define OBJECT_VAL(obj) ((Value){VAL_OBJECT, {.obj = (GCobj*)obj}})
+#define NULL_VAL ((TValue){VAL_NULL, {.n = 0}})
+#define BOOL_VAL(v) ((TValue){VAL_BOOL, {.b = v}})
+#define FALSE_VAL ((TValue){VAL_BOOL, {.b = false}})
+#define TRUE_VAL ((TValue){VAL_BOOL, {.b = true}})
+#define NUMBER_VAL(v) ((TValue){VAL_NUMBER, {.n = v}})
+#define POINTER_VAL(v) ((TValue){VAL_POINTER, {.p = v}})
+#define OBJECT_VAL(o) ((TValue){VAL_OBJECT, {.gc = (GCobj*)o}})
 
-#endif
-
-#define OBJECT_TYPE(v) (AS_OBJECT(v)->type)
+#define OBJECT_TYPE(v) (AS_OBJECT(v)->tt)
 
 #define IS_CFUNC(v) tea_obj_istype(v, OBJ_CFUNC)
 #define IS_RANGE(v) tea_obj_istype(v, OBJ_RANGE)
@@ -154,7 +104,7 @@ typedef enum
 
 typedef struct GCobj
 {
-    uint8_t type;
+    uint8_t tt;
     uint8_t marked;
     struct GCobj* next;
 } GCobj;
@@ -170,7 +120,7 @@ typedef struct GCstr
 typedef struct
 {
     GCstr* key;
-    Value value;
+    TValue value;
 } TableEntry;
 
 typedef struct
@@ -236,7 +186,7 @@ typedef struct
     uint8_t* code;  /* Bytecode instructions */
     int k_size;
     int k_count;    /* Number of constants */
-    Value* k;  /* Constants used by the function */
+    TValue* k;  /* Constants used by the function */
     int line_count; /* Number of lines for the function definition */
     int line_size;
     LineStart* lines;   /* Map from bytecode ins. to source lines */
@@ -264,13 +214,13 @@ typedef struct
     GCobj obj;
     int count;  /* Number of list items */
     int size;
-    Value* items;  /* Array of list values */
+    TValue* items;  /* Array of list values */
 } GClist;
 
 typedef struct
 {
-    Value key;
-    Value value;
+    TValue key;
+    TValue value;
     bool empty;
 } MapEntry;
 
@@ -285,8 +235,8 @@ typedef struct
 typedef struct GCupvalue
 {
     GCobj obj;
-    Value* location;
-    Value closed;
+    TValue* location;
+    TValue closed;
     struct GCupvalue* next;
 } GCupvalue;
 
@@ -303,7 +253,7 @@ typedef struct GCclass
     GCobj obj;
     GCstr* name;
     struct GCclass* super;
-    Value constructor;
+    TValue constructor;
     Table statics;
     Table methods;
 } GCclass;
@@ -318,38 +268,38 @@ typedef struct
 typedef struct
 {
     GCobj obj;
-    Value receiver;
-    Value method;
+    TValue receiver;
+    TValue method;
 } GCmethod;
 
 TEA_FUNC GCobj* tea_obj_alloc(tea_State* T, size_t size, ObjType type);
 
-TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, Value receiver, Value method);
+TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue receiver, TValue method);
 TEA_FUNC GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass);
 TEA_FUNC GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass);
 
 TEA_FUNC GClist* tea_obj_new_list(tea_State* T);
-TEA_FUNC void tea_list_append(tea_State* T, GClist* list, Value value);
+TEA_FUNC void tea_list_append(tea_State* T, GClist* list, TValue value);
 
 TEA_FUNC GCmodule* tea_obj_new_module(tea_State* T, GCstr* name);
 TEA_FUNC GCfile* tea_obj_new_file(tea_State* T, GCstr* path, GCstr* type);
 TEA_FUNC GCrange* tea_obj_new_range(tea_State* T, double start, double end, double step);
 
-TEA_FUNC const char* tea_val_type(Value a);
-TEA_FUNC bool tea_val_equal(Value a, Value b);
-TEA_FUNC bool tea_val_rawequal(Value a, Value b);
-TEA_FUNC double tea_val_tonumber(Value value, bool* x);
-TEA_FUNC GCstr* tea_val_tostring(tea_State* T, Value value, int depth);
+TEA_FUNC const char* tea_val_type(TValue a);
+TEA_FUNC bool tea_val_equal(TValue a, TValue b);
+TEA_FUNC bool tea_val_rawequal(TValue a, TValue b);
+TEA_FUNC double tea_val_tonumber(TValue value, bool* x);
+TEA_FUNC GCstr* tea_val_tostring(tea_State* T, TValue value, int depth);
 
 TEA_DATA const char* const tea_val_typenames[];
 TEA_DATA const char* const tea_obj_typenames[];
 
-static TEA_INLINE bool tea_obj_istype(Value value, ObjType type)
+static TEA_INLINE bool tea_obj_istype(TValue value, ObjType type)
 {
-    return IS_OBJECT(value) && AS_OBJECT(value)->type == type;
+    return IS_OBJECT(value) && AS_OBJECT(value)->tt == type;
 }
 
-static TEA_INLINE bool tea_obj_isfalse(Value value)
+static TEA_INLINE bool tea_obj_isfalse(TValue value)
 {
     return  IS_NULL(value) ||
             (IS_BOOL(value) && !AS_BOOL(value)) ||

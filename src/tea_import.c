@@ -185,7 +185,7 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
         tea_err_run(T, "Could not resolve path \"%s\"", path_name->chars);
     }
 
-    Value v;
+    TValue v;
     if(tea_tab_get(&T->modules, path, &v)) 
     {
         T->last_module = AS_MODULE(v);
@@ -214,7 +214,7 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
 
 void tea_imp_logical(tea_State* T, GCstr* name)
 {
-    Value v;
+    TValue v;
     if(tea_tab_get(&T->modules, name, &v))
     {
         T->last_module = AS_MODULE(v);
@@ -253,6 +253,6 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         }
     }
 
-    Value module = T->top[-1];
+    TValue module = T->top[-1];
     T->last_module = AS_MODULE(module);
 }

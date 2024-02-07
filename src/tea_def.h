@@ -11,8 +11,6 @@
 #include <stdint.h>
 #include <limits.h>
 
-#define TEA_NAN_TAGGING
-
 #define TEA_MAX_CALLS   1000
 #define TEA_MAX_CCALLS  200
 

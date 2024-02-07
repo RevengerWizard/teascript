@@ -184,7 +184,7 @@ static Token lex_name(Lexer* lex)
 static Token lex_number_token(Lexer* lex, int num)
 {
     errno = 0;
-	Value value;
+	TValue value;
 
     lex_save(lex, '\0');
     const char* buff = lex->sbuf.b;

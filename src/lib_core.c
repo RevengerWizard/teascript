@@ -158,7 +158,7 @@ static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
 static void core_dump(tea_State* T)
 {
     tea_check_function(T, 0);
-    Value fn = T->base[0];
+    TValue fn = T->base[0];
     SBuf* sb = tea_buf_tmp_(T);
     if(!IS_FUNC(fn) || tea_bcwrite(T, AS_FUNC(fn)->proto, writer_buf, sb))
     {

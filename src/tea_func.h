@@ -15,8 +15,8 @@ TEA_FUNC GCproto* tea_func_newproto(tea_State* T, ProtoType type, GCmodule* modu
 TEA_FUNC GCfuncT* tea_func_newT(tea_State* T, GCproto* proto);
 
 /* Upvalues */
-TEA_FUNC GCupvalue* tea_func_new_upvalue(tea_State* T, Value* slot);
-TEA_FUNC GCupvalue* tea_func_capture(tea_State* T, Value* local);
-TEA_FUNC void tea_func_close(tea_State* T, Value* last);
+TEA_FUNC GCupvalue* tea_func_new_upvalue(tea_State* T, TValue* slot);
+TEA_FUNC GCupvalue* tea_func_capture(tea_State* T, TValue* local);
+TEA_FUNC void tea_func_close(tea_State* T, TValue* last);
 
 #endif

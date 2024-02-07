@@ -46,7 +46,7 @@ typedef struct
 {
     int type;
     int line;
-    Value value;
+    TValue value;
 } Token;
 
 /* Teascript lexer state */

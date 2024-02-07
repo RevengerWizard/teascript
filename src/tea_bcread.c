@@ -167,7 +167,7 @@ static double bcread_knum(Lexer* lex)
 /* Read GC constants from function prototype */
 static void bcread_kgc(Lexer* lex, GCproto* f, size_t count)
 {
-    f->k = tea_mem_new(lex->T, Value, count);
+    f->k = tea_mem_new(lex->T, TValue, count);
     f->k_count = count;
     f->k_size = count;
 
@@ -188,7 +188,7 @@ static void bcread_kgc(Lexer* lex, GCproto* f, size_t count)
         }
         else
         {
-            Value v = tea_vm_pop(lex->T, 1);
+            TValue v = tea_vm_pop(lex->T, 1);
             f->k[i] = v;
         }
     }
@@ -291,7 +291,7 @@ GCproto* tea_bcread(Lexer* lex)
         }
         tea_vm_push(T, OBJECT_VAL(pt));
     }
-    Value v = tea_vm_pop(T, 1);
+    TValue v = tea_vm_pop(T, 1);
 
     return AS_PROTO(v);
 }
