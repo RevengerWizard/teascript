@@ -1,6 +1,6 @@
 /*
 ** lib_string.c
-** Teascript string class
+** Teascript String class
 */
 
 #define lib_string_c

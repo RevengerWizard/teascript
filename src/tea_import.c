@@ -97,7 +97,7 @@ GCstr* tea_imp_getdir(tea_State* T, char* source)
     char res[PATH_MAX];
     if(!tea_imp_resolvepath(".", source, res)) 
     {
-        tea_err_run(T, "Unable to resolve path '%s'", source);
+        tea_err_run(T, TEA_ERR_PATH, source);
     }
 
     return tea_imp_dirname(T, res, strlen(res));
@@ -182,7 +182,7 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
     GCstr* path = resolve_filename(T, dir->chars, path_name->chars);
     if(path == NULL)
     {
-        tea_err_run(T, "Could not resolve path \"%s\"", path_name->chars);
+        tea_err_run(T, TEA_ERR_NOPATH, path_name->chars);
     }
 
     TValue v;
@@ -200,7 +200,7 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
     int status = tea_load_file(T, path->chars);
     if(status == TEA_ERROR_FILE)
     {
-        tea_err_run(T, "Could not read \"%s\"", path_name->chars);
+        tea_err_run(T, TEA_ERR_NOPATH, path_name->chars);
     }
 
     if(status != TEA_OK)
@@ -232,7 +232,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         GCstr* module = resolve_filename(T, ".", name->chars);
         if(module == NULL)
         {
-            tea_err_run(T, "Unknown module \"%s\"", name->chars);
+            tea_err_run(T, TEA_ERR_NOMOD, name->chars);
         }
 
         printf("shared %s\n", module->chars);
@@ -249,7 +249,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         }
         else
         {
-            tea_err_run(T, "Unknown module \"%s\"", name->chars);
+            tea_err_run(T, TEA_ERR_NOMOD, name->chars);
         }
     }
 

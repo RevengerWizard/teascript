@@ -122,20 +122,20 @@ TEA_API const char* tea_typeof(tea_State* T, int index);
 
 TEA_API int tea_get_mask(tea_State* T, int index);
 TEA_API int tea_get_type(tea_State* T, int index);
-TEA_API double tea_get_number(tea_State* T, int index);
 TEA_API bool tea_get_bool(tea_State* T, int index);
+TEA_API double tea_get_number(tea_State* T, int index);
+TEA_API const void* tea_get_pointer(tea_State* T, int index);
 TEA_API void tea_get_range(tea_State* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_get_lstring(tea_State* T, int index, int* len);
-TEA_API const void* tea_get_pointer(tea_State* T, int index);
 
 TEA_API bool tea_is_object(tea_State* T, int index);
 TEA_API bool tea_is_cfunction(tea_State* T, int index);
 
 TEA_API bool tea_to_bool(tea_State* T, int index);
 TEA_API double tea_to_numberx(tea_State* T, int index, bool* is_num);
+TEA_API const void* tea_to_pointer(tea_State* T, int index);
 TEA_API const char* tea_to_lstring(tea_State* T, int index, int* len);
 TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int index);
-TEA_API const void* tea_to_pointer(tea_State* T, int index);
 
 TEA_API bool tea_equal(tea_State* T, int index1, int index2);
 TEA_API bool tea_rawequal(tea_State* T, int index1, int index2);
@@ -144,12 +144,12 @@ TEA_API void tea_concat(tea_State* T);
 
 TEA_API void tea_pop(tea_State* T, int n);
 
-TEA_API void tea_push_pointer(tea_State* T, void* p);
 TEA_API void tea_push_null(tea_State* T);
 TEA_API void tea_push_true(tea_State* T);
 TEA_API void tea_push_false(tea_State* T);
 TEA_API void tea_push_bool(tea_State* T, bool b);
 TEA_API void tea_push_number(tea_State* T, double n);
+TEA_API void tea_push_pointer(tea_State* T, void* p);
 TEA_API const char* tea_push_lstring(tea_State* T, const char* s, int len);
 TEA_API const char* tea_push_string(tea_State* T, const char* s);
 TEA_API const char* tea_push_fstring(tea_State* T, const char* fmt, ...);
@@ -186,19 +186,19 @@ TEA_API void tea_check_stack(tea_State* T, int size, const char* msg);
 
 TEA_API void tea_check_type(tea_State* T, int index, int type);
 TEA_API void tea_check_any(tea_State* T, int index);
-TEA_API double tea_check_number(tea_State* T, int index);
 TEA_API bool tea_check_bool(tea_State* T, int index);
+TEA_API double tea_check_number(tea_State* T, int index);
+TEA_API const void* tea_check_pointer(tea_State* T, int index);
 TEA_API void tea_check_range(tea_State* T, int index, double* start, double* end, double* step);
 TEA_API const char* tea_check_lstring(tea_State* T, int index, int* len);
 TEA_API tea_CFunction tea_check_cfunction(tea_State* T, int index);
-TEA_API const void* tea_check_pointer(tea_State* T, int index);
 TEA_API int tea_check_option(tea_State* T, int index, const char* def, const char* const options[]);
 
 TEA_API void tea_opt_any(tea_State* T, int index);
 TEA_API bool tea_opt_bool(tea_State* T, int index, bool def);
 TEA_API double tea_opt_number(tea_State* T, int index, double def);
-TEA_API const char* tea_opt_lstring(tea_State* T, int index, const char* def, int* len);
 TEA_API const void* tea_opt_pointer(tea_State* T, int index, void* def);
+TEA_API const char* tea_opt_lstring(tea_State* T, int index, const char* def, int* len);
 
 TEA_API int tea_gc(tea_State* T);
 
@@ -241,10 +241,10 @@ TEA_API void tea_error(tea_State* T, const char* fmt, ...);
 #define tea_is_mask(T, n, m) (tea_get_mask(T, n) & (m))
 #define tea_is_nonenull(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NONE)
 #define tea_is_none(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NONE)
-#define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
 #define tea_is_null(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
-#define tea_is_number(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NUMBER)
 #define tea_is_bool(T, n) (tea_get_type(T, (n)) == TEA_TYPE_BOOL)
+#define tea_is_number(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NUMBER)
+#define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
 #define tea_is_range(T, n) (tea_get_type(T, (n)) == TEA_TYPE_RANGE)
 #define tea_is_string(T, n) (tea_get_type(T, (n)) == TEA_TYPE_STRING)
 #define tea_is_list(T, n) (tea_get_type(T, (n)) == TEA_TYPE_LIST)

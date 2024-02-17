@@ -26,18 +26,18 @@
     _(DEFINE_MODULE, 0) \
     _(GET_UPVALUE, 1) \
     _(SET_UPVALUE, 0) \
-    _(GET_PROPERTY, 1) \
-    _(GET_PROPERTY_NO_POP, 0) \
-    _(SET_PROPERTY, 0) \
+    _(GET_ATTR, 1) \
+    _(GET_ATTR_NO_POP, 0) \
+    _(SET_ATTR, 0) \
     _(GET_SUPER, 1) \
     _(RANGE, -2) \
     _(LIST, 1) \
     _(UNPACK, -1) \
     _(UNPACK_REST, -1) \
     _(MAP, 1) \
-    _(SUBSCRIPT, 0) \
-    _(SUBSCRIPT_STORE, 0) \
-    _(SUBSCRIPT_PUSH, 0) \
+    _(INDEX, 0) \
+    _(INDEX_STORE, 0) \
+    _(INDEX_PUSH, 0) \
     _(SLICE, -3) \
     _(LIST_ITEM, -1) \
     _(MAP_FIELD, -2) \

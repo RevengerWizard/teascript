@@ -1,6 +1,6 @@
 /*
 ** lib_map.c
-** Teascript map class
+** Teascript Map class
 */
 
 #define lib_map_c

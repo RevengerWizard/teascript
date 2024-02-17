@@ -20,41 +20,7 @@
 
 #define GC_HEAP_GROW_FACTOR 2
 
-void tea_gc_markobj(tea_State* T, GCobj* object)
-{
-    if(object == NULL)
-        return;
-    if(object->marked)
-        return;
-
-#ifdef TEA_DEBUG_LOG_GC
-    printf("%p mark %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
-#endif
-
-    object->marked = true;
-
-    if(T->gray_size < T->gray_count + 1)
-    {
-        T->gray_size = TEA_MEM_GROW(T->gray_size);
-        T->gray_stack = (GCobj**)((*T->allocf)(T->allocd, T->gray_stack, 0, sizeof(GCobj*) * T->gray_size));
-
-        if(T->gray_stack == NULL)
-        {
-            puts(T->memerr->chars);
-            exit(1);
-        }
-    }
-
-    T->gray_stack[T->gray_count++] = object;
-}
-
-void tea_gc_markval(tea_State* T, TValue value)
-{
-    if(IS_OBJECT(value))
-        tea_gc_markobj(T, AS_OBJECT(value));
-}
-
-static void gc_blacken_object(tea_State* T, GCobj* object)
+static void gc_blacken(tea_State* T, GCobj* object)
 {
 #ifdef TEA_DEBUG_LOG_GC
     printf("%p blacken %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
@@ -155,7 +121,7 @@ static void gc_blacken_object(tea_State* T, GCobj* object)
     }
 }
 
-static void gc_free_object(tea_State* T, GCobj* object)
+static void gc_free(tea_State* T, GCobj* object)
 {
 #ifdef TEA_DEBUG_LOG_GC
     printf("%p free %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
@@ -225,7 +191,7 @@ static void gc_free_object(tea_State* T, GCobj* object)
         case OBJ_PROTO:
         {
             GCproto* proto = (GCproto*)object;
-            tea_mem_freevec(T, uint8_t, proto->code, proto->size);
+            tea_mem_freevec(T, uint8_t, proto->bc, proto->bc_size);
             tea_mem_freevec(T, LineStart, proto->lines, proto->line_size);
             tea_mem_freevec(T, TValue, proto->k, proto->k_size);
             tea_mem_free(T, GCproto, object);
@@ -258,6 +224,7 @@ static void gc_free_object(tea_State* T, GCobj* object)
     }
 }
 
+/* Mark GC roots */
 static void gc_mark_roots(tea_State* T)
 {
     for(TValue* slot = T->stack; slot < T->top; slot++)
@@ -305,7 +272,7 @@ static void gc_trace_references(tea_State* T)
     while(T->gray_count > 0)
     {
         GCobj* object = T->gray_stack[--T->gray_count];
-        gc_blacken_object(T, object);
+        gc_blacken(T, object);
     }
 }
 
@@ -335,11 +302,48 @@ static void gc_sweep(tea_State* T)
                 T->objects = object;
             }
 
-            gc_free_object(T, unreached);
+            gc_free(T, unreached);
         }
     }
 }
 
+/* Mark a TValue (if needed) */
+void tea_gc_markval(tea_State* T, TValue value)
+{
+    if(IS_OBJECT(value))
+        tea_gc_markobj(T, AS_OBJECT(value));
+}
+
+/* Mark a GC object (if needed) */
+void tea_gc_markobj(tea_State* T, GCobj* object)
+{
+    if(object == NULL)
+        return;
+    if(object->marked)
+        return;
+
+#ifdef TEA_DEBUG_LOG_GC
+    printf("%p mark %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
+#endif
+
+    object->marked = true;
+
+    if(T->gray_size < T->gray_count + 1)
+    {
+        T->gray_size = TEA_MEM_GROW(T->gray_size);
+        T->gray_stack = (GCobj**)((*T->allocf)(T->allocd, T->gray_stack, 0, sizeof(GCobj*) * T->gray_size));
+
+        if(T->gray_stack == NULL)
+        {
+            puts(T->memerr->chars);
+            exit(1);
+        }
+    }
+
+    T->gray_stack[T->gray_count++] = object;
+}
+
+/* Perform a GC collection */
 void tea_gc_collect(tea_State* T)
 {
 #ifdef TEA_DEBUG_LOG_GC
@@ -360,6 +364,7 @@ void tea_gc_collect(tea_State* T)
 #endif
 }
 
+/* Free all remaining GC objects */
 void tea_gc_freeall(tea_State* T)
 {
     GCobj* object = T->objects;
@@ -367,11 +372,11 @@ void tea_gc_freeall(tea_State* T)
     while(object != NULL)
     {
         GCobj* next = object->next;
-        gc_free_object(T, object);
+        gc_free(T, object);
         object = next;
     }
 
-    /* free the gray stack */
+    /* Free the gray stack */
     (*T->allocf)(T->allocd, T->gray_stack, sizeof(GCobj*) * T->gray_size, 0);
 }
 

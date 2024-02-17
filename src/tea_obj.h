@@ -181,9 +181,9 @@ typedef struct
     int upvalue_count;  /* Number of upvalues */
     uint8_t max_slots;  /* Max stack size used by the function */
     uint8_t type;   /* Function type information */
-    int count;  /* Number of bytecode instructions */
-    int size;
-    uint8_t* code;  /* Bytecode instructions */
+    int bc_count;  /* Number of bytecode instructions */
+    int bc_size;
+    uint8_t* bc;  /* Bytecode instructions */
     int k_size;
     int k_count;    /* Number of constants */
     TValue* k;  /* Constants used by the function */
@@ -205,7 +205,7 @@ typedef struct
 {
     GCobj obj;
     uint8_t type;
-    tea_CFunction fn;
+    tea_CFunction fn;   /* C function to be called */
     int nargs;
 } GCfuncC;
 
@@ -294,12 +294,12 @@ TEA_FUNC GCstr* tea_val_tostring(tea_State* T, TValue value, int depth);
 TEA_DATA const char* const tea_val_typenames[];
 TEA_DATA const char* const tea_obj_typenames[];
 
-static TEA_INLINE bool tea_obj_istype(TValue value, ObjType type)
+static TEA_AINLINE bool tea_obj_istype(TValue value, ObjType type)
 {
     return IS_OBJECT(value) && AS_OBJECT(value)->tt == type;
 }
 
-static TEA_INLINE bool tea_obj_isfalse(TValue value)
+static TEA_AINLINE bool tea_obj_isfalse(TValue value)
 {
     return  IS_NULL(value) ||
             (IS_BOOL(value) && !AS_BOOL(value)) ||

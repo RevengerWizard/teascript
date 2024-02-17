@@ -1,6 +1,6 @@
 /*
 ** lib_list.c
-** Teascript list class
+** Teascript List class
 */
 
 #define lib_list_c

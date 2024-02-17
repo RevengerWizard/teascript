@@ -19,6 +19,7 @@ GCfuncC* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs
     return func;
 }
 
+/* Create a new Teascript function with empty upvalues */
 GCfuncT* tea_func_newT(tea_State* T, GCproto* proto)
 {
     GCupvalue** upvalues = tea_mem_new(T, GCupvalue*, proto->upvalue_count);
@@ -46,9 +47,9 @@ GCproto* tea_func_newproto(tea_State* T, ProtoType type, GCmodule* module, int m
     pt->type = type;
     pt->name = NULL;
     pt->module = module;
-    pt->count = 0;
-    pt->size = 0;
-    pt->code = NULL;
+    pt->bc_count = 0;
+    pt->bc_size = 0;
+    pt->bc = NULL;
     pt->line_count = 0;
     pt->line_size = 0;
     pt->lines = NULL;

@@ -197,10 +197,10 @@ static void bcread_kgc(Lexer* lex, GCproto* f, size_t count)
 /* Read bytecode instructions */
 static void bcread_bytecode(Lexer* lex, GCproto* f, size_t count)
 {
-    f->code = tea_mem_new(lex->T, uint8_t, count);
-    f->count = count;
-    f->size = count;
-    bcread_block(lex, f->code, f->count);
+    f->bc = tea_mem_new(lex->T, uint8_t, count);
+    f->bc_count = count;
+    f->bc_size = count;
+    bcread_block(lex, f->bc, f->bc_count);
 }
 
 /* Read prototype */
@@ -232,7 +232,7 @@ static GCproto* bcread_proto(Lexer* lex)
     pt->arity_optional = arity_optional;
     pt->variadic = variadic;
     pt->upvalue_count = upvalue_count;
-    pt->count = count;
+    pt->bc_count = count;
     pt->k_count = k_count;
 
     /* Read bytecode instructions */

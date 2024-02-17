@@ -8,13 +8,13 @@
 
 #include "tea_obj.h"
 
+/* Collector */
 TEA_FUNC void tea_gc_markobj(tea_State* T, GCobj* object);
 TEA_FUNC void tea_gc_markval(tea_State* T, TValue value);
 TEA_FUNC void tea_gc_collect(tea_State* T);
 TEA_FUNC void tea_gc_freeall(tea_State* T);
 
-#define TEA_MEM_ERR "not enough memory"
-
+/* Allocator */
 TEA_FUNC void* tea_mem_grow(tea_State* T, void* pointer, int* size, size_t size_elem, int limit);
 TEA_FUNC void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, size_t new_size);
 

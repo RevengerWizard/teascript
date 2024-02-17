@@ -104,7 +104,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
 static char* bcwrite_bytecode(BCWriteCtx* ctx, GCproto* pt, char* p)
 {
     UNUSED(ctx);
-    p = tea_buf_wmem(p, pt->code, pt->count);
+    p = tea_buf_wmem(p, pt->bc, pt->bc_count);
     return p;
 }
 
@@ -124,7 +124,7 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     size_t len = pt->name->len;
 
     /* Start writing the prototype into the buffer */
-    char* p = tea_buf_need(ctx->T, &ctx->sbuf, 5+(5+len)+6+2*5+(pt->count-1));
+    char* p = tea_buf_need(ctx->T, &ctx->sbuf, 5+(5+len)+6+2*5+(pt->bc_count-1));
     p += 5; /* Leave room for final size */
 
     /* Write prototype name */
@@ -138,7 +138,7 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     *p++ = pt->max_slots;
     *p++ = pt->upvalue_count;
     *p++ = pt->type;
-    p = bcwrite_wuleb128(p, pt->count);
+    p = bcwrite_wuleb128(p, pt->bc_count);
     p = bcwrite_wuleb128(p, pt->k_count);
 
     /* Write bytecode instructions */
@@ -203,7 +203,7 @@ int tea_bcwrite(tea_State* T, GCproto* proto, tea_Writer writer, void* data)
     ctx.status = TEA_OK;
 
     tea_buf_init(&ctx.sbuf);
-    int status = tea_vm_pcall(T, f_writer, &ctx, stacksave(T, T->top));
+    int status = tea_vm_pcall(T, f_writer, &ctx, stack_save(T, T->top));
     if(status == TEA_OK)
         status = ctx.status;
     tea_buf_free(T, &ctx.sbuf);

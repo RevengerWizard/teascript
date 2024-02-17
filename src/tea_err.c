@@ -6,7 +6,6 @@
 #define tea_err_c
 #define TEA_CORE
 
-#include <setjmp.h>
 #include <stdlib.h>
 
 #include "tea_def.h"
@@ -27,22 +26,15 @@ TEA_DATADEF const char* tea_err_allmsg =
 #include "tea_errmsg.h"
 ;
 
-/* Runtime error */
-TEA_NOINLINE void tea_err_run(tea_State* T, const char* format, ...)
+TEA_NOINLINE static void err_run(tea_State* T)
 {
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
-    fputc('\n', stderr);
-
     for(CallInfo* ci = T->ci; ci > T->ci_base; ci--)
     {
         /* Skip stack trace for C functions */
         if(ci->func == NULL) continue;
 
         GCproto* proto = ci->func->proto;
-        size_t instruction = ci->ip - proto->code - 1;
+        size_t instruction = ci->ip - proto->bc - 1;
         fprintf(stderr, "[line %d] in ", tea_func_getline(proto, instruction));
         fprintf(stderr, "%s\n", proto->name->chars);
     }
@@ -50,17 +42,30 @@ TEA_NOINLINE void tea_err_run(tea_State* T, const char* format, ...)
     tea_err_throw(T, TEA_ERROR_RUNTIME);
 }
 
+/* Runtime error */
+TEA_NOINLINE void tea_err_run(tea_State* T, ErrMsg em, ...)
+{
+    va_list argp;
+    va_start(argp, em);
+    vfprintf(stderr, err2msg(em), argp);
+    va_end(argp);
+    fputc('\n', stderr);
+
+    err_run(T);
+}
+
 /* Lexer error */
-TEA_NOINLINE void tea_err_lex(tea_State* T, const char* src, const char* tok, int line, const char* message)
+TEA_NOINLINE void tea_err_lex(tea_State* T, const char* src, const char* tok, int line, ErrMsg em, va_list argp)
 {
     fprintf(stderr, "File %s, [line %d] Error", src, line);
 
     if(tok != NULL)
     {
-        fprintf(stderr, " at '%s'", tok);
+        fprintf(stderr, " at '%s': ", tok);
     }
 
-    fprintf(stderr, ": %s\n", message);
+    vfprintf(stderr, err2msg(em), argp);
+    fputc('\n', stderr);
 
     tea_err_throw(T, TEA_ERROR_SYNTAX);
 }
@@ -71,7 +76,7 @@ TEA_NOINLINE void tea_err_throw(tea_State* T, int code)
     if(T->error_jump)
     {
         T->error_jump->status = code;
-        TEA_THROW(T);
+        err_throw(T);
     }
     else
     {
@@ -86,7 +91,7 @@ int tea_err_protected(tea_State* T, tea_CPFunction f, void* ud)
     tj.status = TEA_OK;
     tj.prev = T->error_jump;    /* Chain new error handler */
     T->error_jump = &tj;
-    TEA_TRY(T, &tj,
+    err_try(T, &tj,
         (*f)(T, ud);
     );
     T->error_jump = tj.prev;    /* Restore old error handler */
@@ -110,5 +115,7 @@ TEA_API void tea_error(tea_State* T, const char* fmt, ...)
     vsnprintf(msg, len + 1, fmt, args);
     va_end(args);
 
-    tea_err_run(T, msg);
+    fputs(msg, stderr);
+    fputc('\n', stderr);
+    err_run(T);
 }

@@ -140,7 +140,7 @@ void tea_state_growci(tea_State* T)
     }
     if(T->ci_size > TEA_MAX_CALLS)
     {
-        tea_err_run(T, "Stack overflow");
+        tea_err_run(T, TEA_ERR_STKOV);
     }
 }
 
@@ -182,7 +182,7 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_tab_init(&T->strings);
     T->constructor_string = tea_str_lit(T, "constructor");
     T->repl_string = tea_str_lit(T, "_");
-    T->memerr = tea_str_lit(T, TEA_MEM_ERR);
+    T->memerr = tea_str_new(T, err2msg(TEA_ERR_MEM));
     state_init_mms(T);
     tea_open_core(T);
     return T;

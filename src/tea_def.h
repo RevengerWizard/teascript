@@ -3,8 +3,8 @@
 ** Teascript common internal definitions
 */
 
-#ifndef TEA_DEF_H
-#define TEA_DEF_H
+#ifndef _TEA_DEF_H
+#define _TEA_DEF_H
 
 #include <stdbool.h>
 #include <stddef.h>

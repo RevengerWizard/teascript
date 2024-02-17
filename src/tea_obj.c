@@ -33,6 +33,7 @@ TEA_DATADEF const char* const tea_obj_typenames[] = {
     "class", "instance", "function", "list", "map", "file"
 };
 
+/* Allocate new GC object and link it to the objects root */
 GCobj* tea_obj_alloc(tea_State* T, size_t size, ObjType type)
 {
     GCobj* object = (GCobj*)tea_mem_realloc(T, NULL, 0, size);
@@ -377,7 +378,7 @@ static GCstr* obj_instance_tostring(tea_State* T, GCinstance* instance)
         TValue result = tea_vm_pop(T, 1);
         if(!IS_STRING(result))
         {
-            tea_err_run(T, "'tostring' must return a string");
+            tea_err_run(T, TEA_ERR_TOSTR);
         }
 
         return AS_STRING(result);
@@ -402,16 +403,7 @@ static GCstr* obj_tostring(tea_State* T, TValue value, int depth)
         case OBJ_METHOD:
             return tea_str_lit(T, "<method>");
         case OBJ_CFUNC:
-        {
-            switch(AS_CFUNC(value)->type)
-            {
-                case C_PROPERTY:
-                    return tea_str_lit(T, "<property>");
-                case C_FUNCTION:
-                case C_METHOD:
-                    return tea_str_lit(T, "<function>");
-            }
-        }
+            return tea_str_lit(T, "<function>");
         case OBJ_PROTO:
             return obj_function_tostring(T, AS_PROTO(value));
         case OBJ_FUNC:
@@ -442,14 +434,14 @@ GCstr* tea_val_tostring(tea_State* T, TValue value, int depth)
 {
     switch(value.tt)
     {
-        case VAL_BOOL:
-            return AS_BOOL(value) ? tea_str_lit(T, "true") : tea_str_lit(T, "false");
-        case VAL_POINTER:
-            return tea_str_lit(T, "pointer");
         case VAL_NULL:
             return tea_str_lit(T, "null");
+        case VAL_BOOL:
+            return AS_BOOL(value) ? tea_str_lit(T, "true") : tea_str_lit(T, "false");
         case VAL_NUMBER:
             return val_numtostring(T, AS_NUMBER(value));
+        case VAL_POINTER:
+            return tea_str_lit(T, "pointer");
         case VAL_OBJECT:
             return obj_tostring(T, value, depth);
         default:
@@ -458,12 +450,12 @@ GCstr* tea_val_tostring(tea_State* T, TValue value, int depth)
     return tea_str_lit(T, "unknown");
 }
 
-static bool obj_range_equals(GCrange* a, GCrange* b)
+static bool obj_range_equal(GCrange* a, GCrange* b)
 {
     return a->start == b->start && a->end == b->end && a->step == b->step;
 }
 
-static bool obj_list_equals(GClist* a, GClist* b)
+static bool obj_list_equal(GClist* a, GClist* b)
 {
     if(a->count != b->count)
     {
@@ -481,7 +473,7 @@ static bool obj_list_equals(GClist* a, GClist* b)
     return true;
 }
 
-static bool obj_map_equals(GCmap* a, GCmap* b)
+static bool obj_map_equal(GCmap* a, GCmap* b)
 {
     if(a->count != b->count)
     {
@@ -524,11 +516,11 @@ static bool obj_equal(TValue a, TValue b)
     switch(OBJECT_TYPE(a))
     {
         case OBJ_RANGE:
-            return obj_range_equals(AS_RANGE(a), AS_RANGE(b));
+            return obj_range_equal(AS_RANGE(a), AS_RANGE(b));
         case OBJ_LIST:
-            return obj_list_equals(AS_LIST(a), AS_LIST(b));
+            return obj_list_equal(AS_LIST(a), AS_LIST(b));
         case OBJ_MAP:
-            return obj_map_equals(AS_MAP(a), AS_MAP(b));
+            return obj_map_equal(AS_MAP(a), AS_MAP(b));
         default:
             break;
     }
@@ -560,14 +552,14 @@ const char* tea_val_type(TValue a)
 {
     switch(a.tt)
     {
-        case VAL_POINTER:
-            return "pointer";
-        case VAL_BOOL:
-            return "bool";
         case VAL_NULL:
             return "null";
+        case VAL_BOOL:
+            return "bool";
         case VAL_NUMBER:
             return "number";
+        case VAL_POINTER:
+            return "pointer";
         case VAL_OBJECT:
             return tea_obj_typenames[OBJECT_TYPE(a)];
         default:
@@ -582,14 +574,14 @@ bool tea_val_rawequal(TValue a, TValue b)
         return false;
     switch(a.tt)
     {
-        case VAL_POINTER:
-            return AS_POINTER(a) == AS_POINTER(b);
-        case VAL_BOOL:
-            return AS_BOOL(a) == AS_BOOL(b);
         case VAL_NULL:
             return true;
+        case VAL_BOOL:
+            return AS_BOOL(a) == AS_BOOL(b);
         case VAL_NUMBER:
             return AS_NUMBER(a) == AS_NUMBER(b);
+        case VAL_POINTER:
+            return AS_POINTER(a) == AS_POINTER(b);
         case VAL_OBJECT:
             return AS_OBJECT(a) == AS_OBJECT(b);
         default:

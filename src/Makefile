@@ -75,7 +75,7 @@ clean:
 	$(RM) $(ALL_T) $(ALL_O)
 
 depend:
-	@$(CC) $(CFLAGS) -MM tea_*.c > Makefile.dep
+	@$(CC) $(CFLAGS) -MM *.c > Makefile.dep
 
 echo:
 	@echo "PLAT= $(PLAT)"

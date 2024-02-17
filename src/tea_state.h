@@ -1,12 +1,10 @@
 /*
 ** tea_state.h
-** Teascript global state
+** State and stack handling
 */
 
 #ifndef _TEA_STATE_H
 #define _TEA_STATE_H
-
-#include <setjmp.h>
 
 #include "tea.h"
 
@@ -37,9 +35,10 @@ typedef struct
 */
 #define CIST_C    (1 << 0)  /* Call is running a C function */
 #define CIST_REENTRY  (1 << 1)  /* Call is running on a new invocation of 'vm_execute' */
-#define CIST_CALLING  (1 << 2)  /* Call a Tea function */
-#define CIST_TEA   (1 << 3) /* Call is running a Tea function */
+#define CIST_CALLING  (1 << 2)  /* Call a Teascript function */
+#define CIST_TEA   (1 << 3) /* Call is running a Teascript function */
 
+/* Special methods */
 #define MMDEF(_) \
     _(PLUS, +) _(MINUS, -) _(MULT, *) _(DIV, /) \
     _(MOD, %) _(POW, **) _(BAND, &) _(BOR, |) _(BNOT, ~) \
@@ -60,7 +59,7 @@ MMDEF(MMENUM)
 /*
 ** Per interpreter state
 */
-typedef struct tea_State
+struct tea_State
 {
     TValue* stack_max;   /* Last free slot in the stack */
     TValue* stack;    /* Stack base */
@@ -69,14 +68,14 @@ typedef struct tea_State
     int stack_size; 
     CallInfo* ci;    /* CallInfo for current function */
     CallInfo* ci_end;    /* Points after end of ci array */
-    CallInfo* ci_base;   /* Array of CallInfos */
+    CallInfo* ci_base;   /* CallInfo base */
     int ci_size;    /* Size of array 'ci_base' */
     GCupvalue* open_upvalues; /* List of open upvalues in the stack */
     Parser* parser;
     Table modules;   /* Table of cached modules */
     Table globals;   /* Table of globals */
     Table constants;    /* Table to keep track of 'const' variables */
-    Table strings;   /* Hash table for strings */
+    Table strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
     GCmodule* last_module;    /* Last cached module */
     GCclass* string_class;
@@ -103,16 +102,13 @@ typedef struct tea_State
     int argf;
     bool repl;
     int nccalls;    /* Number of nested C calls */
-} tea_State;
+};
 
-#define TEA_THROW(T)    (longjmp(T->error_jump->buf, 1))
-#define TEA_TRY(T, c, a)    if(setjmp((c)->buf) == 0) { a }
+#define stack_save(T, p) ((char*)(p) - (char*)T->stack)
+#define stack_restore(T, n)  ((TValue*)((char*)T->stack + (n)))
 
-#define stacksave(T, p) ((char*)(p) - (char*)T->stack)
-#define stackrestore(T, n)  ((TValue*)((char*)T->stack + (n)))
-
-#define cisave(T, p)        ((char*)(p) - (char*)T->ci_base)
-#define cirestore(T, n)     ((CallInfo*)((char*)T->ci_base + (n)))
+#define ci_save(T, p)        ((char*)(p) - (char*)T->ci_base)
+#define ci_restore(T, n)     ((CallInfo*)((char*)T->ci_base + (n)))
 
 TEA_FUNC void tea_state_growstack(tea_State* T, int needed);
 TEA_FUNC void tea_state_reallocci(tea_State* T, int new_size);

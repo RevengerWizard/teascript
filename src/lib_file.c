@@ -1,6 +1,6 @@
 /*
 ** lib_file.c
-** Teascript file class
+** Teascript File class
 */
 
 #define lib_file_c

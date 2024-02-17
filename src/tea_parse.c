@@ -25,14 +25,14 @@
 #include "tea_debug.h"
 #endif
 
-static void error(Parser* parser, const char* message)
+static void error(Parser* parser, ErrMsg em)
 {
-    tea_lex_error(parser->lex, &parser->lex->prev, message);
+    tea_lex_error(parser->lex, &parser->lex->prev, em);
 }
 
-static void error_at_current(Parser* parser, const char* message)
+static void error_at_current(Parser* parser, ErrMsg em)
 {
-    tea_lex_error(parser->lex, &parser->lex->curr, message);
+    tea_lex_error(parser->lex, &parser->lex->curr, em);
 }
 
 static Token lex_synthetic(Parser* parser, const char* text)
@@ -43,7 +43,7 @@ static Token lex_synthetic(Parser* parser, const char* text)
     return token;
 }
 
-static void lex_consume(Parser* parser, int type, const char* message)
+static void lex_consume(Parser* parser, int type)
 {
     if(parser->lex->curr.type == type)
     {
@@ -51,7 +51,8 @@ static void lex_consume(Parser* parser, int type, const char* message)
         return;
     }
 
-    error_at_current(parser, message);
+    const char* tok = tea_lex_token2str(parser->lex, type);
+    tea_lex_error(parser->lex, &parser->lex->curr, TEA_ERR_XTOKEN, tok);
 }
 
 static bool lex_check(Parser* parser, int type)
@@ -73,13 +74,13 @@ static void bcemit_byte(Parser* parser, uint8_t byte)
     GCproto* f = parser->proto;
     int line = parser->lex->prev.line;
 
-    if(f->size < f->count + 1)
+    if(f->bc_size < f->bc_count + 1)
     {
-        f->code = tea_mem_growvec(T, uint8_t, f->code, f->size, INT_MAX);
+        f->bc = tea_mem_growvec(T, uint8_t, f->bc, f->bc_size, INT_MAX);
     }
 
-    f->code[f->count] = byte;
-    f->count++;
+    f->bc[f->bc_count] = byte;
+    f->bc_count++;
 
     /* See if we're still on the same line */
     if(f->line_count > 0 && f->lines[f->line_count - 1].line == line)
@@ -94,7 +95,7 @@ static void bcemit_byte(Parser* parser, uint8_t byte)
     }
 
     LineStart* line_start = &f->lines[f->line_count++];
-    line_start->offset = f->count - 1;
+    line_start->offset = f->bc_count - 1;
     line_start->line = line;
 }
 
@@ -147,9 +148,9 @@ static void bcemit_loop(Parser* parser, int loop_start)
 {
     bcemit_op(parser, BC_LOOP);
 
-    int offset = parser->proto->count - loop_start + 2;
+    int offset = parser->proto->bc_count - loop_start + 2;
     if(offset > UINT16_MAX)
-        error(parser, "Loop body too large");
+        error(parser, TEA_ERR_XLOOP);
 
     bcemit_byte(parser, (offset >> 8) & 0xff);
     bcemit_byte(parser, offset & 0xff);
@@ -160,7 +161,7 @@ static int bcemit_jump(Parser* parser, uint8_t instruction)
     bcemit_op(parser, instruction);
     bcemit_bytes(parser, 0xff, 0xff);
 
-    return parser->proto->count - 2;
+    return parser->proto->bc_count - 2;
 }
 
 static void bcemit_return(Parser* parser)
@@ -198,7 +199,7 @@ static uint8_t make_constant(Parser* parser, TValue value)
     int constant = add_constant(parser->lex->T, parser->proto, value);
     if(constant > UINT8_MAX)
     {
-        error(parser, "Too many constants in one chunk");
+        error(parser, TEA_ERR_XKCONST);
     }
 
     return (uint8_t)constant;
@@ -218,15 +219,15 @@ static void bcemit_constant(Parser* parser, TValue value)
 static void bcpatch_jump(Parser* parser, int offset)
 {
     /* -2 to adjust for the bytecode for the jump offset itself */
-    int jump = parser->proto->count - offset - 2;
+    int jump = parser->proto->bc_count - offset - 2;
 
     if(jump > UINT16_MAX)
     {
-        error(parser, "Too much code to jump over");
+        error(parser, TEA_ERR_XJUMP);
     }
 
-    parser->proto->code[offset] = (jump >> 8) & 0xff;
-    parser->proto->code[offset + 1] = jump & 0xff;
+    parser->proto->bc[offset] = (jump >> 8) & 0xff;
+    parser->proto->bc[offset + 1] = jump & 0xff;
 }
 
 static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType type)
@@ -404,7 +405,7 @@ static int add_upvalue(Parser* parser, uint8_t index, bool is_local, bool consta
 
     if(upvalue_count == UINT8_COUNT)
     {
-        error(parser, "Too many closure variables in function");
+        error(parser, TEA_ERR_XUPVAL);
     }
 
     parser->upvalues[upvalue_count].is_local = is_local;
@@ -442,7 +443,7 @@ static void add_local(Parser* parser, Token name)
 {
     if(parser->local_count == UINT8_COUNT)
     {
-        error(parser, "Too many local variables in function");
+        error(parser, TEA_ERR_XLOCALS);
     }
 
     Local* local = &parser->locals[parser->local_count++];
@@ -470,9 +471,9 @@ static void declare_variable(Parser* parser, Token* name)
     add_local(parser, *name);
 }
 
-static uint8_t parse_variable(Parser* parser, const char* error_message)
+static uint8_t parse_variable(Parser* parser)
 {
-    lex_consume(parser, TK_NAME, error_message);
+    lex_consume(parser, TK_NAME);
 
     declare_variable(parser, &parser->lex->prev);
     if(parser->scope_depth > 0)
@@ -533,13 +534,13 @@ static uint8_t parse_arg_list(Parser* parser)
             expr(parser);
             if(arg_count == 255)
             {
-                error(parser, "Can't have more than 255 arguments");
+                error(parser, TEA_ERR_XARGS);
             }
             arg_count++;
         }
         while(lex_match(parser, ','));
     }
-    lex_consume(parser, ')', "Expect ')' after arguments");
+    lex_consume(parser, ')');
 
     return arg_count;
 }
@@ -558,7 +559,7 @@ static void expr_binary(Parser* parser, bool assign)
 
     if(op_type == TK_NOT)
     {
-        lex_consume(parser, TK_IN, "Expected 'not in' binary operator");
+        lex_consume(parser, TK_IN);
 
         ParseRule rule = expr_rule(op_type);
         expr_precedence(parser, (Precedence)(rule.prec + 1));
@@ -694,7 +695,7 @@ static void expr_ternary(Parser* parser, bool assign)
     bcpatch_jump(parser, else_jump);
     bcemit_op(parser, BC_POP);
 
-    lex_consume(parser, ':', "Expected colon after ternary expression");
+    lex_consume(parser, ':');
     expr(parser);
 
     bcpatch_jump(parser, end_jump);
@@ -709,18 +710,18 @@ static void expr_call(Parser* parser, bool assign)
 static void expr_dot(Parser* parser, bool assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    bcemit_argued(parser, BC_GET_PROPERTY_NO_POP, name); \
+    bcemit_argued(parser, BC_GET_ATTR_NO_POP, name); \
     expr(parser); \
     bcemit_op(parser, op); \
-    bcemit_argued(parser, BC_SET_PROPERTY, name);
+    bcemit_argued(parser, BC_SET_ATTR, name);
 
 #define SHORT_HAND_INCREMENT(op) \
-    bcemit_argued(parser, BC_GET_PROPERTY_NO_POP, name); \
+    bcemit_argued(parser, BC_GET_ATTR_NO_POP, name); \
     bcemit_constant(parser, NUMBER_VAL(1)); \
     bcemit_op(parser, op); \
-    bcemit_argued(parser, BC_SET_PROPERTY, name);
+    bcemit_argued(parser, BC_SET_ATTR, name);
 
-    lex_consume(parser, TK_NAME, "Expect property name after '.'");
+    lex_consume(parser, TK_NAME);
     uint8_t name = identifier_constant(parser, &parser->lex->prev);
 
     if(lex_match(parser, '('))
@@ -734,7 +735,7 @@ static void expr_dot(Parser* parser, bool assign)
     if(assign && lex_match(parser, '='))
     {
         expr(parser);
-        bcemit_argued(parser, BC_SET_PROPERTY, name);
+        bcemit_argued(parser, BC_SET_ATTR, name);
     }
     else if(assign && lex_match(parser, TK_PLUS_EQUAL))
     {
@@ -792,7 +793,7 @@ static void expr_dot(Parser* parser, bool assign)
         }
         else
         {
-            bcemit_argued(parser, BC_GET_PROPERTY, name);
+            bcemit_argued(parser, BC_GET_ATTR, name);
         }
     }
 #undef SHORT_HAND_ASSIGNMENT
@@ -827,7 +828,7 @@ static void expr_list(Parser* parser, bool assign)
         while(lex_match(parser, ','));
     }
 
-    lex_consume(parser, ']', "Expect ']' after list literal");
+    lex_consume(parser, ']');
 }
 
 static void expr_map(Parser* parser, bool assign)
@@ -845,15 +846,15 @@ static void expr_map(Parser* parser, bool assign)
             if(lex_match(parser, '['))
             {
                 expr(parser);
-                lex_consume(parser, ']', "Expect ']' after key literal");
-                lex_consume(parser, '=', "Expected '=' after key literal");
+                lex_consume(parser, ']');
+                lex_consume(parser, '=');
                 expr(parser);
             }
             else
             {
-                lex_consume(parser, TK_NAME, "Expect key name");
+                lex_consume(parser, TK_NAME);
                 bcemit_constant(parser, parser->lex->prev.value);
-                lex_consume(parser, '=', "Expected '=' after key name");
+                lex_consume(parser, '=');
                 expr(parser);
             }
 
@@ -862,7 +863,7 @@ static void expr_map(Parser* parser, bool assign)
         while(lex_match(parser, ','));
     }
 
-    lex_consume(parser, '}', "Expect '}' after map literal");
+    lex_consume(parser, '}');
 }
 
 static bool parse_slice(Parser* parser)
@@ -909,27 +910,27 @@ static void expr_subscript(Parser* parser, bool assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
     expr(parser); \
-    bcemit_ops(parser, BC_SUBSCRIPT_PUSH, op); \
-    bcemit_op(parser, BC_SUBSCRIPT_STORE);
+    bcemit_ops(parser, BC_INDEX_PUSH, op); \
+    bcemit_op(parser, BC_INDEX_STORE);
 
 #define SHORT_HAND_INCREMENT(op) \
     bcemit_constant(parser, NUMBER_VAL(1)); \
-    bcemit_ops(parser, BC_SUBSCRIPT_PUSH, op); \
-    bcemit_op(parser, BC_SUBSCRIPT_STORE);
+    bcemit_ops(parser, BC_INDEX_PUSH, op); \
+    bcemit_op(parser, BC_INDEX_STORE);
 
     if(parse_slice(parser))
     {
         bcemit_op(parser, BC_SLICE);
-        lex_consume(parser, ']', "Expect ']' after closing");
+        lex_consume(parser, ']');
         return;
     }
 
-    lex_consume(parser, ']', "Expect ']' after closing");
+    lex_consume(parser, ']');
 
     if(assign && lex_match(parser, '='))
     {
         expr(parser);
-        bcemit_op(parser, BC_SUBSCRIPT_STORE);
+        bcemit_op(parser, BC_INDEX_STORE);
     }
     else if(assign && lex_match(parser, TK_PLUS_EQUAL))
     {
@@ -987,7 +988,7 @@ static void expr_subscript(Parser* parser, bool assign)
         }
         else
         {
-            bcemit_op(parser, BC_SUBSCRIPT);
+            bcemit_op(parser, BC_INDEX);
         }
     }
 
@@ -1025,7 +1026,7 @@ static void expr_interpolation(Parser* parser, bool assign)
     }
     while(lex_match(parser, TK_INTERPOLATION));
 
-    lex_consume(parser, TK_STRING, "Expect end of string interpolation");
+    lex_consume(parser, TK_STRING);
     
     expr_literal(parser, false);
     bcemit_op(parser, BC_LIST_ITEM);
@@ -1041,7 +1042,7 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
         {
             if(parser->locals[arg].constant)
             {
-                error(parser, "Cannot assign to a constant");
+                error(parser, TEA_ERR_XVCONST);
             }
             break;
         }
@@ -1049,7 +1050,7 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
         {
             if(parser->upvalues[arg].constant)
             {
-                error(parser, "Cannot assign to a constant");
+                error(parser, TEA_ERR_XVCONST);
             }
             break;
         }
@@ -1060,7 +1061,7 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
             TValue _;
             if(tea_tab_get(&parser->lex->T->constants, string, &_))
             {
-                error(parser, "Cannot assign to a constant");
+                error(parser, TEA_ERR_XVCONST);
             }
             break;
         }
@@ -1219,15 +1220,15 @@ static void expr_super(Parser* parser, bool assign)
 {
     if(parser->klass == NULL)
     {
-        error(parser, "Can't use 'super' outside of a class");
+        error(parser, TEA_ERR_XSUPERO);
     }
     else if(parser->klass->is_static)
     {
-        error(parser, "Can't use 'this' inside a static method");
+        error(parser, TEA_ERR_XTHISM);
     }
     else if(!parser->klass->has_superclass)
     {
-        error(parser, "Can't use 'super' in a class with no superclass");
+        error(parser, TEA_ERR_XSUPERK);
     }
 
     /* super */
@@ -1252,8 +1253,8 @@ static void expr_super(Parser* parser, bool assign)
     }
 
     /* super.name */
-    lex_consume(parser, '.', "Expect '.' after 'super'");
-    lex_consume(parser, TK_NAME, "Expect superclass method name");
+    lex_consume(parser, '.');
+    lex_consume(parser, TK_NAME);
     uint8_t name = identifier_constant(parser, &parser->lex->prev);
 
     named_variable(parser, lex_synthetic(parser, "this"), false);
@@ -1278,11 +1279,11 @@ static void expr_this(Parser* parser, bool assign)
 {
     if(parser->klass == NULL)
     {
-        error(parser, "Can't use 'this' outside of a class");
+        error(parser, TEA_ERR_XTHISO);
     }
     else if(parser->klass->is_static)
     {
-        error(parser, "Can't use 'this' inside a static method");
+        error(parser, TEA_ERR_XTHISM);
     }
 
     expr_name(parser, false);
@@ -1292,7 +1293,7 @@ static void expr_static(Parser* parser, bool assign)
 {
     if(parser->klass == NULL)
     {
-        error(parser, "Can't use 'static' outside of a class");
+        error(parser, TEA_ERR_XSTATIC);
     }
 }
 
@@ -1442,7 +1443,7 @@ static void expr_precedence(Parser* parser, Precedence prec)
     ParseFn prefix_rule = expr_rule(parser->lex->prev.type).prefix;
     if(prefix_rule == NULL)
     {
-        error(parser, "Expect expression");
+        error(parser, TEA_ERR_XEXPR);
     }
 
     bool assign = prec <= PREC_ASSIGNMENT;
@@ -1457,7 +1458,7 @@ static void expr_precedence(Parser* parser, Precedence prec)
 
     if(assign && lex_match(parser, '='))
     {
-        error(parser, "Invalid assignment target");
+        error(parser, TEA_ERR_XASSIGN);
     }
 }
 
@@ -1473,7 +1474,7 @@ static void parse_block(Parser* parser)
         parse_decl(parser);
     }
 
-    lex_consume(parser, '}', "Expect '}' after block");
+    lex_consume(parser, '}');
 }
 
 static void check_parameters(Parser* parser, Token* name)
@@ -1483,7 +1484,7 @@ static void check_parameters(Parser* parser, Token* name)
         Local* local = &parser->locals[i];
         if(identifiers_equal(name, &local->name))
         {
-            error(parser, "Duplicate parameter name in function declaration");
+            error(parser, TEA_ERR_XDUPARGS);
         }
     }
 }
@@ -1501,11 +1502,11 @@ static void begin_function(Parser* parser, Parser* fn_parser)
         {
             if(spread)
             {
-                error(fn_parser, "Spread parameter must be last in the parameter list");
+                error(fn_parser, TEA_ERR_XSPREADARGS);
             }
 
             spread = lex_match(fn_parser, TK_DOT_DOT_DOT);
-            lex_consume(fn_parser, TK_NAME, "Expect parameter name");
+            lex_consume(fn_parser, TK_NAME);
 
             Token name = fn_parser->lex->prev;
             check_parameters(fn_parser, &name);
@@ -1519,7 +1520,7 @@ static void begin_function(Parser* parser, Parser* fn_parser)
             {
                 if(spread)
                 {
-                    error(fn_parser, "Spread parameter cannot have an optional value");
+                    error(fn_parser, TEA_ERR_XSPREADOPT);
                 }
                 fn_parser->proto->arity_optional++;
                 optional = true;
@@ -1531,13 +1532,13 @@ static void begin_function(Parser* parser, Parser* fn_parser)
 
                 if(optional)
                 {
-                    error(fn_parser, "Cannot have non-optional parameter after optional");
+                    error(fn_parser, TEA_ERR_XOPT);
                 }
             }
 
             if(fn_parser->proto->arity + fn_parser->proto->arity_optional > 255)
             {
-                error(fn_parser, "Cannot have more than 255 parameters");
+                error(fn_parser, TEA_ERR_XARGS);
             }
 
             uint8_t constant = parse_variable_at(fn_parser, name);
@@ -1552,7 +1553,7 @@ static void begin_function(Parser* parser, Parser* fn_parser)
         }
     }
 
-    lex_consume(fn_parser, ')', "Expect ')' after parameters");
+    lex_consume(fn_parser, ')');
 }
 
 static void function(Parser* parser, ProtoType type)
@@ -1560,10 +1561,10 @@ static void function(Parser* parser, ProtoType type)
     Parser fn_parser;
 
     parser_init(parser->lex, &fn_parser, parser, type);
-    lex_consume(&fn_parser, '(', "Expect '(' after function name");
+    lex_consume(&fn_parser, '(');
     begin_function(parser, &fn_parser);
 
-    lex_consume(&fn_parser, '{', "Expect '{' before function body");
+    lex_consume(&fn_parser, '{');
     parse_block(&fn_parser);
     parser_end(&fn_parser);
 }
@@ -1580,7 +1581,7 @@ static void parse_arrow(Parser* parser)
     parser_init(parser->lex, &fn_parser, parser, PROTO_ANONYMOUS);
     begin_function(parser, &fn_parser);
 
-    lex_consume(&fn_parser, TK_ARROW, "Expect '=>' after function arguments");
+    lex_consume(&fn_parser, TK_ARROW);
     if(lex_match(&fn_parser, '{'))
     {
         /* Brace so expect a block */
@@ -1615,7 +1616,7 @@ static void expr_grouping(Parser* parser, bool assign)
     }
 
     expr(parser);
-    lex_consume(parser, ')', "Expect ')' after grouping expression");
+    lex_consume(parser, ')');
 }
 
 static int operators[] = {
@@ -1657,7 +1658,7 @@ static void parse_operator(Parser* parser)
 
     if(i == SENTINEL)
     {
-        error_at_current(parser, "Invalid method name");
+        error_at_current(parser, TEA_ERR_XMETH);
     }
 
     GCstr* name = NULL;
@@ -1665,7 +1666,7 @@ static void parse_operator(Parser* parser)
     if(parser->lex->prev.type == '[')
     {
         parser->klass->is_static = false;
-        lex_consume(parser, ']', "Expected ']' after '[' operator method");
+        lex_consume(parser, ']');
         name = parser->lex->T->opm_name[MM_INDEX];
     }
     else
@@ -1709,7 +1710,7 @@ static void parse_class_body(Parser* parser)
     {
         if(lex_match(parser, TK_VAR))
         {
-            lex_consume(parser, TK_NAME, "Expect class variable name");
+            lex_consume(parser, TK_NAME);
             uint8_t name = identifier_constant(parser, &parser->lex->prev);
 
             if(lex_match(parser, '='))
@@ -1725,7 +1726,7 @@ static void parse_class_body(Parser* parser)
         else if(lex_match(parser, TK_STATIC))
         {
             parser->klass->is_static = true;
-            lex_consume(parser, TK_NAME, "Expect method name after 'static' keyword");
+            lex_consume(parser, TK_NAME);
             parse_method(parser, PROTO_STATIC);
             parser->klass->is_static = false;
         }
@@ -1744,7 +1745,7 @@ static void parse_class_body(Parser* parser)
 static void parse_class(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'class' */
-    lex_consume(parser, TK_NAME, "Expect class name");
+    lex_consume(parser, TK_NAME);
     Token class_name = parser->lex->prev;
     uint8_t name_constant = identifier_constant(parser, &parser->lex->prev);
     declare_variable(parser, &parser->lex->prev);
@@ -1770,9 +1771,9 @@ static void parse_class(Parser* parser)
 
     named_variable(parser, class_name, false);
 
-    lex_consume(parser, '{', "Expect '{' before class body");
+    lex_consume(parser, '{');
     parse_class_body(parser);
-    lex_consume(parser, '}', "Expect '}' after class body");
+    lex_consume(parser, '}');
 
     bcemit_op(parser, BC_POP);
 
@@ -1788,24 +1789,24 @@ static void parse_function_assign(Parser* parser)
 {
     if(lex_match(parser, '.'))
     {
-        lex_consume(parser, TK_NAME, "Expect property name");
+        lex_consume(parser, TK_NAME);
         uint8_t expr_dot = identifier_constant(parser, &parser->lex->prev);
         if(!lex_check(parser, '('))
         {
-            bcemit_argued(parser, BC_GET_PROPERTY, expr_dot);
+            bcemit_argued(parser, BC_GET_ATTR, expr_dot);
             parse_function_assign(parser);
         }
         else
         {
             function(parser, PROTO_FUNCTION);
-            bcemit_argued(parser, BC_SET_PROPERTY, expr_dot);
+            bcemit_argued(parser, BC_SET_ATTR, expr_dot);
             bcemit_op(parser, BC_POP);
             return;
         }
     }
     else if(lex_match(parser, ':'))
     {
-        lex_consume(parser, TK_NAME, "Expect method name");
+        lex_consume(parser, TK_NAME);
         uint8_t constant = identifier_constant(parser, &parser->lex->prev);
 
         ClassParser class_compiler;
@@ -1823,7 +1824,7 @@ static void parse_function_assign(Parser* parser)
 static void parse_function(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'function' */
-    lex_consume(parser, TK_NAME, "Expect function name");
+    lex_consume(parser, TK_NAME);
     Token name = parser->lex->prev;
 
     if(lex_check(parser, '.') || lex_check(parser, ':'))
@@ -1853,7 +1854,7 @@ static void parse_var(Parser* parser, bool constant)
     {
         if(rest_count > 1)
         {
-            error(parser, "Multiple '...'");
+            error(parser, TEA_ERR_XDOTS);
         }
 
         if(lex_match(parser, TK_DOT_DOT_DOT))
@@ -1862,7 +1863,7 @@ static void parse_var(Parser* parser, bool constant)
             rest_count++;
         }
 
-        lex_consume(parser, TK_NAME, "Expect variable name");
+        lex_consume(parser, TK_NAME);
         variables[var_count] = parser->lex->prev;
         var_count++;
 
@@ -1876,7 +1877,7 @@ static void parse_var(Parser* parser, bool constant)
         {
             if(rest_count)
             {
-                error(parser, "Cannot rest single variable");
+                error(parser, TEA_ERR_XSINGLEREST);
             }
 
             uint8_t global = parse_variable_at(parser, variables[0]);
@@ -1887,8 +1888,8 @@ static void parse_var(Parser* parser, bool constant)
             {
                 do
                 {
-                    uint8_t global = parse_variable(parser, "Expect variable name");
-                    lex_consume(parser, '=', "Expected an assignment");
+                    uint8_t global = parse_variable(parser);
+                    lex_consume(parser, '=');
                     expr(parser);
                     define_variable(parser, global, constant);
                 }
@@ -1901,7 +1902,7 @@ static void parse_var(Parser* parser, bool constant)
 
     if(rest_count)
     {
-        lex_consume(parser, '=', "Expected variable assignment");
+        lex_consume(parser, '=');
         expr(parser);
         bcemit_op(parser, BC_UNPACK_REST);
         bcemit_bytes(parser, var_count, rest_pos - 1);
@@ -1925,7 +1926,7 @@ static void parse_var(Parser* parser, bool constant)
 
         if(expr_count != var_count)
         {
-            error(parser, "Not enough values to assign to");
+            error(parser, TEA_ERR_XVALASSIGN);
         }
     }
     else
@@ -1977,9 +1978,9 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_TRUE:
         case BC_FALSE:
         case BC_RANGE:
-        case BC_SUBSCRIPT:
-        case BC_SUBSCRIPT_STORE:
-        case BC_SUBSCRIPT_PUSH:
+        case BC_INDEX:
+        case BC_INDEX_STORE:
+        case BC_INDEX_PUSH:
         case BC_SLICE:
         case BC_INHERIT:
         case BC_POP:
@@ -2026,9 +2027,9 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_DEFINE_MODULE:
         case BC_GET_UPVALUE:
         case BC_SET_UPVALUE:
-        case BC_GET_PROPERTY:
-        case BC_GET_PROPERTY_NO_POP:
-        case BC_SET_PROPERTY:
+        case BC_GET_ATTR:
+        case BC_GET_ATTR_NO_POP:
+        case BC_SET_ATTR:
         case BC_GET_SUPER:
         case BC_CLASS:
         case BC_SET_CLASS_VAR:
@@ -2068,7 +2069,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
 
 static void loop_begin(Parser* parser, Loop* loop)
 {
-    loop->start = parser->proto->count;
+    loop->start = parser->proto->bc_count;
     loop->scope_depth = parser->scope_depth;
     loop->enclosing = parser->loop;
     parser->loop = loop;
@@ -2083,17 +2084,17 @@ static void loop_end(Parser* parser)
     }
 
     int i = parser->loop->body;
-    while(i < parser->proto->count)
+    while(i < parser->proto->bc_count)
     {
-        if(parser->proto->code[i] == BC_END)
+        if(parser->proto->bc[i] == BC_END)
         {
-            parser->proto->code[i] = BC_JUMP;
+            parser->proto->bc[i] = BC_JUMP;
             bcpatch_jump(parser, i + 1);
             i += 3;
         }
         else
         {
-            i += 1 + get_arg_count(parser->proto->code, parser->proto->k, i);
+            i += 1 + get_arg_count(parser->proto->bc, parser->proto->k, i);
         }
     }
 
@@ -2102,11 +2103,6 @@ static void loop_end(Parser* parser)
 
 static void parse_for_in(Parser* parser, Token var, bool constant)
 {
-    if(parser->local_count + 2 > 256)
-    {
-        error(parser, "Cannot declare more than 256 variables in one scope (Not enough space for for-loops internal variables)");
-    }
-
     Token variables[255];
     int var_count = 1;
     variables[0] = var;
@@ -2115,14 +2111,14 @@ static void parse_for_in(Parser* parser, Token var, bool constant)
     {
         do
         {
-            lex_consume(parser, TK_NAME, "Expect variable name");
+            lex_consume(parser, TK_NAME);
             variables[var_count] = parser->lex->prev;
             var_count++;
         }
         while(lex_match(parser, ','));
     }
 
-    lex_consume(parser, TK_IN, "Expect 'for' iterator");
+    lex_consume(parser, TK_IN);
 
     expr(parser);
     int seq_slot = add_init_local(parser, lex_synthetic(parser, "seq "));
@@ -2130,7 +2126,7 @@ static void parse_for_in(Parser* parser, Token var, bool constant)
     expr_null(parser, false);
     int iter_slot = add_init_local(parser, lex_synthetic(parser, "iter "));
 
-    lex_consume(parser, ')', "Expect ')' after loop expression");
+    lex_consume(parser, ')');
 
     Loop loop;
     loop_begin(parser, &loop);
@@ -2156,7 +2152,7 @@ static void parse_for_in(Parser* parser, Token var, bool constant)
         define_variable(parser, 0, constant);
     }
 
-    parser->loop->body = parser->proto->count;
+    parser->loop->body = parser->proto->bc_count;
     parse_stmt(parser);
 
     /* Loop variable */
@@ -2174,7 +2170,7 @@ static void parse_for(Parser* parser)
     scope_begin(parser);
 
     tea_lex_next(parser->lex);  /* Skip 'for' */
-    lex_consume(parser, '(', "Expect '(' after 'for'");
+    lex_consume(parser, '(');
 
     int loop_var = -1;
     Token var_name = parser->lex->curr;
@@ -2182,7 +2178,7 @@ static void parse_for(Parser* parser)
     bool constant = false;
     if(lex_match(parser, TK_VAR) || (constant = lex_match(parser, TK_CONST)))
     {
-        lex_consume(parser, TK_NAME, "Expect variable name");
+        lex_consume(parser, TK_NAME);
         Token var = parser->lex->prev;
 
         if(lex_check(parser, TK_IN) || lex_check(parser, ','))
@@ -2207,7 +2203,7 @@ static void parse_for(Parser* parser)
         }
 
         define_variable(parser, global, constant);
-        lex_consume(parser, ';', "Expect ';' after loop variable");
+        lex_consume(parser, ';');
 
         /* Get loop variable slot */
         loop_var = parser->local_count - 1;
@@ -2215,7 +2211,7 @@ static void parse_for(Parser* parser)
     else
     {
         parse_expr_stmt(parser);
-        lex_consume(parser, ';', "Expect ';' after loop expression");
+        lex_consume(parser, ';');
     }
 
     Loop loop;
@@ -2224,24 +2220,24 @@ static void parse_for(Parser* parser)
     parser->loop->end = -1;
 
     expr(parser);
-    lex_consume(parser, ';', "Expect ';' after loop condition");
+    lex_consume(parser, ';');
 
     parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_FALSE);
     bcemit_op(parser, BC_POP); /* Condition */
 
     int body_jump = bcemit_jump(parser, BC_JUMP);
 
-    int increment_start = parser->proto->count;
+    int increment_start = parser->proto->bc_count;
     expr(parser);
     bcemit_op(parser, BC_POP);
-    lex_consume(parser, ')', "Expect ')' after for clauses");
+    lex_consume(parser, ')');
 
     bcemit_loop(parser, parser->loop->start);
     parser->loop->start = increment_start;
 
     bcpatch_jump(parser, body_jump);
 
-    parser->loop->body = parser->proto->count;
+    parser->loop->body = parser->proto->bc_count;
 
     int inner_var = -1;
     if(loop_var != -1)
@@ -2275,7 +2271,7 @@ static void parse_break(Parser* parser)
 
     if(parser->loop == NULL)
     {
-        error(parser, "Cannot use 'break' outside of a loop");
+        error(parser, TEA_ERR_XBREAK);
     }
 
     /* Discard any locals created inside the loop */
@@ -2290,7 +2286,7 @@ static void parse_continue(Parser* parser)
 
     if(parser->loop == NULL)
     {
-        error(parser, "Cannot use 'continue' outside of a loop");
+        error(parser, TEA_ERR_XCONTINUE);
     }
 
     /* Discard any locals created inside the loop */
@@ -2303,9 +2299,9 @@ static void parse_continue(Parser* parser)
 static void parse_if(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'if' */
-    lex_consume(parser, '(', "Expect '(' after 'if'");
+    lex_consume(parser, '(');
     expr(parser);
-    lex_consume(parser, ')', "Expect ')' after condition");
+    lex_consume(parser, ')');
 
     int else_jump = bcemit_jump(parser, BC_JUMP_IF_FALSE);
 
@@ -2329,10 +2325,10 @@ static void parse_switch(Parser* parser)
     int case_count = 0;
 
     tea_lex_next(parser->lex);  /* Skip 'switch' */
-    lex_consume(parser, '(', "Expect '(' after switch");
+    lex_consume(parser, '(');
     expr(parser);
-    lex_consume(parser, ')', "Expect ')' after expression");
-    lex_consume(parser, '{', "Expect '{' before switch body");
+    lex_consume(parser, ')');
+    lex_consume(parser, '{');
 
     if(lex_match(parser, TK_CASE))
     {
@@ -2351,13 +2347,13 @@ static void parse_switch(Parser* parser)
                 bcemit_argued(parser, BC_MULTI_CASE, multiple_cases);
             }
             int compare_jump = bcemit_jump(parser, BC_COMPARE_JUMP);
-            lex_consume(parser, ':', "Expect ':' after expression");
+            lex_consume(parser, ':');
             parse_stmt(parser);
             case_ends[case_count++] = bcemit_jump(parser, BC_JUMP);
             bcpatch_jump(parser, compare_jump);
             if(case_count > 255)
             {
-                error_at_current(parser, "Switch statement can not have more than 256 case blocks");
+                error_at_current(parser, TEA_ERR_XSWITCH);
             }
 
         }
@@ -2367,16 +2363,16 @@ static void parse_switch(Parser* parser)
     bcemit_op(parser, BC_POP); /* Expression */
     if(lex_match(parser, TK_DEFAULT))
     {
-        lex_consume(parser, ':', "Expect ':' after default");
+        lex_consume(parser, ':');
         parse_stmt(parser);
     }
 
     if(lex_match(parser, TK_CASE))
     {
-        error(parser, "Unexpected case after default");
+        error(parser, TEA_ERR_XCASE);
     }
 
-    lex_consume(parser, '}', "Expect '}' after switch body");
+    lex_consume(parser, '}');
 
     for(int i = 0; i < case_count; i++)
     {
@@ -2390,7 +2386,7 @@ static void parse_return(Parser* parser)
 
     if(parser->type == PROTO_SCRIPT)
     {
-        error(parser, "Can't return from top-level code");
+        error(parser, TEA_ERR_XRET);
     }
 
     if(lex_check(parser, '}') || lex_match(parser, ';'))
@@ -2401,7 +2397,7 @@ static void parse_return(Parser* parser)
     {
         if(parser->type == PROTO_CONSTRUCTOR)
         {
-            error(parser, "Can't return a value from a constructor");
+            error(parser, TEA_ERR_XINIT);
         }
 
         expr(parser);
@@ -2420,7 +2416,7 @@ static void parse_import(Parser* parser)
 
         if(lex_match(parser, TK_AS))
         {
-            uint8_t import_name = parse_variable(parser, "Expect import alias");
+            uint8_t import_name = parse_variable(parser);
             bcemit_op(parser, BC_IMPORT_ALIAS);
             define_variable(parser, import_name, false);
         }
@@ -2434,13 +2430,13 @@ static void parse_import(Parser* parser)
     }
     else
     {
-        lex_consume(parser, TK_NAME, "Expect import identifier");
+        lex_consume(parser, TK_NAME);
         uint8_t import_name = identifier_constant(parser, &parser->lex->prev);
         declare_variable(parser, &parser->lex->prev);
 
         if(lex_match(parser, TK_AS))
         {
-            uint8_t import_alias = parse_variable(parser, "Expect import alias");
+            uint8_t import_alias = parse_variable(parser);
 
             bcemit_argued(parser, BC_IMPORT_NAME, import_name);
             define_variable(parser, import_alias, false);
@@ -2466,16 +2462,16 @@ static void parse_from_import(Parser* parser)
     {
         int import_constant = make_constant(parser, parser->lex->prev.value);
 
-        lex_consume(parser, TK_IMPORT, "Expect 'import' after path");
+        lex_consume(parser, TK_IMPORT);
         bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
         bcemit_op(parser, BC_POP);
     }
     else
     {
-        lex_consume(parser, TK_NAME, "Expect import identifier");
+        lex_consume(parser, TK_NAME);
         uint8_t import_name = identifier_constant(parser, &parser->lex->prev);
 
-        lex_consume(parser, TK_IMPORT, "Expect 'import' after identifier");
+        lex_consume(parser, TK_IMPORT);
 
         bcemit_argued(parser, BC_IMPORT_NAME, import_name);
         bcemit_op(parser, BC_POP);
@@ -2485,14 +2481,14 @@ static void parse_from_import(Parser* parser)
 
     do
     {
-        lex_consume(parser, TK_NAME, "Expect variable name");
+        lex_consume(parser, TK_NAME);
         Token var_token = parser->lex->prev;
         uint8_t var_constant = identifier_constant(parser, &var_token);
 
         uint8_t slot;
         if(lex_match(parser, TK_AS))
         {
-            slot = parse_variable(parser, "Expect variable name");
+            slot = parse_variable(parser);
         }
         else
         {
@@ -2505,7 +2501,7 @@ static void parse_from_import(Parser* parser)
         var_count++;
         if(var_count > 255)
         {
-            error(parser, "Cannot have more than 255 variables");
+            error(parser, TEA_ERR_XVARS);
         }
     }
     while(lex_match(parser, ','));
@@ -2525,9 +2521,9 @@ static void parse_while(Parser* parser)
     }
     else
     {
-        lex_consume(parser, '(', "Expect '(' after 'while'");
+        lex_consume(parser, '(');
         expr(parser);
-        lex_consume(parser, ')', "Expect ')' after condition");
+        lex_consume(parser, ')');
     }
 
     /* Jump ot of the loop if the condition is false */
@@ -2535,7 +2531,7 @@ static void parse_while(Parser* parser)
     bcemit_op(parser, BC_POP);
 
     /* Compile the body */
-    parser->loop->body = parser->proto->count;
+    parser->loop->body = parser->proto->bc_count;
     parse_stmt(parser);
 
     /* Loop back to the start */
@@ -2550,10 +2546,10 @@ static void parse_do(Parser* parser)
 
     tea_lex_next(parser->lex);  /* Skip 'do' */
 
-    parser->loop->body = parser->proto->count;
+    parser->loop->body = parser->proto->bc_count;
     parse_stmt(parser);
 
-    lex_consume(parser, TK_WHILE, "Expect 'while' after 'do' statement");
+    lex_consume(parser, TK_WHILE);
 
     if(!lex_check(parser, '('))
     {
@@ -2561,9 +2557,9 @@ static void parse_do(Parser* parser)
     }
     else
     {
-        lex_consume(parser, '(', "Expect '(' after 'while'");
+        lex_consume(parser, '(');
         expr(parser);
-        lex_consume(parser, ')', "Expect ')' after condition");
+        lex_consume(parser, ')');
     }
 
     parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_FALSE);
@@ -2581,13 +2577,13 @@ static void parse_multiple_assign(Parser* parser)
 
     do
     {
-        lex_consume(parser, TK_NAME, "Expect variable name");
+        lex_consume(parser, TK_NAME);
         variables[var_count] = parser->lex->prev;
         var_count++;
     }
     while(lex_match(parser, ','));
 
-    lex_consume(parser, '=', "Expect '=' multiple assignment");
+    lex_consume(parser, '=');
 
     do
     {
@@ -2603,7 +2599,7 @@ static void parse_multiple_assign(Parser* parser)
 
     if(expr_count != var_count)
     {
-        error(parser, "Not enough values to assign to");
+        error(parser, TEA_ERR_XVASSIGN);
     }
 
     finish:

@@ -12,12 +12,11 @@
 #include <errno.h>
 
 #include "tea_def.h"
+#include "tea_lex.h"
 #include "tea_char.h"
 #include "tea_obj.h"
-#include "tea_lex.h"
 #include "tea_str.h"
 #include "tea_utf.h"
-#include "tea_err.h"
 
 /* Teascript lexer token names */
 static const char* const lex_tokennames[] = {
@@ -101,9 +100,9 @@ static void lex_newline(Lexer* lex)
     lex->line++;
 }
 
-static void lex_syntaxerror(Lexer* lex, const char* message)
+static void lex_syntaxerror(Lexer* lex, ErrMsg em)
 {
-    tea_lex_error(lex, NULL, message);
+    tea_lex_error(lex, NULL, em);
 }
 
 static Token lex_token(Lexer* lex, int type)
@@ -208,7 +207,7 @@ static Token lex_number_token(Lexer* lex, int num)
 	if(errno == ERANGE)
     {
 		errno = 0;
-		lex_syntaxerror(lex, "Number too big");
+		lex_syntaxerror(lex, TEA_ERR_XNUMBER);
 	}
 
 	Token token = lex_token(lex, TK_NUMBER);
@@ -225,7 +224,7 @@ static Token lex_hex_number(Lexer* lex)
     {
         if(lex->c == '_')
         {
-            if(last) lex_syntaxerror(lex, "Cannot have consecutive underscores");
+            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
             lex_next(lex);
             last = true;
         }
@@ -236,7 +235,7 @@ static Token lex_hex_number(Lexer* lex)
         }
     }
 
-    if(last) lex_syntaxerror(lex, "Invalid hex number");
+    if(last) lex_syntaxerror(lex, TEA_ERR_XHEX);
 
     return lex_number_token(lex, NUM_HEX);
 }
@@ -249,7 +248,7 @@ static Token lex_binary_number(Lexer* lex)
     {
         if(lex->c == '_')
         {
-            if(last) lex_syntaxerror(lex, "Cannot have consecutive underscores");
+            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
             lex_next(lex);
             last = true;
         }
@@ -260,7 +259,7 @@ static Token lex_binary_number(Lexer* lex)
         }
     }
 
-    if(last) lex_syntaxerror(lex, "Cannot have leading underscores");
+    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
 
     return lex_number_token(lex, NUM_BIN);
 }
@@ -273,7 +272,7 @@ static Token lex_octal_number(Lexer* lex)
     {
         if(lex->c == '_')
         {
-            if(last) lex_syntaxerror(lex, "Cannot have consecutive underscores");
+            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
             lex_next(lex);
             last = true;
         }
@@ -284,7 +283,7 @@ static Token lex_octal_number(Lexer* lex)
         }
     }
 
-    if(last) lex_syntaxerror(lex, "Cannot have leading underscores");
+    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
 
     return lex_number_token(lex, NUM_OCTAL);
 }
@@ -295,7 +294,7 @@ static Token lex_exponent_number(Lexer* lex)
 
     if(!tea_char_isdigit(lex->c))
     {
-        lex_syntaxerror(lex, "Unterminated scientific notation");
+        lex_syntaxerror(lex, TEA_ERR_XSCI);
     }
 
     bool last = false;
@@ -304,7 +303,7 @@ static Token lex_exponent_number(Lexer* lex)
     {
         if(lex->c == '_')
         {
-            if(last) lex_syntaxerror(lex, "Cannot have consecutive underscores");
+            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
             lex_next(lex);
             last = true;
         }
@@ -315,11 +314,12 @@ static Token lex_exponent_number(Lexer* lex)
         }
     }
 
-    if(last) lex_syntaxerror(lex, "Cannot have leading underscores");
+    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
 
     return lex_number_token(lex, NUM_DEC);
 }
 
+/* Parse a number literal */
 static Token lex_number(Lexer* lex)
 {
     if(lex->c == '0')
@@ -344,7 +344,7 @@ static Token lex_number(Lexer* lex)
     {
         if(lex->c == '_')
         {
-            if(last) lex_syntaxerror(lex, "Cannot have consecutive underscores");
+            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
             lex_next(lex);
             last = true;
         }
@@ -372,7 +372,7 @@ static Token lex_number(Lexer* lex)
         {
             if(lex->c == '_')
             {
-                if(last) lex_syntaxerror(lex, "Cannot have consecutive underscores");
+                if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
                 lex_next(lex);
                 last = true;
             }
@@ -389,7 +389,7 @@ static Token lex_number(Lexer* lex)
         return lex_exponent_number(lex);
     }
 
-    if(last) lex_syntaxerror(lex, "Cannot have leading underscores");
+    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
 
     return lex_number_token(lex, NUM_DEC);
 }
@@ -454,6 +454,7 @@ static int lex_unicode_escape(Lexer* lex, int len)
     return c;
 }
 
+/* Parse a multi line string */
 static Token lex_multistring(Lexer* lex)
 {
     lex_savenext(lex);
@@ -468,7 +469,7 @@ static Token lex_multistring(Lexer* lex)
         {
             case LEX_EOF:
             {
-                lex_syntaxerror(lex, "Unterminated string");
+                lex_syntaxerror(lex, TEA_ERR_XSTR);
                 break;
             }
             case '\r':
@@ -493,7 +494,7 @@ static Token lex_multistring(Lexer* lex)
 
     if((c != lex->string) || (c1 != lex->string) || (c2 != lex->string))
     {
-        lex_syntaxerror(lex, "Unterminated string");
+        lex_syntaxerror(lex, TEA_ERR_XSTR);
     }
 
     Token token = lex_token(lex, TK_STRING);
@@ -501,6 +502,7 @@ static Token lex_multistring(Lexer* lex)
     return token;
 }
 
+/* Parse a string */
 static Token lex_string(Lexer* lex)
 {
     tea_State* T = lex->T;
@@ -512,7 +514,7 @@ static Token lex_string(Lexer* lex)
         {
             if(lex->num_braces >= 4)
             {
-				lex_syntaxerror(lex, "String interpolation is too deep");
+				lex_syntaxerror(lex, TEA_ERR_XSFMT);
 			}
 
             lex_next(lex);
@@ -531,13 +533,13 @@ static Token lex_string(Lexer* lex)
         {
             case LEX_EOF:
             {
-                lex_syntaxerror(lex, "Unterminated string");
+                lex_syntaxerror(lex, TEA_ERR_XSTR);
                 continue;
             }
             case '\n':
             case '\r':
             {
-                lex_syntaxerror(lex, "Unterminated string");
+                lex_syntaxerror(lex, TEA_ERR_XSTR);
                 continue;
             }
             case '\\':
@@ -549,6 +551,7 @@ static Token lex_string(Lexer* lex)
                     case '\"': c = '\"'; break;
                     case '\'': c = '\''; break;
                     case '\\': c = '\\'; break;
+                    case '`': c = '`'; break;
                     case '0': c = '\0'; break;
                     case '$': c = '$'; break;
                     case 'a': c = '\a'; break;
@@ -564,7 +567,7 @@ static Token lex_string(Lexer* lex)
                         c = lex_hex_escape(lex);
                         if(c == -1)
                         {
-                            lex_syntaxerror(lex, "Incomplete hex escape sequence");
+                            lex_syntaxerror(lex, TEA_ERR_XHESC);
                         }
                         break;
                     }
@@ -576,7 +579,7 @@ static Token lex_string(Lexer* lex)
                         c = lex_unicode_escape(lex, u);
                         if(c == -1)
                         {
-                            lex_syntaxerror(lex, "Incomplete unicode escape sequence");
+                            lex_syntaxerror(lex, TEA_ERR_XUESC);
                         }
                         lex_save(lex, c);
                         continue;
@@ -595,7 +598,7 @@ static Token lex_string(Lexer* lex)
                                 if(c > 255)
                                 {
                                 err_xesc:
-                                    lex_syntaxerror(lex, "Invalid escape character");
+                                    lex_syntaxerror(lex, TEA_ERR_XESC);
                                 }
                                 lex_next(lex);
                             }
@@ -624,7 +627,8 @@ static Token lex_string(Lexer* lex)
 	return token;
 }
 
-static const char* lex_token2str(Lexer* lex, int t)
+/* Convert token to string */
+const char* tea_lex_token2str(Lexer* lex, int t)
 {
     if(t > TK_OFS)
         return lex_tokennames[t - TK_OFS - 1];
@@ -637,7 +641,8 @@ static const char* lex_token2str(Lexer* lex, int t)
     }
 }
 
-void tea_lex_error(Lexer* lex, Token* token, const char* message)
+/* Lexer error */
+void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...)
 {
     char* module_name = lex->module->name->chars;
     char c = module_name[0];
@@ -645,14 +650,17 @@ void tea_lex_error(Lexer* lex, Token* token, const char* message)
     if(c == '?' || c == '=') off = 1;
 
     const char* tokstr = NULL;
+    va_list argp;
     if(token != NULL)
     {
-        tokstr = lex_token2str(lex, token->type);
+        tokstr = tea_lex_token2str(lex, token->type);
     }
-
-    tea_err_lex(lex->T, module_name + off, tokstr, token ? token->line : lex->line, message);
+    va_start(argp, em);
+    tea_err_lex(lex->T, module_name + off, tokstr, token ? token->line : lex->line, em, argp);
+    va_end(argp);
 }
 
+/* Get next lexical token */
 static Token lex_scan(Lexer* lex)
 {
     tea_buf_reset(&lex->sbuf);
@@ -678,7 +686,7 @@ static Token lex_scan(Lexer* lex)
                     {
                         if(lex->c == LEX_EOF)
                         {
-                            lex_syntaxerror(lex, "Unterminated block comment");
+                            lex_syntaxerror(lex, TEA_ERR_XLCOM);
                         }
 
                         if(lex->c == '/' && lex_next(lex) == '*')
@@ -988,7 +996,7 @@ static Token lex_scan(Lexer* lex)
                     return lex_number(lex);
                 }
                 else
-                    lex_syntaxerror(lex, "Unexpected character");
+                    lex_syntaxerror(lex, TEA_ERR_XCHAR);
             }
         }
     }
@@ -1006,6 +1014,7 @@ void tea_lex_next(Lexer* lex)
     lex->next = lex_scan(lex);
 }
 
+/* Initialize lexer */
 bool tea_lex_init(tea_State* T, Lexer* lex)
 {
     bool header = false;

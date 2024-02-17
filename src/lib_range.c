@@ -1,6 +1,6 @@
 /*
 ** lib_range.c
-** Teascript range class
+** Teascript Range class
 */
 
 #define lib_range_c

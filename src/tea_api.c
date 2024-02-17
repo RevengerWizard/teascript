@@ -956,5 +956,5 @@ TEA_API int tea_pcall(tea_State* T, int n)
     ctx.arg_count = n;
 
     TValue* f = T->top - n - 1;
-    return tea_vm_pcall(T, call_f, &ctx, stacksave(T, f));
+    return tea_vm_pcall(T, call_f, &ctx, stack_save(T, f));
 }

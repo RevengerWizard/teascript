@@ -6,8 +6,9 @@
 #ifndef _TEA_ERR_H
 #define _TEA_ERR_H
 
-#include "tea_state.h"
-#include "tea_lex.h"
+#include <setjmp.h>
+
+#include "tea.h"
 
 typedef enum
 {
@@ -20,10 +21,13 @@ typedef enum
 TEA_DATA const char* tea_err_allmsg;
 #define err2msg(em) (tea_err_allmsg+(int)(em))
 
+#define err_throw(T)    (longjmp(T->error_jump->buf, 1))
+#define err_try(T, c, a)    if(setjmp((c)->buf) == 0) { a }
+
 typedef void (*tea_CPFunction)(tea_State* T, void* ud);
 
-TEA_FUNC void tea_err_run(tea_State* T, const char* format, ...);
-TEA_FUNC void tea_err_lex(tea_State* T, const char* src, const char* tok, int line, const char* message);
+TEA_FUNC void tea_err_run(tea_State* T, ErrMsg em, ...);
+TEA_FUNC void tea_err_lex(tea_State* T, const char* src, const char* tok, int line, ErrMsg em, va_list argp);
 TEA_FUNC void tea_err_throw(tea_State* T, int code);
 TEA_FUNC int tea_err_protected(tea_State* T, tea_CPFunction f, void* ud);
 

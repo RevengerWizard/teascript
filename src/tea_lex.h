@@ -10,6 +10,7 @@
 
 #include "tea_buf.h"
 #include "tea_obj.h"
+#include "tea_err.h"
 
 /* Teascript lexer tokens */
 #define TKDEF(_) \
@@ -72,7 +73,8 @@ typedef struct Lexer
 } Lexer;
 
 TEA_FUNC bool tea_lex_init(tea_State* T, Lexer* lex);
-TEA_FUNC void tea_lex_error(Lexer* lex, Token* token, const char* message);
+TEA_FUNC const char* tea_lex_token2str(Lexer* lex, int t);
+TEA_FUNC void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...);
 TEA_FUNC void tea_lex_next(Lexer* lex);
 
 #endif

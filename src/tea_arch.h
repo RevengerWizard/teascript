@@ -3,8 +3,8 @@
 ** Target OS definitions
 */
 
-#ifndef TEA_ARCH_H
-#define TEA_ARCH_H
+#ifndef _TEA_ARCH_H
+#define _TEA_ARCH_H
 
 #define TEA_OS_OTHER 0
 #define TEA_OS_WINDOWS 1

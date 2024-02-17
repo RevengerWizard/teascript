@@ -96,7 +96,7 @@ void tea_debug_chunk(tea_State* T, GCproto* f, const char* name)
 {
     printf("== '%s' ==\n", name);
 
-    for(int offset = 0; offset < f->count;)
+    for(int offset = 0; offset < f->bc_count;)
     {
         offset = tea_debug_instruction(T, f, offset);
     }
@@ -104,7 +104,7 @@ void tea_debug_chunk(tea_State* T, GCproto* f, const char* name)
 
 static int debug_constant(GCproto* f, int offset)
 {
-    uint8_t constant = f->code[offset + 1];
+    uint8_t constant = f->bc[offset + 1];
     printf("%4d '", constant);
     tea_debug_value(f->k[constant]);
     printf("'\n");
@@ -114,8 +114,8 @@ static int debug_constant(GCproto* f, int offset)
 
 static int debug_invoke(GCproto* f, int offset)
 {
-    uint8_t constant = f->code[offset + 1];
-    uint8_t arg_count = f->code[offset + 2];
+    uint8_t constant = f->bc[offset + 1];
+    uint8_t arg_count = f->bc[offset + 2];
     printf("   (%d args) %4d '", arg_count, constant);
     tea_debug_value(f->k[constant]);
     printf("'\n");
@@ -132,7 +132,7 @@ static int debug_simple(int offset)
 
 static int debug_byte(GCproto* f, int offset)
 {
-    uint8_t slot = f->code[offset + 1];
+    uint8_t slot = f->bc[offset + 1];
     printf("%4d\n", slot);
 
     return offset + 2;
@@ -140,8 +140,8 @@ static int debug_byte(GCproto* f, int offset)
 
 static int debug_iter(GCproto* f, int offset)
 {
-    uint8_t seq = f->code[offset + 1];
-    uint8_t iter = f->code[offset + 2];
+    uint8_t seq = f->bc[offset + 1];
+    uint8_t iter = f->bc[offset + 2];
     printf("%4d     %4d\n", seq, iter);
     
     return offset + 3;
@@ -149,8 +149,8 @@ static int debug_iter(GCproto* f, int offset)
 
 static int debug_jump(int sign, GCproto* f, int offset)
 {
-    uint16_t jump = (uint16_t)(f->code[offset + 1] << 8);
-    jump |= f->code[offset + 2];
+    uint16_t jump = (uint16_t)(f->bc[offset + 1] << 8);
+    jump |= f->bc[offset + 2];
     printf("%4d -> %d\n", offset, offset + 3 + sign * jump);
 
     return offset + 3;
@@ -185,7 +185,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         printf("%4d ", line);
     }
 
-    uint8_t instruction = f->code[offset];
+    uint8_t instruction = f->bc[offset];
     if(instruction < BC_END)
     {
         printf("%-16s ", tea_bcnames[instruction]);
@@ -198,7 +198,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
     switch(instruction)
     {
         case BC_CONSTANT:
-        case BC_GET_PROPERTY_NO_POP:
+        case BC_GET_ATTR_NO_POP:
         case BC_SET_CLASS_VAR:
         case BC_GET_GLOBAL:
         case BC_SET_GLOBAL:
@@ -207,8 +207,8 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_DEFINE_OPTIONAL:
         case BC_DEFINE_GLOBAL:
         case BC_DEFINE_MODULE:
-        case BC_GET_PROPERTY:
-        case BC_SET_PROPERTY:
+        case BC_GET_ATTR:
+        case BC_SET_ATTR:
         case BC_GET_SUPER:
         case BC_CLASS:
         case BC_METHOD:
@@ -228,9 +228,9 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_RANGE:
         case BC_LIST:
         case BC_MAP:
-        case BC_SUBSCRIPT:
-        case BC_SUBSCRIPT_STORE:
-        case BC_SUBSCRIPT_PUSH:
+        case BC_INDEX:
+        case BC_INDEX_STORE:
+        case BC_INDEX_PUSH:
         case BC_SLICE:
         case BC_LIST_ITEM:
         case BC_MAP_FIELD:
@@ -284,7 +284,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_CLOSURE:
         {
             offset++;
-            uint8_t constant = f->code[offset++];
+            uint8_t constant = f->bc[offset++];
             printf("%4d ", constant);
             tea_debug_value(f->k[constant]);
             printf("\n");
@@ -292,8 +292,8 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
             GCproto* proto = AS_PROTO(f->k[constant]);
             for(int j = 0; j < proto->upvalue_count; j++)
             {
-                int is_local = f->code[offset++];
-                int index = f->code[offset++];
+                int is_local = f->bc[offset++];
+                int index = f->bc[offset++];
                 printf("%04d    |                     %s %d\n", offset - 2, is_local ? "local" : "upvalue", index);
             }
 
