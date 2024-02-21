@@ -27,6 +27,8 @@
 #define IS_DIR_SEP(c) (c == DIR_SEP)
 #endif
 
+#define TEA_LL_SYM "tea_import_"
+
 TEA_FUNC GCstr* tea_imp_dirname(tea_State* T, char* path, int len);
 TEA_FUNC bool tea_imp_resolvepath(char* directory, char* path, char* ret);
 TEA_FUNC GCstr* tea_imp_getdir(tea_State* T, char* source);

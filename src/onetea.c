@@ -28,7 +28,6 @@
 #include "tea_err.c"
 #include "tea_gc.c"
 #include "tea_import.c"
-#include "tea_loadlib.c"
 #include "tea_func.c"
 #include "tea_str.c"
 #include "tea_map.c"

@@ -294,6 +294,5 @@ void tea_open_core(tea_State* T)
         tea_push_cfunction(T, core[i], 0);
         tea_call(T, 0);
         tea_pop(T, 1);
-        TEA_ASSERT(tea_get_top(T) == 0);
     }
 }

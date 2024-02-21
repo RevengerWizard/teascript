@@ -14,13 +14,6 @@
 #define TEA_MAX_CALLS   1000
 #define TEA_MAX_CCALLS  200
 
-#ifdef TEA_DEBUG
-#include <assert.h>
-#define TEA_ASSERT(c)   assert(c)
-#else
-#define TEA_ASSERT(c)   ((void)0)
-#endif
-
 #ifndef _MSC_VER
 #define TEA_COMPUTED_GOTO
 #endif
@@ -101,8 +94,16 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #define TEA_UNLIKELY(x)   (x)
 #endif
 
+/* Attributes for internal functions */
 #define TEA_DATA    TEA_NOAPI
 #define TEA_DATADEF
 #define TEA_FUNC    TEA_NOAPI
+
+/* Internal assertions */
+#if defined(TEA_USE_ASSERT)
+#define tea_assert_check(T, c, ...) \
+    ((c) ? (void)0 : \
+    (tea_assert_fail((T), __FILE__, __LINE__, __func__, __VA_ARGS__), 0))
+#endif
 
 #endif

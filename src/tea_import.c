@@ -18,8 +18,93 @@
 #include "tea_import.h"
 #include "tea_str.h"
 #include "tea_err.h"
-#include "tea_loadlib.h"
 #include "tea_tab.h"
+
+#if TEA_TARGET_DLOPEN
+
+#include <dlfcn.h>
+
+static void ll_unload(void* lib)
+{
+    dlclose(lib);
+}
+
+static void* ll_load(tea_State* T, const char* path)
+{
+    void* lib = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+    if(lib == NULL)
+        tea_error(T, dlerror());
+    return lib;
+}
+
+static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
+{
+    tea_CFunction f = (tea_CFunction)dlsym(lib, sym);
+    if(f == NULL)
+        tea_error(T, dlerror());
+    return f;
+}
+
+#elif TEA_TARGET_WINDOWS
+
+#include <windows.h>
+
+static void ll_error(tea_State* T)
+{
+    int error = GetLastError();
+    char buffer[128];
+    if(FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM, NULL, error, 0, buffer, sizeof(buffer) / sizeof(char), NULL))
+        tea_error(T, buffer);
+    else
+        tea_error(T, "system error %d\n", error);
+}
+
+static void ll_unload(void* lib)
+{
+    FreeLibrary((HMODULE)lib);
+}
+
+static void* ll_load(tea_State* T, const char* path)
+{
+    HMODULE lib = LoadLibraryExA(path, NULL, 0);
+    if(lib == NULL)
+        ll_error(T);
+    return lib;
+}
+
+static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
+{
+    tea_CFunction f = (tea_CFunction)GetProcAddress((HMODULE)lib, sym);
+    if(f == NULL)
+        ll_error(T);
+    return f;
+}
+
+#else
+
+#define DLMSG   "dynamic libraries not enabled"
+
+static void ll_unload(void* lib)
+{
+    /* Not used */
+    UNUSED(lib);
+}
+
+static void* ll_load(tea_State* T, const char* path)
+{
+    UNUSED(path);
+    tea_error(T, DLMSG);
+    return NULL;
+}
+
+static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
+{
+    UNUSED(lib); UNUSED(sym);
+    tea_error(T, DLMSG);
+    return NULL;
+}
+
+#endif
 
 static const tea_Reg modules[] = {
     { TEA_MODULE_MATH, tea_import_math },
@@ -240,8 +325,8 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         {
             const char* symname = tea_push_fstring(T, TEA_LL_SYM "%s", name->chars);
 
-            void* lib = tea_ll_load(T, module->chars);
-            tea_CFunction fn = tea_ll_sym(T, lib, symname);
+            void* lib = ll_load(T, module->chars);
+            tea_CFunction fn = ll_sym(T, lib, symname);
             T->top--;
 
             tea_push_cfunction(T, fn, 0);
