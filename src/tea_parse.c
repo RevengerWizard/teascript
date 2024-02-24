@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "tea_def.h"
 #include "tea_state.h"
@@ -876,7 +877,7 @@ static bool parse_slice(Parser* parser)
         /* [n:] */
         if(lex_check(parser, ']'))
         {
-            expr_null(parser, false);
+            bcemit_constant(parser, NUMBER_VAL(INFINITY));
             bcemit_constant(parser, NUMBER_VAL(1));
         }
         else
@@ -884,7 +885,7 @@ static bool parse_slice(Parser* parser)
             /* [n::n] */
             if(lex_match(parser, ':'))
             {
-                expr_null(parser, false);
+                bcemit_constant(parser, NUMBER_VAL(INFINITY));
                 expr(parser);
             }
             else
@@ -909,20 +910,20 @@ static bool parse_slice(Parser* parser)
 static void expr_subscript(Parser* parser, bool assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
+    bcemit_op(parser, BC_PUSH_INDEX); \
     expr(parser); \
-    bcemit_ops(parser, BC_INDEX_PUSH, op); \
-    bcemit_op(parser, BC_INDEX_STORE);
+    bcemit_op(parser, op); \
+    bcemit_op(parser, BC_SET_INDEX);
 
 #define SHORT_HAND_INCREMENT(op) \
+    bcemit_op(parser, BC_PUSH_INDEX); \
     bcemit_constant(parser, NUMBER_VAL(1)); \
-    bcemit_ops(parser, BC_INDEX_PUSH, op); \
-    bcemit_op(parser, BC_INDEX_STORE);
+    bcemit_op(parser, op); \
+    bcemit_op(parser, BC_SET_INDEX);
 
     if(parse_slice(parser))
     {
-        bcemit_op(parser, BC_SLICE);
-        lex_consume(parser, ']');
-        return;
+        bcemit_op(parser, BC_RANGE);
     }
 
     lex_consume(parser, ']');
@@ -930,7 +931,7 @@ static void expr_subscript(Parser* parser, bool assign)
     if(assign && lex_match(parser, '='))
     {
         expr(parser);
-        bcemit_op(parser, BC_INDEX_STORE);
+        bcemit_op(parser, BC_SET_INDEX);
     }
     else if(assign && lex_match(parser, TK_PLUS_EQUAL))
     {
@@ -988,7 +989,7 @@ static void expr_subscript(Parser* parser, bool assign)
         }
         else
         {
-            bcemit_op(parser, BC_INDEX);
+            bcemit_op(parser, BC_GET_INDEX);
         }
     }
 
@@ -1978,10 +1979,9 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_TRUE:
         case BC_FALSE:
         case BC_RANGE:
-        case BC_INDEX:
-        case BC_INDEX_STORE:
-        case BC_INDEX_PUSH:
-        case BC_SLICE:
+        case BC_GET_INDEX:
+        case BC_SET_INDEX:
+        case BC_PUSH_INDEX:
         case BC_INHERIT:
         case BC_POP:
         case BC_PRINT:

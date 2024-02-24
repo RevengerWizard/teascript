@@ -228,10 +228,9 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_RANGE:
         case BC_LIST:
         case BC_MAP:
-        case BC_INDEX:
-        case BC_INDEX_STORE:
-        case BC_INDEX_PUSH:
-        case BC_SLICE:
+        case BC_GET_INDEX:
+        case BC_SET_INDEX:
+        case BC_PUSH_INDEX:
         case BC_LIST_ITEM:
         case BC_MAP_FIELD:
         case BC_EQUAL:

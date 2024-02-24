@@ -124,37 +124,39 @@ static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
 
 bool vm_precall(tea_State* T, TValue callee, uint8_t arg_count)
 {
-    if(IS_OBJECT(callee))
+    if(!IS_OBJECT(callee))
     {
-        switch(OBJECT_TYPE(callee))
+        tea_err_run(T, TEA_ERR_CALL, tea_val_type(callee));
+    }
+
+    switch(OBJECT_TYPE(callee))
+    {
+        case OBJ_METHOD:
         {
-            case OBJ_METHOD:
-            {
-                GCmethod* bound = AS_METHOD(callee);
-                T->top[-arg_count - 1] = bound->receiver;
-                return vm_precall(T, bound->method, arg_count);
-            }
-            case OBJ_CLASS:
-            {
-                GCclass* klass = AS_CLASS(callee);
-                T->top[-arg_count - 1] = OBJECT_VAL(tea_obj_new_instance(T, klass));
-                if(!IS_NULL(klass->constructor)) 
-                {
-                    return vm_precall(T, klass->constructor, arg_count);
-                }
-                else if(arg_count != 0)
-                {
-                    tea_err_run(T, TEA_ERR_NOARGS, arg_count);
-                }
-                return false;
-            }
-            case OBJ_FUNC:
-                return vm_callT(T, AS_FUNC(callee), arg_count);
-            case OBJ_CFUNC:
-                return vm_callC(T, AS_CFUNC(callee), arg_count);
-            default:
-                break; /* Non-callable object type */
+            GCmethod* bound = AS_METHOD(callee);
+            T->top[-arg_count - 1] = bound->receiver;
+            return vm_precall(T, bound->method, arg_count);
         }
+        case OBJ_CLASS:
+        {
+            GCclass* klass = AS_CLASS(callee);
+            T->top[-arg_count - 1] = OBJECT_VAL(tea_obj_new_instance(T, klass));
+            if(!IS_NULL(klass->constructor)) 
+            {
+                return vm_precall(T, klass->constructor, arg_count);
+            }
+            else if(arg_count != 0)
+            {
+                tea_err_run(T, TEA_ERR_NOARGS, arg_count);
+            }
+            return false;
+        }
+        case OBJ_FUNC:
+            return vm_callT(T, AS_FUNC(callee), arg_count);
+        case OBJ_CFUNC:
+            return vm_callC(T, AS_CFUNC(callee), arg_count);
+        default:
+            break; /* Non-callable object type */
     }
 
     tea_err_run(T, TEA_ERR_CALL, tea_val_type(callee));
@@ -254,132 +256,196 @@ static bool vm_bind_method(tea_State* T, GCclass* klass, GCstr* name)
     return true;
 }
 
-static bool vm_slice(tea_State* T, TValue object, TValue start_index, TValue end_index, TValue step_index)
+static void vm_splice(tea_State* T, TValue object, GCrange* range, TValue item)
 {
-    if(!IS_NUMBER(step_index) || (!IS_NUMBER(end_index) && !IS_NULL(end_index)) || !IS_NUMBER(step_index))
+    if(!IS_OBJECT(object))
     {
-        tea_err_run(T, TEA_ERR_NUMSLICE);
-        return false;
+        tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
     }
 
-    if(IS_OBJECT(object))
+    switch(OBJECT_TYPE(object))
     {
-        switch(OBJECT_TYPE(object))
+        case OBJ_LIST:
         {
-            case OBJ_LIST:
+            GClist* list = AS_LIST(object);
+
+            int start = range->start;
+            int end;
+            int step = range->step;
+
+            if(isinf(range->end))
             {
-                GClist* new_list = tea_obj_new_list(T);
-                tea_vm_push(T, OBJECT_VAL(new_list));
-                GClist* list = AS_LIST(object);
-
-                int start = AS_NUMBER(start_index);
-                int end;
-                int step = AS_NUMBER(step_index);
-
-                if(IS_NULL(end_index))
+                end = list->count;
+            } 
+            else
+            {
+                end = range->end;
+                if(end > list->count)
                 {
                     end = list->count;
-                }
-                else
+                } 
+                else if(end < 0)
                 {
-                    end = AS_NUMBER(end_index);
-                    if(end > list->count)
-                    {
-                        end = list->count;
-                    }
-                    else if(end < 0)
-                    {
-                        end = list->count + end;
-                    }
+                    end = list->count + end;
                 }
-
-                if(step > 0)
-                {
-                    for(int i = start; i < end; i += step)
-                    {
-                        tea_list_append(T, new_list, list->items[i]);
-                    }
-                }
-                else if(step < 0)
-                {
-                    for(int i = end + step; i >= start; i += step)
-                    {
-                        tea_list_append(T, new_list, list->items[i]);
-                    }
-                }
-
-                tea_vm_pop(T, 5);   /* +1 for the pushed list */
-                tea_vm_push(T, OBJECT_VAL(new_list));
-                return true;
             }
-            case OBJ_STRING:
+
+            // Handle negative indexing
+            if(start < 0)
             {
-                GCstr* string = AS_STRING(object);
-                int len = tea_utf_len(string);
-
-                int start = AS_NUMBER(start_index);
-                int end;
-
-                if(IS_NULL(end_index))
-                {
-                    end = string->len;
-                }
-                else
-                {
-                    end = AS_NUMBER(end_index);
-                    if(end > len)
-                    {
-                        end = len;
-                    }
-                    else if(end < 0)
-                    {
-                        end = len + end;
-                    }
-                }
-
-                /* Ensure the start index is below the end index */
-                if(start > end)
-                {
-                    tea_vm_pop(T, 4);
-                    tea_vm_push(T, OBJECT_VAL(tea_str_lit(T, "")));
-                    return true;
-                }
-                else
-                {
-                    start = tea_utf_char_offset(string->chars, start);
-                    end = tea_utf_char_offset(string->chars, end);
-                    tea_vm_pop(T, 4);
-                    tea_vm_push(T, OBJECT_VAL(tea_utf_from_range(T, string, start, end - start, 1)));
-                    return true;
-                }
+                start = list->count + start;
+                if(start < 0) start = 0;
             }
-            default:
-                break;
+            if(end < 0) end = list->count + end;
+
+            if(step <= 0) step = 1;
+
+            /* Insert into list the item values based on the range */
+
+            tea_vm_pop(T, 3);
+            tea_vm_push(T, object);
+            return;
         }
+        default:
+            break;
     }
 
     tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
-    return false;
 }
 
-static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
+static void vm_slice(tea_State* T, TValue object, GCrange* range, bool assign)
 {
-    if(!IS_OBJECT(subscript_value))
+    if(!IS_OBJECT(object))
     {
-        tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(subscript_value));
+        tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
     }
 
-    switch(OBJECT_TYPE(subscript_value))
+    switch(OBJECT_TYPE(object))
+    {
+        case OBJ_LIST:
+        {
+            GClist* new_list = tea_obj_new_list(T);
+            tea_vm_push(T, OBJECT_VAL(new_list));
+            GClist* list = AS_LIST(object);
+
+            int start = range->start;
+            int end;
+            int step = range->step;
+
+            if(isinf(range->end))
+            {
+                end = list->count;
+            }
+            else
+            {
+                end = range->end;
+                if(end > list->count)
+                {
+                    end = list->count;
+                }
+                else if(end < 0)
+                {
+                    end = list->count + end;
+                }
+            }
+
+            if(step > 0)
+            {
+                for(int i = start; i < end; i += step)
+                {
+                    tea_list_append(T, new_list, list->items[i]);
+                }
+            }
+            else if(step < 0)
+            {
+                for(int i = end + step; i >= start; i += step)
+                {
+                    tea_list_append(T, new_list, list->items[i]);
+                }
+            }
+
+            if(assign)
+            {
+                tea_vm_pop(T, 2);
+            }
+
+            tea_vm_pop(T, 1);   /* Pop the pushed list */
+            tea_vm_push(T, OBJECT_VAL(new_list));
+            return;
+        }
+        case OBJ_STRING:
+        {
+            GCstr* string = AS_STRING(object);
+            int len = tea_utf_len(string);
+
+            int start = range->start;
+            int end;
+
+            if(isinf(range->end))
+            {
+                end = string->len;
+            }
+            else
+            {
+                end = range->end;
+                if(end > len)
+                {
+                    end = len;
+                }
+                else if(end < 0)
+                {
+                    end = len + end;
+                }
+            }
+
+            if(assign)
+            {
+                tea_vm_pop(T, 2);
+            }
+
+            /* Ensure the start index is below the end index */
+            if(start > end)
+            {
+                tea_vm_push(T, OBJECT_VAL(tea_str_lit(T, "")));
+            }
+            else
+            {
+                start = tea_utf_char_offset(string->chars, start);
+                end = tea_utf_char_offset(string->chars, end);
+                tea_vm_push(T, OBJECT_VAL(tea_utf_from_range(T, string, start, end - start, 1)));
+            }
+            return;
+        }
+        default:
+            break;
+    }
+
+    tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
+}
+
+static void vm_get_index(tea_State* T, TValue index_value, TValue object, bool assign)
+{
+    if(!IS_OBJECT(object))
+    {
+        tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(object));
+    }
+
+    switch(OBJECT_TYPE(object))
     {
         case OBJ_INSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(subscript_value);
+            GCinstance* instance = AS_INSTANCE(object);
 
             GCstr* subs = T->opm_name[MM_INDEX];
 
             TValue method;
             if(tea_tab_get(&instance->klass->methods, subs, &method))
             {
+                if(!assign)
+                {
+                    tea_vm_push(T, object);
+                    tea_vm_push(T, index_value);
+                }
                 tea_vm_push(T, NULL_VAL);
                 tea_vm_call(T, method, 2);
                 return;
@@ -394,7 +460,7 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
                 tea_err_run(T, TEA_ERR_NUMRANGE);
             }
 
-            GCrange* range = AS_RANGE(subscript_value);
+            GCrange* range = AS_RANGE(object);
             double index = AS_NUMBER(index_value);
 
             /* Calculate the length of the range */
@@ -408,7 +474,10 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
 
             if(index >= 0 && index < len)
             {
-                tea_vm_pop(T, 2);
+                if(assign)
+                {
+                    tea_vm_pop(T, 2);
+                }
                 tea_vm_push(T, NUMBER_VAL(range->start + index * range->step));
                 return;
             }
@@ -422,7 +491,7 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
                 tea_err_run(T, TEA_ERR_NUMLIST);
             }
 
-            GClist* list = AS_LIST(subscript_value);
+            GClist* list = AS_LIST(object);
             int index = AS_NUMBER(index_value);
 
             /* Allow negative indexes */
@@ -433,7 +502,10 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
 
             if(index >= 0 && index < list->count)
             {
-                tea_vm_pop(T, 2);
+                if(assign)
+                {
+                    tea_vm_pop(T, 2);
+                }
                 tea_vm_push(T, list->items[index]);
                 return;
             }
@@ -442,16 +514,19 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
         }
         case OBJ_MAP:
         {
-            GCmap* map = AS_MAP(subscript_value);
+            GCmap* map = AS_MAP(object);
             if(!tea_map_hashable(index_value))
             {
                 tea_err_run(T, TEA_ERR_HASH);
             }
 
             TValue value;
-            tea_vm_pop(T, 2);
             if(tea_map_get(map, index_value, &value))
             {
+                if(assign)
+                {
+                    tea_vm_pop(T, 2);
+                }
                 tea_vm_push(T, value);
                 return;
             }
@@ -465,7 +540,7 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
                 tea_err_run(T, TEA_ERR_NUMSTR, tea_val_type(index_value));
             }
 
-            GCstr* string = AS_STRING(subscript_value);
+            GCstr* string = AS_STRING(object);
             int index = AS_NUMBER(index_value);
             int real_len = tea_utf_len(string);
 
@@ -477,7 +552,10 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
 
             if(index >= 0 && index < string->len)
             {
-                tea_vm_pop(T, 2);
+                if(assign)
+                {
+                    tea_vm_pop(T, 2);
+                }
                 GCstr* c = tea_utf_codepoint_at(T, string, tea_utf_char_offset(string->chars, index));
                 tea_vm_push(T, OBJECT_VAL(c));
                 return;
@@ -489,27 +567,27 @@ static void vm_index(tea_State* T, TValue index_value, TValue subscript_value)
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(subscript_value));
+    tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(object));
 }
 
-static void vm_index_store(tea_State* T, TValue item_value, TValue index_value, TValue subscript_value, bool assign)
+static void vm_set_index(tea_State* T, TValue item_value, TValue index_value, TValue object)
 {
-    if(!IS_OBJECT(subscript_value))
+    if(!IS_OBJECT(object))
     {
-        tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(subscript_value));
+        tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(object));
     }
 
-    switch(OBJECT_TYPE(subscript_value))
+    switch(OBJECT_TYPE(object))
     {
         case OBJ_INSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(subscript_value);
+            GCinstance* instance = AS_INSTANCE(object);
 
             GCstr* subs = T->opm_name[MM_INDEX];
 
             TValue method;
             if(tea_tab_get(&instance->klass->methods, subs, &method))
-            {
+            {             
                 tea_vm_call(T, method, 2);
                 return;
             }
@@ -523,7 +601,7 @@ static void vm_index_store(tea_State* T, TValue item_value, TValue index_value, 
                 tea_err_run(T, TEA_ERR_NUMLIST);
             }
 
-            GClist* list = AS_LIST(subscript_value);
+            GClist* list = AS_LIST(object);
             int index = AS_NUMBER(index_value);
 
             if(index < 0)
@@ -533,17 +611,9 @@ static void vm_index_store(tea_State* T, TValue item_value, TValue index_value, 
 
             if(index >= 0 && index < list->count)
             {
-                if(assign)
-                {
-                    list->items[index] = item_value;
-                    tea_vm_pop(T, 3);
-                    tea_vm_push(T, item_value);
-                }
-                else
-                {
-                    T->top[-1] = list->items[index];
-                    tea_vm_push(T, item_value);
-                }
+                list->items[index] = item_value;
+                tea_vm_pop(T, 3);
+                tea_vm_push(T, item_value);
                 return;
             }
 
@@ -551,49 +621,36 @@ static void vm_index_store(tea_State* T, TValue item_value, TValue index_value, 
         }
         case OBJ_MAP:
         {
-            GCmap* map = AS_MAP(subscript_value);
+            GCmap* map = AS_MAP(object);
             if(!tea_map_hashable(index_value))
             {
                 tea_err_run(T, TEA_ERR_HASH);
             }
 
-            if(assign)
-            {
-                tea_map_set(T, map, index_value, item_value);
-                tea_vm_pop(T, 3);
-                tea_vm_push(T, item_value);
-            }
-            else
-            {
-                TValue map_value;
-                if(!tea_map_get(map, index_value, &map_value))
-                {
-                    tea_err_run(T, TEA_ERR_MAPKEY);
-                }
-                T->top[-1] = map_value;
-                tea_vm_push(T, item_value);
-            }
+            tea_map_set(T, map, index_value, item_value);
+            tea_vm_pop(T, 3);
+            tea_vm_push(T, item_value);
             return;
         }
         default:
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_val_type(subscript_value));
+    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_val_type(object));
 }
 
-static void vm_get_attr(tea_State* T, TValue receiver, GCstr* name, bool dopop)
+static void vm_get_attr(tea_State* T, TValue object, GCstr* name, bool dopop)
 {
-    if(!IS_OBJECT(receiver))
+    if(!IS_OBJECT(object))
     {
         tea_err_run(T, TEA_ERR_OBJATTR);
     }
 
-    switch(OBJECT_TYPE(receiver))
+    switch(OBJECT_TYPE(object))
     {
         case OBJ_INSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(receiver);
+            GCinstance* instance = AS_INSTANCE(object);
 
             TValue value;
             if(tea_tab_get(&instance->fields, name, &value))
@@ -629,7 +686,7 @@ static void vm_get_attr(tea_State* T, TValue receiver, GCstr* name, bool dopop)
         }
         case OBJ_CLASS:
         {
-            GCclass* klass = AS_CLASS(receiver);
+            GCclass* klass = AS_CLASS(object);
             GCclass* klass_store = klass;
 
             while(klass != NULL)
@@ -652,7 +709,7 @@ static void vm_get_attr(tea_State* T, TValue receiver, GCstr* name, bool dopop)
         }
         case OBJ_MODULE:
         {
-            GCmodule* module = AS_MODULE(receiver);
+            GCmodule* module = AS_MODULE(object);
 
             TValue value;
             if(tea_tab_get(&module->values, name, &value))
@@ -669,7 +726,7 @@ static void vm_get_attr(tea_State* T, TValue receiver, GCstr* name, bool dopop)
         }
         case OBJ_MAP:
         {
-            GCmap* map = AS_MAP(receiver);
+            GCmap* map = AS_MAP(object);
 
             TValue value;
             if(tea_map_get(map, OBJECT_VAL(name), &value))
@@ -691,7 +748,7 @@ static void vm_get_attr(tea_State* T, TValue receiver, GCstr* name, bool dopop)
         default:
         retry:
         {
-            GCclass* klass = tea_state_get_class(T, receiver);
+            GCclass* klass = tea_state_get_class(T, object);
             if(klass != NULL)
             {
                 TValue value;
@@ -701,7 +758,7 @@ static void vm_get_attr(tea_State* T, TValue receiver, GCstr* name, bool dopop)
                     {
                         if(!dopop)
                         {
-                            tea_vm_push(T, receiver);
+                            tea_vm_push(T, object);
                         }
                         tea_vm_call(T, value, 0);
                     }
@@ -716,68 +773,70 @@ static void vm_get_attr(tea_State* T, TValue receiver, GCstr* name, bool dopop)
         }
     }
 
-    tea_err_run(T, TEA_ERR_NOATTR, tea_val_type(receiver), name->chars);
+    tea_err_run(T, TEA_ERR_NOATTR, tea_val_type(object), name->chars);
 }
 
-static void vm_set_attr(tea_State* T, GCstr* name, TValue receiver, TValue item)
+static void vm_set_attr(tea_State* T, GCstr* name, TValue object, TValue item)
 {
-    if(IS_OBJECT(receiver))
+    if(!IS_OBJECT(object))
     {
-        switch(OBJECT_TYPE(receiver))
+        tea_err_run(T, TEA_ERR_SETATTR, tea_val_type(object));
+    }
+
+    switch(OBJECT_TYPE(object))
+    {
+        case OBJ_INSTANCE:
         {
-            case OBJ_INSTANCE:
+            GCinstance* instance = AS_INSTANCE(object);
+            tea_tab_set(T, &instance->fields, name, item);
+            tea_vm_pop(T, 2);
+            tea_vm_push(T, item);
+            return;
+        }
+        case OBJ_CLASS:
+        {
+            GCclass* klass = AS_CLASS(object);
+            tea_tab_set(T, &klass->statics, name, item);
+            tea_vm_pop(T, 2);
+            tea_vm_push(T, item);
+            return;
+        }
+        case OBJ_MAP:
+        {
+            GCmap* map = AS_MAP(object);
+            tea_map_set(T, map, OBJECT_VAL(name), item);
+            tea_vm_pop(T, 2);
+            tea_vm_push(T, item);
+            return;
+        }
+        case OBJ_MODULE:
+        {
+            GCmodule* module = AS_MODULE(object);
+            tea_tab_set(T, &module->values, name, item);
+            tea_vm_pop(T, 2);
+            tea_vm_push(T, item);
+            return;
+        }
+        default:
+        {
+            GCclass* klass = tea_state_get_class(T, object);
+            if(klass != NULL)
             {
-                GCinstance* instance = AS_INSTANCE(receiver);
-                tea_tab_set(T, &instance->fields, name, item);
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, item);
-                return;
-            }
-            case OBJ_CLASS:
-            {
-                GCclass* klass = AS_CLASS(receiver);
-                tea_tab_set(T, &klass->statics, name, item);
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, item);
-                return;
-            }
-            case OBJ_MAP:
-            {
-                GCmap* map = AS_MAP(receiver);
-                tea_map_set(T, map, OBJECT_VAL(name), item);
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, item);
-                return;
-            }
-            case OBJ_MODULE:
-            {
-                GCmodule* module = AS_MODULE(receiver);
-                tea_tab_set(T, &module->values, name, item);
-                tea_vm_pop(T, 2);
-                tea_vm_push(T, item);
-                return;
-            }
-            default:
-            {
-                GCclass* klass = tea_state_get_class(T, receiver);
-                if(klass != NULL)
+                TValue value;
+                if(tea_tab_get(&klass->methods, name, &value))
                 {
-                    TValue value;
-                    if(tea_tab_get(&klass->methods, name, &value))
+                    if(IS_CFUNC(value) && AS_CFUNC(value)->type == C_PROPERTY)
                     {
-                        if(IS_CFUNC(value) && AS_CFUNC(value)->type == C_PROPERTY)
-                        {
-                            tea_vm_call(T, value, 1);
-                            return;
-                        }
+                        tea_vm_call(T, value, 1);
+                        return;
                     }
                 }
-                break;
             }
+            break;
         }
     }
 
-    tea_err_run(T, TEA_ERR_SETATTR, tea_val_type(receiver));
+    tea_err_run(T, TEA_ERR_SETATTR, tea_val_type(object));
 }
 
 static void vm_define_method(tea_State* T, GCstr* name)
@@ -1141,20 +1200,13 @@ static void vm_execute(tea_State* T)
                 DISPATCH();
             }
             CASE_CODE(BC_GET_ATTR):
-            {
-                TValue receiver = PEEK(0);
-                GCstr* name = READ_STRING();
-                STORE_FRAME;
-                vm_get_attr(T, receiver, name, true);
-                READ_FRAME();
-                DISPATCH();
-            }
             CASE_CODE(BC_GET_ATTR_NO_POP):
             {
                 TValue receiver = PEEK(0);
                 GCstr* name = READ_STRING();
+                bool dopop = instruction == BC_GET_ATTR;
                 STORE_FRAME;
-                vm_get_attr(T, receiver, name, false);
+                vm_get_attr(T, receiver, name, dopop);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1270,78 +1322,38 @@ static void vm_execute(tea_State* T)
                 PUSH(OBJECT_VAL(map));
                 DISPATCH();
             }
-            CASE_CODE(BC_INDEX):
+            CASE_CODE(BC_GET_INDEX):
+            CASE_CODE(BC_PUSH_INDEX):
             {
-                TValue list = PEEK(1);
+                TValue obj = PEEK(1);
                 TValue index = PEEK(0);
+                bool assign = instruction == BC_GET_INDEX;
                 STORE_FRAME;
-                vm_index(T, index, list);
+                if(!IS_RANGE(index))
+                    vm_get_index(T, index, obj, assign);
+                else
+                    vm_slice(T, obj, AS_RANGE(index), assign);
                 READ_FRAME();
                 DISPATCH();
             }
-            CASE_CODE(BC_INDEX_STORE):
+            CASE_CODE(BC_SET_INDEX):
             {
-                TValue list = PEEK(2);
+                TValue obj = PEEK(2);
                 TValue index = PEEK(1);
                 TValue item = PEEK(0);
                 STORE_FRAME;
-                vm_index_store(T, item, index, list, true);
+                if(!IS_RANGE(index))
+                    vm_set_index(T, item, index, obj);
+                else
+                    vm_splice(T, obj, AS_RANGE(index), item);
                 READ_FRAME();
-                DISPATCH();
-            }
-            CASE_CODE(BC_INDEX_PUSH):
-            {
-                TValue list = PEEK(2);
-                TValue index = PEEK(1);
-                TValue item = PEEK(0);
-                STORE_FRAME;
-                vm_index_store(T, item, index, list, false);
-                READ_FRAME();
-                DISPATCH();
-            }
-            CASE_CODE(BC_SLICE):
-            {
-                TValue object = PEEK(3);
-                TValue start = PEEK(2);
-                TValue end = PEEK(1);
-                TValue step = PEEK(0);
-                STORE_FRAME;
-                vm_slice(T, object, start, end, step);
                 DISPATCH();
             }
             CASE_CODE(BC_LIST_ITEM):
             {
                 GClist* list = AS_LIST(PEEK(1));
                 TValue item = PEEK(0);
-
-                if(IS_RANGE(item))
-                {
-                    GCrange* range = AS_RANGE(item);
-
-                    int start = range->start;
-                    int end = range->end;
-                    int step = range->step;
-
-                    if(step > 0)
-                    {
-                        for(int i = start; i < end; i += step)
-                        {
-                            tea_list_append(T, list, NUMBER_VAL(i));
-                        }
-                    }
-                    else if(step < 0)
-                    {
-                        for(int i = end + step; i >= 0; i += step)
-                        {
-                            tea_list_append(T, list, NUMBER_VAL(i));
-                        }
-                    }
-                }
-                else
-                {
-                    tea_list_append(T, list, item);
-                }
-
+                tea_list_append(T, list, item);
                 DROP(1);
                 DISPATCH();
             }

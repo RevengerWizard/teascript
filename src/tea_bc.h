@@ -35,10 +35,9 @@
     _(UNPACK, -1) \
     _(UNPACK_REST, -1) \
     _(MAP, 1) \
-    _(INDEX, 0) \
-    _(INDEX_STORE, 0) \
-    _(INDEX_PUSH, 0) \
-    _(SLICE, -3) \
+    _(GET_INDEX, -1) \
+    _(PUSH_INDEX, 1) \
+    _(SET_INDEX, 0) \
     _(LIST_ITEM, -1) \
     _(MAP_FIELD, -2) \
     _(IS, -1) \

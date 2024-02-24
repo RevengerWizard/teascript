@@ -63,6 +63,10 @@ TEA_NOINLINE void tea_err_lex(tea_State* T, const char* src, const char* tok, in
     {
         fprintf(stderr, " at '%s': ", tok);
     }
+    else
+    {
+        fputs(": ", stderr);
+    }
 
     vfprintf(stderr, err2msg(em), argp);
     fputc('\n', stderr);
