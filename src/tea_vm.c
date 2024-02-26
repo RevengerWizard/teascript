@@ -1200,7 +1200,7 @@ static void vm_execute(tea_State* T)
                 DISPATCH();
             }
             CASE_CODE(BC_GET_ATTR):
-            CASE_CODE(BC_GET_ATTR_NO_POP):
+            CASE_CODE(BC_PUSH_ATTR):
             {
                 TValue receiver = PEEK(0);
                 GCstr* name = READ_STRING();

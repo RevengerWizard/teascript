@@ -711,13 +711,13 @@ static void expr_call(Parser* parser, bool assign)
 static void expr_dot(Parser* parser, bool assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    bcemit_argued(parser, BC_GET_ATTR_NO_POP, name); \
+    bcemit_argued(parser, BC_PUSH_ATTR, name); \
     expr(parser); \
     bcemit_op(parser, op); \
     bcemit_argued(parser, BC_SET_ATTR, name);
 
 #define SHORT_HAND_INCREMENT(op) \
-    bcemit_argued(parser, BC_GET_ATTR_NO_POP, name); \
+    bcemit_argued(parser, BC_PUSH_ATTR, name); \
     bcemit_constant(parser, NUMBER_VAL(1)); \
     bcemit_op(parser, op); \
     bcemit_argued(parser, BC_SET_ATTR, name);
@@ -2028,7 +2028,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_GET_UPVALUE:
         case BC_SET_UPVALUE:
         case BC_GET_ATTR:
-        case BC_GET_ATTR_NO_POP:
+        case BC_PUSH_ATTR:
         case BC_SET_ATTR:
         case BC_GET_SUPER:
         case BC_CLASS:

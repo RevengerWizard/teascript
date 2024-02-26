@@ -198,7 +198,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
     switch(instruction)
     {
         case BC_CONSTANT:
-        case BC_GET_ATTR_NO_POP:
+        case BC_PUSH_ATTR:
         case BC_SET_CLASS_VAR:
         case BC_GET_GLOBAL:
         case BC_SET_GLOBAL:

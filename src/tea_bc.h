@@ -27,7 +27,7 @@
     _(GET_UPVALUE, 1) \
     _(SET_UPVALUE, 0) \
     _(GET_ATTR, 1) \
-    _(GET_ATTR_NO_POP, 0) \
+    _(PUSH_ATTR, 0) \
     _(SET_ATTR, 0) \
     _(GET_SUPER, 1) \
     _(RANGE, -2) \
