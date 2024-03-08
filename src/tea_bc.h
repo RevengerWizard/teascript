@@ -34,6 +34,7 @@
     _(LIST, 1) \
     _(UNPACK, -1) \
     _(UNPACK_REST, -1) \
+    _(LIST_EXTEND, -1) \
     _(MAP, 1) \
     _(GET_INDEX, -1) \
     _(PUSH_INDEX, 1) \

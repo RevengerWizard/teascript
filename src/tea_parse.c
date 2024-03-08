@@ -823,6 +823,13 @@ static void expr_list(Parser* parser, bool assign)
             if(lex_check(parser, ']'))
                 break;
 
+            if(lex_match(parser, TK_DOT_DOT_DOT))
+            {
+                expr(parser);
+                bcemit_op(parser, BC_LIST_EXTEND);
+                continue;
+            }
+
             expr(parser);
             bcemit_op(parser, BC_LIST_ITEM);
         }
@@ -2013,6 +2020,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_RSHIFT:
         case BC_LIST:
         case BC_MAP:
+        case BC_LIST_EXTEND:
         case BC_LIST_ITEM:
         case BC_MAP_FIELD:
             return 0;

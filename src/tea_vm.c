@@ -256,6 +256,66 @@ static bool vm_bind_method(tea_State* T, GCclass* klass, GCstr* name)
     return true;
 }
 
+static void vm_extend(tea_State* T, GClist* list, TValue obj)
+{
+    if(!IS_OBJECT(obj))
+    {
+        tea_err_run(T, TEA_ERR_ITER, tea_val_type(obj));
+    }
+
+    switch(OBJECT_TYPE(obj))
+    {
+        case OBJ_RANGE:
+        {
+            GCrange* range = AS_RANGE(obj);
+
+            int32_t start = range->start;
+            int32_t end = range->end;
+            int32_t step = range->step;
+
+            if(step > 0)
+            {
+                for(int i = start; i < end; i += step)
+                {
+                    tea_list_append(T, list, NUMBER_VAL(i));
+                }
+            }
+            else if(step < 0)
+            {
+                for(int i = end + step; i >= 0; i += step)
+                {
+                    tea_list_append(T, list, NUMBER_VAL(i));
+                }
+            }
+            return;
+        }
+        case OBJ_LIST:
+        {
+            GClist* l = AS_LIST(obj);
+            for(int i = 0; i < l->count; i++)
+            {
+                tea_list_append(T, list, l->items[i]);
+            }
+            return;
+        }
+        case OBJ_STRING:
+        {
+            GCstr* str = AS_STRING(obj);
+            int len = tea_utf_len(str);
+            for(int i = 0; i < len; i++)
+            {
+                GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str->chars, i));
+                tea_list_append(T, list, OBJECT_VAL(c));
+            }
+            return;
+        }
+        default:
+            break;
+    }
+
+    tea_err_run(T, TEA_ERR_ITER, tea_val_type(obj));
+}
+
 static void vm_splice(tea_State* T, TValue object, GCrange* range, TValue item)
 {
     if(!IS_OBJECT(object))
@@ -269,9 +329,9 @@ static void vm_splice(tea_State* T, TValue object, GCrange* range, TValue item)
         {
             GClist* list = AS_LIST(object);
 
-            int start = range->start;
-            int end;
-            int step = range->step;
+            int32_t start = range->start;
+            int32_t end;
+            int32_t step = range->step;
 
             if(isinf(range->end))
             {
@@ -290,7 +350,7 @@ static void vm_splice(tea_State* T, TValue object, GCrange* range, TValue item)
                 }
             }
 
-            // Handle negative indexing
+            /* Handle negative indexing */
             if(start < 0)
             {
                 start = list->count + start;
@@ -328,9 +388,9 @@ static void vm_slice(tea_State* T, TValue object, GCrange* range, bool assign)
             tea_vm_push(T, OBJECT_VAL(new_list));
             GClist* list = AS_LIST(object);
 
-            int start = range->start;
-            int end;
-            int step = range->step;
+            int32_t start = range->start;
+            int32_t end;
+            int32_t step = range->step;
 
             if(isinf(range->end))
             {
@@ -378,8 +438,8 @@ static void vm_slice(tea_State* T, TValue object, GCrange* range, bool assign)
             GCstr* string = AS_STRING(object);
             int len = tea_utf_len(string);
 
-            int start = range->start;
-            int end;
+            int32_t start = range->start;
+            int32_t end;
 
             if(isinf(range->end))
             {
@@ -1314,6 +1374,16 @@ static void vm_execute(tea_State* T)
                     }
                 }
 
+                DISPATCH();
+            }
+            CASE_CODE(BC_LIST_EXTEND):
+            {
+                GClist* list = AS_LIST(PEEK(1));
+                TValue item = PEEK(0);
+                STORE_FRAME;
+                vm_extend(T, list, item);
+                READ_FRAME();
+                DROP(1);
                 DISPATCH();
             }
             CASE_CODE(BC_MAP):
