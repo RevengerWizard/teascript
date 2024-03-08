@@ -85,6 +85,32 @@ static const char* reader_file(tea_State* T, void* ud, size_t* size)
     return (*size > 0) ? ctx->buf : NULL;
 }
 
+static int load_file(tea_State* T, FileReaderCtx* ctx, const char* filename, const char* name, const char* mode)
+{
+    int status = tea_loadx(T, reader_file, ctx, name, mode);
+    if(ferror(ctx->f))
+    {
+        if(filename)
+            fclose(ctx->f);
+        return TEA_ERROR_FILE;
+    }
+    if(filename)
+    {
+        fclose(ctx->f);
+    }
+    return status;
+}
+
+TEA_API int tea_load_pathx(tea_State* T, const char* filename, const char* name, const char* mode)
+{
+    FileReaderCtx ctx;
+    ctx.f = fopen(filename, "rb");
+    if(ctx.f == NULL)
+        return TEA_ERROR_FILE;
+        
+    return load_file(T, &ctx, filename, name, mode);
+}
+
 TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* mode)
 {
     FileReaderCtx ctx;
@@ -101,18 +127,7 @@ TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* mode)
         ctx.f = stdin;
         name = "=<stdin>";
     }
-    int status = tea_loadx(T, reader_file, &ctx, name, mode);
-    if(ferror(ctx.f))
-    {
-        if(filename)
-            fclose(ctx.f);
-        return TEA_ERROR_FILE;
-    }
-    if(filename)
-    {
-        fclose(ctx.f);
-    }
-    return status;
+    return load_file(T, &ctx, filename, name, mode);
 }
 
 typedef struct StringReaderCtx

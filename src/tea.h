@@ -208,6 +208,7 @@ TEA_API int tea_pcall(tea_State* T, int n);
 TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* name, const char* mode);
 TEA_API int tea_dump(tea_State* T, tea_Writer writer, void* data);
 
+TEA_API int tea_load_pathx(tea_State* T, const char* filename, const char* name, const char* mode);
 TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* mode);
 TEA_API int tea_load_bufferx(tea_State* T, const char* buffer, size_t size, const char* name, const char* mode);
 TEA_API int tea_load_string(tea_State* T, const char* s);
@@ -233,6 +234,7 @@ TEA_API void tea_error(tea_State* T, const char* fmt, ...);
 #define tea_check_args(T, cond, msg, ...) if(cond) tea_error(T, (msg), __VA_ARGS__)
 
 #define tea_load(T, reader, data, name) (tea_loadx(T, reader, data, name, NULL))
+#define tea_load_path(T, filename, name) (tea_load_pathx(T, filename, name, NULL))
 #define tea_load_file(T, filename) (tea_load_filex(T, filename, NULL))
 #define tea_load_buffer(T, buffer, size, name) (tea_load_bufferx(T, buffer, size, name, NULL))
 

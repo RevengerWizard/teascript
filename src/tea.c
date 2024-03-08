@@ -224,12 +224,16 @@ static int report_status(int status, char* path)
     return status;
 }
 
-static int handle_script(tea_State* T, char** argv)
+static int handle_script(tea_State* T, char** argv, const char* name)
 {
-    char* path  = argv[0];
-    int status = tea_load_file(T, path);
+    char* path = argv[0];
+    int status;
+    if(name != NULL)
+        status = tea_load_path(T, path, name);
+    else
+        status = tea_load_file(T, path);
 
-    if(status != 0)
+    if(status != TEA_OK)
     {
         tea_pop(T, 1);
         return report_status(status, path);
@@ -329,12 +333,26 @@ int main(int argc, char** argv)
 
     if(flags & FLAG_V)
         print_version();
-    if((status = run_args(T, argv, script)) > 0)
+
+    status = run_args(T, argv, script);
+    if(status > 0)
         goto finish;
-    if(script < argc && (status = handle_script(T, argv + script)) != TEA_OK)
+    
+    if(script < argc)
     {
-        goto finish;
+        char** path = argv + script;
+        const char* name = NULL;
+
+        if(flags & FLAG_I)
+        {
+            name = "=<stdin>";
+        }
+
+        status = handle_script(T, path, name);
+        if(status != TEA_OK)
+            goto finish;
     }
+
     if(flags & FLAG_I)
         repl(T);
     else if(script == argc && !(flags & (FLAG_E | FLAG_V)))
