@@ -172,7 +172,7 @@ static void core_loadfile(tea_State* T)
 {
     const char* fname = tea_check_string(T, 0);
     const char* mode = tea_opt_string(T, 1, "t");
-    int status = tea_load_filex(T, fname, mode);
+    int status = tea_load_filex(T, fname, NULL, mode);
     if(status != TEA_OK)
     {
         tea_error(T, "Unable to load file");

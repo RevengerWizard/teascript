@@ -101,26 +101,16 @@ static int load_file(tea_State* T, FileReaderCtx* ctx, const char* filename, con
     return status;
 }
 
-TEA_API int tea_load_pathx(tea_State* T, const char* filename, const char* name, const char* mode)
+TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* name, const char* mode)
 {
     FileReaderCtx ctx;
-    ctx.f = fopen(filename, "rb");
-    if(ctx.f == NULL)
-        return TEA_ERROR_FILE;
-        
-    return load_file(T, &ctx, filename, name, mode);
-}
-
-TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* mode)
-{
-    FileReaderCtx ctx;
-    const char* name;
     if(filename)
     {
         ctx.f = fopen(filename, "rb");
         if(ctx.f == NULL)
             return TEA_ERROR_FILE;
-        name = filename;
+        if(!name)
+            name = filename;
     }
     else
     {

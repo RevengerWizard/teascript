@@ -34,6 +34,7 @@
 #define MAX_INPUT 512
 
 static tea_State* global = NULL;
+static char* empty_argv[2] = { NULL, NULL };
 
 void tsignal(int id)
 {
@@ -97,8 +98,8 @@ static int interpret(tea_State* T, const char* s)
 #else
 #define t_initreadline(T) ((void)T)
 #define t_readline(T, b, p) \
-    ((void)T, fputs(p, stdout), fflush(stdout), /* show prompt */ \
-    fgets(b, MAX_INPUT, stdin) != NULL)     /* get line */
+    ((void)T, fputs(p, stdout), fflush(stdout), /* Show prompt */ \
+    fgets(b, MAX_INPUT, stdin) != NULL)     /* Get line */
 #define t_saveline(T, line) { (void)T; (void)line; }
 #define t_freeline(T, b) { (void)T; (void)b; }
 #endif
@@ -129,7 +130,7 @@ static bool multiline(const char* line)
 
         if(level < 0)
         {
-            return true; /* closed brace before opening, end line now */
+            return true; /* Closed brace before opening, end line now */
         }
     }
 
@@ -195,14 +196,14 @@ static void repl(tea_State* T)
         }
 
         interpret(T, line);
-        tea_pop(T, 2);  /* result of interpret + input string */
+        tea_pop(T, 2);  /* Result of interpret + input string */
     }
 
     tea_set_top(T, 0);
     putchar('\n');
 }
 
-static int report_status(int status, char* path)
+static int report_status(int status, const char* path)
 {
     switch(status)
     {
@@ -224,14 +225,29 @@ static int report_status(int status, char* path)
     return status;
 }
 
-static int handle_script(tea_State* T, char** argv, const char* name)
+static int do_file(tea_State* T, const char* name)
 {
-    char* path = argv[0];
+    int status = tea_load_file(T, name, NULL);
+    if(status != TEA_OK)
+    {
+        tea_pop(T, 1);
+        return report_status(status, (char*)name);
+    }
+
+    status = tea_pcall(T, 0);
+    tea_pop(T, 1);
+
+    return report_status(status, (char*)name);
+}
+
+static int handle_script(tea_State* T, char** argx, const char* name)
+{
     int status;
-    if(name != NULL)
-        status = tea_load_path(T, path, name);
-    else
-        status = tea_load_file(T, path);
+    const char* path = argx[0];
+    if(strcmp(path, "-") == 0 && strcmp(argx[-1], "--") != 0)
+        path = NULL; /* stdin */
+    
+    status = tea_load_file(T, path, name);
 
     if(status != TEA_OK)
     {
@@ -245,6 +261,7 @@ static int handle_script(tea_State* T, char** argv, const char* name)
     return report_status(status, path);
 }
 
+/* Check that argument has no extra characters at the end */
 #define notail(x)   { if ((x)[2] != '\0') return -1; }
 
 #define FLAG_I 1
@@ -293,6 +310,8 @@ static int run_args(tea_State* T, char** argv, int n)
     int i;
     for(i = 1; i < n; i++)
     {
+        if(argv[i] == NULL)
+            continue;
         switch(argv[i][1])
         {
             case 'e':
@@ -313,6 +332,8 @@ static int run_args(tea_State* T, char** argv, int n)
 
 int main(int argc, char** argv)
 {
+    if(!argv[0])
+        argv = empty_argv;
     tea_State* T = tea_open();
     if(T == NULL)
     {
@@ -335,32 +356,30 @@ int main(int argc, char** argv)
         print_version();
 
     status = run_args(T, argv, script);
-    if(status > 0)
+    if(status != TEA_OK)
         goto finish;
     
-    if(script < argc)
+    if(argc > script)
     {
-        char** path = argv + script;
-        const char* name = NULL;
-
-        if(flags & FLAG_I)
-        {
-            name = "=<stdin>";
-        }
-
-        status = handle_script(T, path, name);
+        status = handle_script(T, argv + script, (flags & FLAG_I) ? "=<stdin>" : NULL);
         if(status != TEA_OK)
             goto finish;
     }
 
-    if(flags & FLAG_I)
+    if((flags & FLAG_I))
+    {
         repl(T);
-    else if(script == argc && !(flags & (FLAG_E | FLAG_V)))
+    }
+    else if(argc == script && !(flags & (FLAG_E | FLAG_V)))
     {
         if(stdin_is_tty())
         {
             print_version();
             repl(T);
+        }
+        else
+        {
+            do_file(T, NULL); /* Executes stdin as a file */
         }
     }
 

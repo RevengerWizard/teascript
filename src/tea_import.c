@@ -282,7 +282,7 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
     module->path = tea_imp_dirname(T, path->chars, path->len);
     T->last_module = module;
 
-    int status = tea_load_file(T, path->chars);
+    int status = tea_load_file(T, path->chars, NULL);
     if(status == TEA_ERROR_FILE)
     {
         tea_err_run(T, TEA_ERR_NOPATH, path_name->chars);
