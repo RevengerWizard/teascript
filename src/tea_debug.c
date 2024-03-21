@@ -9,61 +9,61 @@
 #include <stdio.h>
 
 #include "tea_debug.h"
-#include "tea_state.h"
+#include "tea_obj.h"
 #include "tea_func.h"
 #include "tea_bc.h"
 
-static void debug_object(TValue object)
+static void debug_object(TValue* obj)
 {
-    switch(OBJECT_TYPE(object))
+    switch(gctype(obj))
     {
-        case OBJ_CLASS:
-            printf("<class %s>", AS_CLASS(object)->name->chars);
+        case TEA_TCLASS:
+            printf("<class %s>", classV(obj)->name->chars);
             break;
-        case OBJ_FUNC:
+        case TEA_TFUNC:
         {
-            if(AS_FUNC(object)->proto->name == NULL)
+            if(funcV(obj)->proto->name == NULL)
                 printf("<script>");
             else
                 printf("<function>");
             break;
         }
-        case OBJ_PROTO:
+        case TEA_TPROTO:
         {
-            if(AS_PROTO(object)->name == NULL)
+            if(protoV(obj)->name == NULL)
                 printf("<script>");
             else
                 printf("<function>");
             break;
         }
-        case OBJ_CFUNC:
+        case TEA_TCFUNC:
             printf("<native>");
             break;
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
             printf("<instance>");
             break;
-        case OBJ_LIST:
+        case TEA_TLIST:
             printf("<list>");
             break;
-        case OBJ_MAP:
+        case TEA_TMAP:
             printf("<map>");
             break;
-        case OBJ_MODULE:
+        case TEA_TMODULE:
             printf("<module>");
             break;
-        case OBJ_RANGE:
+        case TEA_TRANGE:
             printf("<range>");
             break;
-        case OBJ_STRING:
+        case TEA_TSTRING:
         {
-            GCstr* string = AS_STRING(object);
+            GCstr* string = strV(obj);
             if(string->len > 40)
                 printf("<string>");
             else
-                printf("%s", AS_CSTRING(object));
+                printf("%s", strV(obj)->chars);
             break;
         }
-        case OBJ_UPVALUE:
+        case TEA_TUPVALUE:
             printf("<upvalue>");
             break;
         default:
@@ -72,21 +72,21 @@ static void debug_object(TValue object)
     }
 }
 
-void tea_debug_value(TValue value)
+void tea_debug_value(TValue* value)
 {
-    if(IS_BOOL(value))
+    if(tvisbool(value))
     {
-        AS_BOOL(value) ? printf("true") : printf("false");
+        boolV(value) ? printf("true") : printf("false");
     }
-    else if(IS_NULL(value))
+    else if(tvisnull(value))
     {
         printf("null");
     }
-    else if(IS_NUMBER(value))
+    else if(tvisnumber(value))
     {
-        printf(TEA_NUMBER_FMT, AS_NUMBER(value));
+        printf(TEA_NUMBER_FMT, numberV(value));
     }
-    else if(IS_OBJECT(value))
+    else if(tvisgcv(value))
     {
         debug_object(value);
     }
@@ -106,7 +106,7 @@ static int debug_constant(GCproto* f, int offset)
 {
     uint8_t constant = f->bc[offset + 1];
     printf("%4d '", constant);
-    tea_debug_value(f->k[constant]);
+    tea_debug_value(f->k + constant);
     printf("'\n");
 
     return offset + 2;
@@ -117,7 +117,7 @@ static int debug_invoke(GCproto* f, int offset)
     uint8_t constant = f->bc[offset + 1];
     uint8_t arg_count = f->bc[offset + 2];
     printf("   (%d args) %4d '", arg_count, constant);
-    tea_debug_value(f->k[constant]);
+    tea_debug_value(f->k + constant);
     printf("'\n");
 
     return offset + 3;
@@ -166,7 +166,7 @@ void tea_debug_stack(tea_State* T)
         else
             printf("[ ");
 
-        tea_debug_value(*slot);
+        tea_debug_value(slot);
         printf(" ]");
     }
     printf("\n");
@@ -286,10 +286,10 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
             offset++;
             uint8_t constant = f->bc[offset++];
             printf("%4d ", constant);
-            tea_debug_value(f->k[constant]);
+            tea_debug_value(f->k + constant);
             printf("\n");
 
-            GCproto* proto = AS_PROTO(f->k[constant]);
+            GCproto* proto = protoV(f->k + constant);
             for(int j = 0; j < proto->upvalue_count; j++)
             {
                 int is_local = f->bc[offset++];

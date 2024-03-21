@@ -383,7 +383,7 @@ int main(int argc, char** argv)
         }
     }
 
-    finish:
+finish:
     tea_close(T);
 
     return status;

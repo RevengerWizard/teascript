@@ -10,6 +10,7 @@
 
 #include "tea_vm.h"
 #include "tea_map.h"
+#include "tea_list.h"
 
 static void map_len(tea_State* T)
 {
@@ -20,30 +21,30 @@ static void map_len(tea_State* T)
 static void map_keys(tea_State* T)
 {
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
 
     tea_new_list(T);
 
-    GClist* list = AS_LIST(T->base[1]);
+    GClist* list = listV(T->base + 1);
     for(int i = 0; i < map->size; i++)
     {
         if(map->entries[i].empty) continue;
-        tea_list_append(T, list, map->entries[i].key);
+        tea_list_append(T, list, &map->entries[i].key);
     }
 }
 
 static void map_values(tea_State* T)
 {
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
 
     tea_new_list(T);
 
-    GClist* list = AS_LIST(T->base[1]);
+    GClist* list = listV(T->base + 1);
     for(int i = 0; i < map->size; i++)
     {
         if(map->entries[i].empty) continue;
-        tea_list_append(T, list, map->entries[i].value);
+        tea_list_append(T, list, &map->entries[i].value);
     }
 }
 
@@ -59,15 +60,13 @@ static void map_get(tea_State* T)
 
     tea_opt_any(T, 2);
 
-    GCmap* map = AS_MAP(T->base[0]);
-    TValue key = T->base[1];
+    GCmap* map = mapV(T->base);
+    TValue* key = T->base + 1;
 
-    TValue value;
-    bool b = tea_map_get(map, key, &value);
-
-    if(b)
+    TValue* value = tea_map_get(map, key);
+    if(value)
     {
-        tea_vm_push(T, value);
+        copyTV(T, T->top++, value);
     }
 }
 
@@ -78,15 +77,15 @@ static void map_set(tea_State* T)
 
     tea_opt_any(T, 2);
 
-    GCmap* map = AS_MAP(T->base[0]);
-    TValue key = T->base[1];
-    TValue value = T->base[2];
+    GCmap* map = mapV(T->base);
+    TValue* key = T->base + 1;
+    TValue* value = T->base + 2;
 
-    bool b = tea_map_set(T, map, key, value);
-
-    if(b)
+    TValue* v = tea_map_set(T, map, key);
+    copyTV(T, v, value);
+    if(tea_map_set(T, map, key))
     {
-        tea_vm_push(T, value);
+        copyTV(T, T->top++, value);
     }
 }
 
@@ -94,8 +93,8 @@ static void map_update(tea_State* T)
 {
     tea_check_type(T, 1, TEA_TYPE_MAP);
 
-    GCmap* map = AS_MAP(T->base[0]);
-    GCmap* m = AS_MAP(T->base[1]);
+    GCmap* map = mapV(T->base);
+    GCmap* m = mapV(T->base + 1);
 
     tea_map_addall(T, m, map);
 
@@ -104,35 +103,35 @@ static void map_update(tea_State* T)
 
 static void map_clear(tea_State* T)
 {
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
     tea_map_clear(T, map);
 }
 
 static void map_contains(tea_State* T)
 {
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
 
-    if(!tea_map_hashable(T->base[1]))
+    if(!tea_map_hashable(T->base + 1))
     {
         tea_error(T, "Map key isn't hashable");
     }
 
-    TValue _;
-    tea_push_bool(T, tea_map_get(map, T->base[1], &_));
+    TValue* _ = tea_map_get(map, T->base + 1);
+    tea_push_bool(T, _ != NULL);
 }
 
 static void map_delete(tea_State* T)
 {
-    GCmap* map = AS_MAP(T->base[0]);
-    TValue key = T->base[1];
+    GCmap* map = mapV(T->base);
+    TValue* key = T->base + 1;
 
-    TValue _;
     if(!tea_map_hashable(key))
     {
         tea_error(T, "Map key isn't hashable");
     }
     
-    if(!tea_map_get(map, key, &_))
+    TValue* _ = tea_map_get(map, key);
+    if(!_)
     {
         tea_error(T, "No such key in the map");
     }
@@ -144,15 +143,16 @@ static void map_delete(tea_State* T)
 
 static void map_copy(tea_State* T)
 {
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
 
     tea_new_map(T);
 
-    GCmap* m = AS_MAP(T->base[1]);
+    GCmap* m = mapV(T->base + 1);
     for(int i = 0; i < map->size; i++)
     {
         if(map->entries[i].empty) continue;
-        tea_map_set(T, m, map->entries[i].key, map->entries[i].value);
+        TValue* v = tea_map_set(T, m, &map->entries[i].key);
+        copyTV(T, &map->entries[i].value, v);
     }
 }
 
@@ -160,18 +160,18 @@ static void map_foreach(tea_State* T)
 {
     tea_check_function(T, 1);
 
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
 
     for(int i = 0; i < map->size; i++)
     {
         if(map->entries[i].empty) continue;
 
-        TValue key = map->entries[i].key;
-        TValue value = map->entries[i].value;
+        TValue* key = &map->entries[i].key;
+        TValue* value = &map->entries[i].value;
 
         tea_push_value(T, 1);
-        tea_vm_push(T, key);
-        tea_vm_push(T, value);
+        copyTV(T, T->top++, key);
+        copyTV(T, T->top++, value);
         tea_call(T, 2);
         tea_pop(T, 1);
     }
@@ -180,7 +180,7 @@ static void map_foreach(tea_State* T)
 
 static void map_iterate(tea_State* T)
 {
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
     if(map->count == 0)
     {
         tea_push_null(T);
@@ -231,7 +231,7 @@ static void map_iterate(tea_State* T)
 
 static void map_iteratorvalue(tea_State* T)
 {
-    GCmap* map = AS_MAP(T->base[0]);
+    GCmap* map = mapV(T->base);
     int index = tea_check_number(T, 1);
 
     MapEntry* entry = &map->entries[index];
@@ -241,9 +241,9 @@ static void map_iteratorvalue(tea_State* T)
     }
 
     tea_new_list(T);
-    tea_vm_push(T, entry->key);
+    copyTV(T, T->top++, &entry->key);
     tea_add_item(T, 2);
-    tea_vm_push(T, entry->value);
+    copyTV(T, T->top++, &entry->value);
     tea_add_item(T, 2);
 }
 
@@ -252,17 +252,17 @@ static void map_opadd(tea_State* T)
     tea_check_map(T, 0);
     tea_check_map(T, 1);
 
-    GCmap* m1 = AS_MAP(T->base[0]);
-    GCmap* m2 = AS_MAP(T->base[1]);
+    GCmap* m1 = mapV(T->base);
+    GCmap* m2 = mapV(T->base + 1);
 
     GCmap* map = tea_map_new(T);
-    tea_vm_push(T, OBJECT_VAL(map));
+    setmapV(T, T->top++, map);
 
     tea_map_addall(T, m1, map);
     tea_map_addall(T, m2, map);
 
     tea_pop(T, 3);
-    tea_vm_push(T, OBJECT_VAL(map));
+    setmapV(T, T->top++, map);
 }
 
 static const tea_Class map_class[] = {
@@ -287,7 +287,7 @@ static const tea_Class map_class[] = {
 void tea_open_map(tea_State* T)
 {
     tea_create_class(T, TEA_CLASS_MAP, map_class);
-    T->map_class = AS_CLASS(T->top[-1]);
+    T->map_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_MAP);
     tea_push_null(T);
 }

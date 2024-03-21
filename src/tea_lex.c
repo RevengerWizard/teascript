@@ -25,6 +25,8 @@ static const char* const lex_tokennames[] = {
 #undef TKSTR
 };
 
+/* -- Buffer handling -------------------------------------------------- */
+
 #define LEX_EOF (-1)
 #define lex_iseol(lex)  (lex->c == '\n' || lex->c == '\r')
 
@@ -37,6 +39,8 @@ static TEA_NOINLINE int lex_more(Lexer* lex)
         return LEX_EOF;
     if(size >= TEA_MAX_BUF)
     {
+        if(size != ~(size_t)0)
+            tea_err_mem(lex->T);
         size = ~(uintptr_t)0 - (uintptr_t)p;
         if(size >= TEA_MAX_BUF)
             size = TEA_MAX_BUF - 1;
@@ -170,7 +174,8 @@ static Token lex_name(Lexer* lex)
     }
 
     Token token = lex_token(lex, type);
-    token.value = OBJECT_VAL(tea_str_copy(lex->T, lex->sbuf.b, (int)len));
+    GCstr* str = tea_str_copy(lex->T, lex->sbuf.b, (int)len);
+    setstrV(lex->T, &token.value, str);
 
     return token;
 }
@@ -183,7 +188,7 @@ static Token lex_name(Lexer* lex)
 static Token lex_number_token(Lexer* lex, int num)
 {
     errno = 0;
-	TValue value;
+	double number;
 
     lex_save(lex, '\0');
     const char* buff = lex->sbuf.b;
@@ -191,16 +196,16 @@ static Token lex_number_token(Lexer* lex, int num)
     switch(num)
     {
         case NUM_HEX:
-		    value = NUMBER_VAL((double)strtoll(buff, NULL, NUM_HEX));
+		    number = (double)strtoll(buff, NULL, NUM_HEX);
             break;
         case NUM_BIN:
-		    value = NUMBER_VAL((int)strtoll(buff + 2, NULL, NUM_BIN));
+		    number = (int32_t)strtoll(buff + 2, NULL, NUM_BIN);
             break;
         case NUM_OCTAL:
-            value = NUMBER_VAL((int)strtoll(buff + 2, NULL, NUM_OCTAL));
+            number = (int32_t)strtoll(buff + 2, NULL, NUM_OCTAL);
             break;
         default:
-		    value = NUMBER_VAL(strtod(buff, NULL));
+		    number = strtod(buff, NULL);
             break;
     }
 
@@ -211,7 +216,7 @@ static Token lex_number_token(Lexer* lex, int num)
 	}
 
 	Token token = lex_token(lex, TK_NUMBER);
-	token.value = value;
+    setnumberV(&token.value, number);
 
 	return token;
 }
@@ -498,7 +503,8 @@ static Token lex_multistring(Lexer* lex)
     }
 
     Token token = lex_token(lex, TK_STRING);
-	token.value = OBJECT_VAL(tea_str_copy(lex->T, lex->sbuf.b + 3, sbuf_len(&lex->sbuf) - 6));
+    GCstr* str = tea_str_copy(lex->T, lex->sbuf.b + 3, sbuf_len(&lex->sbuf) - 6);
+    setstrV(lex->T, &token.value, str);
     return token;
 }
 
@@ -622,7 +628,8 @@ static Token lex_string(Lexer* lex)
     lex_savenext(lex);
 
     Token token = lex_token(lex, type);
-	token.value = OBJECT_VAL(tea_str_copy(T, lex->sbuf.b + 1, sbuf_len(&lex->sbuf) - 2));
+    GCstr* str = tea_str_copy(T, lex->sbuf.b + 1, sbuf_len(&lex->sbuf) - 2);
+    setstrV(T, &token.value, str);
 
 	return token;
 }

@@ -39,7 +39,8 @@ static void error_at_current(Parser* parser, ErrMsg em)
 static Token lex_synthetic(Parser* parser, const char* text)
 {
     Token token;
-    token.value = OBJECT_VAL(tea_str_new(parser->lex->T, text));
+    GCstr* s = tea_str_new(parser->lex->T, text);
+    setstrV(parser->lex->T, &token.value, s);
 
     return token;
 }
@@ -179,23 +180,23 @@ static void bcemit_return(Parser* parser)
     bcemit_byte(parser, BC_RETURN);
 }
 
-static int add_constant(tea_State* T, GCproto* f, TValue value)
+static int add_constant(tea_State* T, GCproto* f, TValue* value)
 {
-    tea_vm_push(T, value);
+    copyTV(T, T->top++, value);
 
     if(f->k_size < f->k_count + 1)
     {
         f->k = tea_mem_growvec(T, TValue, f->k, f->k_size, INT_MAX);
     }
-    f->k[f->k_count] = value;
+    copyTV(T, f->k + f->k_count, value);
     f->k_count++;
 
-    tea_vm_pop(T, 1);
+    T->top--;
 
     return f->k_count - 1;
 }
 
-static uint8_t make_constant(Parser* parser, TValue value)
+static uint8_t make_constant(Parser* parser, TValue* value)
 {
     int constant = add_constant(parser->lex->T, parser->proto, value);
     if(constant > UINT8_MAX)
@@ -208,11 +209,14 @@ static uint8_t make_constant(Parser* parser, TValue value)
 
 static void bcemit_invoke(Parser* parser, int args, const char* name)
 {
-    bcemit_argued(parser, BC_INVOKE, make_constant(parser, OBJECT_VAL(tea_str_copy(parser->lex->T, name, strlen(name)))));
+    TValue v;
+    GCstr* str = tea_str_copy(parser->lex->T, name, strlen(name));
+    setstrV(parser->lex->T, &v, str);
+    bcemit_argued(parser, BC_INVOKE, make_constant(parser, &v));
     bcemit_byte(parser, args);
 }
 
-static void bcemit_constant(Parser* parser, TValue value)
+static void bcemit_constant(Parser* parser, TValue* value)
 {
     bcemit_argued(parser, BC_CONSTANT, make_constant(parser, value));
 }
@@ -259,7 +263,7 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
         case PROTO_CONSTRUCTOR:
         case PROTO_STATIC:
         case PROTO_METHOD:
-            parser->proto->name = AS_STRING(parser->lex->prev.value);
+            parser->proto->name = strV(&parser->lex->prev.value);
             break;
         case PROTO_OPERATOR:
             parser->proto->name = parser->enclosing->name;
@@ -277,18 +281,22 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
     Local* local = &parser->locals[0];
     local->depth = 0;
     local->is_captured = false;
+
+    GCstr* s;
     switch(type)
     {
         case PROTO_SCRIPT:
         case PROTO_FUNCTION:
         case PROTO_ANONYMOUS:
         case PROTO_STATIC:
-            local->name.value = OBJECT_VAL(tea_str_lit(lexer->T, ""));
+            s = tea_str_lit(lexer->T, "");
+            setstrV(lexer->T, &local->name.value, s);
             break;
         case PROTO_CONSTRUCTOR:
         case PROTO_METHOD:
         case PROTO_OPERATOR:
-            local->name.value = OBJECT_VAL(tea_str_lit(lexer->T, "this"));
+            s = tea_str_lit(lexer->T, "this");
+            setstrV(lexer->T, &local->name.value, s);
             break;
         default:
             break;
@@ -307,7 +315,9 @@ static GCproto* parser_end(Parser* parser)
 
     if(parser->enclosing != NULL)
     {
-        bcemit_argued(parser->enclosing, BC_CLOSURE, make_constant(parser->enclosing, OBJECT_VAL(proto)));
+        TValue v;
+        setprotoV(parser->lex->T, &v, proto);
+        bcemit_argued(parser->enclosing, BC_CLOSURE, make_constant(parser->enclosing, &v));
 
         for(int i = 0; i < proto->upvalue_count; i++)
         {
@@ -364,12 +374,12 @@ static void parse_block(Parser* parser);
 
 static uint8_t identifier_constant(Parser* parser, Token* name)
 {
-    return make_constant(parser, name->value);
+    return make_constant(parser, &name->value);
 }
 
 static bool identifiers_equal(Token* a, Token* b)
 {
-    return AS_STRING(a->value) == AS_STRING(b->value);
+    return strV(&a->value) == strV(&b->value);
 }
 
 static int resolve_local(Parser* parser, Token* name)
@@ -508,14 +518,15 @@ static void define_variable(Parser* parser, uint8_t global, bool constant)
         return;
     }
 
-    GCstr* string = AS_STRING(parser->proto->k[global]);
+    GCstr* string = strV(parser->proto->k + global);
     if(constant)
     {
-        tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL_VAL);
+        TValue* v = tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL);
+        setnullV(v);
     }
 
-    TValue value;
-    if(tea_tab_get(&parser->lex->T->globals, string, &value))
+    TValue* value = tea_tab_get(&parser->lex->T->globals, string);
+    if(value)
     {
         bcemit_argued(parser, BC_DEFINE_GLOBAL, global);
     }
@@ -718,7 +729,9 @@ static void expr_dot(Parser* parser, bool assign)
 
 #define SHORT_HAND_INCREMENT(op) \
     bcemit_argued(parser, BC_PUSH_ATTR, name); \
-    bcemit_constant(parser, NUMBER_VAL(1)); \
+    TValue _v; \
+    setnumberV(&_v, 1); \
+    bcemit_constant(parser, &_v); \
     bcemit_op(parser, op); \
     bcemit_argued(parser, BC_SET_ATTR, name);
 
@@ -861,7 +874,7 @@ static void expr_map(Parser* parser, bool assign)
             else
             {
                 lex_consume(parser, TK_NAME);
-                bcemit_constant(parser, parser->lex->prev.value);
+                bcemit_constant(parser, &parser->lex->prev.value);
                 lex_consume(parser, '=');
                 expr(parser);
             }
@@ -884,15 +897,20 @@ static bool parse_slice(Parser* parser)
         /* [n:] */
         if(lex_check(parser, ']'))
         {
-            bcemit_constant(parser, NUMBER_VAL(INFINITY));
-            bcemit_constant(parser, NUMBER_VAL(1));
+            TValue v1, v2;
+            setnumberV(&v1, INFINITY);
+            setnumberV(&v2, 1);
+            bcemit_constant(parser, &v1);
+            bcemit_constant(parser, &v2);
         }
         else
         {
             /* [n::n] */
             if(lex_match(parser, ':'))
             {
-                bcemit_constant(parser, NUMBER_VAL(INFINITY));
+                TValue v;
+                setnumberV(&v, INFINITY);
+                bcemit_constant(parser, &v);
                 expr(parser);
             }
             else
@@ -905,7 +923,9 @@ static bool parse_slice(Parser* parser)
                 }
                 else
                 {
-                    bcemit_constant(parser, NUMBER_VAL(1));
+                    TValue v;
+                    setnumberV(&v, 1);
+                    bcemit_constant(parser, &v);
                 }
             }
         }
@@ -924,7 +944,9 @@ static void expr_subscript(Parser* parser, bool assign)
 
 #define SHORT_HAND_INCREMENT(op) \
     bcemit_op(parser, BC_PUSH_INDEX); \
-    bcemit_constant(parser, NUMBER_VAL(1)); \
+    TValue _v; \
+    setnumberV(&_v, 1); \
+    bcemit_constant(parser, &_v); \
     bcemit_op(parser, op); \
     bcemit_op(parser, BC_SET_INDEX);
 
@@ -1017,7 +1039,7 @@ static void expr_or(Parser* parser, bool assign)
 
 static void expr_literal(Parser* parser, bool assign)
 {
-    bcemit_constant(parser, parser->lex->prev.value);
+    bcemit_constant(parser, &parser->lex->prev.value);
 }
 
 static void expr_interpolation(Parser* parser, bool assign)
@@ -1065,9 +1087,9 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
         case BC_SET_GLOBAL:
         case BC_SET_MODULE:
         {
-            GCstr* string = AS_STRING(parser->proto->k[arg]);
-            TValue _;
-            if(tea_tab_get(&parser->lex->T->constants, string, &_))
+            GCstr* string = strV(parser->proto->k + arg);
+            TValue* _ = tea_tab_get(&parser->lex->T->constants, string);
+            if(_)
             {
                 error(parser, TEA_ERR_XVCONST);
             }
@@ -1090,7 +1112,9 @@ static void named_variable(Parser* parser, Token name, bool assign)
 #define SHORT_HAND_INCREMENT(op) \
     check_const(parser, set_op, arg); \
     bcemit_argued(parser, get_op, (uint8_t)arg); \
-    bcemit_constant(parser, NUMBER_VAL(1)); \
+    TValue _v; \
+    setnumberV(&_v, 1); \
+    bcemit_constant(parser, &_v); \
     bcemit_op(parser, op); \
     bcemit_argued(parser, set_op, (uint8_t)arg);
 
@@ -1109,9 +1133,9 @@ static void named_variable(Parser* parser, Token name, bool assign)
     else
     {
         arg = identifier_constant(parser, &name);
-        GCstr* string = AS_STRING(name.value);
-        TValue value;
-        if(tea_tab_get(&parser->lex->T->globals, string, &value))
+        GCstr* string = strV(&name.value);
+        TValue* value = tea_tab_get(&parser->lex->T->globals, string);
+        if(value)
         {
             get_op = BC_GET_GLOBAL;
             set_op = BC_SET_GLOBAL;
@@ -1346,7 +1370,9 @@ static void expr_range(Parser* parser, bool assign)
     }
     else
     {
-        bcemit_constant(parser, NUMBER_VAL(1));
+        TValue v;
+        setnumberV(&v, 1);
+        bcemit_constant(parser, &v);
     }
 
     bcemit_op(parser, BC_RANGE);
@@ -1683,7 +1709,9 @@ static void parse_operator(Parser* parser)
         name = parser->lex->T->opm_name[i];
     }
 
-    uint8_t constant = make_constant(parser, OBJECT_VAL(name));
+    TValue v;
+    setstrV(parser->lex->T, &v, name);
+    uint8_t constant = make_constant(parser, &v);
 
     parser->name = name;
     function(parser, PROTO_OPERATOR);
@@ -1695,7 +1723,7 @@ static void parse_method(Parser* parser, ProtoType type)
 {
     uint8_t constant = identifier_constant(parser, &parser->lex->prev);
 
-    if(AS_STRING(parser->lex->prev.value) == parser->lex->T->constructor_string)
+    if(strV(&parser->lex->prev.value) == parser->lex->T->constructor_string)
     {
         type = PROTO_CONSTRUCTOR;
     }
@@ -1945,7 +1973,7 @@ static void parse_var(Parser* parser, bool constant)
         }
     }
 
-    finish:
+finish:
     if(parser->scope_depth == 0)
     {
         for(int i = var_count - 1; i >= 0; i--)
@@ -2065,7 +2093,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_CLOSURE:
         {
             int constant = code[ip + 1];
-            GCproto* loaded_fn = AS_PROTO(constants[constant]);
+            GCproto* loaded_fn = protoV(constants + constant);
 
             /* There is one byte for the constant, then two for each upvalue */
             return 1 + (loaded_fn->upvalue_count * 2);
@@ -2417,7 +2445,7 @@ static void parse_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
     {
-        int import_constant = make_constant(parser, parser->lex->prev.value);
+        int import_constant = make_constant(parser, &parser->lex->prev.value);
 
         bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
         bcemit_op(parser, BC_POP);
@@ -2468,7 +2496,7 @@ static void parse_from_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
     {
-        int import_constant = make_constant(parser, parser->lex->prev.value);
+        int import_constant = make_constant(parser, &parser->lex->prev.value);
 
         lex_consume(parser, TK_IMPORT);
         bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
@@ -2610,7 +2638,7 @@ static void parse_multiple_assign(Parser* parser)
         error(parser, TEA_ERR_XVASSIGN);
     }
 
-    finish:
+finish:
     for(int i = var_count - 1; i >= 0; i--)
     {
         Token token = variables[i];
@@ -2628,9 +2656,9 @@ static void parse_multiple_assign(Parser* parser)
         else
         {
             arg = identifier_constant(parser, &token);
-            GCstr* string = AS_STRING(token.value);
-            TValue value;
-            if(tea_tab_get(&parser->lex->T->globals, string, &value))
+            GCstr* string = strV(&token.value);
+            TValue* value = tea_tab_get(&parser->lex->T->globals, string);
+            if(value)
             {
                 set_op = BC_SET_GLOBAL;
             }
@@ -2758,9 +2786,9 @@ GCproto* tea_parse(Lexer* lexer)
 
 void tea_parse_mark(tea_State* T, Parser* parser)
 {
-    tea_gc_markval(T, parser->lex->prev.value);
-    tea_gc_markval(T, parser->lex->curr.value);
-    tea_gc_markval(T, parser->lex->next.value);
+    tea_gc_markval(T, &parser->lex->prev.value);
+    tea_gc_markval(T, &parser->lex->curr.value);
+    tea_gc_markval(T, &parser->lex->next.value);
 
     while(parser != NULL)
     {

@@ -10,6 +10,8 @@
 #include "tea_state.h"
 #include "tea_gc.h"
 
+/* -- Buffer management -------------------------------------------------- */
+
 static void buf_grow(tea_State* T, SBuf* sb, size_t size)
 {
     size_t old_size = sbuf_size(sb), len = sbuf_len(sb), new_size = old_size;
@@ -59,13 +61,6 @@ uint32_t tea_buf_ruleb128(const char** pp)
     }
     *pp = (const char*)w;
     return v;
-}
-
-SBuf* tea_buf_tmp_(tea_State* T)
-{
-    SBuf* sb = &T->tmpbuf;
-    tea_buf_reset(sb);
-    return sb;
 }
 
 char* tea_buf_tmp(tea_State* T, size_t size)

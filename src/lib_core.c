@@ -83,7 +83,8 @@ static void core_input(tea_State* T)
 
     line[len] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, line, len)));
+    GCstr* s = tea_str_take(T, line, len);
+    setstrV(T, T->top++, s);
 }
 
 static void core_open(tea_State* T)
@@ -106,7 +107,7 @@ static void core_open(tea_State* T)
     GCfile* file = tea_obj_new_file(T, tea_str_new(T, path), tea_str_new(T, type));
     file->file = fp;
 
-    tea_vm_push(T, OBJECT_VAL(file));
+    setfileV(T, T->top++, file);
 }
 
 static void core_assert(tea_State* T)
@@ -158,14 +159,14 @@ static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
 static void core_dump(tea_State* T)
 {
     tea_check_function(T, 0);
-    TValue fn = T->base[0];
+    TValue* fn = T->base;
     SBuf* sb = tea_buf_tmp_(T);
-    if(!IS_FUNC(fn) || tea_bcwrite(T, AS_FUNC(fn)->proto, writer_buf, sb))
+    if(!tvisfunc(fn) || tea_bcwrite(T, funcV(fn)->proto, writer_buf, sb))
     {
         tea_error(T, "Unable to dump given function");
     }
     GCstr* str = tea_buf_str(T, sb);
-    tea_vm_push(T, OBJECT_VAL(str));
+    setstrV(T, T->top++, str);
 }
 
 static void core_loadfile(tea_State* T)
@@ -194,7 +195,8 @@ static void core_loadstring(tea_State* T)
 static void core_char(tea_State* T)
 {
     int n = tea_check_number(T, 0);
-    tea_vm_push(T, OBJECT_VAL(tea_utf_from_codepoint(T, n)));
+    GCstr* c = tea_utf_from_codepoint(T, n);
+    setstrV(T, T->top++, c);
 }
 
 static void core_ord(tea_State* T)
@@ -211,7 +213,8 @@ static void core_hex(tea_State* T)
     char* string = tea_mem_new(T, char, len + 1);
     snprintf(string, len + 1, "0x%x", n);
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, string, len)));
+    GCstr* s = tea_str_take(T, string, len);
+    setstrV(T, T->top++, s);
 }
 
 static void core_bin(tea_State* T)
@@ -248,16 +251,32 @@ static void core_bin(tea_State* T)
     tea_push_string(T, buffer);
 }
 
-static void core_number(tea_State* T)
+static void bool_constructor(tea_State* T)
+{
+    bool b = tea_to_bool(T, 1);
+    tea_push_bool(T, b);
+}
+
+static void number_constructor(tea_State* T)
 {
     bool is_num;
-    double n = tea_to_numberx(T, 0, &is_num);
+    double n = tea_to_numberx(T, 1, &is_num);
     if(!is_num)
     {
         tea_error(T, "Failed conversion");
     }
     tea_push_number(T, n);
 }
+
+static const tea_Class number_class[] = {
+    { "constructor", "method", number_constructor, 2 },
+    { NULL, NULL }
+};
+
+static const tea_Class bool_class[] = {
+    { "constructor", "method", bool_constructor, 2 },
+    { NULL, NULL }
+};
 
 static const tea_Reg globals[] = {
     { "print", core_print, TEA_VARARGS },
@@ -275,13 +294,18 @@ static const tea_Reg globals[] = {
     { "ord", core_ord, 1 },
     { "hex", core_hex, 1 },
     { "bin", core_bin, 1 },
-    { "number", core_number, 1 },
     { NULL, NULL }
 };
 
 static void tea_open_global(tea_State* T)
 {
     tea_set_funcs(T, globals);
+    tea_create_class(T, "Number", number_class);
+    T->number_class = classV(T->top - 1);
+    tea_set_global(T, "Number");
+    tea_create_class(T, "Bool", bool_class);
+    T->bool_class = classV(T->top - 1);
+    tea_set_global(T, "Bool");
     tea_push_null(T);
 }
 

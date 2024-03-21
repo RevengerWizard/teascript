@@ -78,7 +78,7 @@ typedef struct Parser
     int scope_depth;    /* Current scope depth */
 } Parser;
 
-typedef void (*ParseFn)(Parser* compiler, bool assign);
+typedef void (*ParseFn)(Parser* parser, bool assign);
 
 typedef struct
 {
@@ -88,6 +88,6 @@ typedef struct
 } ParseRule;
 
 TEA_FUNC GCproto* tea_parse(Lexer* lexer);
-TEA_FUNC void tea_parse_mark(tea_State* T, Parser* compiler);
+TEA_FUNC void tea_parse_mark(tea_State* T, Parser* parser);
 
 #endif

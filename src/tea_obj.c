@@ -29,117 +29,98 @@ TEA_DATADEF const char* const tea_val_typenames[] = {
 };
 
 TEA_DATADEF const char* const tea_obj_typenames[] = {
-    "string", "range", "proto", "function", "module", "function", "upvalue",
-    "class", "instance", "function", "list", "map", "file"
+    "null", "bool", "number", "pointer", 
+    "string", "range", "function",
+    "function", "module", "class", "instance", "method", "list", "map", "file", "proto", "upvalue"
 };
 
 /* Allocate new GC object and link it to the objects root */
-GCobj* tea_obj_alloc(tea_State* T, size_t size, ObjType type)
+GCobj* tea_obj_alloc(tea_State* T, size_t size, uint8_t type)
 {
-    GCobj* object = (GCobj*)tea_mem_realloc(T, NULL, 0, size);
-    object->tt = type;
-    object->marked = false;
+    GCobj* obj = (GCobj*)tea_mem_realloc(T, NULL, 0, size);
+    obj->gct = type;
+    obj->marked = false;
 
-    object->next = T->objects;
-    T->objects = object;
+    obj->next = T->objects;
+    T->objects = obj;
 
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p allocate %llu for %s\n", (void*)object, size, tea_val_type(OBJECT_VAL(object)));
+    printf("%p allocate %llu for %s\n", (void*)obj, size, tea_val_type(setgcV(obj)));
 #endif
 
-    return object;
-}
-
-GCmethod* tea_obj_new_method(tea_State* T, TValue receiver, TValue method)
-{
-    GCmethod* bound = tea_obj_new(T, GCmethod, OBJ_METHOD);
-    bound->receiver = receiver;
-    bound->method = method;
-
-    return bound;
-}
-
-GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass)
-{
-    GCinstance* instance = tea_obj_new(T, GCinstance, OBJ_INSTANCE);
-    instance->klass = klass;
-    tea_tab_init(&instance->fields);
-
-    return instance;
-}
-
-GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass)
-{
-    GCclass* klass = tea_obj_new(T, GCclass, OBJ_CLASS);
-    klass->name = name;
-    klass->super = superclass;
-    klass->constructor = NULL_VAL;
-    tea_tab_init(&klass->statics);
-    tea_tab_init(&klass->methods);
-
-    return klass;
-}
-
-GClist* tea_obj_new_list(tea_State* T)
-{
-    GClist* list = tea_obj_new(T, GClist, OBJ_LIST);
-    list->items = NULL;
-    list->count = 0;
-    list->size = 0;
-
-    return list;
-}
-
-void tea_list_append(tea_State* T, GClist* list, TValue value)
-{
-    if(list->size < list->count + 1)
-    {
-        list->items = tea_mem_growvec(T, TValue, list->items, list->size, INT_MAX);
-    }
-    list->items[list->count] = value;
-    list->count++;
+    return obj;
 }
 
 GCmodule* tea_obj_new_module(tea_State* T, GCstr* name)
 {
     char c = name->chars[0];
 
-    TValue module_val;
-    if(c != '?' && tea_tab_get(&T->modules, name, &module_val))
+    TValue* module_val = tea_tab_get(&T->modules, name);
+    if(c != '?' && module_val)
     {
-        return AS_MODULE(module_val);
+        return moduleV(module_val);
     }
 
-    GCmodule* module = tea_obj_new(T, GCmodule, OBJ_MODULE);
+    GCmodule* module = tea_obj_new(T, GCmodule, TEA_TMODULE);
     tea_tab_init(&module->values);
     module->name = name;
     module->path = NULL;
 
-    tea_vm_push(T, OBJECT_VAL(module));
-    tea_tab_set(T, &T->modules, name, OBJECT_VAL(module));
-    tea_vm_pop(T, 1);
+    setmoduleV(T, T->top++, module);
+
+    TValue v;
+    setmoduleV(T, &v, module);
+    TValue* o = tea_tab_set(T, &T->modules, name, NULL);
+    copyTV(T, o, &v);
+    
+    T->top--;
 
     return module;
 }
 
 GCfile* tea_obj_new_file(tea_State* T, GCstr* path, GCstr* type)
 {
-    GCfile* file = tea_obj_new(T, GCfile, OBJ_FILE);
+    GCfile* file = tea_obj_new(T, GCfile, TEA_TFILE);
     file->path = path;
     file->type = type;
     file->is_open = true;
-
     return file;
 }
 
 GCrange* tea_obj_new_range(tea_State* T, double start, double end, double step)
 {
-    GCrange* range = tea_obj_new(T, GCrange, OBJ_RANGE);
+    GCrange* range = tea_obj_new(T, GCrange, TEA_TRANGE);
     range->start = start;
     range->end = end;
     range->step = step;
-
     return range;
+}
+
+GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass)
+{
+    GCclass* k = tea_obj_new(T, GCclass, TEA_TCLASS);
+    k->name = name;
+    k->super = superclass;
+    setnullV(&k->constructor);
+    tea_tab_init(&k->statics);
+    tea_tab_init(&k->methods);
+    return k;
+}
+
+GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass)
+{
+    GCinstance* instance = tea_obj_new(T, GCinstance, TEA_TINSTANCE);
+    instance->klass = klass;
+    tea_tab_init(&instance->fields);
+    return instance;
+}
+
+GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, TValue* method)
+{
+    GCmethod* bound = tea_obj_new(T, GCmethod, TEA_TMETHOD);
+    copyTV(T, &bound->receiver, receiver);
+    copyTV(T, &bound->method, method);
+    return bound;
 }
 
 static GCstr* obj_function_tostring(tea_State* T, GCproto* proto)
@@ -163,14 +144,16 @@ static GCstr* obj_list_tostring(tea_State* T, GClist* list, int depth)
     memcpy(string, "[", 1);
     int len = 1;
 
+    TValue v;
     for(int i = 0; i < list->count; i++)
     {
-        TValue value = list->items[i];
+        TValue* value = list->items + i;
 
         char* element;
         int element_size;
 
-        if(tea_val_rawequal(value, OBJECT_VAL(list)))
+        setlistV(T, &v, list);
+        if(tea_val_rawequal(value, &v))
         {
             element = "[...]";
             element_size = 5;
@@ -233,6 +216,7 @@ static GCstr* obj_map_tostring(tea_State* T, GCmap* map, int depth)
     memcpy(string, "{", 1);
     int len = 1;
 
+    TValue v;
     for(int i = 0; i < map->size; i++)
     {
         MapEntry* entry = &map->entries[i];
@@ -246,14 +230,15 @@ static GCstr* obj_map_tostring(tea_State* T, GCmap* map, int depth)
         char* key;
         int key_size;
 
-        if(tea_val_rawequal(entry->key, OBJECT_VAL(map)))
+        setmapV(T, &v, map);
+        if(tea_val_rawequal(&entry->key, &v))
         {
             key = "{...}";
             key_size = 5;
         }
         else
         {
-            GCstr* s = tea_val_tostring(T, entry->key, depth);
+            GCstr* s = tea_val_tostring(T, &entry->key, depth);
             key = s->chars;
             key_size = s->len;
         }
@@ -273,7 +258,7 @@ static GCstr* obj_map_tostring(tea_State* T, GCmap* map, int depth)
             string = tea_mem_reallocvec(T, char, string, old_size, size);
         }
 
-        if(!IS_STRING(entry->key))
+        if(!tvisstr(&entry->key))
         {
             memcpy(string + len, "[", 1);
             memcpy(string + len + 1, key, key_size);
@@ -290,14 +275,15 @@ static GCstr* obj_map_tostring(tea_State* T, GCmap* map, int depth)
         char* element;
         int element_size;
 
-        if(tea_val_rawequal(entry->value, OBJECT_VAL(map)))
+        setmapV(T, &v, map);
+        if(tea_val_rawequal(&entry->value, &v))
         {
             element = "{...}";
             element_size = 5;
         }
         else
         {
-            GCstr* s = tea_val_tostring(T, entry->value, depth);
+            GCstr* s = tea_val_tostring(T, &entry->value, depth);
             element = s->chars;
             element_size = s->len;
         }
@@ -368,26 +354,26 @@ static GCstr* obj_range_tostring(tea_State* T, GCrange* range)
 
 static GCstr* obj_instance_tostring(tea_State* T, GCinstance* instance)
 {
-    TValue tostring;
     GCstr* _tostring = T->opm_name[MM_TOSTRING];
-    if(tea_tab_get(&instance->klass->methods, _tostring, &tostring))
+    TValue* tostring = tea_tab_get(&instance->klass->methods, _tostring);
+    if(tostring)
     {
-        tea_vm_push(T, OBJECT_VAL(instance));
+        setinstanceV(T, T->top++, instance);
         tea_vm_call(T, tostring, 0);
 
-        TValue result = tea_vm_pop(T, 1);
-        if(!IS_STRING(result))
+        TValue* result = T->top--;
+        if(!tvisstr(result))
         {
             tea_err_run(T, TEA_ERR_TOSTR);
         }
 
-        return AS_STRING(result);
+        return strV(result);
     }
 
     return tea_str_format(T, "<@ instance>", instance->klass->name);
 }
 
-static GCstr* obj_tostring(tea_State* T, TValue value, int depth)
+GCstr* tea_val_tostring(tea_State* T, TValue* value, int depth)
 {
     if(depth > MAX_TOSTRING_DEPTH)
     {
@@ -396,54 +382,42 @@ static GCstr* obj_tostring(tea_State* T, TValue value, int depth)
 
     depth++;
 
-    switch(OBJECT_TYPE(value))
+    switch(itype(value))
     {
-        case OBJ_FILE:
-            return tea_str_lit(T, "<file>");
-        case OBJ_METHOD:
-            return tea_str_lit(T, "<method>");
-        case OBJ_CFUNC:
-            return tea_str_lit(T, "<function>");
-        case OBJ_PROTO:
-            return obj_function_tostring(T, AS_PROTO(value));
-        case OBJ_FUNC:
-            return obj_function_tostring(T, AS_FUNC(value)->proto);
-        case OBJ_LIST:
-            return obj_list_tostring(T, AS_LIST(value), depth);
-        case OBJ_MAP:
-            return obj_map_tostring(T, AS_MAP(value), depth);
-        case OBJ_RANGE:
-            return obj_range_tostring(T, AS_RANGE(value));
-        case OBJ_MODULE:
-            return tea_str_format(T, "<@ module>", AS_MODULE(value)->name);
-        case OBJ_CLASS:
-            return tea_str_format(T, "<@>", AS_CLASS(value)->name);
-        case OBJ_INSTANCE:
-            return obj_instance_tostring(T, AS_INSTANCE(value));
-        case OBJ_STRING:
-            return AS_STRING(value);
-        case OBJ_UPVALUE:
-            return tea_str_lit(T, "<upvalue>");
-        default:
-            break;
-    }
-    return tea_str_lit(T, "unknown");
-}
-
-GCstr* tea_val_tostring(tea_State* T, TValue value, int depth)
-{
-    switch(value.tt)
-    {
-        case VAL_NULL:
+        case TEA_TNULL:
             return tea_str_lit(T, "null");
-        case VAL_BOOL:
-            return AS_BOOL(value) ? tea_str_lit(T, "true") : tea_str_lit(T, "false");
-        case VAL_NUMBER:
-            return val_numtostring(T, AS_NUMBER(value));
-        case VAL_POINTER:
+        case TEA_TBOOL:
+            return boolV(value) ? tea_str_lit(T, "true") : tea_str_lit(T, "false");
+        case TEA_TNUMBER:
+            return val_numtostring(T, numberV(value));
+        case TEA_TPOINTER:
             return tea_str_lit(T, "pointer");
-        case VAL_OBJECT:
-            return obj_tostring(T, value, depth);
+        case TEA_TFILE:
+            return tea_str_lit(T, "<file>");
+        case TEA_TMETHOD:
+            return tea_str_lit(T, "<method>");
+        case TEA_TCFUNC:
+            return tea_str_lit(T, "<function>");
+        case TEA_TPROTO:
+            return obj_function_tostring(T, protoV(value));
+        case TEA_TFUNC:
+            return obj_function_tostring(T, funcV(value)->proto);
+        case TEA_TLIST:
+            return obj_list_tostring(T, listV(value), depth);
+        case TEA_TMAP:
+            return obj_map_tostring(T, mapV(value), depth);
+        case TEA_TRANGE:
+            return obj_range_tostring(T, rangeV(value));
+        case TEA_TMODULE:
+            return tea_str_format(T, "<@ module>", moduleV(value)->name);
+        case TEA_TCLASS:
+            return tea_str_format(T, "<@>", classV(value)->name);
+        case TEA_TINSTANCE:
+            return obj_instance_tostring(T, instanceV(value));
+        case TEA_TSTRING:
+            return strV(value);
+        case TEA_TUPVALUE:
+            return tea_str_lit(T, "<upvalue>");
         default:
             break;
     }
@@ -462,9 +436,9 @@ static bool obj_list_equal(GClist* a, GClist* b)
         return false;
     }
 
-    for(int i = 0; i < a->count; ++i)
+    for(int i = 0; i < a->count; i++)
     {
-        if(!tea_val_equal(a->items[i], b->items[i]))
+        if(!tea_val_equal(a->items + i, b->items + i))
         {
             return false;
         }
@@ -494,13 +468,13 @@ static bool obj_map_equal(GCmap* a, GCmap* b)
             continue;
         }
 
-        TValue value;
-        if(!tea_map_get(b, entry->key, &value))
+        TValue* value = tea_map_get(b, &entry->key);
+        if(!value)
         {
             return false;
         }
 
-        if(!tea_val_equal(entry->value, value))
+        if(!tea_val_equal(&entry->value, value))
         {
             return false;
         }
@@ -509,118 +483,84 @@ static bool obj_map_equal(GCmap* a, GCmap* b)
     return true;
 }
 
-static bool obj_equal(TValue a, TValue b)
+bool tea_val_equal(TValue* a, TValue* b)
 {
-    if(OBJECT_TYPE(a) != OBJECT_TYPE(b)) return false;
-
-    switch(OBJECT_TYPE(a))
-    {
-        case OBJ_RANGE:
-            return obj_range_equal(AS_RANGE(a), AS_RANGE(b));
-        case OBJ_LIST:
-            return obj_list_equal(AS_LIST(a), AS_LIST(b));
-        case OBJ_MAP:
-            return obj_map_equal(AS_MAP(a), AS_MAP(b));
-        default:
-            break;
-    }
-    return AS_OBJECT(a) == AS_OBJECT(b);
-}
-
-bool tea_val_equal(TValue a, TValue b)
-{
-    if(a.tt != b.tt)
+    if(itype(a) != itype(b))
         return false;
-    switch(a.tt)
+    switch(itype(a))
     {
-        case VAL_BOOL:
-            return AS_BOOL(a) == AS_BOOL(b);
-        case VAL_POINTER:
-            return AS_POINTER(a) == AS_POINTER(b);
-        case VAL_NULL:
+        case TEA_TNULL:
             return true;
-        case VAL_NUMBER:
-            return AS_NUMBER(a) == AS_NUMBER(b);
-        case VAL_OBJECT:
-            return obj_equal(a, b);
+        case TEA_TBOOL:
+            return boolV(a) == boolV(b);
+        case TEA_TNUMBER:
+            return numberV(a) == numberV(b);
+        case TEA_TPOINTER:
+            return pointerV(a) == pointerV(b);
+        case TEA_TRANGE:
+            return obj_range_equal(rangeV(a), rangeV(b));
+        case TEA_TLIST:
+            return obj_list_equal(listV(a), listV(b));
+        case TEA_TMAP:
+            return obj_map_equal(mapV(a), mapV(b));
         default:
-            return false; /* Unreachable */
+            return gcV(a) == gcV(b);
     }
 }
 
-const char* tea_val_type(TValue a)
+const char* tea_val_type(TValue* a)
 {
-    switch(a.tt)
-    {
-        case VAL_NULL:
-            return "null";
-        case VAL_BOOL:
-            return "bool";
-        case VAL_NUMBER:
-            return "number";
-        case VAL_POINTER:
-            return "pointer";
-        case VAL_OBJECT:
-            return tea_obj_typenames[OBJECT_TYPE(a)];
-        default:
-            break;
-    }
-    return "unknown";
+    return tea_obj_typenames[itype(a)];
 }
 
-bool tea_val_rawequal(TValue a, TValue b)
+bool tea_val_rawequal(TValue* a, TValue* b)
 {
-    if(a.tt != b.tt)
+    if(itype(a) != itype(b))
         return false;
-    switch(a.tt)
+    switch(itype(a))
     {
-        case VAL_NULL:
+        case TEA_TNULL:
             return true;
-        case VAL_BOOL:
-            return AS_BOOL(a) == AS_BOOL(b);
-        case VAL_NUMBER:
-            return AS_NUMBER(a) == AS_NUMBER(b);
-        case VAL_POINTER:
-            return AS_POINTER(a) == AS_POINTER(b);
-        case VAL_OBJECT:
-            return AS_OBJECT(a) == AS_OBJECT(b);
+        case TEA_TBOOL:
+            return boolV(a) == boolV(b);
+        case TEA_TNUMBER:
+            return numberV(a) == numberV(b);
+        case TEA_TPOINTER:
+            return pointerV(a) == pointerV(b);
         default:
-            return false; /* Unreachable */
+            return gcV(a) == gcV(b);
     }
 }
 
-double tea_val_tonumber(TValue value, bool* x)
+double tea_val_tonumber(TValue* v, bool* x)
 {
     if(x != NULL)
         *x = true;
-    if(IS_NUMBER(value))
+    switch(itype(v))
     {
-        return AS_NUMBER(value);
-    }
-    else if(IS_BOOL(value))
-    {
-        return AS_BOOL(value) ? 1 : 0;
-    }
-    else if(IS_STRING(value))
-    {
-        char* n = AS_CSTRING(value);
-        char* end;
-        errno = 0;
+        case TEA_TNULL:
+            return 0;
+        case TEA_TNUMBER:
+            return numberV(v);
+        case TEA_TBOOL:
+            return boolV(v) ? 1 : 0;
+        case TEA_TSTRING:
+            char* n = strV(v)->chars;
+            char* end;
+            errno = 0;
 
-        double number = strtod(n, &end);
+            double number = strtod(n, &end);
 
-        if(errno != 0 || *end != '\0')
-        {
+            if(errno != 0 || *end != '\0')
+            {
+                if(x != NULL)
+                    *x = false;
+                return 0;
+            }
+            return number;
+        default:
             if(x != NULL)
                 *x = false;
             return 0;
-        }
-        return number;
-    }
-    else
-    {
-        if(x != NULL)
-            *x = false;
-        return 0;
     }
 }

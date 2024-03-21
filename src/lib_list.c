@@ -14,6 +14,7 @@
 #include "tea_vm.h"
 #include "tea_gc.h"
 #include "tea_str.h"
+#include "tea_list.h"
 
 static void list_len(tea_State* T)
 {
@@ -82,7 +83,7 @@ static void list_remove(tea_State* T)
 
     if(found)
     {
-        AS_LIST(T->base[0])->count--;
+        listV(T->base)->count--;
         tea_pop(T, 1);
         return;
     }
@@ -113,13 +114,13 @@ static void list_delete(tea_State* T)
         tea_set_item(T, 0, i);
     }
 
-    AS_LIST(T->base[0])->count--;
+    listV(T->base)->count--;
     tea_pop(T, 1);
 }
 
 static void list_clear(tea_State* T)
 {
-    GClist* list = AS_LIST(T->base[0]);
+    GClist* list = listV(T->base);
     list->items = NULL;
     list->count = 0;
     list->size = 0;
@@ -127,7 +128,7 @@ static void list_clear(tea_State* T)
 
 static void list_insert(tea_State* T)
 {
-    GClist* list = AS_LIST(T->base[0]);
+    GClist* list = listV(T->base);
     TValue insert_value = T->base[1];
     int index = tea_check_number(T, 2);
 
@@ -413,7 +414,8 @@ static void list_join(tea_State* T)
     string[len] = '\0';
     tea_pop(T, 2);
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, string, len)));
+    GCstr* s = tea_str_take(T, string, len);
+    setstrV(T, T->top++, s);
 }
 
 static void list_copy(tea_State* T)
@@ -613,24 +615,24 @@ static void list_opadd(tea_State* T)
     tea_check_list(T, 0);
     tea_check_list(T, 1);
     
-    GClist* l1 = AS_LIST(T->base[0]);
-    GClist* l2 = AS_LIST(T->base[1]);
+    GClist* l1 = listV(T->base);
+    GClist* l2 = listV(T->base + 1);
 
-    GClist* list = tea_obj_new_list(T);
-    tea_vm_push(T, OBJECT_VAL(list));
+    GClist* list = tea_list_new(T);
+    setlistV(T, T->top++, list);
 
     for(int i = 0; i < l1->count; i++)
     {
-        tea_list_append(T, list, l1->items[i]);
+        tea_list_append(T, list, l1->items + i);
     }
 
     for(int i = 0; i < l2->count; i++)
     {
-        tea_list_append(T, list, l2->items[i]);
+        tea_list_append(T, list, l2->items + i);
     }
 
     tea_pop(T, 3);
-    tea_vm_push(T, OBJECT_VAL(list));
+    setlistV(T, T->top++, list);
 }
 
 static const tea_Class list_class[] = {
@@ -665,7 +667,7 @@ static const tea_Class list_class[] = {
 void tea_open_list(tea_State* T)
 {
     tea_create_class(T, TEA_CLASS_LIST, list_class);
-    T->list_class = AS_CLASS(T->top[-1]);
+    T->list_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_LIST);
     tea_push_null(T);
 }

@@ -16,7 +16,7 @@
 static void range_start(tea_State* T)
 {
     int count = tea_get_top(T);
-    GCrange* range = AS_RANGE(T->base[0]);
+    GCrange* range = rangeV(T->base);
     double start;
     if(count == 1)
     {
@@ -33,7 +33,7 @@ static void range_start(tea_State* T)
 static void range_end(tea_State* T)
 {
     int count = tea_get_top(T);
-    GCrange* range = AS_RANGE(T->base[0]);
+    GCrange* range = rangeV(T->base);
     double end;
     if(count == 1)
     {
@@ -50,7 +50,7 @@ static void range_end(tea_State* T)
 static void range_step(tea_State* T)
 {
     int count = tea_get_top(T);
-    GCrange* range = AS_RANGE(T->base[0]);
+    GCrange* range = rangeV(T->base);
     double step;
     if(count == 1)
     {
@@ -192,7 +192,7 @@ static const tea_Class range_class[] = {
 void tea_open_range(tea_State* T)
 {
     tea_create_class(T, TEA_CLASS_RANGE, range_class);
-    T->range_class = AS_CLASS(T->top[-1]);
+    T->range_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_RANGE);
     tea_push_null(T);
 }

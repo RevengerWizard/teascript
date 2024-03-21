@@ -13,6 +13,8 @@
 #include "tea_str.h"
 #include "tea_gc.h"
 
+/* -- UTF-8 encoding/decoding -------------------------------------------------- */
+
 static int utf_decode_bytes(uint8_t byte)
 {
     if((byte & 0xc0) == 0x80)
@@ -229,7 +231,7 @@ GCstr* tea_utf_from_range(tea_State* T, GCstr* source, int start, uint32_t count
 	return tea_str_take(T, bytes, len);
 }
 
-static void rev(char* str, int len)
+static void utf_rev(char* str, int len)
 {
     /* this assumes that str is valid UTF-8 */
     char* scanl, *scanr, *scanr2, c;
@@ -264,7 +266,7 @@ TEA_FUNC GCstr* tea_utf_reverse(tea_State* T, GCstr* string)
 	size_t len = string->len;
 	char* reversed = tea_mem_new(T, char, len + 1);
 	strcpy(reversed, string->chars);
-	rev(reversed, len);
+	utf_rev(reversed, len);
 
     return tea_str_take(T, reversed, len);
 }

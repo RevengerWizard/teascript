@@ -10,7 +10,7 @@ CCDEBUG =
 CCWARN = -Wall
 #CCWARN+= -Wextra
 
-CCOPT = -O2
+CCOPT = -O0 -g
 
 CFLAGS = $(CCOPT) $(CCWARN) $(SYSCFLAGS) $(MYCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
@@ -36,7 +36,8 @@ PLATS = generic linux macosx mingw emscripten
 TEA_A = libtea.a
 CORE_O = tea_api.o tea_load.o tea_bcwrite.o tea_bcread.o \
 	tea_bc.o tea_parse.o tea_debug.o \
-    tea_err.o tea_gc.o tea_import.o tea_obj.o tea_func.o tea_map.o tea_str.o tea_lex.o tea_buf.o \
+    tea_err.o tea_gc.o tea_import.o tea_obj.o tea_func.o \
+	tea_list.o tea_map.o tea_str.o tea_lex.o tea_buf.o \
     tea_state.o tea_tab.o tea_utf.o tea_vm.o \
 	lib_core.o \
 	lib_file.o lib_list.o lib_map.o lib_range.o \

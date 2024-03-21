@@ -14,6 +14,8 @@
 #include "tea_func.h"
 #include "tea_vm.h"
 
+/* -- Input buffer handling -------------------------------------------------- */
+
 /* Throw reader error */
 static TEA_NOINLINE void bcread_error(Lexer* lex, const char* msg)
 {
@@ -144,6 +146,8 @@ static uint32_t bcread_uleb128_33(Lexer* lex)
     return v;
 }
 
+/* -- Bytecode reader -------------------------------------------------- */
+
 /* Read number from constants */
 static double bcread_knum(Lexer* lex)
 {
@@ -179,17 +183,18 @@ static void bcread_kgc(Lexer* lex, GCproto* f, size_t count)
             int len = type - BCDUMP_KGC_STR;
             const char* p = (const char*)bcread_mem(lex, len);
             GCstr* str = tea_str_copy(lex->T, p, len);
-            f->k[i] = OBJECT_VAL(str);
+            setstrV(lex->T, f->k + i, str);
         }
         else if(type == BCDUMP_KGC_NUM)
         {
             double num = bcread_knum(lex);
-            f->k[i] = NUMBER_VAL(num);
+            setnumberV(f->k + i, num);
         }
         else
         {
-            TValue v = tea_vm_pop(lex->T, 1);
-            f->k[i] = v;
+            lex->T->top--;
+            TValue* v = lex->T->top;
+            copyTV(lex->T, f->k + i, v);
         }
     }
 }
@@ -289,9 +294,10 @@ GCproto* tea_bcread(Lexer* lex)
         {
             bcread_error(lex, "Malformed bytecode");
         }
-        tea_vm_push(T, OBJECT_VAL(pt));
+        setprotoV(T, T->top, pt);
+        T->top++;
     }
-    TValue v = tea_vm_pop(T, 1);
-
-    return AS_PROTO(v);
+    /* Pop off last prototype */
+    T->top--;
+    return protoV(T->top);
 }

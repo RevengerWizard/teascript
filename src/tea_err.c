@@ -20,6 +20,8 @@ struct tea_longjmp
     volatile int status;
 };
 
+/* -- Error messages -------------------------------------------------- */
+
 /* Error message strings */
 TEA_DATADEF const char* tea_err_allmsg =
 #define ERRDEF(name, msg) msg "\0"
@@ -40,6 +42,12 @@ TEA_NOINLINE static void err_run(tea_State* T)
     }
 
     tea_err_throw(T, TEA_ERROR_RUNTIME);
+}
+
+/* Out-of-memory error */
+TEA_NOINLINE void tea_err_mem(tea_State* T)
+{
+    tea_err_throw(T, TEA_ERROR_MEMORY);
 }
 
 /* Runtime error */
@@ -101,6 +109,8 @@ int tea_err_protected(tea_State* T, tea_CPFunction f, void* ud)
     T->error_jump = tj.prev;    /* Restore old error handler */
     return tj.status;
 }
+
+/* -- Public error handling API -------------------------------------------------- */
 
 TEA_API tea_CFunction tea_atpanic(tea_State* T, tea_CFunction panicf)
 {

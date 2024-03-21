@@ -21,6 +21,8 @@ typedef struct BCWriteCtx
     int status; /* Status for writer callback */
 } BCWriteCtx;
 
+/* -- Bytecode writer -------------------------------------------------- */
+
 /* Write ULEB128 to buffer */
 static char* bcwrite_wuleb128(char* p, uint32_t v)
 {
@@ -31,10 +33,10 @@ static char* bcwrite_wuleb128(char* p, uint32_t v)
 }
 
 /* Write number from constants */
-static void bcwrite_knum(BCWriteCtx* ctx, TValue v)
+static void bcwrite_knum(BCWriteCtx* ctx, TValue* v)
 {
     char* p = tea_buf_more(ctx->T, &ctx->sbuf, 10);
-    double num = AS_NUMBER(v);
+    double num = numberV(v);
 
     union
     {
@@ -61,23 +63,23 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
 {
     for(int i = 0; i < pt->k_count; i++)
     {
-        TValue v = pt->k[i];
+        TValue* v = pt->k + i;
         size_t type = 0;
         size_t need = 1;
         char* p;
         
         /* Determine constant type and needed size */
-        if(IS_STRING(v))
+        if(tvisstr(v))
         {
-            GCstr* str = AS_STRING(v);
+            GCstr* str = strV(v);
             type = BCDUMP_KGC_STR + str->len;
             need = 5 + str->len;
         }
-        else if(IS_PROTO(v))
+        else if(tvisproto(v))
         {
             type = BCDUMP_KGC_FUNC;
         }
-        else if(IS_NUMBER(v))
+        else if(tvisnumber(v))
         {
             type = BCDUMP_KGC_NUM;
         }
@@ -89,7 +91,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
         /* Write constant data */
         if(type >= BCDUMP_KGC_STR)
         {
-            GCstr* str = AS_STRING(v);
+            GCstr* str = strV(v);
             p = tea_buf_wmem(p, str->chars, str->len);
         }
         ctx->sbuf.w = p;
@@ -114,10 +116,10 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     /* Recursively write children of prototype */
     for(int i = pt->k_count - 1; i >= 0; i--)
     {
-        TValue v = pt->k[i];
-        if(IS_PROTO(v))
+        TValue* v = pt->k + i;
+        if(tvisproto(v))
         {
-            bcwrite_proto(ctx, AS_PROTO(v));
+            bcwrite_proto(ctx, protoV(v));
         }    
     }
 

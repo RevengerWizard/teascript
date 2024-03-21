@@ -8,19 +8,19 @@
 
 #include "tea_str.h"
 #include "tea_state.h"
-#include "tea_vm.h"
 #include "tea_tab.h"
+#include "tea_gc.h"
 
-static GCstr* str_allocate(tea_State* T, char* chars, int len, uint32_t hash)
+static GCstr* str_alloc(tea_State* T, char* chars, int len, uint32_t hash)
 {
-    GCstr* str = tea_obj_new(T, GCstr, OBJ_STRING);
+    GCstr* str = tea_obj_new(T, GCstr, TEA_TSTRING);
     str->len = len;
     str->chars = chars;
     str->hash = hash;
 
-    tea_vm_push(T, OBJECT_VAL(str));
-    tea_tab_set(T, &T->strings, str, NULL_VAL);
-    tea_vm_pop(T, 1);
+    setstrV(T, T->top++, str);
+    setnullV(tea_tab_set(T, &T->strings, str, NULL));
+    T->top--;
 
     return str;
 }
@@ -47,7 +47,7 @@ GCstr* tea_str_take(tea_State* T, char* chars, int len)
         return interned;
     }
 
-    return str_allocate(T, chars, len, hash);
+    return str_alloc(T, chars, len, hash);
 }
 
 GCstr* tea_str_copy(tea_State* T, const char* chars, int len)
@@ -62,7 +62,7 @@ GCstr* tea_str_copy(tea_State* T, const char* chars, int len)
     memcpy(heap_chars, chars, len);
     heap_chars[len] = '\0';
 
-    return str_allocate(T, heap_chars, len, hash);
+    return str_alloc(T, heap_chars, len, hash);
 }
 
 GCstr* tea_str_format(tea_State* T, const char* format, ...)

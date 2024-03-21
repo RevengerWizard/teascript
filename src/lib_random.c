@@ -61,7 +61,7 @@ static void random_shuffle(tea_State* T)
 {
     tea_check_list(T, 0);
 
-    GClist* list = AS_LIST(T->base[0]);
+    GClist* list = listV(T->base);
 
     if(list->count < 2)
     {

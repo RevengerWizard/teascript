@@ -11,8 +11,8 @@
 
 TEA_FUNC void tea_tab_init(Table* table);
 TEA_FUNC void tea_tab_free(tea_State* T, Table* table);
-TEA_FUNC bool tea_tab_get(Table* table, GCstr* key, TValue* value);
-TEA_FUNC bool tea_tab_set(tea_State* T, Table* table, GCstr* key, TValue value);
+TEA_FUNC TValue* tea_tab_get(Table* table, GCstr* key);
+TEA_FUNC TValue* tea_tab_set(tea_State* T, Table* table, GCstr* key, bool* b);
 TEA_FUNC bool tea_tab_delete(Table* table, GCstr* key);
 TEA_FUNC void tea_tab_addall(tea_State* T, Table* from, Table* to);
 TEA_FUNC GCstr* tea_tab_findstr(Table* table, const char* chars, int len, uint32_t hash);

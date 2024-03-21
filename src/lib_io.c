@@ -21,7 +21,7 @@ static void io_stdfile(tea_State* T, FILE* f, const char* name, const char* mode
     file->file = f;
     file->is_open = -1;
 
-    tea_vm_push(T, OBJECT_VAL(file));
+    setfileV(T, T->top++, file);
     tea_set_key(T, 0, name);
 }
 

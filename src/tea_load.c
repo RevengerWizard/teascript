@@ -14,8 +14,11 @@
 #include "tea_func.h"
 #include "tea_str.h"
 #include "tea_err.h"
-#include "tea_vm.h"
 #include "tea_bcdump.h"
+#include "tea_parse.h"
+#include "tea_vm.h"
+
+/* -- Load Teascript source code and bytecode -------------------------------------------------- */
 
 static void parser_f(tea_State* T, void* ud)
 {
@@ -29,15 +32,15 @@ static void parser_f(tea_State* T, void* ud)
 
     GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex);
     GCfuncT* func = tea_func_newT(T, proto);
-    tea_vm_push(T, OBJECT_VAL(func));
+    setfuncV(T, T->top++, func);
 }
 
 TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* name, const char* mode)
 {
     GCstr* mname = tea_str_new(T, name);
-    tea_vm_push(T, OBJECT_VAL(mname));
+    setstrV(T, T->top, mname); T->top++;
     GCmodule* module = tea_obj_new_module(T, mname);
-    tea_vm_pop(T, 1);
+    T->top--;
     if(T->last_module != NULL && T->last_module->name == module->name)
     {
         /* Already found the path */
@@ -45,7 +48,7 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     else
     {
         char c = name[0];
-        tea_vm_push(T, OBJECT_VAL(module));
+        setmoduleV(T, T->top, module); T->top++;
         if(c != '<' && c != '?' && c != '=')
         {
             module->path = tea_imp_getdir(T, (char*)name);
@@ -54,7 +57,7 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
         {
             module->path = tea_str_lit(T, ".");
         }
-        tea_vm_pop(T, 1);
+        T->top--;
     }
 
     Lexer lex;
@@ -150,15 +153,13 @@ TEA_API int tea_load_string(tea_State* T, const char* s)
     return tea_load_buffer(T, s, strlen(s), "?<string>");
 }
 
+/* -- Dump bytecode -------------------------------------------------- */
+
 TEA_API int tea_dump(tea_State* T, tea_Writer writer, void* data)
 {
-    TValue o = tea_vm_peek(T, 0);
-    if(IS_FUNC(o))
-    {
-        return tea_bcwrite(T, AS_FUNC(o)->proto, writer, data);
-    }
+    const TValue* o = T->top - 1;
+    if(tvisfunc(o))
+        return tea_bcwrite(T, funcV(o)->proto, writer, data);
     else
-    {
         return TEA_ERROR_SYNTAX;
-    }
 }

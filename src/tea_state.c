@@ -19,11 +19,9 @@
 #include "tea_err.h"
 #include "tea_gc.h"
 #include "tea_tab.h"
+#include "tea_buf.h"
 
-static void state_free(tea_State* T)
-{
-    T->allocf(T->allocd, T, sizeof(*T), 0);
-}
+/* -- Stack handling -------------------------------------------------- */
 
 static void stack_free(tea_State* T)
 {
@@ -31,16 +29,17 @@ static void stack_free(tea_State* T)
     tea_mem_freevec(T, TValue, T->stack, T->stack_size);    /* Free stack array */
 }
 
+/* Allocate basic stack for new state */
 static void stack_init(tea_State* T)
 {
     /* Initialize stack array */
-    T->stack = tea_mem_new(T, TValue, BASE_STACK_SIZE + EXTRA_STACK);
-    T->stack_size = BASE_STACK_SIZE + EXTRA_STACK;
+    T->stack = tea_mem_new(T, TValue, TEA_STACK_START + TEA_STACK_EXTRA);
+    T->stack_size = TEA_STACK_START + TEA_STACK_EXTRA;
     T->top = T->stack;
-    T->stack_max = T->stack + (T->stack_size - EXTRA_STACK) - 1;
+    T->stack_max = T->stack + (T->stack_size - TEA_STACK_EXTRA) - 1;
     /* Initialize CallInfo array */
-    T->ci_base = tea_mem_new(T, CallInfo, BASIC_CI_SIZE);
-    T->ci_size = BASIC_CI_SIZE;
+    T->ci_base = tea_mem_new(T, CallInfo, TEA_CI_MIN);
+    T->ci_size = TEA_CI_MIN;
     T->ci = T->ci_base;
     T->base = T->ci->base = T->top;
     T->ci_end = T->ci_base + T->ci_size;
@@ -48,7 +47,7 @@ static void stack_init(tea_State* T)
     T->ci->func = NULL;
     T->ci->cfunc = NULL;
     T->ci->state = CIST_C;
-    tea_vm_push(T, NULL_VAL);
+    setnullV(T->top++);
 }
 
 static void panic_f(tea_State* T)
@@ -85,7 +84,8 @@ static void state_init_mms(tea_State* T)
     }
 }
 
-static void state_correct_stack(tea_State* T, TValue* old_stack)
+/* Adjust pointers in state */
+static void stack_correct(tea_State* T, TValue* old_stack)
 {
     T->top = (T->top - old_stack) + T->stack;
 
@@ -102,16 +102,16 @@ static void state_correct_stack(tea_State* T, TValue* old_stack)
     T->base = (T->base - old_stack) + T->stack;
 }
 
-static void state_realloc_stack(tea_State* T, int new_size)
+/* Resize stack slots */
+static void stack_realloc(tea_State* T, int new_size)
 {
 	TValue* old_stack = T->stack;
 	T->stack = tea_mem_reallocvec(T, TValue, T->stack, T->stack_size, new_size);
 	T->stack_size = new_size;
-    T->stack_max = T->stack + new_size - 1 - EXTRA_STACK;
-
+    T->stack_max = T->stack + new_size - 1 - TEA_STACK_EXTRA;
     if(old_stack != T->stack)
     {
-        state_correct_stack(T, old_stack);
+        stack_correct(T, old_stack);
     }
 }
 
@@ -124,14 +124,6 @@ void tea_state_reallocci(tea_State* T, int new_size)
     T->ci_end = T->ci_base + T->ci_size;
 }
 
-void tea_state_growstack(tea_State* T, int needed)
-{
-	if(needed <= T->stack_size)
-        state_realloc_stack(T, 2 * T->stack_size);
-    else
-        state_realloc_stack(T, T->stack_size + needed + EXTRA_STACK);
-}
-
 void tea_state_growci(tea_State* T)
 {
     if(T->ci + 1 == T->ci_end)
@@ -142,6 +134,27 @@ void tea_state_growci(tea_State* T)
     {
         tea_err_run(T, TEA_ERR_STKOV);
     }
+}
+
+/* Try to grow stack */
+void tea_state_growstack(tea_State* T, int needed)
+{
+	if(needed <= T->stack_size)
+        stack_realloc(T, 2 * T->stack_size);
+    else
+        stack_realloc(T, T->stack_size + needed + TEA_STACK_EXTRA);
+}
+
+void tea_state_growstack1(tea_State* T)
+{
+    tea_state_growstack(T, 1);
+}
+
+/* -- State handling -------------------------------------------------- */
+
+static void state_free(tea_State* T)
+{
+    T->allocf(T->allocd, T, sizeof(*T), 0);
 }
 
 TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
@@ -169,6 +182,8 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->gray_stack = NULL;
     T->gray_count = 0;
     T->gray_size = 0;
+    T->number_class = NULL;
+    T->bool_class = NULL;
     T->list_class = NULL;
     T->string_class = NULL;
     T->map_class = NULL;
@@ -208,36 +223,39 @@ TEA_API void tea_close(tea_State* T)
     state_free(T);
 }
 
-GCclass* tea_state_get_class(tea_State* T, TValue value)
+GCclass* tea_state_getclass(tea_State* T, TValue* value)
 {
-    if(IS_OBJECT(value))
+    switch(itype(value))
     {
-        switch(OBJECT_TYPE(value))
-        {
-            case OBJ_INSTANCE:
-                return AS_INSTANCE(value)->klass;
-            case OBJ_LIST: 
-                return T->list_class;
-            case OBJ_MAP: 
-                return T->map_class;
-            case OBJ_STRING: 
-                return T->string_class;
-            case OBJ_RANGE: 
-                return T->range_class;
-            case OBJ_FILE: 
-                return T->file_class;
-            default: 
-                return NULL;
-        }
+        case TEA_TNUMBER:
+            return T->number_class;
+        case TEA_TBOOL:
+            return T->bool_class;
+        case TEA_TINSTANCE:
+            return instanceV(value)->klass;
+        case TEA_TLIST: 
+            return T->list_class;
+        case TEA_TMAP: 
+            return T->map_class;
+        case TEA_TSTRING: 
+            return T->string_class;
+        case TEA_TRANGE: 
+            return T->range_class;
+        case TEA_TFILE: 
+            return T->file_class;
+        default: 
+            return NULL;
     }
     return NULL;
 }
 
 bool tea_state_isclass(tea_State* T, GCclass* klass)
 {
-    return (klass == T->list_class ||
-           klass == T->map_class ||
-           klass == T->string_class ||
-           klass == T->range_class ||
-           klass == T->file_class);
+    return (klass == T->number_class ||
+            klass == T->bool_class ||
+            klass == T->list_class ||
+            klass == T->map_class ||
+            klass == T->string_class ||
+            klass == T->range_class ||
+            klass == T->file_class);
 }

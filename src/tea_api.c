@@ -17,20 +17,9 @@
 #include "tea_gc.h"
 #include "tea_lex.h"
 #include "tea_tab.h"
+#include "tea_list.h"
 
-static TValue index2value(tea_State* T, int index)
-{
-    if(index >= 0)
-    {
-        return T->base[index];
-    }
-    else
-    {
-        return T->top[index];
-    }
-}
-
-static TValue* index2stack(tea_State* T, int index)
+static TValue* index2addr(tea_State* T, int index)
 {
     if(index >= 0)
     {
@@ -72,6 +61,8 @@ TEA_API void tea_set_allocf(tea_State* T, tea_Alloc f, void* ud)
     if(ud) T->allocd = ud;
 }
 
+/* -- Stack manipulation -------------------------------------------------- */
+
 TEA_API int tea_get_top(tea_State* T)
 {
     return (int)(T->top - T->base);
@@ -82,7 +73,7 @@ TEA_API void tea_set_top(tea_State* T, int index)
     if(index >= 0)
     {
         while(T->top < T->base + index)
-            tea_vm_push(T, NULL_VAL);
+            setnullV(T->top++);
         T->top = T->base + index;
     }
     else
@@ -93,133 +84,136 @@ TEA_API void tea_set_top(tea_State* T, int index)
 
 TEA_API void tea_remove(tea_State* T, int index)
 {
-    TValue* p = index2stack(T, index);
-    while(++p < T->top)
-        *(p - 1) = *p;
+    TValue* p = index2addr(T, index);
+    while(++p < T->top) copyTV(T, p - 1, p);
     T->top--;
 }
 
 TEA_API void tea_insert(tea_State* T, int index)
 {
-    TValue* p = index2stack(T, index);
-    for(TValue* q = T->top; q > p; q--)
-        *q = *(q - 1);
-    *p = *(T->top);
+    TValue* p = index2addr(T, index);
+    for(TValue* q = T->top; q > p; q--) copyTV(T, q, q - 1);
+    copyTV(T, p, T->top);
+}
+
+static void copy_slot(tea_State* T, TValue* f, int index)
+{
+    TValue* o = index2addr(T, index);
+    copyTV(T, o, f);
 }
 
 TEA_API void tea_replace(tea_State* T, int index)
 {
-    TValue* v = index2stack(T, index);
-    *v = *(T->top - 1);
+    copy_slot(T, T->top - 1, index);
     T->top--;
 }
 
 TEA_API void tea_copy(tea_State* T, int from_index, int to_index)
 {
-    TValue* from = index2stack(T, from_index);
-    TValue* to = index2stack(T, to_index);
-    *to = *(from);
+    copy_slot(T, index2addr(T, from_index), to_index);
 }
 
 TEA_API void tea_push_value(tea_State* T, int index)
 {
-    TValue value = index2value(T, index);
-    tea_vm_push(T, value);
+    copyTV(T, T->top, index2addr(T, index));
+    T->top++;
 }
+
+/* -- Stack getters ------------------------------------------------------ */
 
 TEA_API int tea_get_mask(tea_State* T, int index)
 {
-    TValue* slot = index2stack(T, index);
-    if(slot == NULL)
+    TValue* value = index2addr(T, index);
+    if(value == NULL)
         return TEA_MASK_NONE;
-    TValue value = *slot;
-
-    if(IS_NULL(value)) return TEA_MASK_NULL;
-    if(IS_POINTER(value)) return TEA_MASK_POINTER;
-    if(IS_BOOL(value)) return TEA_MASK_BOOL;
-    if(IS_NUMBER(value)) return TEA_MASK_NUMBER;
-    if(IS_OBJECT(value))
+    switch(itype(value))
     {
-        switch(OBJECT_TYPE(value))
-        {
-            case OBJ_RANGE:
-                return TEA_MASK_RANGE;
-            case OBJ_LIST:
-                return TEA_MASK_LIST;
-            case OBJ_PROTO:
-            case OBJ_FUNC:
-            case OBJ_CFUNC:
-                return TEA_MASK_FUNCTION;
-            case OBJ_MAP:
-                return TEA_MASK_MAP;
-            case OBJ_STRING:
-                return TEA_MASK_STRING;
-            case OBJ_FILE:
-                return TEA_MASK_FILE;
-            case OBJ_MODULE:
-                return TEA_MASK_MODULE;
-            default:;
-        }
+        case TEA_TNULL:
+            return TEA_MASK_NULL;
+        case TEA_TPOINTER:
+            return TEA_MASK_POINTER;
+        case TEA_TBOOL:
+            return TEA_MASK_BOOL;
+        case TEA_TNUMBER:
+            return TEA_MASK_NUMBER;
+        case TEA_TRANGE:
+            return TEA_MASK_RANGE;
+        case TEA_TLIST:
+            return TEA_MASK_LIST;
+        case TEA_TPROTO:
+        case TEA_TFUNC:
+        case TEA_TCFUNC:
+            return TEA_MASK_FUNCTION;
+        case TEA_TMAP:
+            return TEA_MASK_MAP;
+        case TEA_TSTRING:
+            return TEA_MASK_STRING;
+        case TEA_TFILE:
+            return TEA_MASK_FILE;
+        case TEA_TMODULE:
+            return TEA_MASK_MODULE;
+        default:
+            break;
     }
     return TEA_MASK_NONE;
 }
 
 TEA_API int tea_get_type(tea_State* T, int index)
 {
-    TValue* slot = index2stack(T, index);
-    if(slot == NULL)
+    TValue* value = index2addr(T, index);
+    if(value == NULL)
         return TEA_TYPE_NONE;
-    TValue value = *slot;
-
-    if(IS_NULL(value)) return TEA_TYPE_NULL;
-    if(IS_POINTER(value)) return TEA_TYPE_POINTER;
-    if(IS_BOOL(value)) return TEA_TYPE_BOOL;
-    if(IS_NUMBER(value)) return TEA_TYPE_NUMBER;
-    if(IS_OBJECT(value))
+    switch(itype(value))
     {
-        switch(OBJECT_TYPE(value))
-        {
-            case OBJ_RANGE:
-                return TEA_TYPE_RANGE;
-            case OBJ_LIST:
-                return TEA_TYPE_LIST;
-            case OBJ_PROTO:
-            case OBJ_FUNC:
-            case OBJ_CFUNC:
-                return TEA_TYPE_FUNCTION;
-            case OBJ_MAP:
-                return TEA_TYPE_MAP;
-            case OBJ_STRING:
-                return TEA_TYPE_STRING;
-            case OBJ_FILE:
-                return TEA_TYPE_FILE;
-            case OBJ_MODULE:
-                return TEA_TYPE_MODULE;
-            default:;
-        }
+        case TEA_TNULL:
+            return TEA_TYPE_NULL;
+        case TEA_TBOOL:
+            return TEA_TYPE_BOOL;
+        case TEA_TNUMBER:
+            return TEA_TYPE_NUMBER;
+        case TEA_TPOINTER:
+            return TEA_TYPE_POINTER;
+        case TEA_TRANGE:
+            return TEA_TYPE_RANGE;
+        case TEA_TLIST:
+            return TEA_TYPE_LIST;
+        case TEA_TPROTO:
+        case TEA_TFUNC:
+        case TEA_TCFUNC:
+            return TEA_TYPE_FUNCTION;
+        case TEA_TMAP:
+            return TEA_TYPE_MAP;
+        case TEA_TSTRING:
+            return TEA_TYPE_STRING;
+        case TEA_TFILE:
+            return TEA_TYPE_FILE;
+        case TEA_TMODULE:
+            return TEA_TYPE_MODULE;
+        default:
+            break;
     }
     return TEA_TYPE_NONE;
 }
 
 TEA_API const char* tea_typeof(tea_State* T, int index)
 {
-    TValue* slot = index2stack(T, index);
-    return (slot == NULL) ? "no value" : tea_val_type(*slot);
+    TValue* slot = index2addr(T, index);
+    return (slot == NULL) ? "no value" : tea_val_type(slot);
 }
 
 TEA_API double tea_get_number(tea_State* T, int index)
 {
-    return AS_NUMBER(index2value(T, index));
+    return numberV(index2addr(T, index));
 }
 
 TEA_API bool tea_get_bool(tea_State* T, int index)
 {
-    return AS_BOOL(index2value(T, index));
+    return boolV(index2addr(T, index));
 }
 
 TEA_API void tea_get_range(tea_State* T, int index, double* start, double* end, double* step)
 {
-    GCrange* range = AS_RANGE(index2value(T, index));
+    GCrange* range = rangeV(index2addr(T, index));
     if(start != NULL)
     {
         *start = range->start;
@@ -236,7 +230,7 @@ TEA_API void tea_get_range(tea_State* T, int index, double* start, double* end, 
 
 TEA_API const char* tea_get_lstring(tea_State* T, int index, int* len)
 {
-    GCstr* string = AS_STRING(index2value(T, index));
+    GCstr* string = strV(index2addr(T, index));
     if(len != NULL)
     {
         *len = string->len;
@@ -246,97 +240,100 @@ TEA_API const char* tea_get_lstring(tea_State* T, int index, int* len)
 
 TEA_API const void* tea_get_pointer(tea_State* T, int index)
 {
-    return AS_POINTER(index2value(T, index));
+    return pointerV(index2addr(T, index));
 }
 
 TEA_API bool tea_is_object(tea_State* T, int index)
 {
-    TValue v = index2value(T, index);
-    return IS_OBJECT(v);
+    TValue* v = index2addr(T, index);
+    return tvisgcv(v);
 }
 
 TEA_API bool tea_is_cfunction(tea_State* T, int index)
 {
-    TValue v = index2value(T, index);
-    return IS_CFUNC(v);
+    TValue* v = index2addr(T, index);
+    return tviscfunc(v);
 }
 
 TEA_API bool tea_to_bool(tea_State* T, int index)
 {
-    TValue* v = index2stack(T, index);
-    return (v == NULL) ? false : !tea_obj_isfalse(*v);
+    TValue* v = index2addr(T, index);
+    return (v == NULL) ? false : !tea_obj_isfalse(v);
 }
 
 TEA_API double tea_to_numberx(tea_State* T, int index, bool* is_num)
 {
-    TValue* v = index2stack(T, index);
+    TValue* v = index2addr(T, index);
     if(v == NULL)
     {
         if(is_num != NULL) *is_num = false;
         return 0;
     }
-    return tea_val_tonumber(*v, is_num);
+    return tea_val_tonumber(v, is_num);
 }
 
 TEA_API const char* tea_to_lstring(tea_State* T, int index, int* len)
 {
-    TValue* value = index2stack(T, index);
+    TValue* value = index2addr(T, index);
     if(value == NULL)
     {
         if(len != NULL) *len = 0;
         return NULL;
     }
 
-    GCstr* string = tea_val_tostring(T, *value, 0);
-    tea_vm_push(T, OBJECT_VAL(string));
+    GCstr* str = tea_val_tostring(T, value, 0);
+    setstrV(T, T->top, str);
+    T->top++;
+
     if(len != NULL)
     {
-        *len = string->len;
+        *len = str->len;
     }
-    return string->chars;
+    return str->chars;
 }
 
 TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int index)
 {
-    TValue v = index2value(T, index);
+    TValue* v = index2addr(T, index);
     tea_CFunction f = NULL;
 
-    if(IS_CFUNC(v))
-        f = AS_CFUNC(v)->fn;
+    if(tviscfunc(v))
+        f = cfuncV(v)->fn;
 
     return f;
 }
 
 TEA_API const void* tea_to_pointer(tea_State* T, int index)
 {
-    TValue v = index2value(T, index);
+    TValue* v = index2addr(T, index);
     void* p = NULL;
 
-    if(IS_POINTER(v))
-        p = AS_POINTER(v);
+    if(tvispointer(v))
+        p = pointerV(v);
 
     return p;
 }
 
 TEA_API bool tea_equal(tea_State* T, int index1, int index2)
 {
-    return tea_val_equal(index2value(T, index1), index2value(T, index2));
+    return tea_val_equal(index2addr(T, index1), index2addr(T, index2));
 }
 
 TEA_API bool tea_rawequal(tea_State* T, int index1, int index2)
 {
-    return tea_val_rawequal(index2value(T, index1), index2value(T, index2));
+    return tea_val_rawequal(index2addr(T, index1), index2addr(T, index2));
 }
 
 TEA_API void tea_concat(tea_State* T)
 {
-    GCstr* s1 = AS_STRING(tea_vm_peek(T, 1));
-    GCstr* s2 = AS_STRING(tea_vm_peek(T, 0));
+    GCstr* s1 = strV(T->top - 2);
+    GCstr* s2 = strV(T->top - 1);
 
     GCstr* str = tea_buf_cat2str(T, s1, s2);
 
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, OBJECT_VAL(str));
+    T->top -= 2;
+    setstrV(T, T->top, str);
+    T->top++;
 }
 
 TEA_API void tea_pop(tea_State* T, int n)
@@ -344,50 +341,60 @@ TEA_API void tea_pop(tea_State* T, int n)
     T->top -= n;
 }
 
+/* -- Stack setters (object creation) -------------------------------------------------- */
+
 TEA_API void tea_push_pointer(tea_State* T, void* p)
 {
-    tea_vm_push(T, POINTER_VAL(p));
+    setpointerV(T->top, p);
+    T->top++;
 }
 
 TEA_API void tea_push_null(tea_State* T)
 {
-    tea_vm_push(T, NULL_VAL);
+    setnullV(T->top);
+    T->top++;
 }
 
 TEA_API void tea_push_true(tea_State* T)
 {
-    tea_vm_push(T, TRUE_VAL);
+    settrueV(T->top);
+    T->top++;
 }
 
 TEA_API void tea_push_false(tea_State* T)
 {
-    tea_vm_push(T, FALSE_VAL);
+    setfalseV(T->top);
+    T->top++;
 }
 
 TEA_API void tea_push_bool(tea_State* T, bool b)
 {
-    tea_vm_push(T, BOOL_VAL(b));
+    setboolV(T->top, b);
+    T->top++;
 }
 
 TEA_API void tea_push_number(tea_State* T, double n)
 {
-    tea_vm_push(T, NUMBER_VAL(n));
+    setnumberV(T->top, n);
+    T->top++;
 }
 
 TEA_API const char* tea_push_lstring(tea_State* T, const char* s, int len)
 {
-    GCstr* string = (len == 0) ? tea_str_lit(T, "") : tea_str_copy(T, s, len);
-    tea_vm_push(T, OBJECT_VAL(string));
+    GCstr* str = (len == 0) ? tea_str_lit(T, "") : tea_str_copy(T, s, len);
+    setstrV(T, T->top, str);
+    T->top++;
 
-    return string->chars;
+    return str->chars;
 }
 
 TEA_API const char* tea_push_string(tea_State* T, const char* s)
 {
-    GCstr* string = tea_str_new(T, s);
-    tea_vm_push(T, OBJECT_VAL(string));
+    GCstr* str = tea_str_new(T, s);
+    setstrV(T, T->top, str);
+    T->top++;
 
-    return string->chars;
+    return str->chars;
 }
 
 static char* format(tea_State* T, const char* fmt, va_list args, int* l)
@@ -407,10 +414,11 @@ TEA_API const char* tea_push_fstring(tea_State* T, const char* fmt, ...)
     char* s = format(T, fmt, args, &len);
     va_end(args);
 
-    GCstr* string = tea_str_take(T, (char*)s, len);
-    tea_vm_push(T, OBJECT_VAL(string));
+    GCstr* str = tea_str_take(T, (char*)s, len);
+    setstrV(T, T->top, str);
+    T->top++;
 
-    return string->chars;
+    return str->chars;
 }
 
 TEA_API const char* tea_push_vfstring(tea_State* T, const char* fmt, va_list args)
@@ -418,31 +426,39 @@ TEA_API const char* tea_push_vfstring(tea_State* T, const char* fmt, va_list arg
     int len;
     char* s = format(T, fmt, args, &len);
 
-    GCstr* string = tea_str_take(T, (char*)s, len);
-    tea_vm_push(T, OBJECT_VAL(string));
+    GCstr* str = tea_str_take(T, (char*)s, len);
+    setstrV(T, T->top, str);
+    T->top++;
 
-    return string->chars;
+    return str->chars;
 }
 
 TEA_API void tea_push_range(tea_State* T, double start, double end, double step)
 {
-    tea_vm_push(T, OBJECT_VAL(tea_obj_new_range(T, start, end, step)));
+    GCrange* r = tea_obj_new_range(T, start, end, step);
+    setrangeV(T, T->top, r);
+    T->top++;
 }
 
 TEA_API void tea_new_list(tea_State* T)
 {
-    tea_vm_push(T, OBJECT_VAL(tea_obj_new_list(T)));
+    GClist* l = tea_list_new(T);
+    setlistV(T, T->top, l);
+    T->top++;
 }
 
 TEA_API void tea_new_map(tea_State* T)
 {
-    tea_vm_push(T, OBJECT_VAL(tea_map_new(T)));
+    GCmap* m = tea_map_new(T);
+    setmapV(T, T->top, m);
+    T->top++;
 }
 
 TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs)
 {
-    GCfuncC* f = tea_func_newC(T, C_FUNCTION, fn, nargs);
-    tea_vm_push(T, OBJECT_VAL(f));
+    GCfuncC* cf = tea_func_newC(T, C_FUNCTION, fn, nargs);
+    setcfuncV(T, T->top, cf);
+    T->top++;
 }
 
 static void set_class(tea_State* T, const tea_Class* k)
@@ -457,15 +473,18 @@ static void set_class(tea_State* T, const tea_Class* k)
         {
             if(strcmp(k->type, "method") == 0)
             {
-                tea_vm_push(T, OBJECT_VAL(tea_func_newC(T, C_METHOD, k->fn, k->nargs)));
+                GCfuncC* cf = tea_func_newC(T, C_METHOD, k->fn, k->nargs);
+                setcfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "property") == 0)
             {
-                tea_vm_push(T, OBJECT_VAL(tea_func_newC(T, C_PROPERTY, k->fn, k->nargs)));
+                GCfuncC* cf = tea_func_newC(T, C_PROPERTY, k->fn, k->nargs);
+                setcfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "static") == 0)
             {
-                tea_vm_push(T, OBJECT_VAL(tea_func_newC(T, C_FUNCTION, k->fn, k->nargs)));
+                GCfuncC* cf = tea_func_newC(T, C_FUNCTION, k->fn, k->nargs);
+                setcfuncV(T, T->top++, cf);
             }
         }
         tea_set_key(T, -2, k->name);
@@ -474,7 +493,10 @@ static void set_class(tea_State* T, const tea_Class* k)
 
 TEA_API void tea_create_class(tea_State* T, const char* name, const tea_Class* klass)
 {
-    tea_vm_push(T, OBJECT_VAL(tea_obj_new_class(T, tea_str_new(T, name), NULL)));
+    GCclass* k = tea_obj_new_class(T, tea_str_new(T, name), NULL);
+    setclassV(T, T->top, k);
+    T->top++;
+
     if(klass != NULL)
     {
         set_class(T, klass);
@@ -503,239 +525,235 @@ TEA_API void tea_create_module(tea_State* T, const char* name, const tea_Module*
     GCmodule* mod = tea_obj_new_module(T, modname);
     mod->path = modname;
 
-    tea_vm_push(T, OBJECT_VAL(mod));
+    setmoduleV(T, T->top, mod);
+    T->top++;
+
     if(module != NULL)
     {
         set_module(T, module);
     }
 }
 
+/* -- Object getters -------------------------------------------------- */
+
 TEA_API int tea_len(tea_State* T, int index)
 {
-    TValue object = index2value(T, index);
-
-    if(IS_OBJECT(object))
+    TValue* object = index2addr(T, index);
+    switch(itype(object))
     {
-        switch(OBJECT_TYPE(object))
+        case TEA_TSTRING:
         {
-            case OBJ_STRING:
-            {
-                return AS_STRING(object)->len;
-            }
-            case OBJ_LIST:
-            {
-                return AS_LIST(object)->count;
-            }
-            case OBJ_MAP:
-            {
-                return AS_MAP(object)->count;
-            }
-            default:
-                break;
+            return strV(object)->len;
         }
+        case TEA_TLIST:
+        {
+            return listV(object)->count;
+        }
+        case TEA_TMAP:
+        {
+            return mapV(object)->count;
+        }
+        default:
+            break;
     }
     return -1;
 }
 
 TEA_API bool tea_get_item(tea_State* T, int list, int index)
 {
-    GClist* l = AS_LIST(index2value(T, list));
+    GClist* l = listV(index2addr(T, list));
     TValue* items = l->items;
     if(index < 0 || index > l->count)
         return false;
 
-    tea_vm_push(T, items[index]);
+    copyTV(T, T->top++, items + index);
     return true;
 }
 
 TEA_API void tea_set_item(tea_State* T, int list, int index)
 {
-    GClist* l = AS_LIST(index2value(T, list));
-    l->items[index] = tea_vm_peek(T, 0);
-    tea_pop(T, 1);
+    GClist* l = listV(index2addr(T, list));
+    copyTV(T, l->items + index, T->top - 1);
+    T->top--;
 }
 
 TEA_API void tea_add_item(tea_State* T, int list)
 {
-    GClist* l = AS_LIST(index2value(T, list));
-    tea_list_append(T, l, tea_vm_peek(T, 0));
-    tea_pop(T, 1);
+    GClist* l = listV(index2addr(T, list));
+    tea_list_append(T, l, T->top - 1);
+    T->top--;
 }
 
 TEA_API bool tea_get_field(tea_State* T, int obj)
 {
-    TValue object = index2value(T, obj);
-    TValue key = tea_vm_peek(T, 0);
+    TValue* object = index2addr(T, obj);
+    TValue* key = T->top - 1;
     bool found = false;
 
-    if(IS_OBJECT(object))
+    switch(itype(object))
     {
-        switch(OBJECT_TYPE(object))
+        case TEA_TMAP:
         {
-            case OBJ_MAP:
+            GCmap* map = mapV(object);
+            TValue* v = tea_map_get(map, key);
+            if(v)
             {
-                GCmap* map = AS_MAP(object);
-                TValue v;
-                if(tea_map_get(map, key, &v))
-                {
-                    T->top--;
-                    tea_vm_push(T, v);
-                    found = true;
-                }
-                break;
+                T->top--;
+                copyTV(T, T->top++, v);
+                found = true;
             }
-            default:
-                break;
+            break;
         }
+        default:
+            break;
     }
     return found;
 }
 
 TEA_API void tea_set_field(tea_State* T, int obj)
 {
-    TValue object = index2value(T, obj);
-    TValue item = tea_vm_peek(T, 0);
-    TValue key = tea_vm_peek(T, 1);
+    TValue* object = index2addr(T, obj);
+    TValue* item = T->top - 1;
+    TValue* key = T->top - 2;
 
-    if(IS_OBJECT(object))
+    switch(itype(object))
     {
-        switch(OBJECT_TYPE(object))
+        case TEA_TMAP:
         {
-            case OBJ_MAP:
-            {
-                GCmap* map = AS_MAP(object);
-                tea_map_set(T, map, key, item);
-                break;
-            }
-            default:
-                break;
+            GCmap* map = mapV(object);
+            TValue* v = tea_map_set(T, map, key);
+            copyTV(T, v, item);
+            break;
         }
+        default:
+            break;
     }
-    tea_pop(T, 2);
+    T->top -= 2;
 }
 
 TEA_API void tea_set_key(tea_State* T, int obj, const char* key)
 {
-    TValue object = index2value(T, obj);
-    TValue item = tea_vm_peek(T, 0);
+    TValue* object = index2addr(T, obj);
+    TValue* item = T->top - 1;
 
     tea_push_string(T, key);
-    if(IS_OBJECT(object))
+    switch(itype(object))
     {
-        switch(OBJECT_TYPE(object))
+        case TEA_TMODULE:
         {
-            case OBJ_MODULE:
-            {
-                GCmodule* module = AS_MODULE(object);
-                GCstr* string = AS_STRING(tea_vm_peek(T, 0));
-                tea_tab_set(T, &module->values, string, item);
-                break;
-            }
-            case OBJ_MAP:
-            {
-                GCmap* map = AS_MAP(object);
-                TValue key = tea_vm_peek(T, 0);
-                tea_map_set(T, map, key, item);
-                break;
-            }
-            case OBJ_CLASS:
-            {
-                GCclass* klass = AS_CLASS(object);
-                GCstr* string = AS_STRING(tea_vm_peek(T, 0));
-                tea_tab_set(T, &klass->methods, string, item);
-                if(string == T->constructor_string)
-                {
-                    klass->constructor = item;
-                }
-                break;
-            }
-            case OBJ_INSTANCE:
-            {
-                GCinstance* instance = AS_INSTANCE(object);
-                GCstr* string = AS_STRING(tea_vm_peek(T, 0));
-                tea_tab_set(T, &instance->fields, string, item);
-            }
-            default:
-                break;
+            GCmodule* module = moduleV(object);
+            GCstr* string = strV(T->top - 1);
+            TValue* v = tea_tab_set(T, &module->values, string, NULL);
+            copyTV(T, v, item);
+            break;
         }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(object);
+            TValue* key = T->top - 1;
+            TValue* v = tea_map_set(T, map, key);
+            copyTV(T, v, item);
+            break;
+        }
+        case TEA_TCLASS:
+        {
+            GCclass* klass = classV(object);
+            GCstr* string = strV(T->top - 1);
+            TValue* v = tea_tab_set(T, &klass->methods, string, NULL);
+            copyTV(T, v, item);
+            if(string == T->constructor_string)
+            {
+                copyTV(T, &klass->constructor, item);
+            }
+            break;
+        }
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(object);
+            GCstr* string = strV(T->top - 1);
+            TValue* v = tea_tab_set(T, &instance->fields, string, NULL);
+            copyTV(T, v, item);
+            break;
+        }
+        default:
+            break;
     }
-    tea_pop(T, 2);
+    T->top -= 2;
 }
 
 TEA_API bool tea_get_key(tea_State* T, int obj, const char* key)
 {
-    TValue object = index2value(T, obj);
+    TValue* object = index2addr(T, obj);
     bool found = false;
 
     tea_push_string(T, key);
-    if(IS_OBJECT(object))
+    switch(itype(object))
     {
-        switch(OBJECT_TYPE(object))
+        case TEA_TMODULE:
         {
-            case OBJ_MODULE:
+            GCmodule* module = moduleV(object);
+            GCstr* string = strV(T->top - 1);
+            TValue* v = tea_tab_get(&module->values, string);
+            if(v)
             {
-                GCmodule* module = AS_MODULE(object);
-                GCstr* string = AS_STRING(tea_vm_peek(T, 0));
-                TValue v;
-                if(tea_tab_get(&module->values, string, &v))
-                {
-                    T->top--;
-                    tea_vm_push(T, v);
-                    found = true;
-                }
-                break;
+                T->top--;
+                copyTV(T, T->top++, v);
+                found = true;
             }
-            case OBJ_MAP:
-            {
-                GCmap* map = AS_MAP(object);
-                TValue key = tea_vm_peek(T, 0);
-                TValue v;
-                if(tea_map_get(map, key, &v))
-                {
-                    T->top--;
-                    tea_vm_push(T, v);
-                    found = true;
-                }
-                break;
-            }
-            case OBJ_INSTANCE:
-            {
-                GCinstance* instance = AS_INSTANCE(object);
-                GCstr* string = AS_STRING(tea_vm_peek(T, 0));
-                TValue v;
-                if(tea_tab_get(&instance->fields, string, &v))
-                {
-                    T->top--;
-                    tea_vm_push(T, v);
-                    found = true;
-                }
-            }
-            default:
-                break;
+            break;
         }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(object);
+            TValue* key = T->top - 1;
+            TValue* v = tea_map_get(map, key);
+            if(v)
+            {
+                T->top--;
+                copyTV(T, T->top++, v);
+                found = true;
+            }
+            break;
+        }
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(object);
+            GCstr* string = strV(T->top - 1);
+            TValue* v = tea_tab_get(&instance->fields, string);
+            if(v)
+            {
+                T->top--;
+                copyTV(T, T->top++, v);
+                found = true;
+            }
+        }
+        default:
+            break;
     }
     return found;
 }
 
 TEA_API bool tea_get_global(tea_State* T, const char* name)
 {
+    bool b = false;
     tea_push_string(T, name);
-    TValue _;
-    bool b = tea_tab_get(&T->globals, AS_STRING(tea_vm_peek(T, 0)), &_);
-    tea_pop(T, 1);
-    if(b)
+    TValue* v = tea_tab_get(&T->globals, strV(T->top - 1));
+    T->top--;
+    if(v)
     {
-        tea_vm_push(T, _);
+        b = true;
+        copyTV(T, T->top++, v);
     }
     return b;
 }
 
 TEA_API void tea_set_global(tea_State* T, const char* name)
 {
-    TValue value = tea_vm_peek(T, 0);
+    TValue* value = T->top - 1;
     tea_push_string(T, name);
-    tea_tab_set(T, &T->globals, AS_STRING(tea_vm_peek(T, 0)), value);
-    tea_pop(T, 2);
+    TValue* o = tea_tab_set(T, &T->globals, strV(T->top - 1), NULL);
+    copyTV(T, o, value);
+    T->top -= 2;
 }
 
 static void set_globals(tea_State* T, const tea_Reg* reg)
@@ -762,13 +780,12 @@ TEA_API void tea_set_funcs(tea_State* T, const tea_Reg* reg)
 TEA_API bool tea_has_module(tea_State* T, const char* module)
 {
     GCstr* modname = tea_str_new(T, module);
-    tea_vm_push(T, OBJECT_VAL(modname));
+    setstrV(T, T->top++, modname);
 
-    TValue _;
-    bool found = tea_tab_get(&T->modules, modname, &_);
-    tea_pop(T, 1);
+    TValue* v = tea_tab_get(&T->modules, modname);
+    T->top--;
 
-    return found;
+    return v == NULL;
 }
 
 TEA_API bool tea_test_stack(tea_State* T, int size)
@@ -808,18 +825,18 @@ TEA_API void tea_check_type(tea_State* T, int index, int type)
 
 TEA_API bool tea_check_bool(tea_State* T, int index)
 {
-    TValue value = index2value(T, index);
-    if(!IS_BOOL(value))
+    TValue* value = index2addr(T, index);
+    if(!tvisbool(value))
     {
         expected(T, "bool", index);
     }
-    return AS_BOOL(value);
+    return boolV(value);
 }
 
 TEA_API void tea_check_range(tea_State* T, int index, double* start, double* end, double* step)
 {
-    TValue value = index2value(T, index);
-    if(!IS_RANGE(value))
+    TValue* value = index2addr(T, index);
+    if(!tvisrange(value))
     {
         expected(T, "range", index);
     }
@@ -834,18 +851,18 @@ TEA_API void tea_check_any(tea_State* T, int index)
 
 TEA_API double tea_check_number(tea_State* T, int index)
 {
-    TValue value = index2value(T, index);
-    if(!IS_NUMBER(value))
+    TValue* value = index2addr(T, index);
+    if(!tvisnumber(value))
     {
         expected(T, "number", index);
     }
-    return AS_NUMBER(value);
+    return numberV(value);
 }
 
 TEA_API const char* tea_check_lstring(tea_State* T, int index, int* len)
 {
-    TValue value = index2value(T, index);
-    if(!IS_STRING(value))
+    TValue* value = index2addr(T, index);
+    if(!tvisstr(value))
     {
         expected(T, "string", index);
     }
@@ -854,22 +871,22 @@ TEA_API const char* tea_check_lstring(tea_State* T, int index, int* len)
 
 TEA_API tea_CFunction tea_check_cfunction(tea_State* T, int index)
 {
-    TValue value = index2value(T, index);
-    if(!IS_CFUNC(value))
+    TValue* value = index2addr(T, index);
+    if(!tviscfunc(value))
     {
         expected(T, "cfunction", index);
     }
-    return AS_CFUNC(value)->fn;
+    return cfuncV(value)->fn;
 }
 
 TEA_API const void* tea_check_pointer(tea_State* T, int index)
 {
-    TValue value = index2value(T, index);
-    if(!IS_POINTER(value))
+    TValue* value = index2addr(T, index);
+    if(!tvispointer(value))
     {
         expected(T, "pointer", index);
     }
-    return AS_POINTER(value);
+    return pointerV(value);
 }
 
 TEA_API void tea_opt_any(tea_State* T, int index)
@@ -921,6 +938,8 @@ TEA_API int tea_check_option(tea_State* T, int index, const char* def, const cha
     return 0;
 }
 
+/* -- GC and memory management -------------------------------------------------- */
+
 TEA_API int tea_gc(tea_State* T)
 {
     size_t before = T->bytes_allocated;
@@ -931,9 +950,11 @@ TEA_API int tea_gc(tea_State* T)
     return collected >> 10;
 }
 
+/* -- Calls -------------------------------------------------- */
+
 typedef struct CallCtx
 {
-    TValue func;
+    TValue* func;
     int arg_count;
 } CallCtx;
 
@@ -945,16 +966,15 @@ static void call_f(tea_State* T, void* ud)
 
 TEA_API void tea_call(tea_State* T, int n)
 {
-    TValue func = T->top[-n - 1];
+    TValue* func = T->top - n - 1;
     tea_vm_call(T, func, n);
 }
 
 TEA_API int tea_pcall(tea_State* T, int n)
 {
     CallCtx ctx;
-    ctx.func = T->top[-n - 1];
+    ctx.func = T->top - n - 1;
     ctx.arg_count = n;
 
-    TValue* f = T->top - n - 1;
-    return tea_vm_pcall(T, call_f, &ctx, stack_save(T, f));
+    return tea_vm_pcall(T, call_f, &ctx, stack_save(T, ctx.func));
 }

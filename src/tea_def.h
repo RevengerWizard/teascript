@@ -98,12 +98,19 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #define TEA_DATA    TEA_NOAPI
 #define TEA_DATADEF
 #define TEA_FUNC    TEA_NOAPI
+#define TEA_FUNC_NORET  TEA_FUNC TEA_NORET
 
 /* Internal assertions */
 #if defined(TEA_USE_ASSERT)
 #define tea_assert_check(T, c, ...) \
     ((c) ? (void)0 : \
     (tea_assert_fail((T), __FILE__, __LINE__, __func__, __VA_ARGS__), 0))
+#endif
+
+#ifdef TEA_USE_ASSERT
+#define tea_assertT(T, c, ...) tea_assert_check((T), (c), __VA_ARGS__)
+#else
+#define tea_assertT(T, c, ...) ((void)0)
 #endif
 
 #endif

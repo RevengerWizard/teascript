@@ -13,12 +13,13 @@
 #include "tealib.h"
 
 #include "tea_arch.h"
+#include "tea_import.h"
 #include "tea_state.h"
 #include "tea_vm.h"
-#include "tea_import.h"
 #include "tea_str.h"
 #include "tea_err.h"
 #include "tea_tab.h"
+#include "tea_gc.h"
 
 #if TEA_TARGET_DLOPEN
 
@@ -270,11 +271,11 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
         tea_err_run(T, TEA_ERR_NOPATH, path_name->chars);
     }
 
-    TValue v;
-    if(tea_tab_get(&T->modules, path, &v)) 
+    TValue* v = tea_tab_get(&T->modules, path);
+    if(v) 
     {
-        T->last_module = AS_MODULE(v);
-        tea_vm_push(T, NULL_VAL);
+        T->last_module = moduleV(v);
+        setnullV(T->top++);
         return;
     }
 
@@ -299,11 +300,11 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
 
 void tea_imp_logical(tea_State* T, GCstr* name)
 {
-    TValue v;
-    if(tea_tab_get(&T->modules, name, &v))
+    TValue* v = tea_tab_get(&T->modules, name);
+    if(v)
     {
-        T->last_module = AS_MODULE(v);
-        tea_vm_push(T, v);
+        T->last_module = moduleV(v);
+        copyTV(T, T->top++, v);
         return;
     }
 
@@ -338,6 +339,6 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         }
     }
 
-    TValue module = T->top[-1];
-    T->last_module = AS_MODULE(module);
+    TValue* module = T->top - 1;
+    T->last_module = moduleV(module);
 }

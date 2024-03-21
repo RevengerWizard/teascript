@@ -13,15 +13,6 @@
 
 #include "tea_def.h"
 
-enum
-{
-    VAL_NULL,
-    VAL_BOOL,
-    VAL_NUMBER,
-    VAL_POINTER,
-    VAL_OBJECT
-};
-
 /* Tagged value */
 typedef struct
 {
@@ -32,82 +23,47 @@ typedef struct
         void* p;
         double n;
         struct GCobj* gc;
-    } as;
+    } value;
 } TValue;
 
-#define IS_NULL(v) ((v).tt == VAL_NULL)
-#define IS_BOOL(v) ((v).tt == VAL_BOOL)
-#define IS_NUMBER(v) ((v).tt == VAL_NUMBER)
-#define IS_POINTER(v) ((v).tt == VAL_POINTER)
-#define IS_OBJECT(v) ((v).tt == VAL_OBJECT)
-
-#define AS_BOOL(v) ((v).as.b)
-#define AS_NUMBER(v) ((v).as.n)
-#define AS_POINTER(v) ((v).as.p)
-#define AS_OBJECT(v) ((v).as.gc)
-
-#define NULL_VAL ((TValue){VAL_NULL, {.n = 0}})
-#define BOOL_VAL(v) ((TValue){VAL_BOOL, {.b = v}})
-#define FALSE_VAL ((TValue){VAL_BOOL, {.b = false}})
-#define TRUE_VAL ((TValue){VAL_BOOL, {.b = true}})
-#define NUMBER_VAL(v) ((TValue){VAL_NUMBER, {.n = v}})
-#define POINTER_VAL(v) ((TValue){VAL_POINTER, {.p = v}})
-#define OBJECT_VAL(o) ((TValue){VAL_OBJECT, {.gc = (GCobj*)o}})
-
-#define OBJECT_TYPE(v) (AS_OBJECT(v)->tt)
-
-#define IS_CFUNC(v) tea_obj_istype(v, OBJ_CFUNC)
-#define IS_RANGE(v) tea_obj_istype(v, OBJ_RANGE)
-#define IS_FILE(v) tea_obj_istype(v, OBJ_FILE)
-#define IS_MODULE(v) tea_obj_istype(v, OBJ_MODULE)
-#define IS_LIST(v) tea_obj_istype(v, OBJ_LIST)
-#define IS_MAP(v) tea_obj_istype(v, OBJ_MAP)
-#define IS_METHOD(v) tea_obj_istype(v, OBJ_METHOD)
-#define IS_CLASS(v) tea_obj_istype(v, OBJ_CLASS)
-#define IS_FUNC(v) tea_obj_istype(v, OBJ_FUNC)
-#define IS_PROTO(v) tea_obj_istype(v, OBJ_PROTO)
-#define IS_INSTANCE(v) tea_obj_istype(v, OBJ_INSTANCE)
-#define IS_STRING(v) tea_obj_istype(v, OBJ_STRING)
-
-#define AS_CFUNC(v) ((GCfuncC*)AS_OBJECT(v))
-#define AS_RANGE(v) ((GCrange*)AS_OBJECT(v))
-#define AS_FILE(v) ((GCfile*)AS_OBJECT(v))
-#define AS_MODULE(v) ((GCmodule*)AS_OBJECT(v))
-#define AS_LIST(v) ((GClist*)AS_OBJECT(v))
-#define AS_MAP(v) ((GCmap*)AS_OBJECT(v))
-#define AS_METHOD(v) ((GCmethod*)AS_OBJECT(v))
-#define AS_CLASS(v) ((GCclass*)AS_OBJECT(v))
-#define AS_FUNC(v) ((GCfuncT*)AS_OBJECT(v))
-#define AS_PROTO(v) ((GCproto*)AS_OBJECT(v))
-#define AS_INSTANCE(v) ((GCinstance*)AS_OBJECT(v))
-#define AS_STRING(v) ((GCstr*)AS_OBJECT(v))
-#define AS_CSTRING(v) (((GCstr*)AS_OBJECT(v))->chars)
-
-#define tea_obj_new(T, type, object_type) (type*)tea_obj_alloc(T, sizeof(type), object_type)
-
-typedef enum
+enum
 {
-    OBJ_STRING,
-    OBJ_RANGE,
-    OBJ_PROTO,
-    OBJ_CFUNC,
-    OBJ_MODULE,
-    OBJ_FUNC,
-    OBJ_UPVALUE,
-    OBJ_CLASS,
-    OBJ_INSTANCE,
-    OBJ_METHOD,
-    OBJ_LIST,
-    OBJ_MAP,
-    OBJ_FILE,
-} ObjType;
+    TEA_TNULL,
+    TEA_TBOOL,
+    TEA_TNUMBER,
+    TEA_TPOINTER,
+    TEA_TSTRING,
+    TEA_TRANGE,
+    TEA_TFUNC,
+    TEA_TCFUNC,
+    TEA_TMODULE,
+    TEA_TCLASS,
+    TEA_TINSTANCE,
+    TEA_TMETHOD,
+    TEA_TLIST,
+    TEA_TMAP,
+    TEA_TFILE,
+    TEA_TPROTO,
+    TEA_TUPVALUE,
+};
 
+/* GC header for GC objects */
 typedef struct GCobj
 {
-    uint8_t tt;
+    uint8_t gct;
     uint8_t marked;
     struct GCobj* next;
 } GCobj;
+
+/* Resizable string buffer */
+typedef struct SBuf
+{
+    char* w;    /* Write pointer */
+    char* e;    /* End pointer */
+    char* b;    /* Base pointer */
+} SBuf;
+
+/* -- String object -------------------------------------------------- */
 
 typedef struct GCstr
 {
@@ -116,6 +72,8 @@ typedef struct GCstr
     char* chars;    /* Data of string */
     uint32_t hash;  /* Hash of string */
 } GCstr;
+
+/* -- Hash table -------------------------------------------------- */
 
 typedef struct
 {
@@ -154,6 +112,8 @@ typedef struct
     GCstr* path;
     Table values;
 } GCmodule;
+
+/* -- Prototype object -------------------------------------------------- */
 
 typedef enum
 {
@@ -194,6 +154,18 @@ typedef struct
     GCmodule* module;  /* Module namespace for the function */
 } GCproto;
 
+/* -- Upvalue object -------------------------------------------------- */
+
+typedef struct GCupvalue
+{
+    GCobj obj;
+    TValue* location;
+    TValue closed;
+    struct GCupvalue* next;
+} GCupvalue;
+
+/* -- Function object (closures) -------------------------------------------------- */
+
 typedef enum
 {
     C_FUNCTION,
@@ -212,10 +184,20 @@ typedef struct
 typedef struct
 {
     GCobj obj;
+    GCproto* proto;
+    GCupvalue** upvalues;
+    int upvalue_count;
+} GCfuncT;
+
+typedef struct
+{
+    GCobj obj;
     int count;  /* Number of list items */
     int size;
     TValue* items;  /* Array of list values */
 } GClist;
+
+/* -- Map object -------------------------------------------------- */
 
 typedef struct
 {
@@ -232,21 +214,7 @@ typedef struct
     MapEntry* entries;
 } GCmap;
 
-typedef struct GCupvalue
-{
-    GCobj obj;
-    TValue* location;
-    TValue closed;
-    struct GCupvalue* next;
-} GCupvalue;
-
-typedef struct
-{
-    GCobj obj;
-    GCproto* proto;
-    GCupvalue** upvalues;
-    int upvalue_count;
-} GCfuncT;
+/* -- Class objects -------------------------------------------------- */
 
 typedef struct GCclass
 {
@@ -272,41 +240,209 @@ typedef struct
     TValue method;
 } GCmethod;
 
-TEA_FUNC GCobj* tea_obj_alloc(tea_State* T, size_t size, ObjType type);
+/* -- State objects -------------------------------------------------- */
 
-TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue receiver, TValue method);
-TEA_FUNC GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass);
-TEA_FUNC GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass);
+/* Information about a call */
+typedef struct
+{
+    GCfuncT* func;
+    GCfuncC* cfunc;
+    uint8_t* ip;
+    int state;
+    TValue* base; /* Base for this function */
+} CallInfo;
 
-TEA_FUNC GClist* tea_obj_new_list(tea_State* T);
-TEA_FUNC void tea_list_append(tea_State* T, GClist* list, TValue value);
+/* Flags for CallInfo state */
+#define CIST_C    (1 << 0)  /* Call is running a C function */
+#define CIST_REENTRY  (1 << 1)  /* Call is running on a new invocation of 'vm_execute' */
+#define CIST_CALLING  (1 << 2)  /* Call a Teascript function */
+#define CIST_TEA   (1 << 3) /* Call is running a Teascript function */
+
+/* Special methods */
+#define MMDEF(_) \
+    _(PLUS, +) _(MINUS, -) _(MULT, *) _(DIV, /) \
+    _(MOD, %) _(POW, **) _(BAND, &) _(BOR, |) _(BNOT, ~) \
+    _(BXOR, ^) _(LSHIFT, <<) _(RSHIFT, >>) \
+    _(LT, <) _(LE, <=) _(GT, >) _(GE, >=) _(EQ, ==) \
+    _(INDEX, []) _(TOSTRING, tostring) \
+    _(ITER, iterate) _(NEXT, iteratorvalue) \
+    _(CONTAINS, contains) _(GC, gc)
+
+typedef enum
+{
+#define MMENUM(name, _) MM_##name,
+MMDEF(MMENUM)
+#undef MMENUM
+    MM__MAX
+} MMS;
+
+/* Per interpreter state */
+struct tea_State
+{
+    TValue* stack_max;   /* Last free slot in the stack */
+    TValue* stack;    /* Stack base */
+    TValue* top;  /* First free slot in the stack */
+    TValue* base; /* Base of current function */
+    int stack_size; 
+    CallInfo* ci;    /* CallInfo for current function */
+    CallInfo* ci_end;    /* Points after end of ci array */
+    CallInfo* ci_base;   /* CallInfo base */
+    int ci_size;    /* Size of array 'ci_base' */
+    GCupvalue* open_upvalues; /* List of open upvalues in the stack */
+    struct Parser* parser;
+    Table modules;   /* Table of cached modules */
+    Table globals;   /* Table of globals */
+    Table constants;    /* Table to keep track of 'const' variables */
+    Table strings;   /* String interning */
+    SBuf tmpbuf;    /* Termorary string buffer */
+    GCmodule* last_module;    /* Last cached module */
+    GCclass* number_class;
+    GCclass* bool_class;
+    GCclass* string_class;
+    GCclass* list_class;
+    GCclass* map_class;
+    GCclass* file_class;
+    GCclass* range_class;
+    GCstr* constructor_string;  /* "constructor" */
+    GCstr* repl_string; /* "_" */
+    GCstr* memerr;  /* String message for out-of-memory situation */
+    GCstr* opm_name[MM__MAX];   /* Array with special method names  */
+    GCobj* objects;    /* List of all collectable objects */
+    size_t bytes_allocated; /* Number of bytes currently allocated */
+    size_t next_gc; /* Number of bytes to activate next GC */
+    int gray_count; /* Number of grayed GC objects */
+    int gray_size;
+    GCobj** gray_stack; /* List of gray objects */
+    struct tea_longjmp* error_jump; /* Current error recovery point */
+    tea_CFunction panic; /* Function to be called in unprotected errors */
+    tea_Alloc allocf;  /* Memory allocator */
+    void* allocd;   /* Memory allocator data */
+    int argc;
+    char** argv;
+    int argf;
+    bool repl;
+    int nccalls;    /* Number of nested C calls */
+};
+
+/* -- TValue getters/setters -------------------------------------------------- */
+
+/* Macros to test types */
+#define itype(o) ((o)->tt)
+#define gctype(v) (gcV(v)->gct)
+
+#define tvisnull(o) (itype(o) == TEA_TNULL)
+#define tvisbool(o) (itype(o) == TEA_TBOOL)
+#define tvisnumber(o) (itype(o) == TEA_TNUMBER)
+#define tvispointer(o) (itype(o) == TEA_TPOINTER)
+#define tvisgcv(o) (itype(o) >= TEA_TSTRING)
+
+#define tvisstr(o) (itype(o) == TEA_TSTRING)
+#define tvisrange(o) (itype(o) == TEA_TRANGE)
+#define tvisfunc(o) (itype(o) == TEA_TFUNC)
+#define tviscfunc(o) (itype(o) == TEA_TCFUNC)
+#define tvisfile(o) (itype(o) == TEA_TFILE)
+#define tvismodule(o) (itype(o) == TEA_TMODULE)
+#define tvislist(o) (itype(o) == TEA_TLIST)
+#define tvismap(o) (itype(o) == TEA_TMAP)
+#define tvismethod(o) (itype(o) == TEA_TMETHOD)
+#define tvisclass(o) (itype(o) == TEA_TCLASS)
+#define tvisproto(o) (itype(o) == TEA_TPROTO)
+#define tvisinstance(o) (itype(o) == TEA_TINSTANCE)
+
+/* Macros to get tagged values */
+#define boolV(o) ((o)->value.b)
+#define numberV(o) ((o)->value.n)
+#define pointerV(o) ((o)->value.p)
+#define gcV(o) ((o)->value.gc)
+
+#define strV(o) ((GCstr*)gcV(o))
+#define rangeV(o) ((GCrange*)gcV(o))
+#define funcV(o) ((GCfuncT*)gcV(o))
+#define cfuncV(o) ((GCfuncC*)gcV(o))
+#define protoV(o) ((GCproto*)gcV(o))
+#define moduleV(o) ((GCmodule*)gcV(o))
+#define instanceV(o) ((GCinstance*)gcV(o))
+#define methodV(o) ((GCmethod*)gcV(o))
+#define classV(o) ((GCclass*)gcV(o))
+#define listV(o) ((GClist*)gcV(o))
+#define mapV(o) ((GCmap*)gcV(o))
+#define fileV(o) ((GCfile*)gcV(o))
+
+/* Macros to set tagged values */
+#define setnullV(o) ((o)->tt = TEA_TNULL)
+#define setfalseV(o) \
+    { TValue* _tv = (o); _tv->value.b = false; _tv->tt = TEA_TBOOL; }
+#define settrueV(o) \
+    { TValue* _tv = (o); _tv->value.b = true; _tv->tt = TEA_TBOOL; }
+#define setboolV(o, x) \
+    { TValue* _tv = (o); _tv->value.b = (x); _tv->tt = TEA_TBOOL; }
+#define setnumberV(o, x) \
+    { TValue* _tv = (o); _tv->value.n = (x); _tv->tt = TEA_TNUMBER; }
+#define setpointerV(o, x) \
+    { TValue* _tv = (o); _tv->value.p = (x); _tv->tt = TEA_TPOINTER; }
+
+static TEA_AINLINE void setgcV(tea_State* T, TValue* o, GCobj* v, uint8_t tt)
+{
+    o->value.gc = v;
+    o->tt = tt;
+}
+
+#define define_setV(name, type, tag) \
+static TEA_AINLINE void name(tea_State* T, TValue* o, const type* v) \
+{ \
+    setgcV(T, o, (GCobj*)v, tag); \
+}
+define_setV(setstrV, GCstr, TEA_TSTRING)
+define_setV(setrangeV, GCrange, TEA_TRANGE)
+define_setV(setprotoV, GCproto, TEA_TPROTO)
+define_setV(setfuncV, GCfuncT, TEA_TFUNC)
+define_setV(setcfuncV, GCfuncC, TEA_TCFUNC)
+define_setV(setmoduleV, GCmodule, TEA_TMODULE)
+define_setV(setclassV, GCclass, TEA_TCLASS)
+define_setV(setinstanceV, GCinstance, TEA_TINSTANCE)
+define_setV(setmethodV, GCmethod, TEA_TMETHOD)
+define_setV(setlistV, GClist, TEA_TLIST)
+define_setV(setmapV, GCmap, TEA_TMAP)
+define_setV(setfileV, GCfile, TEA_TFILE)
+#undef define_setV
+
+/* Copy tagged values */
+static TEA_AINLINE void copyTV(tea_State* T, TValue* o1, const TValue* o2)
+{
+    o1->value = o2->value;
+    o1->tt = o2->tt;
+}
+
+#define tea_obj_new(T, type, object_type) (type*)tea_obj_alloc(T, sizeof(type), object_type)
+
+TEA_FUNC GCobj* tea_obj_alloc(tea_State* T, size_t size, uint8_t type);
 
 TEA_FUNC GCmodule* tea_obj_new_module(tea_State* T, GCstr* name);
 TEA_FUNC GCfile* tea_obj_new_file(tea_State* T, GCstr* path, GCstr* type);
 TEA_FUNC GCrange* tea_obj_new_range(tea_State* T, double start, double end, double step);
 
-TEA_FUNC const char* tea_val_type(TValue a);
-TEA_FUNC bool tea_val_equal(TValue a, TValue b);
-TEA_FUNC bool tea_val_rawequal(TValue a, TValue b);
-TEA_FUNC double tea_val_tonumber(TValue value, bool* x);
-TEA_FUNC GCstr* tea_val_tostring(tea_State* T, TValue value, int depth);
+TEA_FUNC GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass);
+TEA_FUNC GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass);
+TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, TValue* method);
 
+TEA_FUNC const char* tea_val_type(TValue* a);
+TEA_FUNC bool tea_val_equal(TValue* a, TValue* b);
+TEA_FUNC bool tea_val_rawequal(TValue* a, TValue* b);
+TEA_FUNC double tea_val_tonumber(TValue* value, bool* x);
+TEA_FUNC GCstr* tea_val_tostring(tea_State* T, TValue* value, int depth);
+
+/* Names for internal and external object tags */
 TEA_DATA const char* const tea_val_typenames[];
 TEA_DATA const char* const tea_obj_typenames[];
 
-static TEA_AINLINE bool tea_obj_istype(TValue value, ObjType type)
+static TEA_AINLINE bool tea_obj_isfalse(TValue* value)
 {
-    return IS_OBJECT(value) && AS_OBJECT(value)->tt == type;
-}
-
-static TEA_AINLINE bool tea_obj_isfalse(TValue value)
-{
-    return  IS_NULL(value) ||
-            (IS_BOOL(value) && !AS_BOOL(value)) ||
-            (IS_NUMBER(value) && AS_NUMBER(value) == 0) ||
-            (IS_STRING(value) && AS_CSTRING(value)[0] == '\0') ||
-            (IS_LIST(value) && AS_LIST(value)->count == 0) ||
-            (IS_MAP(value) && AS_MAP(value)->count == 0);
+    return  tvisnull(value) ||
+            (tvisbool(value) && !boolV(value)) ||
+            (tvisnumber(value) && numberV(value) == 0) ||
+            (tvisstr(value) && strV(value)->chars[0] == '\0') ||
+            (tvislist(value) && listV(value)->count == 0) ||
+            (tvismap(value) && mapV(value)->count == 0);
 }
 
 #endif

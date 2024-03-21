@@ -23,6 +23,7 @@
 #include "tea_err.h"
 #include "tea_bc.h"
 #include "tea_tab.h"
+#include "tea_list.h"
 
 static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
 {
@@ -31,8 +32,8 @@ static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
         if((arg_count + func->proto->variadic) == func->proto->arity)
         {
             /* Add missing variadic param ([]) */
-            GClist* list = tea_obj_new_list(T);
-            tea_vm_push(T, OBJECT_VAL(list));
+            GClist* list = tea_list_new(T);
+            setlistV(T, T->top++, list);
             arg_count++;
         }
         else
@@ -47,15 +48,15 @@ static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
             int arity = func->proto->arity + func->proto->arity_optional;
             /* +1 for the variadic param itself */
             int varargs = arg_count - arity + 1;
-            GClist* list = tea_obj_new_list(T);
-            tea_vm_push(T, OBJECT_VAL(list));
+            GClist* list = tea_list_new(T);
+            setlistV(T, T->top++, list);
             for(int i = varargs; i > 0; i--)
             {
-                tea_list_append(T, list, tea_vm_peek(T, i));
+                tea_list_append(T, list, T->top - 1 - i);
             }
             /* +1 for the list pushed earlier on the stack */
             T->top -= varargs + 1;
-            tea_vm_push(T, OBJECT_VAL(list));
+            setlistV(T, T->top++, list);
             arg_count = arity;
         }
         else
@@ -66,11 +67,11 @@ static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
     else if(func->proto->variadic)
     {
         /* Last argument is the variadic arg */
-        GClist* list = tea_obj_new_list(T);
-        tea_vm_push(T, OBJECT_VAL(list));
-        tea_list_append(T, list, tea_vm_peek(T, 1));
+        GClist* list = tea_list_new(T);
+        setlistV(T, T->top++, list);
+        tea_list_append(T, list, T->top - 1);
         T->top -= 2;
-        tea_vm_push(T, OBJECT_VAL(list));
+        setlistV(T, T->top++, list);
     }
     
     tea_state_growci(T);
@@ -95,7 +96,7 @@ static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
     }
 
     tea_state_growci(T);
-    tea_state_checkstack(T, BASE_STACK_SIZE);
+    tea_state_checkstack(T, TEA_STACK_START);
 
     CallInfo* ci = ++T->ci;
     ci->func = NULL;
@@ -111,39 +112,33 @@ static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
 
     cfunc->fn(T);
     
-    TValue res = T->top[-1];
-
+    TValue* res = T->top - 1;
     ci = T->ci--;
-
     T->base = ci->base;
     T->top = ci->base;
-    tea_vm_push(T, res);
+    copyTV(T, T->top++, res);
 
     return false;
 }
 
-bool vm_precall(tea_State* T, TValue callee, uint8_t arg_count)
+bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
 {
-    if(!IS_OBJECT(callee))
+    switch(itype(callee))
     {
-        tea_err_run(T, TEA_ERR_CALL, tea_val_type(callee));
-    }
-
-    switch(OBJECT_TYPE(callee))
-    {
-        case OBJ_METHOD:
+        case TEA_TMETHOD:
         {
-            GCmethod* bound = AS_METHOD(callee);
-            T->top[-arg_count - 1] = bound->receiver;
-            return vm_precall(T, bound->method, arg_count);
+            GCmethod* bound = methodV(callee);
+            copyTV(T, T->top - arg_count - 1, &bound->receiver);
+            return vm_precall(T, &bound->method, arg_count);
         }
-        case OBJ_CLASS:
+        case TEA_TCLASS:
         {
-            GCclass* klass = AS_CLASS(callee);
-            T->top[-arg_count - 1] = OBJECT_VAL(tea_obj_new_instance(T, klass));
-            if(!IS_NULL(klass->constructor)) 
+            GCclass* klass = classV(callee);
+            GCinstance* inst = tea_obj_new_instance(T, klass);
+            setinstanceV(T, T->top - arg_count - 1, inst);
+            if(!tvisnull(&klass->constructor)) 
             {
-                return vm_precall(T, klass->constructor, arg_count);
+                return vm_precall(T, &klass->constructor, arg_count);
             }
             else if(arg_count != 0)
             {
@@ -151,10 +146,10 @@ bool vm_precall(tea_State* T, TValue callee, uint8_t arg_count)
             }
             return false;
         }
-        case OBJ_FUNC:
-            return vm_callT(T, AS_FUNC(callee), arg_count);
-        case OBJ_CFUNC:
-            return vm_callC(T, AS_CFUNC(callee), arg_count);
+        case TEA_TFUNC:
+            return vm_callT(T, funcV(callee), arg_count);
+        case TEA_TCFUNC:
+            return vm_callC(T, cfuncV(callee), arg_count);
         default:
             break; /* Non-callable object type */
     }
@@ -165,60 +160,53 @@ bool vm_precall(tea_State* T, TValue callee, uint8_t arg_count)
 
 static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int arg_count)
 {
-    TValue method;
-    if(!tea_tab_get(&klass->methods, name, &method))
+    TValue* method = tea_tab_get(&klass->methods, name);
+    if(!method)
     {
         tea_err_run(T, TEA_ERR_METH, name->chars);
     }
-
     return vm_precall(T, method, arg_count);
 }
 
-static bool vm_invoke(tea_State* T, TValue receiver, GCstr* name, int arg_count)
+static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count)
 {
-    if(!IS_OBJECT(receiver))
+    switch(itype(receiver))
     {
-        tea_err_run(T, TEA_ERR_OBJMETH, tea_val_type(receiver));
-    }
-
-    switch(OBJECT_TYPE(receiver))
-    {
-        case OBJ_MODULE:
+        case TEA_TMODULE:
         {
-            GCmodule* module = AS_MODULE(receiver);
+            GCmodule* module = moduleV(receiver);
 
-            TValue value;
-            if(tea_tab_get(&module->values, name, &value))
+            TValue* value = tea_tab_get(&module->values, name);
+            if(value)
             {
                 return vm_precall(T, value, arg_count);
             }
 
             tea_err_run(T, TEA_ERR_MODVAR, name->chars, module->name->chars);
         }
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(receiver);
+            GCinstance* instance = instanceV(receiver);
 
-            TValue value;
-            if(tea_tab_get(&instance->fields, name, &value))
+            TValue* value = tea_tab_get(&instance->fields, name);
+            if(value)
             {
-                T->top[-arg_count - 1] = value;
+                copyTV(T, T->top - arg_count - 1, value);
                 return vm_precall(T, value, arg_count);
             }
 
             return vm_invoke_from_class(T, instance->klass, name, arg_count);
         }
-        case OBJ_CLASS:
+        case TEA_TCLASS:
         {
-            GCclass* klass = AS_CLASS(receiver);
-            TValue method;
-            if(tea_tab_get(&klass->methods, name, &method))
+            GCclass* klass = classV(receiver);
+            TValue* method = tea_tab_get(&klass->methods, name);
+            if(method)
             {
-                if(IS_CFUNC(method) || AS_FUNC(method)->proto->type != PROTO_STATIC)
+                if(tviscfunc(method) || funcV(method)->proto->type != PROTO_STATIC)
                 {
                     tea_err_run(T, TEA_ERR_NOSTATIC, name->chars);
                 }
-
                 return vm_precall(T, method, arg_count);
             }
 
@@ -226,11 +214,11 @@ static bool vm_invoke(tea_State* T, TValue receiver, GCstr* name, int arg_count)
         }
         default:
         {
-            GCclass* type = tea_state_get_class(T, receiver);
+            GCclass* type = tea_state_getclass(T, receiver);
             if(type != NULL)
             {
-                TValue value;
-                if(tea_tab_get(&type->methods, name, &value))
+                TValue* value = tea_tab_get(&type->methods, name);
+                if(value)
                 {
                     return vm_precall(T, value, arg_count);
                 }
@@ -244,68 +232,68 @@ static bool vm_invoke(tea_State* T, TValue receiver, GCstr* name, int arg_count)
 
 static bool vm_bind_method(tea_State* T, GCclass* klass, GCstr* name)
 {
-    TValue method;
-    if(!tea_tab_get(&klass->methods, name, &method))
+    TValue* method = tea_tab_get(&klass->methods, name);
+    if(!method)
     {
         tea_err_run(T, TEA_ERR_METH, name->chars);
     }
 
-    GCmethod* bound = tea_obj_new_method(T, tea_vm_peek(T, 0), method);
-    tea_vm_pop(T, 1);
-    tea_vm_push(T, OBJECT_VAL(bound));
+    GCmethod* bound = tea_obj_new_method(T, T->top - 1, method);
+    T->top--;
+    setmethodV(T, T->top++, bound);
     return true;
 }
 
-static void vm_extend(tea_State* T, GClist* list, TValue obj)
+static void vm_extend(tea_State* T, GClist* list, TValue* obj)
 {
-    if(!IS_OBJECT(obj))
+    switch(itype(obj))
     {
-        tea_err_run(T, TEA_ERR_ITER, tea_val_type(obj));
-    }
-
-    switch(OBJECT_TYPE(obj))
-    {
-        case OBJ_RANGE:
+        case TEA_TRANGE:
         {
-            GCrange* range = AS_RANGE(obj);
+            GCrange* range = rangeV(obj);
 
             int32_t start = range->start;
             int32_t end = range->end;
             int32_t step = range->step;
 
+            TValue n;
             if(step > 0)
             {
                 for(int i = start; i < end; i += step)
                 {
-                    tea_list_append(T, list, NUMBER_VAL(i));
+                    setnumberV(&n, i);
+                    tea_list_append(T, list, &n);
                 }
             }
             else if(step < 0)
             {
                 for(int i = end + step; i >= 0; i += step)
                 {
-                    tea_list_append(T, list, NUMBER_VAL(i));
+                    setnumberV(&n, i);
+                    tea_list_append(T, list, &n);
                 }
             }
             return;
         }
-        case OBJ_LIST:
+        case TEA_TLIST:
         {
-            GClist* l = AS_LIST(obj);
+            GClist* l = listV(obj);
             for(int i = 0; i < l->count; i++)
             {
-                tea_list_append(T, list, l->items[i]);
+                tea_list_append(T, list, l->items + i);
             }
             return;
         }
-        case OBJ_STRING:
+        case TEA_TSTRING:
         {
-            GCstr* str = AS_STRING(obj);
+            GCstr* str = strV(obj);
             int len = tea_utf_len(str);
             for(int i = 0; i < len; i++)
             {
                 GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str->chars, i));
-                tea_list_append(T, list, OBJECT_VAL(c));
+                TValue v;
+                setstrV(T, &v, c);
+                tea_list_append(T, list, &v);
             }
             return;
         }
@@ -316,18 +304,13 @@ static void vm_extend(tea_State* T, GClist* list, TValue obj)
     tea_err_run(T, TEA_ERR_ITER, tea_val_type(obj));
 }
 
-static void vm_splice(tea_State* T, TValue object, GCrange* range, TValue item)
+static void vm_splice(tea_State* T, TValue* obj, GCrange* range, TValue* item)
 {
-    if(!IS_OBJECT(object))
+    switch(itype(obj))
     {
-        tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
-    }
-
-    switch(OBJECT_TYPE(object))
-    {
-        case OBJ_LIST:
+        case TEA_TLIST:
         {
-            GClist* list = AS_LIST(object);
+            GClist* list = listV(obj);
 
             int32_t start = range->start;
             int32_t end;
@@ -362,31 +345,26 @@ static void vm_splice(tea_State* T, TValue object, GCrange* range, TValue item)
 
             /* Insert into list the item values based on the range */
 
-            tea_vm_pop(T, 3);
-            tea_vm_push(T, object);
+            T->top -= 3;
+            copyTV(T, T->top++, obj);
             return;
         }
         default:
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
+    tea_err_run(T, TEA_ERR_SLICE, tea_val_type(obj));
 }
 
-static void vm_slice(tea_State* T, TValue object, GCrange* range, bool assign)
+static void vm_slice(tea_State* T, TValue* obj, GCrange* range, bool assign)
 {
-    if(!IS_OBJECT(object))
+    switch(itype(obj))
     {
-        tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
-    }
-
-    switch(OBJECT_TYPE(object))
-    {
-        case OBJ_LIST:
+        case TEA_TLIST:
         {
-            GClist* new_list = tea_obj_new_list(T);
-            tea_vm_push(T, OBJECT_VAL(new_list));
-            GClist* list = AS_LIST(object);
+            GClist* new_list = tea_list_new(T);
+            setlistV(T, T->top++, new_list);
+            GClist* list = listV(obj);
 
             int32_t start = range->start;
             int32_t end;
@@ -413,29 +391,29 @@ static void vm_slice(tea_State* T, TValue object, GCrange* range, bool assign)
             {
                 for(int i = start; i < end; i += step)
                 {
-                    tea_list_append(T, new_list, list->items[i]);
+                    tea_list_append(T, new_list, list->items + i);
                 }
             }
             else if(step < 0)
             {
                 for(int i = end + step; i >= start; i += step)
                 {
-                    tea_list_append(T, new_list, list->items[i]);
+                    tea_list_append(T, new_list, list->items + i);
                 }
             }
 
             if(assign)
             {
-                tea_vm_pop(T, 2);
+                T->top -= 2;
             }
 
-            tea_vm_pop(T, 1);   /* Pop the pushed list */
-            tea_vm_push(T, OBJECT_VAL(new_list));
+            T->top--;   /* Pop the pushed list */
+            setlistV(T, T->top++, new_list);
             return;
         }
-        case OBJ_STRING:
+        case TEA_TSTRING:
         {
-            GCstr* string = AS_STRING(object);
+            GCstr* string = strV(obj);
             int len = tea_utf_len(string);
 
             int32_t start = range->start;
@@ -460,19 +438,21 @@ static void vm_slice(tea_State* T, TValue object, GCrange* range, bool assign)
 
             if(assign)
             {
-                tea_vm_pop(T, 2);
+                T->top -= 2;
             }
 
             /* Ensure the start index is below the end index */
             if(start > end)
             {
-                tea_vm_push(T, OBJECT_VAL(tea_str_lit(T, "")));
+                GCstr* s = tea_str_lit(T, "");
+                setstrV(T, T->top++, s);
             }
             else
             {
                 start = tea_utf_char_offset(string->chars, start);
                 end = tea_utf_char_offset(string->chars, end);
-                tea_vm_push(T, OBJECT_VAL(tea_utf_from_range(T, string, start, end - start, 1)));
+                GCstr* s = tea_utf_from_range(T, string, start, end - start, 1);
+                setstrV(T, T->top++, s);
             }
             return;
         }
@@ -480,48 +460,43 @@ static void vm_slice(tea_State* T, TValue object, GCrange* range, bool assign)
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SLICE, tea_val_type(object));
+    tea_err_run(T, TEA_ERR_SLICE, tea_val_type(obj));
 }
 
-static void vm_get_index(tea_State* T, TValue index_value, TValue object, bool assign)
+static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool assign)
 {
-    if(!IS_OBJECT(object))
+    switch(itype(obj))
     {
-        tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(object));
-    }
-
-    switch(OBJECT_TYPE(object))
-    {
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(object);
+            GCinstance* instance = instanceV(obj);
 
             GCstr* subs = T->opm_name[MM_INDEX];
 
-            TValue method;
-            if(tea_tab_get(&instance->klass->methods, subs, &method))
+            TValue* method = tea_tab_get(&instance->klass->methods, subs);
+            if(method)
             {
                 if(!assign)
                 {
-                    tea_vm_push(T, object);
-                    tea_vm_push(T, index_value);
+                    copyTV(T, T->top++, obj);
+                    copyTV(T, T->top++, index_value);
                 }
-                tea_vm_push(T, NULL_VAL);
+                setnullV(T->top++);
                 tea_vm_call(T, method, 2);
                 return;
             }
 
             tea_err_run(T, TEA_ERR_INSTSUBSCR, instance->klass->name);
         }
-        case OBJ_RANGE:
+        case TEA_TRANGE:
         {
-            if(!IS_NUMBER(index_value))
+            if(!tvisnumber(index_value))
             {
                 tea_err_run(T, TEA_ERR_NUMRANGE);
             }
 
-            GCrange* range = AS_RANGE(object);
-            double index = AS_NUMBER(index_value);
+            GCrange* range = rangeV(obj);
+            double index = numberV(index_value);
 
             /* Calculate the length of the range */
             double len = (range->end - range->start) / range->step;
@@ -536,23 +511,23 @@ static void vm_get_index(tea_State* T, TValue index_value, TValue object, bool a
             {
                 if(assign)
                 {
-                    tea_vm_pop(T, 2);
+                    T->top -= 2;
                 }
-                tea_vm_push(T, NUMBER_VAL(range->start + index * range->step));
+                setnumberV(T->top++, range->start + index * range->step);
                 return;
             }
 
             tea_err_run(T, TEA_ERR_IDXRANGE);
         }
-        case OBJ_LIST:
+        case TEA_TLIST:
         {
-            if(!IS_NUMBER(index_value))
+            if(!tvisnumber(index_value))
             {
                 tea_err_run(T, TEA_ERR_NUMLIST);
             }
 
-            GClist* list = AS_LIST(object);
-            int index = AS_NUMBER(index_value);
+            GClist* list = listV(obj);
+            int index = numberV(index_value);
 
             /* Allow negative indexes */
             if(index < 0)
@@ -564,44 +539,44 @@ static void vm_get_index(tea_State* T, TValue index_value, TValue object, bool a
             {
                 if(assign)
                 {
-                    tea_vm_pop(T, 2);
+                    T->top -= 2;
                 }
-                tea_vm_push(T, list->items[index]);
+                copyTV(T, T->top++, list->items + index);
                 return;
             }
 
             tea_err_run(T, TEA_ERR_IDXLIST);
         }
-        case OBJ_MAP:
+        case TEA_TMAP:
         {
-            GCmap* map = AS_MAP(object);
+            GCmap* map = mapV(obj);
             if(!tea_map_hashable(index_value))
             {
                 tea_err_run(T, TEA_ERR_HASH);
             }
 
-            TValue value;
-            if(tea_map_get(map, index_value, &value))
+            TValue* value = tea_map_get(map, index_value);
+            if(value)
             {
                 if(assign)
                 {
-                    tea_vm_pop(T, 2);
+                    T->top -= 2;
                 }
-                tea_vm_push(T, value);
+                copyTV(T, T->top++, value);
                 return;
             }
 
             tea_err_run(T, TEA_ERR_MAPKEY);
         }
-        case OBJ_STRING:
+        case TEA_TSTRING:
         {
-            if(!IS_NUMBER(index_value))
+            if(!tvisnumber(index_value))
             {
                 tea_err_run(T, TEA_ERR_NUMSTR, tea_val_type(index_value));
             }
 
-            GCstr* string = AS_STRING(object);
-            int index = AS_NUMBER(index_value);
+            GCstr* string = strV(obj);
+            int index = numberV(index_value);
             int real_len = tea_utf_len(string);
 
             /* Allow negative indexes */
@@ -614,10 +589,10 @@ static void vm_get_index(tea_State* T, TValue index_value, TValue object, bool a
             {
                 if(assign)
                 {
-                    tea_vm_pop(T, 2);
+                    T->top -= 2;
                 }
                 GCstr* c = tea_utf_codepoint_at(T, string, tea_utf_char_offset(string->chars, index));
-                tea_vm_push(T, OBJECT_VAL(c));
+                setstrV(T, T->top++, c);
                 return;
             }
 
@@ -627,26 +602,21 @@ static void vm_get_index(tea_State* T, TValue index_value, TValue object, bool a
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(object));
+    tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(obj));
 }
 
-static void vm_set_index(tea_State* T, TValue item_value, TValue index_value, TValue object)
+static void vm_set_index(tea_State* T, TValue* item_value, TValue* index_value, TValue* obj)
 {
-    if(!IS_OBJECT(object))
+    switch(itype(obj))
     {
-        tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(object));
-    }
-
-    switch(OBJECT_TYPE(object))
-    {
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(object);
+            GCinstance* instance = instanceV(obj);
 
             GCstr* subs = T->opm_name[MM_INDEX];
 
-            TValue method;
-            if(tea_tab_get(&instance->klass->methods, subs, &method))
+            TValue* method = tea_tab_get(&instance->klass->methods, subs);
+            if(method)
             {             
                 tea_vm_call(T, method, 2);
                 return;
@@ -654,15 +624,15 @@ static void vm_set_index(tea_State* T, TValue item_value, TValue index_value, TV
 
             tea_err_run(T, TEA_ERR_SETSUBSCR, instance->klass->name);
         }
-        case OBJ_LIST:
+        case TEA_TLIST:
         {
-            if(!IS_NUMBER(index_value))
+            if(!tvisnumber(index_value))
             {
                 tea_err_run(T, TEA_ERR_NUMLIST);
             }
 
-            GClist* list = AS_LIST(object);
-            int index = AS_NUMBER(index_value);
+            GClist* list = listV(obj);
+            int index = numberV(index_value);
 
             if(index < 0)
             {
@@ -671,55 +641,52 @@ static void vm_set_index(tea_State* T, TValue item_value, TValue index_value, TV
 
             if(index >= 0 && index < list->count)
             {
-                list->items[index] = item_value;
-                tea_vm_pop(T, 3);
-                tea_vm_push(T, item_value);
+                copyTV(T, list->items + index, item_value);
+                T->top -= 3;
+                copyTV(T, T->top++, item_value);
                 return;
             }
 
             tea_err_run(T, TEA_ERR_IDXLIST);
         }
-        case OBJ_MAP:
+        case TEA_TMAP:
         {
-            GCmap* map = AS_MAP(object);
+            GCmap* map = mapV(obj);
             if(!tea_map_hashable(index_value))
             {
                 tea_err_run(T, TEA_ERR_HASH);
             }
 
-            tea_map_set(T, map, index_value, item_value);
-            tea_vm_pop(T, 3);
-            tea_vm_push(T, item_value);
+            TValue* v = tea_map_set(T, map, index_value);
+            copyTV(T, v, item_value);
+
+            T->top -= 3;
+            copyTV(T, T->top++, item_value);
             return;
         }
         default:
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_val_type(object));
+    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_val_type(obj));
 }
 
-static void vm_get_attr(tea_State* T, TValue object, GCstr* name, bool dopop)
+static void vm_get_attr(tea_State* T, TValue* obj, GCstr* name, bool dopop)
 {
-    if(!IS_OBJECT(object))
+    switch(itype(obj))
     {
-        tea_err_run(T, TEA_ERR_OBJATTR);
-    }
-
-    switch(OBJECT_TYPE(object))
-    {
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(object);
+            GCinstance* instance = instanceV(obj);
 
-            TValue value;
-            if(tea_tab_get(&instance->fields, name, &value))
+            TValue* value = tea_tab_get(&instance->fields, name);
+            if(value)
             {
                 if(dopop)
                 {
-                    tea_vm_pop(T, 1); /* Instance */
+                    T->top--; /* Instance */
                 }
-                tea_vm_push(T, value);
+                copyTV(T, T->top++, value);
                 return;
             }
 
@@ -729,13 +696,14 @@ static void vm_get_attr(tea_State* T, TValue object, GCstr* name, bool dopop)
             GCclass* klass = instance->klass;
             while(klass != NULL)
             {
-                if(tea_tab_get(&klass->statics, name, &value))
+                value = tea_tab_get(&klass->statics, name);
+                if(value)
                 {
                     if(dopop)
                     {
-                        tea_vm_pop(T, 1); /* Instance */
+                        T->top--; /* Instance */
                     }
-                    tea_vm_push(T, value);
+                    copyTV(T, T->top++, value);
                     return;
                 }
 
@@ -744,21 +712,21 @@ static void vm_get_attr(tea_State* T, TValue object, GCstr* name, bool dopop)
 
             tea_err_run(T, TEA_ERR_INSTATTR, instance->klass->name->chars, name->chars);
         }
-        case OBJ_CLASS:
+        case TEA_TCLASS:
         {
-            GCclass* klass = AS_CLASS(object);
+            GCclass* klass = classV(obj);
             GCclass* klass_store = klass;
 
             while(klass != NULL)
             {
-                TValue value;
-                if(tea_tab_get(&klass->statics, name, &value))
+                TValue* value = tea_tab_get(&klass->statics, name);
+                if(value)
                 {
                     if(dopop)
                     {
-                        tea_vm_pop(T, 1); /* Class */
+                        T->top--; /* Class */
                     }
-                    tea_vm_push(T, value);
+                    copyTV(T, T->top++, value);
                     return;
                 }
 
@@ -767,35 +735,37 @@ static void vm_get_attr(tea_State* T, TValue object, GCstr* name, bool dopop)
 
             tea_err_run(T, TEA_ERR_CLSATTR, klass_store->name->chars, name->chars);
         }
-        case OBJ_MODULE:
+        case TEA_TMODULE:
         {
-            GCmodule* module = AS_MODULE(object);
+            GCmodule* module = moduleV(obj);
 
-            TValue value;
-            if(tea_tab_get(&module->values, name, &value))
+            TValue* value = tea_tab_get(&module->values, name);
+            if(value)
             {
                 if(dopop)
                 {
-                    tea_vm_pop(T, 1); /* Module */
+                    T->top--; /* Module */
                 }
-                tea_vm_push(T, value);
+                copyTV(T, T->top++, value);
                 return;
             }
 
             tea_err_run(T, TEA_ERR_MODATTR, module->name->chars, name->chars);
         }
-        case OBJ_MAP:
+        case TEA_TMAP:
         {
-            GCmap* map = AS_MAP(object);
-
-            TValue value;
-            if(tea_map_get(map, OBJECT_VAL(name), &value))
+            GCmap* map = mapV(obj);
+            
+            TValue v;
+            setstrV(T, &v, name);
+            TValue* value = tea_map_get(map, &v);
+            if(value)
             {
                 if(dopop)
                 {
-                    tea_vm_pop(T, 1);
+                    T->top--;
                 }
-                tea_vm_push(T, value);
+                copyTV(T, T->top++, value);
                 return;
             }
             else
@@ -806,19 +776,19 @@ static void vm_get_attr(tea_State* T, TValue object, GCstr* name, bool dopop)
             tea_err_run(T, TEA_ERR_MAPATTR, name->chars);
         }
         default:
-        retry:
+retry:
         {
-            GCclass* klass = tea_state_get_class(T, object);
+            GCclass* klass = tea_state_getclass(T, obj);
             if(klass != NULL)
             {
-                TValue value;
-                if(tea_tab_get(&klass->methods, name, &value))
+                TValue* value = tea_tab_get(&klass->methods, name);
+                if(value)
                 {
-                    if(IS_CFUNC(value) && AS_CFUNC(value)->type == C_PROPERTY)
+                    if(tviscfunc(value) && cfuncV(value)->type == C_PROPERTY)
                     {
                         if(!dopop)
                         {
-                            tea_vm_push(T, object);
+                            copyTV(T, T->top++, obj);
                         }
                         tea_vm_call(T, value, 0);
                     }
@@ -833,59 +803,60 @@ static void vm_get_attr(tea_State* T, TValue object, GCstr* name, bool dopop)
         }
     }
 
-    tea_err_run(T, TEA_ERR_NOATTR, tea_val_type(object), name->chars);
+    tea_err_run(T, TEA_ERR_NOATTR, tea_val_type(obj), name->chars);
 }
 
-static void vm_set_attr(tea_State* T, GCstr* name, TValue object, TValue item)
+static void vm_set_attr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
 {
-    if(!IS_OBJECT(object))
+    switch(itype(obj))
     {
-        tea_err_run(T, TEA_ERR_SETATTR, tea_val_type(object));
-    }
-
-    switch(OBJECT_TYPE(object))
-    {
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
         {
-            GCinstance* instance = AS_INSTANCE(object);
-            tea_tab_set(T, &instance->fields, name, item);
-            tea_vm_pop(T, 2);
-            tea_vm_push(T, item);
+            GCinstance* instance = instanceV(obj);
+            TValue* v = tea_tab_set(T, &instance->fields, name, NULL);
+            copyTV(T, v, item);
+            T->top -= 2;
+            copyTV(T, T->top++, item);
             return;
         }
-        case OBJ_CLASS:
+        case TEA_TCLASS:
         {
-            GCclass* klass = AS_CLASS(object);
-            tea_tab_set(T, &klass->statics, name, item);
-            tea_vm_pop(T, 2);
-            tea_vm_push(T, item);
+            GCclass* klass = classV(obj);
+            TValue* v = tea_tab_set(T, &klass->statics, name, NULL);
+            copyTV(T, v, item);
+            T->top -= 2;
+            copyTV(T, T->top++, item);
             return;
         }
-        case OBJ_MAP:
+        case TEA_TMAP:
         {
-            GCmap* map = AS_MAP(object);
-            tea_map_set(T, map, OBJECT_VAL(name), item);
-            tea_vm_pop(T, 2);
-            tea_vm_push(T, item);
+            GCmap* map = mapV(obj);
+            TValue v;
+            setstrV(T, &v, name);
+            TValue* tv = tea_map_set(T, map, &v);
+            copyTV(T, tv, item);
+            T->top -= 2;
+            copyTV(T, T->top++, item);
             return;
         }
-        case OBJ_MODULE:
+        case TEA_TMODULE:
         {
-            GCmodule* module = AS_MODULE(object);
-            tea_tab_set(T, &module->values, name, item);
-            tea_vm_pop(T, 2);
-            tea_vm_push(T, item);
+            GCmodule* module = moduleV(obj);
+            TValue* v = tea_tab_set(T, &module->values, name, NULL);
+            copyTV(T, v, item);
+            T->top -= 2;
+            copyTV(T, T->top++, item);
             return;
         }
         default:
         {
-            GCclass* klass = tea_state_get_class(T, object);
+            GCclass* klass = tea_state_getclass(T, obj);
             if(klass != NULL)
             {
-                TValue value;
-                if(tea_tab_get(&klass->methods, name, &value))
+                TValue* value = tea_tab_get(&klass->methods, name);
+                if(value)
                 {
-                    if(IS_CFUNC(value) && AS_CFUNC(value)->type == C_PROPERTY)
+                    if(tviscfunc(value) && cfuncV(value)->type == C_PROPERTY)
                     {
                         tea_vm_call(T, value, 1);
                         return;
@@ -896,99 +867,109 @@ static void vm_set_attr(tea_State* T, GCstr* name, TValue object, TValue item)
         }
     }
 
-    tea_err_run(T, TEA_ERR_SETATTR, tea_val_type(object));
+    tea_err_run(T, TEA_ERR_SETATTR, tea_val_type(obj));
 }
 
 static void vm_define_method(tea_State* T, GCstr* name)
 {
-    TValue method = tea_vm_peek(T, 0);
-    GCclass* klass = AS_CLASS(tea_vm_peek(T, 1));
-    tea_tab_set(T, &klass->methods, name, method);
-    if(name == T->constructor_string) klass->constructor = method;
-    tea_vm_pop(T, 1);
+    TValue* method = T->top - 1;
+    GCclass* klass = classV(T->top - 2);
+    TValue* v = tea_tab_set(T, &klass->methods, name, NULL);
+    copyTV(T, v, method);
+    if(name == T->constructor_string) copyTV(T, &klass->constructor, method);
+    T->top--;
 }
 
-static bool vm_get_bcmethod(tea_State* T, GCstr* key, TValue v, TValue* method)
+static TValue* vm_get_bcmethod(tea_State* T, GCstr* key, TValue* v)
 {
-    GCclass* klass = tea_state_get_class(T, v);
+    GCclass* klass = tea_state_getclass(T, v);
     if(klass == NULL)
         return false;
 
-    return tea_tab_get(&klass->methods, key, method);
+    return tea_tab_get(&klass->methods, key);
 }
 
-static void vm_unary_arith(tea_State* T, MMS op, TValue v)
+static void vm_arith_unary(tea_State* T, MMS op, TValue* v)
 {
     GCstr* method_name = T->opm_name[op];
 
-    TValue method;
-    if(!vm_get_bcmethod(T, method_name, v, &method))
+    TValue* method = vm_get_bcmethod(T, method_name, v);
+    if(!method)
     {
         tea_err_run(T, TEA_ERR_UNOP, method_name->chars, tea_val_type(v));
     }
 
-    tea_vm_pop(T, 1);
-    tea_vm_push(T, method);
-    tea_vm_push(T, v);
-    tea_vm_push(T, NULL_VAL);
+    TValue v1;
+    copyTV(T, &v1, v);
+
+    T->top--;
+    copyTV(T, T->top++, method);
+    copyTV(T, T->top++, &v1);
+    setnullV(T->top++);
     tea_vm_call(T, method, 2);
 }
 
-static void vm_arith(tea_State* T, MMS op, TValue a, TValue b)
+static void vm_arith(tea_State* T, MMS op, TValue* a, TValue* b)
 {
     GCstr* method_name = T->opm_name[op];
 
-    TValue method;
-    bool found = vm_get_bcmethod(T, method_name, a, &method);    /* try first operand */
-    if(!found)
+    TValue* method = vm_get_bcmethod(T, method_name, a);    /* try first operand */
+    if(!method)
     {
-        found = vm_get_bcmethod(T, method_name, b, &method); /* try second operand */
+        method = vm_get_bcmethod(T, method_name, b); /* try second operand */
     }
-    if(!found)
+    if(!method)
     {
         tea_err_run(T, TEA_ERR_BIOP, method_name->chars, tea_val_type(a), tea_val_type(b));
     }
 
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, method);
-    tea_vm_push(T, a);
-    tea_vm_push(T, b);
+    TValue v1, v2;
+    copyTV(T, &v1, a);
+    copyTV(T, &v2, b);
+
+    T->top -= 2;
+    copyTV(T, T->top++, method);
+    copyTV(T, T->top++, &v1);
+    copyTV(T, T->top++, &v2);
     tea_vm_call(T, method, 2);
 }
 
-static bool vm_arith_comp(tea_State* T, MMS op, TValue a, TValue b)
+static bool vm_arith_comp(tea_State* T, MMS op, TValue* a, TValue* b)
 {
     GCstr* method_name = T->opm_name[op];
 
-    TValue method;
-    bool found = vm_get_bcmethod(T, method_name, a, &method);    /* try first operand */
-    if(!found)
+    TValue* method = vm_get_bcmethod(T, method_name, a);    /* try first operand */
+    if(!method)
     {
-        found = vm_get_bcmethod(T, method_name, b, &method); /* try second operand */
+        method = vm_get_bcmethod(T, method_name, b); /* try second operand */
     }
-    if(!found)
+    if(!method)
     {
         return false;
     }
 
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, method);
-    tea_vm_push(T, a);
-    tea_vm_push(T, b);
+    TValue v1, v2;
+    copyTV(T, &v1, a);
+    copyTV(T, &v2, b);
+
+    T->top -= 2;
+    copyTV(T, T->top++, method);
+    copyTV(T, T->top++, &v1);
+    copyTV(T, T->top++, &v2);
     tea_vm_call(T, method, 2);
     return true;
 }
 
-static bool vm_iterator_call(tea_State* T, MMS op, TValue receiver)
+static bool vm_iterator_call(tea_State* T, MMS op, TValue* receiver)
 {
     GCstr* method_name = T->opm_name[op];
 
-    TValue method;
-    GCclass* klass = tea_state_get_class(T, receiver);
+    GCclass* klass = tea_state_getclass(T, receiver);
     if(klass == NULL)
         return false;
 
-    if(tea_tab_get(&klass->methods, method_name, &method))
+    TValue* method = tea_tab_get(&klass->methods, method_name);
+    if(method)
     {
         tea_vm_call(T, method, 1);
         return true;
@@ -998,13 +979,6 @@ static bool vm_iterator_call(tea_State* T, MMS op, TValue receiver)
 
 static void vm_execute(tea_State* T)
 {
-#define PUSH(value) (tea_vm_push(T, value))
-#define POP() (tea_vm_pop(T, 1))
-#define PEEK(distance) (tea_vm_peek(T, distance))
-#define DROP(amount) (T->top -= (amount))
-#define READ_BYTE() (*ip++)
-#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
-
 #define STORE_FRAME (T->ci->ip = ip)
 #define READ_FRAME() \
     do \
@@ -1014,8 +988,10 @@ static void vm_execute(tea_State* T)
     } \
     while(false)
 
-#define READ_CONSTANT() (T->ci->func->proto->k[READ_BYTE()])
-#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_BYTE() (*ip++)
+#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
+#define READ_CONSTANT() (T->ci->func->proto->k + READ_BYTE())
+#define READ_STRING() strV(READ_CONSTANT())
 
 #define RUNTIME_ERROR(...) \
     do \
@@ -1030,13 +1006,13 @@ static void vm_execute(tea_State* T)
 #define BINARY_OP(value_type, expr, op_method, type) \
     do \
     { \
-        TValue v1 = PEEK(1); \
-        TValue v2 = PEEK(0); \
-        if(IS_NUMBER(v1) && IS_NUMBER(v2)) \
+        TValue* v1 = T->top - 2; \
+        TValue* v2 = T->top - 1; \
+        if(tvisnumber(v1) && tvisnumber(v2)) \
         { \
-            type b = AS_NUMBER(POP()); \
-            type a = AS_NUMBER(PEEK(0)); \
-            T->top[-1] = value_type(expr); \
+            type b = numberV(--T->top); \
+            type a = numberV(T->top - 1); \
+            value_type(T->top - 1, expr); \
         } \
         else \
         { \
@@ -1050,16 +1026,16 @@ static void vm_execute(tea_State* T)
 #define UNARY_OP(value_type, expr, op_method, type) \
     do \
     { \
-        TValue v1 = PEEK(0); \
-        if(IS_NUMBER(v1)) \
+        TValue* v1 = T->top - 1; \
+        if(tvisnumber(v1)) \
         { \
-            type v = AS_NUMBER(v1); \
-            T->top[-1] = value_type(expr); \
+            type v = numberV(v1); \
+            value_type(T->top - 1, expr); \
         } \
         else \
         { \
             STORE_FRAME; \
-            vm_unary_arith(T, op_method, v1); \
+            vm_arith_unary(T, op_method, v1); \
             READ_FRAME(); \
         } \
     } \
@@ -1105,102 +1081,110 @@ static void vm_execute(tea_State* T)
         {
             CASE_CODE(BC_CONSTANT):
             {
-                PUSH(READ_CONSTANT());
+                TValue* v = READ_CONSTANT();
+                copyTV(T, T->top++, v);
                 DISPATCH();
             }
             CASE_CODE(BC_NULL):
             {
-                PUSH(NULL_VAL);
+                setnullV(T->top++);
                 DISPATCH();
             }
             CASE_CODE(BC_TRUE):
             {
-                PUSH(TRUE_VAL);
+                settrueV(T->top++);
                 DISPATCH();
             }
             CASE_CODE(BC_FALSE):
             {
-                PUSH(FALSE_VAL);
+                setfalseV(T->top++);
                 DISPATCH();
             }
             CASE_CODE(BC_POP):
             {
-                DROP(1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_PRINT):
             {
-                TValue value = PEEK(0);
-                if(!IS_NULL(value))
+                TValue* value = T->top - 1;
+                if(!tvisnull(value))
                 {
-                    tea_tab_set(T, &T->globals, T->repl_string, value);
-                    GCstr* string = tea_val_tostring(T, value, 0);
-                    PUSH(OBJECT_VAL(string));
-                    fwrite(string->chars, sizeof(char), string->len, stdout);
+                    TValue* v = tea_tab_set(T, &T->globals, T->repl_string, NULL);
+                    copyTV(T, v, value);
+                    GCstr* str = tea_val_tostring(T, value, 0);
+                    setstrV(T, T->top++, str);
+                    fwrite(str->chars, sizeof(char), str->len, stdout);
                     putchar('\n');
-                    DROP(1);
+                    T->top--;
                 }
-                DROP(1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_GET_LOCAL):
             {
                 uint8_t slot = READ_BYTE();
-                PUSH(base[slot]);
+                copyTV(T, T->top++, base + slot);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_LOCAL):
             {
                 uint8_t slot = READ_BYTE();
-                base[slot] = PEEK(0);
+                copyTV(T, base + slot, T->top - 1);
                 DISPATCH();
             }
             CASE_CODE(BC_GET_GLOBAL):
             {
                 GCstr* name = READ_STRING();
-                TValue value;
-                if(!tea_tab_get(&T->globals, name, &value))
+                TValue* value = tea_tab_get(&T->globals, name);
+                if(!value)
                 {
                     RUNTIME_ERROR(TEA_ERR_VAR, name->chars);
                 }
-                PUSH(value);
+                copyTV(T, T->top++, value);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_GLOBAL):
             {
+                bool b;
                 GCstr* name = READ_STRING();
-                if(tea_tab_set(T, &T->globals, name, PEEK(0)))
+                TValue* v = tea_tab_set(T, &T->globals, name, &b);
+                if(b)
                 {
                     tea_tab_delete(&T->globals, name);
                     RUNTIME_ERROR(TEA_ERR_VAR, name->chars);
                 }
+                copyTV(T, v, T->top - 1);
                 DISPATCH();
             }
             CASE_CODE(BC_GET_MODULE):
             {
                 GCstr* name = READ_STRING();
-                TValue value;
-                if(!tea_tab_get(&T->ci->func->proto->module->values, name, &value))
+                TValue* value = tea_tab_get(&T->ci->func->proto->module->values, name);
+                if(!value)
                 {
                     RUNTIME_ERROR(TEA_ERR_VAR, name->chars);
                 }
-                PUSH(value);
+                copyTV(T, T->top++, value);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_MODULE):
             {
+                bool b;
                 GCstr* name = READ_STRING();
-                if(tea_tab_set(T, &T->ci->func->proto->module->values, name, PEEK(0)))
+                TValue* v = tea_tab_set(T, &T->ci->func->proto->module->values, name, &b);
+                if(b)
                 {
                     tea_tab_delete(&T->ci->func->proto->module->values, name);
                     RUNTIME_ERROR(TEA_ERR_VAR, name->chars);
                 }
+                copyTV(T, v, T->top - 1);
                 DISPATCH();
             }
             CASE_CODE(BC_DEFINE_OPTIONAL):
             {
-                int arity = READ_BYTE();
-                int arity_optional = READ_BYTE();
+                uint8_t arity = READ_BYTE();
+                uint8_t arity_optional = READ_BYTE();
                 int arg_count = T->top - base - arity_optional - 1;
 
                 /*
@@ -1213,14 +1197,15 @@ static void vm_execute(tea_State* T)
 
                 for(index = 0; index < arity_optional + arg_count; index++)
                 {
-                    values[index] = POP();
+                    TValue* v = --T->top;
+                    copyTV(T, values + index, v);
                 }
 
                 --index;
 
                 for(int i = 0; i < arg_count; i++)
                 {
-                    PUSH(values[index - i]);
+                    copyTV(T, T->top++, values + index - i);
                 }
 
                 /* Calculate how many "default" values are required */
@@ -1229,40 +1214,44 @@ static void vm_execute(tea_State* T)
                 /* Push any "default" values back onto the stack */
                 for(int i = remaining; i > 0; i--)
                 {
-                    PUSH(values[i - 1]);
+                    copyTV(T, T->top++, values + i - 1);
                 }
                 DISPATCH();
             }
             CASE_CODE(BC_DEFINE_GLOBAL):
             {
                 GCstr* name = READ_STRING();
-                tea_tab_set(T, &T->globals, name, PEEK(0));
-                DROP(1);
+                TValue* v = tea_tab_set(T, &T->globals, name, NULL);
+                copyTV(T, v, T->top - 1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_DEFINE_MODULE):
             {
                 GCstr* name = READ_STRING();
-                tea_tab_set(T, &T->ci->func->proto->module->values, name, PEEK(0));
-                DROP(1);
+                TValue* v = tea_tab_set(T, &T->ci->func->proto->module->values, name, NULL);
+                copyTV(T, v, T->top - 1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_GET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                PUSH(*T->ci->func->upvalues[slot]->location);
+                TValue* v = T->ci->func->upvalues[slot]->location;
+                copyTV(T, T->top++, v);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                *T->ci->func->upvalues[slot]->location = PEEK(0);
+                TValue* v = T->ci->func->upvalues[slot]->location;
+                copyTV(T, v, T->top - 1);
                 DISPATCH();
             }
             CASE_CODE(BC_GET_ATTR):
             CASE_CODE(BC_PUSH_ATTR):
             {
-                TValue receiver = PEEK(0);
+                TValue* receiver = T->top - 1;
                 GCstr* name = READ_STRING();
                 bool dopop = instruction == BC_GET_ATTR;
                 STORE_FRAME;
@@ -1273,8 +1262,8 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_SET_ATTR):
             {
                 GCstr* name = READ_STRING();
-                TValue receiver = PEEK(1);
-                TValue item = PEEK(0);
+                TValue* receiver = T->top - 2;
+                TValue* item = T->top - 1;
                 STORE_FRAME;
                 vm_set_attr(T, name, receiver, item);
                 READ_FRAME();
@@ -1283,41 +1272,42 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_GET_SUPER):
             {
                 GCstr* name = READ_STRING();
-                GCclass* superclass = AS_CLASS(POP());
+                GCclass* superclass = classV(--T->top);
                 STORE_FRAME;
                 vm_bind_method(T, superclass, name);
                 DISPATCH();
             }
             CASE_CODE(BC_RANGE):
             {
-                TValue c = POP();
-                TValue b = POP();
-                TValue a = POP();
+                TValue* c = --T->top;
+                TValue* b = --T->top;
+                TValue* a = --T->top;
 
-                if(!IS_NUMBER(a) || !IS_NUMBER(b) || !IS_NUMBER(c))
+                if(!tvisnumber(a) || !tvisnumber(b) || !tvisnumber(c))
                 {
                     RUNTIME_ERROR(TEA_ERR_RANGE);
                 }
 
-                PUSH(OBJECT_VAL(tea_obj_new_range(T, AS_NUMBER(a), AS_NUMBER(b), AS_NUMBER(c))));
+                GCrange* r = tea_obj_new_range(T, numberV(a), numberV(b), numberV(c));
+                setrangeV(T, T->top++, r);
                 DISPATCH();
             }
             CASE_CODE(BC_LIST):
             {
-                GClist* list = tea_obj_new_list(T);
-                PUSH(OBJECT_VAL(list));
+                GClist* list = tea_list_new(T);
+                setlistV(T, T->top++, list);
                 DISPATCH();
             }
             CASE_CODE(BC_UNPACK):
             {
                 uint8_t var_count = READ_BYTE();
 
-                if(!IS_LIST(PEEK(0)))
+                if(!tvislist(T->top - 1))
                 {
                     RUNTIME_ERROR(TEA_ERR_UNPACK);
                 }
 
-                GClist* list = AS_LIST(POP());
+                GClist* list = listV(--T->top);
 
                 if(var_count != list->count)
                 {
@@ -1333,7 +1323,7 @@ static void vm_execute(tea_State* T)
 
                 for(int i = 0; i < list->count; i++)
                 {
-                    PUSH(list->items[i]);
+                    copyTV(T, T->top++, list->items + i);
                 }
 
                 DISPATCH();
@@ -1343,12 +1333,12 @@ static void vm_execute(tea_State* T)
                 uint8_t var_count = READ_BYTE();
                 uint8_t rest_pos = READ_BYTE();
 
-                if(!IS_LIST(PEEK(0)))
+                if(!tvislist(T->top - 1))
                 {
                     RUNTIME_ERROR(TEA_ERR_UNPACK);
                 }
 
-                GClist* list = AS_LIST(POP());
+                GClist* list = listV(--T->top);
 
                 if(var_count > list->count)
                 {
@@ -1359,18 +1349,18 @@ static void vm_execute(tea_State* T)
                 {
                     if(i == rest_pos)
                     {
-                        GClist* rest_list = tea_obj_new_list(T);
-                        PUSH(OBJECT_VAL(rest_list));
+                        GClist* rest_list = tea_list_new(T);
+                        setlistV(T, T->top++, rest_list);
                         int j;
                         for(j = i; j < list->count - (var_count - rest_pos) + 1; j++)
                         {
-                            tea_list_append(T, rest_list, list->items[j]);
+                            tea_list_append(T, rest_list, list->items + j);
                         }
                         i = j - 1;
                     }
                     else
                     {
-                        PUSH(list->items[i]);
+                        copyTV(T, T->top++, list->items + i);
                     }
                 }
 
@@ -1378,89 +1368,88 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_LIST_EXTEND):
             {
-                GClist* list = AS_LIST(PEEK(1));
-                TValue item = PEEK(0);
+                GClist* list = listV(T->top - 2);
+                TValue* item = T->top - 1;
                 STORE_FRAME;
                 vm_extend(T, list, item);
                 READ_FRAME();
-                DROP(1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_MAP):
             {
                 GCmap* map = tea_map_new(T);
-                PUSH(OBJECT_VAL(map));
+                setmapV(T, T->top++, map);
                 DISPATCH();
             }
             CASE_CODE(BC_GET_INDEX):
             CASE_CODE(BC_PUSH_INDEX):
             {
-                TValue obj = PEEK(1);
-                TValue index = PEEK(0);
+                TValue* obj = T->top - 2;
+                TValue* index = T->top - 1;
                 bool assign = instruction == BC_GET_INDEX;
                 STORE_FRAME;
-                if(!IS_RANGE(index))
+                if(!tvisrange(index))
                     vm_get_index(T, index, obj, assign);
                 else
-                    vm_slice(T, obj, AS_RANGE(index), assign);
+                    vm_slice(T, obj, rangeV(index), assign);
                 READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(BC_SET_INDEX):
             {
-                TValue obj = PEEK(2);
-                TValue index = PEEK(1);
-                TValue item = PEEK(0);
+                TValue* obj = T->top - 3;
+                TValue* index = T->top - 2;
+                TValue* item = T->top - 1;
                 STORE_FRAME;
-                if(!IS_RANGE(index))
+                if(!tvisrange(index))
                     vm_set_index(T, item, index, obj);
                 else
-                    vm_splice(T, obj, AS_RANGE(index), item);
+                    vm_splice(T, obj, rangeV(index), item);
                 READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(BC_LIST_ITEM):
             {
-                GClist* list = AS_LIST(PEEK(1));
-                TValue item = PEEK(0);
+                GClist* list = listV(T->top - 2);
+                TValue* item = T->top - 1;
                 tea_list_append(T, list, item);
-                DROP(1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_MAP_FIELD):
             {
-                GCmap* map = AS_MAP(PEEK(2));
-                TValue key = PEEK(1);
-                TValue value = PEEK(0);
-
+                GCmap* map = mapV(T->top - 3);
+                TValue* key = T->top - 2;
+                TValue* value = T->top - 1;
                 if(!tea_map_hashable(key))
                 {
                     RUNTIME_ERROR(TEA_ERR_KHASH, tea_val_type(key));
                 }
-
-                tea_map_set(T, map, key, value);
-                DROP(2);
+                TValue* v = tea_map_set(T, map, key);
+                copyTV(T, v, value);
+                T->top -= 2;
                 DISPATCH();
             }
             CASE_CODE(BC_IS):
             {
-                TValue instance = PEEK(1);
-                TValue klass = PEEK(0);
+                TValue* instance = T->top - 2;
+                TValue* klass = T->top - 1;
 
-                if(!IS_CLASS(klass))
+                if(!tvisclass(klass))
                 {
                     RUNTIME_ERROR(TEA_ERR_IS);
                 }
 
-                GCclass* instance_klass = tea_state_get_class(T, instance);
+                GCclass* instance_klass = tea_state_getclass(T, instance);
                 if(instance_klass == NULL)
                 {
-                    DROP(2); /* Drop the instance and class */
-                    PUSH(FALSE_VAL);
+                    T->top -= 2; /* Drop the instance and class */
+                    setfalseV(T->top++);
                     DISPATCH();
                 }
 
-                GCclass* type = AS_CLASS(klass);
+                GCclass* type = classV(klass);
                 bool found = false;
 
                 while(instance_klass != NULL)
@@ -1474,35 +1463,44 @@ static void vm_execute(tea_State* T)
                     instance_klass = (GCclass*)instance_klass->super;
                 }
 
-                DROP(2); /* Drop the instance and class */
-                PUSH(BOOL_VAL(found));
+                T->top -= 2; /* Drop the instance and class */
+                setboolV(T->top++, found);
                 DISPATCH();
             }
             CASE_CODE(BC_IN):
             {
-                TValue value = PEEK(1);
-                TValue object = PEEK(0);
-                DROP(2);
-                PUSH(object); PUSH(value);
+                TValue* value = T->top - 2;
+                TValue* object = T->top - 1;
+
+                TValue v1, v2;
+                copyTV(T, &v1, object);
+                copyTV(T, &v2, value);
+
+                T->top -= 2;
+
+                copyTV(T, T->top++, &v1);
+                copyTV(T, T->top++, &v2);
+
                 STORE_FRAME;
-                if(!vm_iterator_call(T, MM_CONTAINS, object))
+                if(!vm_iterator_call(T, MM_CONTAINS, &v1))
                 {
-                    RUNTIME_ERROR(TEA_ERR_ITER, tea_val_type(object));
+                    RUNTIME_ERROR(TEA_ERR_ITER, tea_val_type(&v1));
                 }
                 READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(BC_EQUAL):
             {
-                TValue a = PEEK(1);
-                TValue b = PEEK(0);
-                if(IS_INSTANCE(a) || IS_INSTANCE(b))
+                TValue* a = T->top - 2;
+                TValue* b = T->top - 1;
+                if(tvisinstance(a) || tvisinstance(b))
                 {
                     STORE_FRAME;
                     if(!vm_arith_comp(T, MM_EQ, a, b))
                     {
-                        DROP(2);
-                        PUSH(BOOL_VAL(tea_val_equal(a, b)));
+                        T->top -= 2;
+                        bool x = tea_val_equal(a, b);
+                        setboolV(T->top++, x);
                         DISPATCH();
                     }
                     READ_FRAME();
@@ -1510,106 +1508,108 @@ static void vm_execute(tea_State* T)
                 }
                 else
                 {
-                    DROP(2);
-                    PUSH(BOOL_VAL(tea_val_equal(a, b)));
+                    T->top -= 2;
+                    bool x = tea_val_equal(a, b);
+                    setboolV(T->top++, x);
                 }
                 DISPATCH();
             }
             CASE_CODE(BC_GREATER):
             {
-                BINARY_OP(BOOL_VAL, (a > b), MM_GT, double);
+                BINARY_OP(setboolV, (a > b), MM_GT, double);
                 DISPATCH();
             }
             CASE_CODE(BC_GREATER_EQUAL):
             {
-                BINARY_OP(BOOL_VAL, (a >= b), MM_GE, double);
+                BINARY_OP(setboolV, (a >= b), MM_GE, double);
                 DISPATCH();
             }
             CASE_CODE(BC_LESS):
             {
-                BINARY_OP(BOOL_VAL, (a < b), MM_LT, double);
+                BINARY_OP(setboolV, (a < b), MM_LT, double);
                 DISPATCH();
             }
             CASE_CODE(BC_LESS_EQUAL):
             {
-                BINARY_OP(BOOL_VAL, (a <= b), MM_LE, double);
+                BINARY_OP(setboolV, (a <= b), MM_LE, double);
                 DISPATCH();
             }
             CASE_CODE(BC_ADD):
             {
-                BINARY_OP(NUMBER_VAL, (a + b), MM_PLUS, double);
+                BINARY_OP(setnumberV, (a + b), MM_PLUS, double);
                 DISPATCH();
             }
             CASE_CODE(BC_SUBTRACT):
             {
-                BINARY_OP(NUMBER_VAL, (a - b), MM_MINUS, double);
+                BINARY_OP(setnumberV, (a - b), MM_MINUS, double);
                 DISPATCH();
             }
             CASE_CODE(BC_MULTIPLY):
             {
-                BINARY_OP(NUMBER_VAL, (a * b), MM_MULT, double);
+                BINARY_OP(setnumberV, (a * b), MM_MULT, double);
                 DISPATCH();
             }
             CASE_CODE(BC_DIVIDE):
             {
-                BINARY_OP(NUMBER_VAL, (a / b), MM_DIV, double);
+                BINARY_OP(setnumberV, (a / b), MM_DIV, double);
                 DISPATCH();
             }
             CASE_CODE(BC_MOD):
             {
-                BINARY_OP(NUMBER_VAL, (fmod(a, b)), MM_MOD, double);
+                BINARY_OP(setnumberV, (fmod(a, b)), MM_MOD, double);
                 DISPATCH();
             }
             CASE_CODE(BC_POW):
             {
-                BINARY_OP(NUMBER_VAL, (pow(a, b)), MM_POW, double);
+                BINARY_OP(setnumberV, (pow(a, b)), MM_POW, double);
                 DISPATCH();
             }
             CASE_CODE(BC_BAND):
             {
-                BINARY_OP(NUMBER_VAL, (a & b), MM_BAND, uint32_t);
+                BINARY_OP(setnumberV, (a & b), MM_BAND, uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BC_BOR):
             {
-                BINARY_OP(NUMBER_VAL, (a | b), MM_BOR, uint32_t);
+                BINARY_OP(setnumberV, (a | b), MM_BOR, uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BC_BNOT):
             {
-                UNARY_OP(NUMBER_VAL, (~v), MM_BNOT, uint32_t);
+                UNARY_OP(setnumberV, (~v), MM_BNOT, uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BC_BXOR):
             {
-                BINARY_OP(NUMBER_VAL, (a ^ b), MM_BXOR, uint32_t);
+                BINARY_OP(setnumberV, (a ^ b), MM_BXOR, uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BC_LSHIFT):
             {
-                BINARY_OP(NUMBER_VAL, (a << b), MM_LSHIFT, uint32_t);
+                BINARY_OP(setnumberV, (a << b), MM_LSHIFT, uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BC_RSHIFT):
             {
-                BINARY_OP(NUMBER_VAL, (a >> b), MM_RSHIFT, uint32_t);
+                BINARY_OP(setnumberV, (a >> b), MM_RSHIFT, uint32_t);
                 DISPATCH();
             }
             CASE_CODE(BC_NOT):
             {
-                PUSH(BOOL_VAL(tea_obj_isfalse(POP())));
+                bool b = tea_obj_isfalse(--T->top);
+                setboolV(T->top++, b);
                 DISPATCH();
             }
             CASE_CODE(BC_NEGATE):
             {
-                UNARY_OP(NUMBER_VAL, (-v), MM_MINUS, double);
+                UNARY_OP(setnumberV, (-v), MM_MINUS, double);
                 DISPATCH();
             }
             CASE_CODE(BC_MULTI_CASE):
             {
-                int count = READ_BYTE();
-                TValue switch_value = PEEK(count + 1);
-                TValue case_value = POP();
+                uint8_t count = READ_BYTE();
+                TValue* switch_value = T->top - 1 - (count + 1);
+                TValue* case_value = --T->top;
                 for(int i = 0; i < count; i++)
                 {
                     if(tea_val_equal(switch_value, case_value))
@@ -1617,27 +1617,27 @@ static void vm_execute(tea_State* T)
                         i++;
                         while(i <= count)
                         {
-                            DROP(1);
+                            T->top--;
                             i++;
                         }
                         break;
                     }
-                    case_value = POP();
+                    case_value = --T->top;
                 }
-                PUSH(case_value);
+                copyTV(T, T->top++, case_value);
                 DISPATCH();
             }
             CASE_CODE(BC_COMPARE_JUMP):
             {
                 uint16_t offset = READ_SHORT();
-                TValue a = POP();
-                if(!tea_val_equal(PEEK(0), a))
+                TValue* a = --T->top;
+                if(!tea_val_equal(T->top - 1, a))
                 {
                     ip += offset;
                 }
                 else
                 {
-                    DROP(1);
+                    T->top--;
                 }
                 DISPATCH();
             }
@@ -1650,7 +1650,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_JUMP_IF_FALSE):
             {
                 uint16_t offset = READ_SHORT();
-                if(tea_obj_isfalse(PEEK(0)))
+                if(tea_obj_isfalse(T->top - 1))
                 {
                     ip += offset;
                 }
@@ -1659,7 +1659,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_JUMP_IF_NULL):
             {
                 uint16_t offset = READ_SHORT();
-                if(IS_NULL(PEEK(0)))
+                if(tvisnull(T->top - 1))
                 {
                     ip += offset;
                 }
@@ -1673,9 +1673,9 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_CALL):
             {
-                int arg_count = READ_BYTE();
+                uint8_t arg_count = READ_BYTE();
                 STORE_FRAME;
-                if(vm_precall(T, PEEK(arg_count), arg_count))
+                if(vm_precall(T, T->top - 1 - arg_count, arg_count))
                 {
                     (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
                 }
@@ -1685,9 +1685,9 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_INVOKE):
             {
                 GCstr* method = READ_STRING();
-                int arg_count = READ_BYTE();
+                uint8_t arg_count = READ_BYTE();
                 STORE_FRAME;
-                if(vm_invoke(T, PEEK(arg_count), method, arg_count))
+                if(vm_invoke(T, T->top - 1 - arg_count, method, arg_count))
                 {
                     (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
                 }
@@ -1697,8 +1697,8 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_SUPER):
             {
                 GCstr* method = READ_STRING();
-                int arg_count = READ_BYTE();
-                GCclass* superclass = AS_CLASS(POP());
+                uint8_t arg_count = READ_BYTE();
+                GCclass* superclass = classV(--T->top);
                 STORE_FRAME;
                 if(vm_invoke_from_class(T, superclass, method, arg_count))
                 {
@@ -1709,9 +1709,9 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_CLOSURE):
             {
-                GCproto* proto = AS_PROTO(READ_CONSTANT());
+                GCproto* proto = protoV(READ_CONSTANT());
                 GCfuncT* func = tea_func_newT(T, proto);
-                PUSH(OBJECT_VAL(func));
+                setfuncV(T, T->top++, func);
 
                 for(int i = 0; i < func->upvalue_count; i++)
                 {
@@ -1731,12 +1731,12 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_CLOSE_UPVALUE):
             {
                 tea_func_close(T, T->top - 1);
-                DROP(1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_RETURN):
             {
-                TValue result = POP();
+                TValue* result = --T->top;
                 tea_func_close(T, base);
                 STORE_FRAME;
                 T->ci--;
@@ -1748,12 +1748,12 @@ static void vm_execute(tea_State* T)
                     {
                         T->base++;
                     }
-                    PUSH(result);
+                    copyTV(T, T->top++, result);
                     return;
                 }
                 T->base = T->ci->base;
                 T->top = base;
-                PUSH(result);
+                copyTV(T, T->top++, result);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1762,11 +1762,11 @@ static void vm_execute(tea_State* T)
                 uint8_t slot1 = READ_BYTE();    /* seq */
                 uint8_t slot2 = READ_BYTE();    /* iter */
 
-                TValue seq = base[slot1];
-                TValue iter = base[slot2];
+                TValue* seq = base + slot1;
+                TValue* iter = base + slot2;
 
-                PUSH(seq);
-                PUSH(iter);
+                copyTV(T, T->top++, seq);
+                copyTV(T, T->top++, iter);
 
                 /* iterate */
                 STORE_FRAME;
@@ -1776,9 +1776,8 @@ static void vm_execute(tea_State* T)
                 }
                 READ_FRAME();
 
-                base[slot2] = PEEK(0);
-
-                iter = base[slot2];
+                copyTV(T, base + slot2, T->top - 1);
+                copyTV(T, iter, base + slot2);
                 DISPATCH();
             }
             CASE_CODE(BC_FOR_ITER):
@@ -1786,11 +1785,11 @@ static void vm_execute(tea_State* T)
                 uint8_t slot1 = READ_BYTE();    /* seq */
                 uint8_t slot2 = READ_BYTE();    /* iter */
 
-                TValue seq = base[slot1];
-                TValue iter = base[slot2];
+                TValue* seq = base + slot1;
+                TValue* iter = base + slot2;
 
-                PUSH(seq);
-                PUSH(iter);
+                copyTV(T, T->top++, seq);
+                copyTV(T, T->top++, iter);
 
                 /* iteratorvalue */
                 STORE_FRAME;
@@ -1803,33 +1802,35 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_CLASS):
             {
-                PUSH(OBJECT_VAL(tea_obj_new_class(T, READ_STRING(), NULL)));
+                GCclass* k = tea_obj_new_class(T, READ_STRING(), NULL);
+                setclassV(T, T->top++, k);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_CLASS_VAR):
             {
-                GCclass* klass = AS_CLASS(PEEK(1));
+                GCclass* klass = classV(T->top - 2);
                 GCstr* key = READ_STRING();
-                tea_tab_set(T, &klass->statics, key, PEEK(0));
-                DROP(1);
+                TValue* v = tea_tab_set(T, &klass->statics, key, NULL);
+                copyTV(T, v, T->top - 1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_INHERIT):
             {
-                TValue super = PEEK(1);
+                TValue* super = T->top - 2;
 
-                if(!IS_CLASS(super))
+                if(!tvisclass(super))
                 {
                     RUNTIME_ERROR(TEA_ERR_SUPER);
                 }
 
-                GCclass* superclass = AS_CLASS(super);
+                GCclass* superclass = classV(super);
                 if(tea_state_isclass(T, superclass))
                 {
                     RUNTIME_ERROR(TEA_ERR_BUILTINSELF, superclass->name->chars);
                 }
 
-                GCclass* klass = AS_CLASS(PEEK(0));
+                GCclass* klass = classV(T->top - 1);
                 if(klass == superclass)
                 {
                     RUNTIME_ERROR(TEA_ERR_SELF);
@@ -1839,7 +1840,7 @@ static void vm_execute(tea_State* T)
 
                 tea_tab_addall(T, &superclass->methods, &klass->methods);
                 tea_tab_addall(T, &superclass->statics, &klass->statics);
-                DROP(1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_METHOD):
@@ -1849,12 +1850,12 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_EXTENSION_METHOD):
             {
-                if(!IS_CLASS(PEEK(1)))
+                if(!tvisclass(T->top - 2))
                 {
-                    RUNTIME_ERROR(TEA_ERR_EXTMETH, tea_val_type(PEEK(1)));
+                    RUNTIME_ERROR(TEA_ERR_EXTMETH, tea_val_type(T->top - 2));
                 }
                 vm_define_method(T, READ_STRING());
-                DROP(1);
+                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_IMPORT_STRING):
@@ -1877,18 +1878,18 @@ static void vm_execute(tea_State* T)
             {
                 GCstr* variable = READ_STRING();
 
-                TValue module_variable;
-                if(!tea_tab_get(&T->last_module->values, variable, &module_variable))
+                TValue* module_variable = tea_tab_get(&T->last_module->values, variable);
+                if(!module_variable)
                 {
                     RUNTIME_ERROR(TEA_ERR_VARMOD, variable->chars, T->last_module->name->chars);
                 }
 
-                PUSH(module_variable);
+                copyTV(T, T->top++, module_variable);
                 DISPATCH();
             }
             CASE_CODE(BC_IMPORT_ALIAS):
             {
-                PUSH(OBJECT_VAL(T->last_module));
+                setmoduleV(T, T->top++, T->last_module);
                 DISPATCH();
             }
             CASE_CODE(BC_IMPORT_END):
@@ -1903,10 +1904,6 @@ static void vm_execute(tea_State* T)
         }
     }
 }
-#undef PUSH
-#undef POP
-#undef PEEK
-#undef DROP
 #undef STORE_FRAME
 #undef READ_BYTE
 #undef READ_SHORT
@@ -1942,13 +1939,13 @@ int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
         T->ci = ci_restore(T, old_ci);
         T->base = T->ci->base;
         T->top = old;
-        tea_vm_push(T, NULL_VAL);
+        setnullV(T->top++);
         vm_restore_stack(T);
     }
     return status;
 }
 
-void tea_vm_call(tea_State* T, TValue func, int arg_count)
+void tea_vm_call(tea_State* T, TValue* func, int arg_count)
 {
     if(++T->nccalls >= TEA_MAX_CCALLS)
     {

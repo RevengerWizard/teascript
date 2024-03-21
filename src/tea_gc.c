@@ -23,19 +23,19 @@
 static void gc_blacken(tea_State* T, GCobj* object)
 {
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p blacken %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
+    printf("%p blacken %s\n", (void*)object, tea_val_type(setgcV(object)));
 #endif
 
-    switch(object->tt)
+    switch(object->gct)
     {
-        case OBJ_FILE:
+        case TEA_TFILE:
         {
             GCfile* file = (GCfile*)object;
             tea_gc_markobj(T, (GCobj*)file->path);
             tea_gc_markobj(T, (GCobj*)file->type);
             break;
         }
-        case OBJ_MODULE:
+        case TEA_TMODULE:
         {
             GCmodule* module = (GCmodule*)object;
             tea_gc_markobj(T, (GCobj*)module->name);
@@ -43,34 +43,34 @@ static void gc_blacken(tea_State* T, GCobj* object)
             tea_tab_mark(T, &module->values);
             break;
         }
-        case OBJ_LIST:
+        case TEA_TLIST:
         {
             GClist* list = (GClist*)object;
             for(int i = 0; i < list->count; i++)
             {
-                tea_gc_markval(T, list->items[i]);
+                tea_gc_markval(T, list->items + i);
             }
             break;
         }
-        case OBJ_MAP:
+        case TEA_TMAP:
         {
             GCmap* map = (GCmap*)object;
             for(int i = 0; i < map->size; i++)
             {
                 MapEntry* item = &map->entries[i];
-                tea_gc_markval(T, item->key);
-                tea_gc_markval(T, item->value);
+                tea_gc_markval(T, &item->key);
+                tea_gc_markval(T, &item->value);
             }
             break;
         }
-        case OBJ_METHOD:
+        case TEA_TMETHOD:
         {
             GCmethod* bound = (GCmethod*)object;
-            tea_gc_markval(T, bound->receiver);
-            tea_gc_markval(T, bound->method);
+            tea_gc_markval(T, &bound->receiver);
+            tea_gc_markval(T, &bound->method);
             break;
         }
-        case OBJ_CLASS:
+        case TEA_TCLASS:
         {
             GCclass* klass = (GCclass*)object;
             tea_gc_markobj(T, (GCobj*)klass->name);
@@ -79,7 +79,7 @@ static void gc_blacken(tea_State* T, GCobj* object)
             tea_tab_mark(T, &klass->methods);
             break;
         }
-        case OBJ_FUNC:
+        case TEA_TFUNC:
         {
             GCfuncT* func = (GCfuncT*)object;
             tea_gc_markobj(T, (GCobj*)func->proto);
@@ -92,31 +92,32 @@ static void gc_blacken(tea_State* T, GCobj* object)
             }
             break;
         }
-        case OBJ_PROTO:
+        case TEA_TPROTO:
         {
             GCproto* proto = (GCproto*)object;
             tea_gc_markobj(T, (GCobj*)proto->name);
             for(int i = 0; i < proto->k_count; i++)
             {
-                tea_gc_markval(T, proto->k[i]);
+                tea_gc_markval(T, proto->k + i);
             }
             break;
         }
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
         {
             GCinstance* instance = (GCinstance*)object;
             tea_gc_markobj(T, (GCobj*)instance->klass);
             tea_tab_mark(T, &instance->fields);
             break;
         }
-        case OBJ_UPVALUE:
+        case TEA_TUPVALUE:
         {
-            tea_gc_markval(T, ((GCupvalue*)object)->closed);
+            GCupvalue* uv = (GCupvalue*)object;
+            tea_gc_markval(T, &uv->closed);
             break;
         }
-        case OBJ_CFUNC:
-        case OBJ_STRING:
-        case OBJ_RANGE:
+        case TEA_TCFUNC:
+        case TEA_TSTRING:
+        case TEA_TRANGE:
             break;
     }
 }
@@ -124,17 +125,17 @@ static void gc_blacken(tea_State* T, GCobj* object)
 static void gc_free(tea_State* T, GCobj* object)
 {
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p free %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
+    printf("%p free %s\n", (void*)object, tea_val_type(setgcV(object)));
 #endif
 
-    switch(object->tt)
+    switch(object->gct)
     {
-        case OBJ_RANGE:
+        case TEA_TRANGE:
         {
             tea_mem_free(T, GCrange, object);
             break;
         }
-        case OBJ_FILE:
+        case TEA_TFILE:
         {
             GCfile* file = (GCfile*)object;
             if((file->is_open == true) && file->file != NULL)
@@ -144,14 +145,14 @@ static void gc_free(tea_State* T, GCobj* object)
             tea_mem_free(T, GCfile, object);
             break;
         }
-        case OBJ_MODULE:
+        case TEA_TMODULE:
         {
             GCmodule* module = (GCmodule*)object;
             tea_tab_free(T, &module->values);
             tea_mem_free(T, GCmodule, object);
             break;
         }
-        case OBJ_LIST:
+        case TEA_TLIST:
         {
             GClist* list = (GClist*)object;
             tea_mem_freevec(T, TValue, list->items, list->size);
@@ -161,19 +162,19 @@ static void gc_free(tea_State* T, GCobj* object)
             tea_mem_free(T, GClist, object);
             break;
         }
-        case OBJ_MAP:
+        case TEA_TMAP:
         {
             GCmap* map = (GCmap*)object;
             tea_mem_freevec(T, MapEntry, map->entries, map->size);
             tea_mem_free(T, GCmap, object);
             break;
         }
-        case OBJ_METHOD:
+        case TEA_TMETHOD:
         {
             tea_mem_free(T, GCmethod, object);
             break;
         }
-        case OBJ_CLASS:
+        case TEA_TCLASS:
         {
             GCclass* klass = (GCclass*)object;
             tea_tab_free(T, &klass->methods);
@@ -181,14 +182,14 @@ static void gc_free(tea_State* T, GCobj* object)
             tea_mem_free(T, GCclass, object);
             break;
         }
-        case OBJ_FUNC:
+        case TEA_TFUNC:
         {
             GCfuncT* func = (GCfuncT*)object;
             tea_mem_freevec(T, GCupvalue *, func->upvalues, func->upvalue_count);
             tea_mem_free(T, GCfuncT, object);
             break;
         }
-        case OBJ_PROTO:
+        case TEA_TPROTO:
         {
             GCproto* proto = (GCproto*)object;
             tea_mem_freevec(T, uint8_t, proto->bc, proto->bc_size);
@@ -197,26 +198,26 @@ static void gc_free(tea_State* T, GCobj* object)
             tea_mem_free(T, GCproto, object);
             break;
         }
-        case OBJ_INSTANCE:
+        case TEA_TINSTANCE:
         {
             GCinstance* instance = (GCinstance*)object;
             tea_tab_free(T, &instance->fields);
             tea_mem_free(T, GCinstance, object);
             break;
         }
-        case OBJ_STRING:
+        case TEA_TSTRING:
         {
             GCstr* string = (GCstr*)object;
             tea_mem_freevec(T, char, string->chars, string->len + 1);
             tea_mem_free(T, GCstr, object);
             break;
         }
-        case OBJ_UPVALUE:
+        case TEA_TUPVALUE:
         {
             tea_mem_free(T, GCupvalue, object);
             break;
         }
-        case OBJ_CFUNC:
+        case TEA_TCFUNC:
         {
             tea_mem_free(T, GCfuncC, object);
             break;
@@ -229,7 +230,7 @@ static void gc_mark_roots(tea_State* T)
 {
     for(TValue* slot = T->stack; slot < T->top; slot++)
     {
-        tea_gc_markval(T, *slot);
+        tea_gc_markval(T, slot);
     }
 
     for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
@@ -246,6 +247,8 @@ static void gc_mark_roots(tea_State* T)
     tea_tab_mark(T, &T->modules);
     tea_tab_mark(T, &T->globals);
 
+    tea_gc_markobj(T, (GCobj*)T->number_class);
+    tea_gc_markobj(T, (GCobj*)T->bool_class);
     tea_gc_markobj(T, (GCobj*)T->list_class);
     tea_gc_markobj(T, (GCobj*)T->map_class);
     tea_gc_markobj(T, (GCobj*)T->string_class);
@@ -308,10 +311,10 @@ static void gc_sweep(tea_State* T)
 }
 
 /* Mark a TValue (if needed) */
-void tea_gc_markval(tea_State* T, TValue value)
+void tea_gc_markval(tea_State* T, TValue* value)
 {
-    if(IS_OBJECT(value))
-        tea_gc_markobj(T, AS_OBJECT(value));
+    if(tvisgcv(value))
+        tea_gc_markobj(T, gcV(value));
 }
 
 /* Mark a GC object (if needed) */
@@ -323,7 +326,7 @@ void tea_gc_markobj(tea_State* T, GCobj* object)
         return;
 
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p mark %s\n", (void*)object, tea_val_type(OBJECT_VAL(object)));
+    printf("%p mark %s\n", (void*)object, tea_val_type(setgcV(object)));
 #endif
 
     object->marked = true;

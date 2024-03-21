@@ -35,7 +35,7 @@ static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
         TableEntry* entry = &entries[index];
         if(entry->key == NULL)
         {
-            if(IS_NULL(entry->value))
+            if(tvisnull(&entry->value))
             {
                 /* Empty entry */
                 return tombstone != NULL ? tombstone : entry;
@@ -57,18 +57,16 @@ static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
     }
 }
 
-bool tea_tab_get(Table* table, GCstr* key, TValue* value)
+TValue* tea_tab_get(Table* table, GCstr* key)
 {
     if(table->count == 0)
-        return false;
+        return NULL;
 
     TableEntry* entry = tab_find_entry(table->entries, table->size, key);
     if(entry->key == NULL)
-        return false;
+        return NULL;
 
-    *value = entry->value;
-
-    return true;
+    return &entry->value;
 }
 
 static void tab_adjust_size(tea_State* T, Table* table, int size)
@@ -77,7 +75,7 @@ static void tab_adjust_size(tea_State* T, Table* table, int size)
     for(int i = 0; i < size; i++)
     {
         entries[i].key = NULL;
-        entries[i].value = NULL_VAL;
+        setnullV(&entries[i].value);
     }
 
     table->count = 0;
@@ -100,7 +98,7 @@ static void tab_adjust_size(tea_State* T, Table* table, int size)
 
 #define TABLE_MAX_LOAD 0.75
 
-bool tea_tab_set(tea_State* T, Table* table, GCstr* key, TValue value)
+TValue* tea_tab_set(tea_State* T, Table* table, GCstr* key, bool* b)
 {
     if(table->count + 1 > table->size * TABLE_MAX_LOAD)
     {
@@ -111,13 +109,14 @@ bool tea_tab_set(tea_State* T, Table* table, GCstr* key, TValue value)
     TableEntry* entry = tab_find_entry(table->entries, table->size, key);
     bool is_new_key = entry->key == NULL;
 
-    if(is_new_key && IS_NULL(entry->value))
+    if(is_new_key && tvisnull(&entry->value))
         table->count++;
 
     entry->key = key;
-    entry->value = value;
 
-    return is_new_key;
+    if(b) *b = is_new_key;
+
+    return &entry->value;
 }
 
 bool tea_tab_delete(Table* table, GCstr* key)
@@ -132,7 +131,7 @@ bool tea_tab_delete(Table* table, GCstr* key)
 
     /* Place a tombstone in the entry */
     entry->key = NULL;
-    entry->value = BOOL_VAL(true);
+    settrueV(&entry->value);
 
     return true;
 }
@@ -144,7 +143,8 @@ void tea_tab_addall(tea_State* T, Table* from, Table* to)
         TableEntry* entry = &from->entries[i];
         if(entry->key != NULL)
         {
-            tea_tab_set(T, to, entry->key, entry->value);
+            TValue* v = tea_tab_set(T, to, entry->key, NULL);
+            copyTV(T, v, &entry->value);
         }
     }
 }
@@ -161,7 +161,7 @@ GCstr* tea_tab_findstr(Table* table, const char* chars, int len, uint32_t hash)
         if(entry->key == NULL)
         {
             /* Stop if we find an empty non-tombstone entry */
-            if(IS_NULL(entry->value))
+            if(tvisnull(&entry->value))
                 return NULL;
         }
         else if(entry->key->len == len && entry->key->hash == hash && memcmp(entry->key->chars, chars, len) == 0)
@@ -192,6 +192,6 @@ void tea_tab_mark(tea_State* T, Table* table)
     {
         TableEntry* entry = &table->entries[i];
         tea_gc_markobj(T, (GCobj*)entry->key);
-        tea_gc_markval(T, entry->value);
+        tea_gc_markval(T, &entry->value);
     }
 }

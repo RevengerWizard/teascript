@@ -8,6 +8,11 @@
 
 #include "tea_def.h"
 
+/* 
+** Bytecode instruction definition
+**
+** (name, stack effect)
+*/
 #define BCDEF(_) \
     _(CONSTANT, 1) \
     _(NULL, 1) \
@@ -88,6 +93,7 @@
     _(IMPORT_END, 1) \
     _(END, 0)
 
+/* Bytecode opcode numbers */
 typedef enum
 {
 #define BCENUM(name, _) BC_##name,

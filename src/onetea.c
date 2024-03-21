@@ -31,6 +31,7 @@
 #include "tea_func.c"
 #include "tea_str.c"
 #include "tea_map.c"
+#include "tea_list.c"
 #include "tea_obj.c"
 #include "tea_lex.c"
 #include "tea_state.c"

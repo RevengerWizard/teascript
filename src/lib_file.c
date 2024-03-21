@@ -23,7 +23,7 @@
 static GCfile* get_file(tea_State* T)
 {
     tea_check_file(T, 0);
-    GCfile* file = AS_FILE(T->base[0]);
+    GCfile* file = fileV(T->base);
     if(!file->is_open)
     {
         tea_error(T, "Attempt to use a closed file");
@@ -40,13 +40,15 @@ static void file_closed(tea_State* T)
 static void file_path(tea_State* T)
 {
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
-    tea_vm_push(T, OBJECT_VAL(get_file(T)->path));
+    GCstr* s = get_file(T)->path;
+    setstrV(T, T->top++, s);
 }
 
 static void file_type(tea_State* T)
 {
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
-    tea_vm_push(T, OBJECT_VAL(get_file(T)->type));
+    GCstr* s = get_file(T)->type;
+    setstrV(T, T->top++, s);
 }
 
 static void file_write(tea_State* T)
@@ -118,7 +120,8 @@ static void file_read(tea_State* T)
 
     contents = tea_mem_reallocvec(T, char, contents, current_size, total_read_bytes + 1);
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, contents, total_read_bytes)));
+    GCstr* s = tea_str_take(T, contents, total_read_bytes);
+    setstrV(T, T->top++, s);
 }
 
 static void file_readline(tea_State* T)
@@ -153,7 +156,8 @@ static void file_readline(tea_State* T)
             line[line_len] = '\0';
             line = tea_mem_reallocvec(T, char, line, current_size, line_len + 1);
 
-            tea_vm_push(T, OBJECT_VAL(tea_str_take(T, line, line_len)));
+            GCstr* s = tea_str_take(T, line, line_len);
+            setstrV(T, T->top++, s);
             return;
         }
     }
@@ -245,7 +249,7 @@ static const tea_Class file_class[] = {
 void tea_open_file(tea_State* T)
 {
     tea_create_class(T, TEA_CLASS_FILE, file_class);
-    T->file_class = AS_CLASS(T->top[-1]);
+    T->file_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_FILE);
     tea_push_null(T);
 }

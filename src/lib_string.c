@@ -16,11 +16,12 @@
 #include "tea_gc.h"
 #include "tea_utf.h"
 #include "tea_str.h"
+#include "tea_buf.h"
 
 static void string_len(tea_State* T)
 {
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
-    tea_push_number(T, tea_utf_len(AS_STRING(T->base[0])));
+    tea_push_number(T, tea_utf_len(strV(T->base)));
 }
 
 static void string_constructor(tea_State* T)
@@ -42,7 +43,8 @@ static void string_upper(tea_State* T)
     }
     temp[len] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, temp, len)));
+    GCstr* s = tea_str_take(T, temp, len);
+    setstrV(T, T->top++, s);
 }
 
 static void string_lower(tea_State* T)
@@ -57,17 +59,18 @@ static void string_lower(tea_State* T)
     }
     temp[len] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, temp, len)));
+    GCstr* s = tea_str_take(T, temp, len);
+    setstrV(T, T->top++, s);
 }
 
 static void string_reverse(tea_State* T)
 {
     tea_check_string(T, 0);
 
-    GCstr* string = AS_STRING(T->base[0]);
+    GCstr* string = strV(T->base);
     GCstr* reversed = tea_utf_reverse(T, string);
 
-    tea_vm_push(T, OBJECT_VAL(reversed));
+    setstrV(T, T->top++, reversed);
 }
 
 static void string_split(tea_State* T)
@@ -187,7 +190,8 @@ static void string_title(tea_State* T)
     }
     temp[len] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, temp, len)));
+    GCstr* s = tea_str_take(T, temp, len);
+    setstrV(T, T->top++, s);
 }
 
 static void string_contains(tea_State* T)
@@ -242,7 +246,8 @@ static void string_leftstrip(tea_State* T)
     memcpy(temp, string + count, len - count);
     temp[len - count] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, temp, len - count)));
+    GCstr* s = tea_str_take(T, temp, len - count);
+    setstrV(T, T->top++, s);
 }
 
 static void string_rightstrip(tea_State* T)
@@ -270,7 +275,8 @@ static void string_rightstrip(tea_State* T)
     memcpy(temp, string, len + 1);
     temp[len + 1] = '\0';
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, temp, len + 1)));
+    GCstr* s = tea_str_take(T, temp, len + 1);
+    setstrV(T, T->top++, s);
 }
 
 static void string_strip(tea_State* T)
@@ -381,7 +387,8 @@ static void string_replace(tea_State* T)
     }
     strcpy(q, string);
 
-    tea_vm_push(T, OBJECT_VAL(tea_str_take(T, result, result_size)));
+    GCstr* s = tea_str_take(T, result, result_size);
+    setstrV(T, T->top++, s);
 }
 
 static void string_iterate(tea_State* T)
@@ -425,7 +432,8 @@ static void string_iteratorvalue(tea_State* T)
 {
 	int index = tea_check_number(T, 1);
 
-    tea_vm_push(T, OBJECT_VAL(tea_utf_codepoint_at(T, AS_STRING(T->base[0]), index)));
+    GCstr* s = tea_utf_codepoint_at(T, strV(T->base), index);
+    setstrV(T, T->top++, s);
 }
 
 static void string_opadd(tea_State* T)
@@ -433,13 +441,13 @@ static void string_opadd(tea_State* T)
     tea_check_string(T, 0);
     tea_check_string(T, 1);
 
-    GCstr* s1 = AS_STRING(tea_vm_peek(T, 1));
-    GCstr* s2 = AS_STRING(tea_vm_peek(T, 0));
+    GCstr* s1 = strV(T->top - 2);
+    GCstr* s2 = strV(T->top - 1);
 
     GCstr* str = tea_buf_cat2str(T, s1, s2);
 
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, OBJECT_VAL(str));
+    T->top -= 2;
+    setstrV(T, T->top++, str);
 }
 
 static bool repeat(tea_State* T)
@@ -447,15 +455,15 @@ static bool repeat(tea_State* T)
     GCstr* string;
     int n;
 
-    if(IS_STRING(tea_vm_peek(T, 0)) && IS_NUMBER(tea_vm_peek(T, 1)))
+    if(tvisstr(T->top - 1) && tvisnumber(T->top - 2))
     {
-        string = AS_STRING(tea_vm_peek(T, 0));
-        n = AS_NUMBER(tea_vm_peek(T, 1));
+        string = strV(T->top - 1);
+        n = numberV(T->top - 2);
     }
-    else if(IS_NUMBER(tea_vm_peek(T, 0)) && IS_STRING(tea_vm_peek(T, 1)))
+    else if(tvisnumber(T->top - 1) && tvisstr(T->top - 2))
     {
-        n = AS_NUMBER(tea_vm_peek(T, 0));
-        string = AS_STRING(tea_vm_peek(T, 1));
+        n = numberV(T->top - 1);
+        string = strV(T->top - 2);
     }
     else
     {
@@ -465,14 +473,14 @@ static bool repeat(tea_State* T)
     if(n <= 0)
     {
         GCstr* s = tea_str_lit(T, "");
-        tea_vm_pop(T, 2);
-        tea_vm_push(T, OBJECT_VAL(s));
+        T->top -= 2;
+        setstrV(T, T->top++, s);
         return true;
     }
     else if(n == 1)
     {
-        tea_vm_pop(T, 2);
-        tea_vm_push(T, OBJECT_VAL(string));
+        T->top -= 2;
+        setstrV(T, T->top++, string);
         return true;
     }
 
@@ -488,8 +496,8 @@ static bool repeat(tea_State* T)
     *p = '\0';
 
     GCstr* result = tea_str_take(T, chars, strlen(chars));
-    tea_vm_pop(T, 2);
-    tea_vm_push(T, OBJECT_VAL(result));
+    T->top -= 2;
+    setstrV(T, T->top++, result);
     return true;
 }
 
@@ -528,7 +536,7 @@ static const tea_Class string_class[] = {
 void tea_open_string(tea_State* T)
 {
     tea_create_class(T, TEA_CLASS_STRING, string_class);
-    T->string_class = AS_CLASS(T->top[-1]);
+    T->string_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_STRING);
     tea_push_null(T);
 }
