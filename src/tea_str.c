@@ -11,6 +11,8 @@
 #include "tea_tab.h"
 #include "tea_gc.h"
 
+/* -- String interning ---------------------------------------------------- */
+
 static GCstr* str_alloc(tea_State* T, char* chars, int len, uint32_t hash)
 {
     GCstr* str = tea_obj_new(T, GCstr, TEA_TSTRING);
@@ -24,6 +26,8 @@ static GCstr* str_alloc(tea_State* T, char* chars, int len, uint32_t hash)
 
     return str;
 }
+
+/* -- String hashing ------------------------------------------------------ */
 
 static uint32_t str_hash(const char* key, int len)
 {

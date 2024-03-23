@@ -69,7 +69,7 @@ TValue* tea_tab_get(Table* table, GCstr* key)
     return &entry->value;
 }
 
-static void tab_adjust_size(tea_State* T, Table* table, int size)
+static void tab_resize(tea_State* T, Table* table, int size)
 {
     TableEntry* entries = tea_mem_new(T, TableEntry, size);
     for(int i = 0; i < size; i++)
@@ -103,7 +103,7 @@ TValue* tea_tab_set(tea_State* T, Table* table, GCstr* key, bool* b)
     if(table->count + 1 > table->size * TABLE_MAX_LOAD)
     {
         int size = TEA_MEM_GROW(table->size);
-        tab_adjust_size(T, table, size);
+        tab_resize(T, table, size);
     }
 
     TableEntry* entry = tab_find_entry(table->entries, table->size, key);

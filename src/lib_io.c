@@ -17,7 +17,7 @@
 
 static void io_stdfile(tea_State* T, FILE* f, const char* name, const char* mode)
 {
-    GCfile* file = tea_obj_new_file(T, tea_str_lit(T, ""), tea_str_new(T, mode));
+    GCfile* file = tea_obj_new_file(T, tea_str_newlit(T, ""), tea_str_new(T, mode));
     file->file = f;
     file->is_open = -1;
 

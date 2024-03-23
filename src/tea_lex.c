@@ -634,38 +634,7 @@ static Token lex_string(Lexer* lex)
 	return token;
 }
 
-/* Convert token to string */
-const char* tea_lex_token2str(Lexer* lex, int t)
-{
-    if(t > TK_OFS)
-        return lex_tokennames[t - TK_OFS - 1];
-    else
-    {
-        static char s[2];
-        s[0] = (char)t;
-        s[1] = '\0';
-        return s;
-    }
-}
-
-/* Lexer error */
-void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...)
-{
-    char* module_name = lex->module->name->chars;
-    char c = module_name[0];
-    int off = 0;
-    if(c == '?' || c == '=') off = 1;
-
-    const char* tokstr = NULL;
-    va_list argp;
-    if(token != NULL)
-    {
-        tokstr = tea_lex_token2str(lex, token->type);
-    }
-    va_start(argp, em);
-    tea_err_lex(lex->T, module_name + off, tokstr, token ? token->line : lex->line, em, argp);
-    va_end(argp);
-}
+/* -- Main lexical scanner ------------------------------------------------ */
 
 /* Get next lexical token */
 static Token lex_scan(Lexer* lex)
@@ -1009,17 +978,7 @@ static Token lex_scan(Lexer* lex)
     }
 }
 
-/* Return next lexical token */
-void tea_lex_next(Lexer* lex)
-{
-    lex->prev = lex->curr;
-    lex->curr = lex->next;
-
-    if(lex->next.type == TK_EOF) return;
-    if(lex->curr.type == TK_EOF) return;
-
-    lex->next = lex_scan(lex);
-}
+/* -- Lexer API ----------------------------------------------------------- */
 
 /* Initialize lexer */
 bool tea_lex_init(tea_State* T, Lexer* lex)
@@ -1062,4 +1021,49 @@ bool tea_lex_init(tea_State* T, Lexer* lex)
         return true;
     }
     return false;
+}
+
+/* Convert token to string */
+const char* tea_lex_token2str(Lexer* lex, int t)
+{
+    if(t > TK_OFS)
+        return lex_tokennames[t - TK_OFS - 1];
+    else
+    {
+        static char s[2];
+        s[0] = (char)t;
+        s[1] = '\0';
+        return s;
+    }
+}
+
+/* Lexer error */
+void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...)
+{
+    char* module_name = lex->module->name->chars;
+    char c = module_name[0];
+    int off = 0;
+    if(c == '?' || c == '=') off = 1;
+
+    const char* tokstr = NULL;
+    va_list argp;
+    if(token != NULL)
+    {
+        tokstr = tea_lex_token2str(lex, token->type);
+    }
+    va_start(argp, em);
+    tea_err_lex(lex->T, module_name + off, tokstr, token ? token->line : lex->line, em, argp);
+    va_end(argp);
+}
+
+/* Return next lexical token */
+void tea_lex_next(Lexer* lex)
+{
+    lex->prev = lex->curr;
+    lex->curr = lex->next;
+
+    if(lex->next.type == TK_EOF) return;
+    if(lex->curr.type == TK_EOF) return;
+
+    lex->next = lex_scan(lex);
 }

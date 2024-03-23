@@ -19,6 +19,8 @@
 #include "tea_tab.h"
 #include "tea_list.h"
 
+/* -- Common helper functions --------------------------------------------- */
+
 static TValue* index2addr(tea_State* T, int index)
 {
     if(index >= 0)
@@ -198,7 +200,7 @@ TEA_API int tea_get_type(tea_State* T, int index)
 TEA_API const char* tea_typeof(tea_State* T, int index)
 {
     TValue* slot = index2addr(T, index);
-    return (slot == NULL) ? "no value" : tea_val_type(slot);
+    return (slot == NULL) ? "no value" : tea_typename(slot);
 }
 
 TEA_API double tea_get_number(tea_State* T, int index)
@@ -296,22 +298,15 @@ TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int index)
 {
     TValue* v = index2addr(T, index);
     tea_CFunction f = NULL;
-
     if(tviscfunc(v))
         f = cfuncV(v)->fn;
-
     return f;
 }
 
 TEA_API const void* tea_to_pointer(tea_State* T, int index)
 {
     TValue* v = index2addr(T, index);
-    void* p = NULL;
-
-    if(tvispointer(v))
-        p = pointerV(v);
-
-    return p;
+    return tea_obj_pointer(v);
 }
 
 TEA_API bool tea_equal(tea_State* T, int index1, int index2)
@@ -381,10 +376,9 @@ TEA_API void tea_push_number(tea_State* T, double n)
 
 TEA_API const char* tea_push_lstring(tea_State* T, const char* s, int len)
 {
-    GCstr* str = (len == 0) ? tea_str_lit(T, "") : tea_str_copy(T, s, len);
+    GCstr* str = (len == 0) ? tea_str_newlit(T, "") : tea_str_copy(T, s, len);
     setstrV(T, T->top, str);
     T->top++;
-
     return str->chars;
 }
 
@@ -393,7 +387,6 @@ TEA_API const char* tea_push_string(tea_State* T, const char* s)
     GCstr* str = tea_str_new(T, s);
     setstrV(T, T->top, str);
     T->top++;
-
     return str->chars;
 }
 
@@ -942,9 +935,9 @@ TEA_API int tea_check_option(tea_State* T, int index, const char* def, const cha
 
 TEA_API int tea_gc(tea_State* T)
 {
-    size_t before = T->bytes_allocated;
+    size_t before = T->gc.bytes_allocated;
     tea_gc_collect(T);
-    size_t collected = before - T->bytes_allocated;
+    size_t collected = before - T->gc.bytes_allocated;
 
     /* GC values are expressed in Kbytes: number of bytes / 2 ** 10 */
     return collected >> 10;

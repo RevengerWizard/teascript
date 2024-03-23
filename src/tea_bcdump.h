@@ -12,6 +12,8 @@
 #include "tea_obj.h"
 #include "tea_lex.h"
 
+/* -- Bytecode dump format ------------------------------------------------ */
+
 /* Type codes for the GC constants of a prototype */
 #define BCDUMP_KGC_NUM 0
 #define BCDUMP_KGC_FUNC 1
@@ -24,6 +26,8 @@
 #define BCDUMP_HEAD4    0x61
 
 #define BCDUMP_VERSION    0
+
+/* -- Bytecode reader/writer ---------------------------------------------- */
 
 TEA_FUNC int tea_bcwrite(tea_State* T, GCproto* proto, tea_Writer writer, void* data);
 TEA_FUNC GCproto* tea_bcread(Lexer* lex);

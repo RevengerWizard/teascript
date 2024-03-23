@@ -13,16 +13,25 @@
 #include "tea_func.h"
 #include "tea_bc.h"
 
-static void debug_object(TValue* obj)
+void tea_debug_value(TValue* v)
 {
-    switch(gctype(obj))
+    switch(itype(v))
     {
+        case TEA_TNULL:
+            printf("null");
+            break;
+        case TEA_TBOOL:
+            boolV(v) ? printf("true") : printf("false");
+            break;
+        case TEA_TNUMBER:
+            printf(TEA_NUMBER_FMT, numberV(v));
+            break;
         case TEA_TCLASS:
-            printf("<class %s>", classV(obj)->name->chars);
+            printf("<class %s>", classV(v)->name->chars);
             break;
         case TEA_TFUNC:
         {
-            if(funcV(obj)->proto->name == NULL)
+            if(funcV(v)->proto->name == NULL)
                 printf("<script>");
             else
                 printf("<function>");
@@ -30,7 +39,7 @@ static void debug_object(TValue* obj)
         }
         case TEA_TPROTO:
         {
-            if(protoV(obj)->name == NULL)
+            if(protoV(v)->name == NULL)
                 printf("<script>");
             else
                 printf("<function>");
@@ -56,11 +65,11 @@ static void debug_object(TValue* obj)
             break;
         case TEA_TSTRING:
         {
-            GCstr* string = strV(obj);
+            GCstr* string = strV(v);
             if(string->len > 40)
                 printf("<string>");
             else
-                printf("%s", strV(obj)->chars);
+                printf("%s", strV(v)->chars);
             break;
         }
         case TEA_TUPVALUE:
@@ -72,30 +81,9 @@ static void debug_object(TValue* obj)
     }
 }
 
-void tea_debug_value(TValue* value)
-{
-    if(tvisbool(value))
-    {
-        boolV(value) ? printf("true") : printf("false");
-    }
-    else if(tvisnull(value))
-    {
-        printf("null");
-    }
-    else if(tvisnumber(value))
-    {
-        printf(TEA_NUMBER_FMT, numberV(value));
-    }
-    else if(tvisgcv(value))
-    {
-        debug_object(value);
-    }
-}
-
 void tea_debug_chunk(tea_State* T, GCproto* f, const char* name)
 {
     printf("== '%s' ==\n", name);
-
     for(int offset = 0; offset < f->bc_count;)
     {
         offset = tea_debug_instruction(T, f, offset);
@@ -108,7 +96,6 @@ static int debug_constant(GCproto* f, int offset)
     printf("%4d '", constant);
     tea_debug_value(f->k + constant);
     printf("'\n");
-
     return offset + 2;
 }
 
@@ -119,14 +106,12 @@ static int debug_invoke(GCproto* f, int offset)
     printf("   (%d args) %4d '", arg_count, constant);
     tea_debug_value(f->k + constant);
     printf("'\n");
-
     return offset + 3;
 }
 
 static int debug_simple(int offset)
 {
     putchar('\n');
-
     return offset + 1;
 }
 
@@ -134,7 +119,6 @@ static int debug_byte(GCproto* f, int offset)
 {
     uint8_t slot = f->bc[offset + 1];
     printf("%4d\n", slot);
-
     return offset + 2;
 }
 
@@ -143,7 +127,6 @@ static int debug_iter(GCproto* f, int offset)
     uint8_t seq = f->bc[offset + 1];
     uint8_t iter = f->bc[offset + 2];
     printf("%4d     %4d\n", seq, iter);
-    
     return offset + 3;
 }
 
@@ -152,7 +135,6 @@ static int debug_jump(int sign, GCproto* f, int offset)
     uint16_t jump = (uint16_t)(f->bc[offset + 1] << 8);
     jump |= f->bc[offset + 2];
     printf("%4d -> %d\n", offset, offset + 3 + sign * jump);
-
     return offset + 3;
 }
 

@@ -20,10 +20,12 @@
 
 #define GC_HEAP_GROW_FACTOR 2
 
+/* -- Collector -------------------------------------------------- */
+
 static void gc_blacken(tea_State* T, GCobj* object)
 {
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p blacken %s\n", (void*)object, tea_val_type(setgcV(object)));
+    printf("%p blacken %s\n", (void*)object, tea_typename(setgcV(object)));
 #endif
 
     switch(object->gct)
@@ -125,14 +127,14 @@ static void gc_blacken(tea_State* T, GCobj* object)
 static void gc_free(tea_State* T, GCobj* object)
 {
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p free %s\n", (void*)object, tea_val_type(setgcV(object)));
+    printf("%p free %s\n", (void*)object, tea_typename(setgcV(object)));
 #endif
 
     switch(object->gct)
     {
         case TEA_TRANGE:
         {
-            tea_mem_free(T, GCrange, object);
+            tea_mem_freet(T, GCrange, object);
             break;
         }
         case TEA_TFILE:
@@ -142,14 +144,14 @@ static void gc_free(tea_State* T, GCobj* object)
             {
                 fclose(file->file);
             }
-            tea_mem_free(T, GCfile, object);
+            tea_mem_freet(T, GCfile, object);
             break;
         }
         case TEA_TMODULE:
         {
             GCmodule* module = (GCmodule*)object;
             tea_tab_free(T, &module->values);
-            tea_mem_free(T, GCmodule, object);
+            tea_mem_freet(T, GCmodule, object);
             break;
         }
         case TEA_TLIST:
@@ -159,19 +161,19 @@ static void gc_free(tea_State* T, GCobj* object)
 		    list->items = NULL;
             list->count = 0;
             list->size = 0;
-            tea_mem_free(T, GClist, object);
+            tea_mem_freet(T, GClist, object);
             break;
         }
         case TEA_TMAP:
         {
             GCmap* map = (GCmap*)object;
             tea_mem_freevec(T, MapEntry, map->entries, map->size);
-            tea_mem_free(T, GCmap, object);
+            tea_mem_freet(T, GCmap, object);
             break;
         }
         case TEA_TMETHOD:
         {
-            tea_mem_free(T, GCmethod, object);
+            tea_mem_freet(T, GCmethod, object);
             break;
         }
         case TEA_TCLASS:
@@ -179,14 +181,14 @@ static void gc_free(tea_State* T, GCobj* object)
             GCclass* klass = (GCclass*)object;
             tea_tab_free(T, &klass->methods);
             tea_tab_free(T, &klass->statics);
-            tea_mem_free(T, GCclass, object);
+            tea_mem_freet(T, GCclass, object);
             break;
         }
         case TEA_TFUNC:
         {
             GCfuncT* func = (GCfuncT*)object;
             tea_mem_freevec(T, GCupvalue *, func->upvalues, func->upvalue_count);
-            tea_mem_free(T, GCfuncT, object);
+            tea_mem_freet(T, GCfuncT, object);
             break;
         }
         case TEA_TPROTO:
@@ -195,31 +197,31 @@ static void gc_free(tea_State* T, GCobj* object)
             tea_mem_freevec(T, uint8_t, proto->bc, proto->bc_size);
             tea_mem_freevec(T, LineStart, proto->lines, proto->line_size);
             tea_mem_freevec(T, TValue, proto->k, proto->k_size);
-            tea_mem_free(T, GCproto, object);
+            tea_mem_freet(T, GCproto, object);
             break;
         }
         case TEA_TINSTANCE:
         {
             GCinstance* instance = (GCinstance*)object;
             tea_tab_free(T, &instance->fields);
-            tea_mem_free(T, GCinstance, object);
+            tea_mem_freet(T, GCinstance, object);
             break;
         }
         case TEA_TSTRING:
         {
             GCstr* string = (GCstr*)object;
             tea_mem_freevec(T, char, string->chars, string->len + 1);
-            tea_mem_free(T, GCstr, object);
+            tea_mem_freet(T, GCstr, object);
             break;
         }
         case TEA_TUPVALUE:
         {
-            tea_mem_free(T, GCupvalue, object);
+            tea_mem_freet(T, GCupvalue, object);
             break;
         }
         case TEA_TCFUNC:
         {
-            tea_mem_free(T, GCfuncC, object);
+            tea_mem_freet(T, GCfuncC, object);
             break;
         }
     }
@@ -272,9 +274,9 @@ static void gc_mark_roots(tea_State* T)
 
 static void gc_trace_references(tea_State* T)
 {
-    while(T->gray_count > 0)
+    while(T->gc.gray_count > 0)
     {
-        GCobj* object = T->gray_stack[--T->gray_count];
+        GCobj* object = T->gc.gray_stack[--T->gc.gray_count];
         gc_blacken(T, object);
     }
 }
@@ -282,7 +284,7 @@ static void gc_trace_references(tea_State* T)
 static void gc_sweep(tea_State* T)
 {
     GCobj* previous = NULL;
-    GCobj* object = T->objects;
+    GCobj* object = T->gc.objects;
 
     while(object != NULL)
     {
@@ -302,7 +304,7 @@ static void gc_sweep(tea_State* T)
             }
             else
             {
-                T->objects = object;
+                T->gc.objects = object;
             }
 
             gc_free(T, unreached);
@@ -326,24 +328,24 @@ void tea_gc_markobj(tea_State* T, GCobj* object)
         return;
 
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p mark %s\n", (void*)object, tea_val_type(setgcV(object)));
+    printf("%p mark %s\n", (void*)object, tea_typename(setgcV(object)));
 #endif
 
     object->marked = true;
 
-    if(T->gray_size < T->gray_count + 1)
+    if(T->gc.gray_size < T->gc.gray_count + 1)
     {
-        T->gray_size = TEA_MEM_GROW(T->gray_size);
-        T->gray_stack = (GCobj**)((*T->allocf)(T->allocd, T->gray_stack, 0, sizeof(GCobj*) * T->gray_size));
+        T->gc.gray_size = TEA_MEM_GROW(T->gc.gray_size);
+        T->gc.gray_stack = (GCobj**)T->allocf(T->allocd, T->gc.gray_stack, 0, sizeof(GCobj*) * T->gc.gray_size);
 
-        if(T->gray_stack == NULL)
+        if(T->gc.gray_stack == NULL)
         {
             puts(T->memerr->chars);
             exit(1);
         }
     }
 
-    T->gray_stack[T->gray_count++] = object;
+    T->gc.gray_stack[T->gc.gray_count++] = object;
 }
 
 /* Perform a GC collection */
@@ -351,7 +353,7 @@ void tea_gc_collect(tea_State* T)
 {
 #ifdef TEA_DEBUG_LOG_GC
     printf("-- gc begin\n");
-    size_t before = T->bytes_allocated;
+    size_t before = T->gc.bytes_allocated;
 #endif
 
     gc_mark_roots(T);
@@ -359,19 +361,18 @@ void tea_gc_collect(tea_State* T)
     tea_tab_white(&T->strings);
     gc_sweep(T);
 
-    T->next_gc = T->bytes_allocated * GC_HEAP_GROW_FACTOR;
+    T->gc.next_gc = T->gc.bytes_allocated * GC_HEAP_GROW_FACTOR;
 
 #ifdef TEA_DEBUG_LOG_GC
     printf("-- gc end\n");
-    printf("   collected %llu bytes (from %llu to %llu) next at %llu\n", before - T->bytes_allocated, before, T->bytes_allocated, T->next_gc);
+    printf("   collected %llu bytes (from %llu to %llu) next at %llu\n", before - T->gc.bytes_allocated, before, T->gc.bytes_allocated, T->next_gc);
 #endif
 }
 
 /* Free all remaining GC objects */
 void tea_gc_freeall(tea_State* T)
 {
-    GCobj* object = T->objects;
-
+    GCobj* object = T->gc.objects;
     while(object != NULL)
     {
         GCobj* next = object->next;
@@ -380,7 +381,39 @@ void tea_gc_freeall(tea_State* T)
     }
 
     /* Free the gray stack */
-    (*T->allocf)(T->allocd, T->gray_stack, sizeof(GCobj*) * T->gray_size, 0);
+    T->allocf(T->allocd, T->gc.gray_stack, sizeof(GCobj*) * T->gc.gray_size, 0);
+}
+
+/* -- Allocator -------------------------------------------------- */
+
+/* Call pluggable memory allocator to allocate or resize a fragment */
+void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, size_t new_size)
+{
+    T->gc.bytes_allocated += new_size - old_size;
+
+#ifdef TEA_DEBUG_TRACE_MEMORY
+    printf("total bytes allocated: %zu\nnew allocation: %zu\nold allocation: %zu\n\n", T->gc.bytes_allocated, new_size, old_size);
+#endif
+
+    if(new_size > old_size)
+    {
+#ifdef TEA_DEBUG_STRESS_GC
+        tea_gc_collect(T);
+#endif
+
+        if(T->gc.bytes_allocated > T->gc.next_gc)
+        {
+            tea_gc_collect(T);
+        }
+    }
+
+    void* block = T->allocf(T->allocd, pointer, old_size, new_size);
+    if(block == NULL && new_size > 0)
+    {
+        puts(T->memerr->chars);
+        exit(1);
+    }
+    return block;
 }
 
 /* Resize growable vector */
@@ -393,37 +426,5 @@ void* tea_mem_grow(tea_State* T, void* pointer, int* size, size_t size_elem, int
         new_size = limit;
     void* block = tea_mem_realloc(T, pointer, (*size) * size_elem, new_size * size_elem);
     *size = new_size;
-    return block;
-}
-
-/* Call pluggable memory allocator to allocate or resize a fragment */
-void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, size_t new_size)
-{
-    T->bytes_allocated += new_size - old_size;
-
-#ifdef TEA_DEBUG_TRACE_MEMORY
-    printf("total bytes allocated: %zu\nnew allocation: %zu\nold allocation: %zu\n\n", T->bytes_allocated, new_size, old_size);
-#endif
-
-    if(new_size > old_size)
-    {
-#ifdef TEA_DEBUG_STRESS_GC
-        tea_gc_collect(T);
-#endif
-
-        if(T->bytes_allocated > T->next_gc)
-        {
-            tea_gc_collect(T);
-        }
-    }
-
-    void* block = T->allocf(T->allocd, pointer, old_size, new_size);
-
-    if(block == NULL && new_size > 0)
-    {
-        puts(T->memerr->chars);
-        exit(1);
-    }
-
     return block;
 }

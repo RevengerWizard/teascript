@@ -26,6 +26,8 @@
 #include "tea_debug.h"
 #endif
 
+/* -- Error handling --------------------------------------------- */
+
 static void error(Parser* parser, ErrMsg em)
 {
     tea_lex_error(parser->lex, &parser->lex->prev, em);
@@ -35,6 +37,8 @@ static void error_at_current(Parser* parser, ErrMsg em)
 {
     tea_lex_error(parser->lex, &parser->lex->curr, em);
 }
+
+/* -- Lexer support ------------------------------------------------------- */
 
 static Token lex_synthetic(Parser* parser, const char* text)
 {
@@ -69,6 +73,37 @@ static bool lex_match(Parser* parser, int type)
     tea_lex_next(parser->lex);
     return true;
 }
+
+/* -- Management of constants --------------------------------------------- */
+
+static int add_constant(tea_State* T, GCproto* f, TValue* value)
+{
+    copyTV(T, T->top++, value);
+
+    if(f->k_size < f->k_count + 1)
+    {
+        f->k = tea_mem_growvec(T, TValue, f->k, f->k_size, INT_MAX);
+    }
+    copyTV(T, f->k + f->k_count, value);
+    f->k_count++;
+
+    T->top--;
+
+    return f->k_count - 1;
+}
+
+static uint8_t make_constant(Parser* parser, TValue* value)
+{
+    int constant = add_constant(parser->lex->T, parser->proto, value);
+    if(constant > UINT8_MAX)
+    {
+        error(parser, TEA_ERR_XKCONST);
+    }
+
+    return (uint8_t)constant;
+}
+
+/* -- Bytecode emitter ---------------------------------------------------- */
 
 static void bcemit_byte(Parser* parser, uint8_t byte)
 {
@@ -113,6 +148,7 @@ static const int stack_effects[] = {
 #undef BCEFFECT
 };
 
+/* Emit bytecode instruction */
 static void bcemit_op(Parser* parser, BCOp op)
 {
     bcemit_byte(parser, op);
@@ -123,7 +159,7 @@ static void bcemit_op(Parser* parser, BCOp op)
         parser->proto->max_slots = parser->slot_count;
     }
 }
-
+/* Emit 2 bytecode instructions */
 static void bcemit_ops(Parser* parser, BCOp op1, BCOp op2)
 {
     bcemit_bytes(parser, op1, op2);
@@ -178,33 +214,6 @@ static void bcemit_return(Parser* parser)
     }
 
     bcemit_byte(parser, BC_RETURN);
-}
-
-static int add_constant(tea_State* T, GCproto* f, TValue* value)
-{
-    copyTV(T, T->top++, value);
-
-    if(f->k_size < f->k_count + 1)
-    {
-        f->k = tea_mem_growvec(T, TValue, f->k, f->k_size, INT_MAX);
-    }
-    copyTV(T, f->k + f->k_count, value);
-    f->k_count++;
-
-    T->top--;
-
-    return f->k_count - 1;
-}
-
-static uint8_t make_constant(Parser* parser, TValue* value)
-{
-    int constant = add_constant(parser->lex->T, parser->proto, value);
-    if(constant > UINT8_MAX)
-    {
-        error(parser, TEA_ERR_XKCONST);
-    }
-
-    return (uint8_t)constant;
 }
 
 static void bcemit_invoke(Parser* parser, int args, const char* name)
@@ -269,10 +278,10 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
             parser->proto->name = parser->enclosing->name;
             break;
         case PROTO_ANONYMOUS:
-            parser->proto->name = tea_str_lit(lexer->T, "<anonymous>");
+            parser->proto->name = tea_str_newlit(lexer->T, "<anonymous>");
             break;
         case PROTO_SCRIPT:
-            parser->proto->name = tea_str_lit(lexer->T, "<script>");
+            parser->proto->name = tea_str_newlit(lexer->T, "<script>");
             break;
         default:
             break;
@@ -289,13 +298,13 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
         case PROTO_FUNCTION:
         case PROTO_ANONYMOUS:
         case PROTO_STATIC:
-            s = tea_str_lit(lexer->T, "");
+            s = tea_str_newlit(lexer->T, "");
             setstrV(lexer->T, &local->name.value, s);
             break;
         case PROTO_CONSTRUCTOR:
         case PROTO_METHOD:
         case PROTO_OPERATOR:
-            s = tea_str_lit(lexer->T, "this");
+            s = tea_str_newlit(lexer->T, "this");
             setstrV(lexer->T, &local->name.value, s);
             break;
         default:
@@ -331,6 +340,7 @@ static GCproto* parser_end(Parser* parser)
     return proto;
 }
 
+/* Begin a scope */
 static void scope_begin(Parser* parser)
 {
     parser->scope_depth++;
@@ -354,6 +364,7 @@ static int discard_locals(Parser* parser, int depth)
     return parser->local_count - local - 1;
 }
 
+/* End a scope */
 static void scope_end(Parser* parser)
 {
     int effect = discard_locals(parser, parser->scope_depth);
@@ -556,6 +567,8 @@ static uint8_t parse_arg_list(Parser* parser)
 
     return arg_count;
 }
+
+/* -- Expressions --------------------------------------------------------- */
 
 static void expr_and(Parser* parser, bool assign)
 {
@@ -1501,6 +1514,7 @@ static void expr(Parser* parser)
     expr_precedence(parser, PREC_ASSIGNMENT);
 }
 
+/* Parse a block */
 static void parse_block(Parser* parser)
 {
     while(!lex_check(parser, '}') && !lex_check(parser, TK_EOF))
@@ -1653,17 +1667,10 @@ static void expr_grouping(Parser* parser, bool assign)
     lex_consume(parser, ')');
 }
 
-static int operators[] = {
-    '+',
-    '-',
-    '*',
-    '/',
-    '%',
+static const int operators[] = {
+    '+', '-', '*', '/', '%',
     TK_STAR_STAR,        /* ** */
-    '&',
-    '|',
-    '~',
-    '^',
+    '&', '|', '~', '^',
     TK_LESS_LESS,        /* << */
     TK_GREATER_GREATER,  /* >> */
 	'<',
@@ -1857,6 +1864,7 @@ static void parse_function_assign(Parser* parser)
     }
 }
 
+/* Parse 'function' declaration */
 static void parse_function(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'function' */
@@ -1992,6 +2000,7 @@ finish:
     }
 }
 
+/* Parse an expression statement */
 static void parse_expr_stmt(Parser* parser)
 {
     expr(parser);
@@ -2137,6 +2146,7 @@ static void loop_end(Parser* parser)
     parser->loop = parser->loop->enclosing;
 }
 
+/* Parse iterable 'for' */
 static void parse_for_in(Parser* parser, Token var, bool constant)
 {
     Token variables[255];
@@ -2201,6 +2211,7 @@ static void parse_for_in(Parser* parser, Token var, bool constant)
     scope_end(parser);
 }
 
+/* Parse generic 'for' */
 static void parse_for(Parser* parser)
 {
     scope_begin(parser);
@@ -2301,6 +2312,7 @@ static void parse_for(Parser* parser)
     scope_end(parser);
 }
 
+/* Parse 'break' statement */
 static void parse_break(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'break' */
@@ -2316,6 +2328,7 @@ static void parse_break(Parser* parser)
     bcemit_jump(parser, BC_END);
 }
 
+/* Parse 'continue' statement */
 static void parse_continue(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'continue' */
@@ -2332,6 +2345,7 @@ static void parse_continue(Parser* parser)
     bcemit_loop(parser, parser->loop->start);
 }
 
+/* Parse 'if' statement */
 static void parse_if(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'if' */
@@ -2355,6 +2369,7 @@ static void parse_if(Parser* parser)
     bcpatch_jump(parser, end_jump);
 }
 
+/* Parse 'switch' statement */
 static void parse_switch(Parser* parser)
 {
     int case_ends[256];
@@ -2416,6 +2431,7 @@ static void parse_switch(Parser* parser)
     }
 }
 
+/* Parse 'return' statement */
 static void parse_return(Parser* parser)
 {
     tea_lex_next(parser->lex);  /* Skip 'return' */
@@ -2441,6 +2457,7 @@ static void parse_return(Parser* parser)
     }
 }
 
+/* Parse 'import' statement */
 static void parse_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
@@ -2492,6 +2509,7 @@ static void parse_import(Parser* parser)
     }
 }
 
+/* Parse 'from' statement */
 static void parse_from_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
@@ -2545,6 +2563,7 @@ static void parse_from_import(Parser* parser)
     bcemit_op(parser, BC_IMPORT_END);
 }
 
+/* Parse 'while' statement */
 static void parse_while(Parser* parser)
 {
     Loop loop;
@@ -2575,6 +2594,7 @@ static void parse_while(Parser* parser)
     loop_end(parser);
 }
 
+/* Parse 'do' statement */
 static void parse_do(Parser* parser)
 {
     Loop loop;
@@ -2672,6 +2692,8 @@ finish:
         bcemit_op(parser, BC_POP);
     }
 }
+
+/* -- Parse statements and declarations ---------------------------------------------------- */
 
 /* Parse a declaration */
 static void parse_decl(Parser* parser)

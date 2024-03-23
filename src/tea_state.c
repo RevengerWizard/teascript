@@ -50,26 +50,6 @@ static void stack_init(tea_State* T)
     setnullV(T->top++);
 }
 
-static void panic_f(tea_State* T)
-{
-    fputs("PANIC: unprotected error in call to Teascript API", stderr);
-    fputc('\n', stderr);
-    fflush(stderr);
-}
-
-static void* alloc_f(void* ud, void* ptr, size_t osize, size_t nsize)
-{
-    UNUSED(ud);
-    UNUSED(osize);
-    if(nsize == 0)
-    {
-        free(ptr);
-        return NULL;
-    }
-
-    return realloc(ptr, nsize);
-}
-
 static const char* const opmnames[] = {
 #define MMSTR(_, name) #name,
     MMDEF(MMSTR)
@@ -150,6 +130,28 @@ void tea_state_growstack1(tea_State* T)
     tea_state_growstack(T, 1);
 }
 
+/* -- Default allocator and panic function -------------------------------- */
+
+static void panic(tea_State* T)
+{
+    fputs("PANIC: unprotected error in call to Teascript API", stderr);
+    fputc('\n', stderr);
+    fflush(stderr);
+}
+
+static void* mem_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
+{
+    UNUSED(ud);
+    UNUSED(osize);
+    if(nsize == 0)
+    {
+        free(ptr);
+        return NULL;
+    }
+
+    return realloc(ptr, nsize);
+}
+
 /* -- State handling -------------------------------------------------- */
 
 static void state_free(tea_State* T)
@@ -160,7 +162,7 @@ static void state_free(tea_State* T)
 TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
 {
     tea_State* T;
-    allocf = (allocf != NULL) ? allocf : alloc_f;
+    allocf = (allocf != NULL) ? allocf : mem_alloc;
     T = (tea_State*)allocf(ud, NULL, 0, sizeof(*T));
     if(T == NULL)
         return T;
@@ -169,19 +171,19 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->error_jump = NULL;
     T->parser = NULL;
     T->nccalls = 0;
-    T->objects = NULL;
     T->last_module = NULL;
-    T->bytes_allocated = 0;
-    T->next_gc = 1024 * 1024;
-    T->panic = panic_f;
+    T->gc.objects = NULL;
+    T->gc.bytes_allocated = 0;
+    T->gc.gray_stack = NULL;
+    T->gc.gray_count = 0;
+    T->gc.gray_size = 0;
+    T->gc.next_gc = 1024 * 1024;
+    T->panic = panic;
     T->argc = 0;
     T->argv = NULL;
     T->argf = 0;
     T->repl = false;
     T->open_upvalues = NULL;
-    T->gray_stack = NULL;
-    T->gray_count = 0;
-    T->gray_size = 0;
     T->number_class = NULL;
     T->bool_class = NULL;
     T->list_class = NULL;
@@ -195,8 +197,8 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_tab_init(&T->globals);
     tea_tab_init(&T->constants);
     tea_tab_init(&T->strings);
-    T->constructor_string = tea_str_lit(T, "constructor");
-    T->repl_string = tea_str_lit(T, "_");
+    T->constructor_string = tea_str_newlit(T, "constructor");
+    T->repl_string = tea_str_newlit(T, "_");
     T->memerr = tea_str_new(T, err2msg(TEA_ERR_MEM));
     state_init_mms(T);
     tea_open_core(T);
@@ -217,7 +219,7 @@ TEA_API void tea_close(tea_State* T)
     tea_gc_freeall(T);
 
 #if defined(TEA_DEBUG_TRACE_MEMORY) || defined(TEA_DEBUG_FINAL_MEMORY)
-    printf("total bytes lost: %llu\n", T->bytes_allocated);
+    printf("total bytes lost: %llu\n", T->gc.bytes_allocated);
 #endif
 
     state_free(T);

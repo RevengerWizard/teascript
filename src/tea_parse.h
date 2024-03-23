@@ -8,6 +8,8 @@
 
 #include "tea_lex.h"
 
+/* -- Parser structures and definitions ----------------------------------- */
+
 typedef enum
 {
     PREC_NONE,

@@ -472,7 +472,7 @@ static bool repeat(tea_State* T)
 
     if(n <= 0)
     {
-        GCstr* s = tea_str_lit(T, "");
+        GCstr* s = tea_str_newlit(T, "");
         T->top -= 2;
         setstrV(T, T->top++, s);
         return true;

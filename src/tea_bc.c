@@ -8,6 +8,7 @@
 
 #include "tea_bc.h"
 
+/* Bytecode instruction names */
 TEA_DATADEF const char* const tea_bcnames[] = {
 #define BCNAME(name, _) #name,
     BCDEF(BCNAME)

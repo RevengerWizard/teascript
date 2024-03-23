@@ -154,7 +154,7 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             break; /* Non-callable object type */
     }
 
-    tea_err_run(T, TEA_ERR_CALL, tea_val_type(callee));
+    tea_err_run(T, TEA_ERR_CALL, tea_typename(callee));
     return false;
 }
 
@@ -223,7 +223,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count
                     return vm_precall(T, value, arg_count);
                 }
 
-                tea_err_run(T, TEA_ERR_NOMETH, tea_val_type(receiver), name->chars);
+                tea_err_run(T, TEA_ERR_NOMETH, tea_typename(receiver), name->chars);
             }
         }
     }
@@ -301,7 +301,7 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
             break;
     }
 
-    tea_err_run(T, TEA_ERR_ITER, tea_val_type(obj));
+    tea_err_run(T, TEA_ERR_ITER, tea_typename(obj));
 }
 
 static void vm_splice(tea_State* T, TValue* obj, GCrange* range, TValue* item)
@@ -353,7 +353,7 @@ static void vm_splice(tea_State* T, TValue* obj, GCrange* range, TValue* item)
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SLICE, tea_val_type(obj));
+    tea_err_run(T, TEA_ERR_SLICE, tea_typename(obj));
 }
 
 static void vm_slice(tea_State* T, TValue* obj, GCrange* range, bool assign)
@@ -444,7 +444,7 @@ static void vm_slice(tea_State* T, TValue* obj, GCrange* range, bool assign)
             /* Ensure the start index is below the end index */
             if(start > end)
             {
-                GCstr* s = tea_str_lit(T, "");
+                GCstr* s = tea_str_newlit(T, "");
                 setstrV(T, T->top++, s);
             }
             else
@@ -460,7 +460,7 @@ static void vm_slice(tea_State* T, TValue* obj, GCrange* range, bool assign)
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SLICE, tea_val_type(obj));
+    tea_err_run(T, TEA_ERR_SLICE, tea_typename(obj));
 }
 
 static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool assign)
@@ -572,7 +572,7 @@ static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool as
         {
             if(!tvisnumber(index_value))
             {
-                tea_err_run(T, TEA_ERR_NUMSTR, tea_val_type(index_value));
+                tea_err_run(T, TEA_ERR_NUMSTR, tea_typename(index_value));
             }
 
             GCstr* string = strV(obj);
@@ -602,7 +602,7 @@ static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool as
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SUBSCR, tea_val_type(obj));
+    tea_err_run(T, TEA_ERR_SUBSCR, tea_typename(obj));
 }
 
 static void vm_set_index(tea_State* T, TValue* item_value, TValue* index_value, TValue* obj)
@@ -668,7 +668,7 @@ static void vm_set_index(tea_State* T, TValue* item_value, TValue* index_value, 
             break;
     }
 
-    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_val_type(obj));
+    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_typename(obj));
 }
 
 static void vm_get_attr(tea_State* T, TValue* obj, GCstr* name, bool dopop)
@@ -803,7 +803,7 @@ retry:
         }
     }
 
-    tea_err_run(T, TEA_ERR_NOATTR, tea_val_type(obj), name->chars);
+    tea_err_run(T, TEA_ERR_NOATTR, tea_typename(obj), name->chars);
 }
 
 static void vm_set_attr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
@@ -867,7 +867,7 @@ static void vm_set_attr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
         }
     }
 
-    tea_err_run(T, TEA_ERR_SETATTR, tea_val_type(obj));
+    tea_err_run(T, TEA_ERR_SETATTR, tea_typename(obj));
 }
 
 static void vm_define_method(tea_State* T, GCstr* name)
@@ -896,7 +896,7 @@ static void vm_arith_unary(tea_State* T, MMS op, TValue* v)
     TValue* method = vm_get_bcmethod(T, method_name, v);
     if(!method)
     {
-        tea_err_run(T, TEA_ERR_UNOP, method_name->chars, tea_val_type(v));
+        tea_err_run(T, TEA_ERR_UNOP, method_name->chars, tea_typename(v));
     }
 
     TValue v1;
@@ -920,7 +920,7 @@ static void vm_arith(tea_State* T, MMS op, TValue* a, TValue* b)
     }
     if(!method)
     {
-        tea_err_run(T, TEA_ERR_BIOP, method_name->chars, tea_val_type(a), tea_val_type(b));
+        tea_err_run(T, TEA_ERR_BIOP, method_name->chars, tea_typename(a), tea_typename(b));
     }
 
     TValue v1, v2;
@@ -1424,7 +1424,7 @@ static void vm_execute(tea_State* T)
                 TValue* value = T->top - 1;
                 if(!tea_map_hashable(key))
                 {
-                    RUNTIME_ERROR(TEA_ERR_KHASH, tea_val_type(key));
+                    RUNTIME_ERROR(TEA_ERR_KHASH, tea_typename(key));
                 }
                 TValue* v = tea_map_set(T, map, key);
                 copyTV(T, v, value);
@@ -1484,7 +1484,7 @@ static void vm_execute(tea_State* T)
                 STORE_FRAME;
                 if(!vm_iterator_call(T, MM_CONTAINS, &v1))
                 {
-                    RUNTIME_ERROR(TEA_ERR_ITER, tea_val_type(&v1));
+                    RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(&v1));
                 }
                 READ_FRAME();
                 DISPATCH();
@@ -1772,7 +1772,7 @@ static void vm_execute(tea_State* T)
                 STORE_FRAME;
                 if(!vm_iterator_call(T, MM_ITER, seq))
                 {
-                    RUNTIME_ERROR(TEA_ERR_ITER, tea_val_type(seq));
+                    RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
                 }
                 READ_FRAME();
 
@@ -1795,7 +1795,7 @@ static void vm_execute(tea_State* T)
                 STORE_FRAME;
                 if(!vm_iterator_call(T, MM_NEXT, seq))
                 {
-                    RUNTIME_ERROR(TEA_ERR_ITER, tea_val_type(seq));
+                    RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
                 }
                 READ_FRAME();
                 DISPATCH();
@@ -1852,7 +1852,7 @@ static void vm_execute(tea_State* T)
             {
                 if(!tvisclass(T->top - 2))
                 {
-                    RUNTIME_ERROR(TEA_ERR_EXTMETH, tea_val_type(T->top - 2));
+                    RUNTIME_ERROR(TEA_ERR_EXTMETH, tea_typename(T->top - 2));
                 }
                 vm_define_method(T, READ_STRING());
                 T->top--;
@@ -1905,6 +1905,7 @@ static void vm_execute(tea_State* T)
     }
 }
 #undef STORE_FRAME
+#undef READ_FRAME
 #undef READ_BYTE
 #undef READ_SHORT
 #undef READ_CONSTANT

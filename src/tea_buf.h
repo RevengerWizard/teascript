@@ -13,6 +13,8 @@
 #include "tea_gc.h"
 #include "tea_str.h"
 
+/* Resizable string buffers */
+
 #define sbuf_size(sb)  ((size_t)((sb)->e - (sb)->b))
 #define sbuf_len(sb)   ((size_t)((sb)->w - (sb)->b))
 #define sbuf_left(sb)   ((size_t)((sb)->e - (sb)->w))

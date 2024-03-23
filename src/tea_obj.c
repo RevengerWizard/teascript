@@ -41,11 +41,11 @@ GCobj* tea_obj_alloc(tea_State* T, size_t size, uint8_t type)
     obj->gct = type;
     obj->marked = false;
 
-    obj->next = T->objects;
-    T->objects = obj;
+    obj->next = T->gc.objects;
+    T->gc.objects = obj;
 
 #ifdef TEA_DEBUG_LOG_GC
-    printf("%p allocate %llu for %s\n", (void*)obj, size, tea_val_type(setgcV(obj)));
+    printf("%p allocate %llu for %s\n", (void*)obj, size, tea_typename(setgcV(obj)));
 #endif
 
     return obj;
@@ -123,20 +123,21 @@ GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, TValue* method)
     return bound;
 }
 
+/* -- Conversions to strings ---------------------------------------------- */
+
 static GCstr* obj_function_tostring(tea_State* T, GCproto* proto)
 {
     if(proto->type > PROTO_FUNCTION)
     {
         return proto->name;
     }
-
-    return tea_str_lit(T, "<function>");
+    return tea_str_newlit(T, "<function>");
 }
 
 static GCstr* obj_list_tostring(tea_State* T, GClist* list, int depth)
 {
     if(list->count == 0)
-        return tea_str_lit(T, "[]");
+        return tea_str_newlit(T, "[]");
 
     int size = 50;
 
@@ -204,10 +205,10 @@ static GCstr* obj_list_tostring(tea_State* T, GClist* list, int depth)
 static GCstr* obj_map_tostring(tea_State* T, GCmap* map, int depth)
 {
     if(map->count == 0)
-        return tea_str_lit(T, "{}");
+        return tea_str_newlit(T, "{}");
     
     if(depth > MAX_TOSTRING_DEPTH)
-        return tea_str_lit(T, "{...}");
+        return tea_str_newlit(T, "{...}");
 
     int count = 0;
     int size = 50;
@@ -324,16 +325,16 @@ static GCstr* obj_map_tostring(tea_State* T, GCmap* map, int depth)
 
 static GCstr* val_numtostring(tea_State* T, double number)
 {
-    if(isnan(number)) return tea_str_lit(T, "nan");
+    if(isnan(number)) return tea_str_newlit(T, "nan");
     if(isinf(number))
     {
         if(number > 0.0)
         {
-            return tea_str_lit(T, "infinity");
+            return tea_str_newlit(T, "infinity");
         }
         else
         {
-            return tea_str_lit(T, "-infinity");
+            return tea_str_newlit(T, "-infinity");
         }
     }
 
@@ -373,11 +374,12 @@ static GCstr* obj_instance_tostring(tea_State* T, GCinstance* instance)
     return tea_str_format(T, "<@ instance>", instance->klass->name);
 }
 
+/* Conversions to string */
 GCstr* tea_val_tostring(tea_State* T, TValue* value, int depth)
 {
     if(depth > MAX_TOSTRING_DEPTH)
     {
-        return tea_str_lit(T, "...");
+        return tea_str_newlit(T, "...");
     }
 
     depth++;
@@ -385,19 +387,19 @@ GCstr* tea_val_tostring(tea_State* T, TValue* value, int depth)
     switch(itype(value))
     {
         case TEA_TNULL:
-            return tea_str_lit(T, "null");
+            return tea_str_newlit(T, "null");
         case TEA_TBOOL:
-            return boolV(value) ? tea_str_lit(T, "true") : tea_str_lit(T, "false");
+            return boolV(value) ? tea_str_newlit(T, "true") : tea_str_newlit(T, "false");
         case TEA_TNUMBER:
             return val_numtostring(T, numberV(value));
         case TEA_TPOINTER:
-            return tea_str_lit(T, "pointer");
+            return tea_str_newlit(T, "pointer");
         case TEA_TFILE:
-            return tea_str_lit(T, "<file>");
+            return tea_str_newlit(T, "<file>");
         case TEA_TMETHOD:
-            return tea_str_lit(T, "<method>");
+            return tea_str_newlit(T, "<method>");
         case TEA_TCFUNC:
-            return tea_str_lit(T, "<function>");
+            return tea_str_newlit(T, "<function>");
         case TEA_TPROTO:
             return obj_function_tostring(T, protoV(value));
         case TEA_TFUNC:
@@ -417,11 +419,22 @@ GCstr* tea_val_tostring(tea_State* T, TValue* value, int depth)
         case TEA_TSTRING:
             return strV(value);
         case TEA_TUPVALUE:
-            return tea_str_lit(T, "<upvalue>");
+            return tea_str_newlit(T, "<upvalue>");
         default:
             break;
     }
-    return tea_str_lit(T, "unknown");
+    return tea_str_newlit(T, "unknown");
+}
+
+/* Return pointer to object or its object data */
+const void* tea_obj_pointer(TValue* v)
+{
+    if(tvispointer(v))
+        return pointerV(v);
+    else if(tvisgcv(v))
+        return gcV(v);
+    else
+        return NULL;
 }
 
 static bool obj_range_equal(GCrange* a, GCrange* b)
@@ -483,6 +496,7 @@ static bool obj_map_equal(GCmap* a, GCmap* b)
     return true;
 }
 
+/* Compare two values */
 bool tea_val_equal(TValue* a, TValue* b)
 {
     if(itype(a) != itype(b))
@@ -508,11 +522,7 @@ bool tea_val_equal(TValue* a, TValue* b)
     }
 }
 
-const char* tea_val_type(TValue* a)
-{
-    return tea_obj_typenames[itype(a)];
-}
-
+/* Compare two values without additional checks */
 bool tea_val_rawequal(TValue* a, TValue* b)
 {
     if(itype(a) != itype(b))
@@ -532,6 +542,7 @@ bool tea_val_rawequal(TValue* a, TValue* b)
     }
 }
 
+/* Attempt to convert a value into a number */
 double tea_val_tonumber(TValue* v, bool* x)
 {
     if(x != NULL)
@@ -545,6 +556,7 @@ double tea_val_tonumber(TValue* v, bool* x)
         case TEA_TBOOL:
             return boolV(v) ? 1 : 0;
         case TEA_TSTRING:
+        {
             char* n = strV(v)->chars;
             char* end;
             errno = 0;
@@ -558,6 +570,7 @@ double tea_val_tonumber(TValue* v, bool* x)
                 return 0;
             }
             return number;
+        }
         default:
             if(x != NULL)
                 *x = false;

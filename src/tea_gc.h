@@ -21,7 +21,13 @@ TEA_FUNC void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, siz
 #define tea_mem_new(T, type, count) \
     (type*)tea_mem_realloc(T, NULL, 0, sizeof(type) * (count))
 
-#define tea_mem_free(T, type, pointer) tea_mem_realloc(T, pointer, sizeof(type), 0)
+static TEA_AINLINE void tea_mem_free(tea_State* T, void* pointer, size_t old_size)
+{
+    T->gc.bytes_allocated -= old_size;
+    T->allocf(T->allocd, pointer, old_size, 0);
+}
+
+#define tea_mem_freet(T, type, pointer) tea_mem_free(T, pointer, sizeof(type))
 
 #define TEA_MEM_GROW(size) \
     ((size) < 8 ? 8 : (size) * 2)
@@ -33,6 +39,6 @@ TEA_FUNC void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, siz
     (type*)tea_mem_realloc(T, pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
 
 #define tea_mem_freevec(T, type, pointer, old_count) \
-    tea_mem_realloc(T, pointer, sizeof(type) * (old_count), 0)
+    tea_mem_free(T, pointer, sizeof(type) * (old_count))
 
 #endif

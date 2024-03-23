@@ -21,6 +21,8 @@
 #include "tea_tab.h"
 #include "tea_gc.h"
 
+/* ------------------------------------------------------------------------ */
+
 #if TEA_TARGET_DLOPEN
 
 #include <dlfcn.h>
@@ -107,6 +109,8 @@ static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
 
 #endif
 
+/* ------------------------------------------------------------------------ */
+
 static const tea_Reg modules[] = {
     { TEA_MODULE_MATH, tea_import_math },
     { TEA_MODULE_TIME, tea_import_time },
@@ -121,7 +125,7 @@ GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
 {
     if(!len) 
     {
-        return tea_str_lit(T, ".");
+        return tea_str_newlit(T, ".");
     }
 
     char* sep = path + len;
@@ -152,7 +156,7 @@ GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
 
     if(sep == path && !IS_DIR_SEP(*sep)) 
     {
-        return tea_str_lit(T, ".");
+        return tea_str_newlit(T, ".");
     }
 
     len = sep - path + 1;

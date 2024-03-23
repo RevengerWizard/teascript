@@ -169,6 +169,8 @@ int tea_utf_encode(int value, uint8_t* bytes)
 	return 0;
 }
 
+/* -- UTF-8 transformations -------------------------------------------------- */
+
 GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* string, uint32_t index)
 {
 	if(index >= string->len)

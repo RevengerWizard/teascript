@@ -26,6 +26,8 @@ void tea_map_clear(tea_State* T, GCmap* map)
     map->count = 0;
 }
 
+/* -- Object hashing ------------------------------------------------------ */
+
 /* 
 ** From v8's ComputeLongHash() which in turn cites:
 ** Thomas Wang, Integer Hash Functions.
@@ -42,17 +44,12 @@ static TEA_INLINE uint32_t map_hash(uint64_t hash)
     return (uint32_t)(hash & 0x3fffffff);
 }
 
-static TEA_AINLINE uint32_t map_hash_number(double number)
-{
-    return map_hash(number);
-}
-
 static uint32_t map_hash_value(TValue* value)
 {
     switch(itype(value))
     {
         case TEA_TNULL:  return 1;
-        case TEA_TNUMBER:   return map_hash_number(numberV(value));
+        case TEA_TNUMBER:   return map_hash(numberV(value));
         case TEA_TBOOL:  return 2;
         case TEA_TSTRING:
             return strV(value)->hash;
@@ -95,6 +92,8 @@ static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
     }
 }
 
+/* -- Map getters ------------------------------------------------------ */
+
 TValue* tea_map_get(GCmap* map, TValue* key)
 {
     if(map->count == 0)
@@ -109,7 +108,8 @@ TValue* tea_map_get(GCmap* map, TValue* key)
 
 #define MAP_MAX_LOAD 0.75
 
-static void map_adjust_size(tea_State* T, GCmap* map, int size)
+/* Resize a map to fit the new size */
+static void map_resize(tea_State* T, GCmap* map, int size)
 {
     MapEntry* entries = tea_mem_new(T, MapEntry, size);
     for(int i = 0; i < size; i++)
@@ -138,12 +138,14 @@ static void map_adjust_size(tea_State* T, GCmap* map, int size)
     map->size = size;
 }
 
+/* -- Map setters ------------------------------------------------------ */
+
 TValue* tea_map_set(tea_State* T, GCmap* map, TValue* key)
 {
     if(map->count + 1 > map->size * MAP_MAX_LOAD)
     {
         int size = TEA_MEM_GROW(map->size);
-        map_adjust_size(T, map, size);
+        map_resize(T, map, size);
     }
 
     MapEntry* item = map_find_entry(map->entries, map->size, key);
@@ -184,7 +186,7 @@ bool tea_map_delete(tea_State* T, GCmap* map, TValue* key)
         uint32_t size = map->size / 2;
         if(size < 16) size = 16;
 
-        map_adjust_size(T, map, size);
+        map_resize(T, map, size);
     }
 
     return true;
