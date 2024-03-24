@@ -39,8 +39,8 @@ static char* empty_argv[2] = { NULL, NULL };
 
 void tsignal(int id)
 {
-    tea_close(global);
-    exit(0);
+    signal(id, SIG_DFL);
+    tea_error(global, "Interrupted");
 }
 
 static void clear()
@@ -86,7 +86,11 @@ static int interpret(tea_State* T, const char* s)
     {
         return TEA_ERROR_SYNTAX;
     }
-    return tea_pcall(T, 0);
+    int status;
+    signal(SIGINT, tsignal);
+    status = tea_pcall(T, 0);
+    signal(SIGINT, SIG_DFL);
+    return status;
 }
 
 #if defined(TEA_USE_READLINE)
@@ -141,7 +145,6 @@ static bool multiline(const char* line)
 static void repl(tea_State* T)
 {
     global = T;
-    signal(SIGINT, tsignal);
     tea_set_repl(T, true);
 
     t_initreadline(T);
