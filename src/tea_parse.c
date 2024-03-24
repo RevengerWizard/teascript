@@ -28,12 +28,12 @@
 
 /* -- Error handling --------------------------------------------- */
 
-static void error(Parser* parser, ErrMsg em)
+TEA_NORET TEA_NOINLINE static void error(Parser* parser, ErrMsg em)
 {
     tea_lex_error(parser->lex, &parser->lex->prev, em);
 }
 
-static void error_at_current(Parser* parser, ErrMsg em)
+TEA_NORET TEA_NOINLINE static void error_at_current(Parser* parser, ErrMsg em)
 {
     tea_lex_error(parser->lex, &parser->lex->curr, em);
 }
@@ -45,11 +45,10 @@ static Token lex_synthetic(Parser* parser, const char* text)
     Token token;
     GCstr* s = tea_str_new(parser->lex->T, text);
     setstrV(parser->lex->T, &token.value, s);
-
     return token;
 }
 
-static void lex_consume(Parser* parser, int type)
+static void lex_consume(Parser* parser, LexToken type)
 {
     if(parser->lex->curr.type == type)
     {
@@ -61,12 +60,14 @@ static void lex_consume(Parser* parser, int type)
     tea_lex_error(parser->lex, &parser->lex->curr, TEA_ERR_XTOKEN, tok);
 }
 
-static bool lex_check(Parser* parser, int type)
+/* Check for matching token */
+static bool lex_check(Parser* parser, LexToken type)
 {
     return parser->lex->curr.type == type;
 }
 
-static bool lex_match(Parser* parser, int type)
+/* Check and consume token */
+static bool lex_match(Parser* parser, LexToken type)
 {
     if(!lex_check(parser, type))
         return false;
@@ -76,7 +77,7 @@ static bool lex_match(Parser* parser, int type)
 
 /* -- Management of constants --------------------------------------------- */
 
-static int add_constant(tea_State* T, GCproto* f, TValue* value)
+static int const_add(tea_State* T, GCproto* f, TValue* value)
 {
     copyTV(T, T->top++, value);
 
@@ -92,9 +93,9 @@ static int add_constant(tea_State* T, GCproto* f, TValue* value)
     return f->k_count - 1;
 }
 
-static uint8_t make_constant(Parser* parser, TValue* value)
+static uint8_t const_make(Parser* parser, TValue* value)
 {
-    int constant = add_constant(parser->lex->T, parser->proto, value);
+    int constant = const_add(parser->lex->T, parser->proto, value);
     if(constant > UINT8_MAX)
     {
         error(parser, TEA_ERR_XKCONST);
@@ -221,13 +222,13 @@ static void bcemit_invoke(Parser* parser, int args, const char* name)
     TValue v;
     GCstr* str = tea_str_copy(parser->lex->T, name, strlen(name));
     setstrV(parser->lex->T, &v, str);
-    bcemit_argued(parser, BC_INVOKE, make_constant(parser, &v));
+    bcemit_argued(parser, BC_INVOKE, const_make(parser, &v));
     bcemit_byte(parser, args);
 }
 
 static void bcemit_constant(Parser* parser, TValue* value)
 {
-    bcemit_argued(parser, BC_CONSTANT, make_constant(parser, value));
+    bcemit_argued(parser, BC_CONSTANT, const_make(parser, value));
 }
 
 static void bcpatch_jump(Parser* parser, int offset)
@@ -326,7 +327,7 @@ static GCproto* parser_end(Parser* parser)
     {
         TValue v;
         setprotoV(parser->lex->T, &v, proto);
-        bcemit_argued(parser->enclosing, BC_CLOSURE, make_constant(parser->enclosing, &v));
+        bcemit_argued(parser->enclosing, BC_CLOSURE, const_make(parser->enclosing, &v));
 
         for(int i = 0; i < proto->upvalue_count; i++)
         {
@@ -339,6 +340,8 @@ static GCproto* parser_end(Parser* parser)
 
     return proto;
 }
+
+/* -- Scope handling ------------------------------------------------------ */
 
 /* Begin a scope */
 static void scope_begin(Parser* parser)
@@ -385,7 +388,7 @@ static void parse_block(Parser* parser);
 
 static uint8_t identifier_constant(Parser* parser, Token* name)
 {
-    return make_constant(parser, &name->value);
+    return const_make(parser, &name->value);
 }
 
 static bool identifiers_equal(Token* a, Token* b)
@@ -580,7 +583,7 @@ static void expr_and(Parser* parser, bool assign)
 
 static void expr_binary(Parser* parser, bool assign)
 {
-    int op_type = parser->lex->prev.type;
+    LexToken op_type = parser->lex->prev.type;
 
     if(op_type == TK_NOT)
     {
@@ -1373,7 +1376,7 @@ static void expr_unary(Parser* parser, bool assign)
 
 static void expr_range(Parser* parser, bool assign)
 {
-    int op_type = parser->lex->prev.type;
+    LexToken op_type = parser->lex->prev.type;
     ParseRule rule = expr_rule(op_type);
     expr_precedence(parser, (Precedence)(rule.prec + 1));
 
@@ -1653,8 +1656,8 @@ static void expr_grouping(Parser* parser, bool assign)
         return;
     }
 
-    int curr = parser->lex->curr.type;
-    int next = parser->lex->next.type;
+    LexToken curr = parser->lex->curr.type;
+    LexToken next = parser->lex->next.type;
 
     /* (a) => ...; (a, ) => ... */
     if((curr == TK_NAME && (next == ',' || next == ')')) || (curr == ')' && next == TK_ARROW))
@@ -1718,7 +1721,7 @@ static void parse_operator(Parser* parser)
 
     TValue v;
     setstrV(parser->lex->T, &v, name);
-    uint8_t constant = make_constant(parser, &v);
+    uint8_t constant = const_make(parser, &v);
 
     parser->name = name;
     function(parser, PROTO_OPERATOR);
@@ -2462,7 +2465,7 @@ static void parse_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
     {
-        int import_constant = make_constant(parser, &parser->lex->prev.value);
+        int import_constant = const_make(parser, &parser->lex->prev.value);
 
         bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
         bcemit_op(parser, BC_POP);
@@ -2514,7 +2517,7 @@ static void parse_from_import(Parser* parser)
 {
     if(lex_match(parser, TK_STRING))
     {
-        int import_constant = make_constant(parser, &parser->lex->prev.value);
+        int import_constant = const_make(parser, &parser->lex->prev.value);
 
         lex_consume(parser, TK_IMPORT);
         bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
@@ -2698,7 +2701,7 @@ finish:
 /* Parse a declaration */
 static void parse_decl(Parser* parser)
 {
-    int tok = parser->lex->curr.type;
+    LexToken tok = parser->lex->curr.type;
     switch(tok)
     {
         case TK_CLASS:

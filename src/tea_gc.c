@@ -83,13 +83,15 @@ static void gc_blacken(tea_State* T, GCobj* object)
         }
         case TEA_TFUNC:
         {
-            GCfuncT* func = (GCfuncT*)object;
-            tea_gc_markobj(T, (GCobj*)func->proto);
-            if(func->upvalues != NULL)
+            GCfunc* func = (GCfunc*)object;
+            if(!isteafunc(func))
+                break;
+            tea_gc_markobj(T, (GCobj*)func->t.proto);
+            if(func->t.upvalues != NULL)
             {
-                for(int i = 0; i < func->upvalue_count; i++)
+                for(int i = 0; i < func->t.upvalue_count; i++)
                 {
-                    tea_gc_markobj(T, (GCobj*)func->upvalues[i]);
+                    tea_gc_markobj(T, (GCobj*)func->t.upvalues[i]);
                 }
             }
             break;
@@ -117,7 +119,6 @@ static void gc_blacken(tea_State* T, GCobj* object)
             tea_gc_markval(T, &uv->closed);
             break;
         }
-        case TEA_TCFUNC:
         case TEA_TSTRING:
         case TEA_TRANGE:
             break;
@@ -186,9 +187,16 @@ static void gc_free(tea_State* T, GCobj* object)
         }
         case TEA_TFUNC:
         {
-            GCfuncT* func = (GCfuncT*)object;
-            tea_mem_freevec(T, GCupvalue *, func->upvalues, func->upvalue_count);
-            tea_mem_freet(T, GCfuncT, object);
+            GCfunc* func = (GCfunc*)object;
+            if(isteafunc(func))
+            {
+                tea_mem_freevec(T, GCupvalue*, func->t.upvalues, func->t.upvalue_count);
+                tea_mem_freet(T, GCfuncT, object);
+            }
+            else
+            {
+                tea_mem_freet(T, GCfuncC, object);
+            }
             break;
         }
         case TEA_TPROTO:
@@ -219,11 +227,6 @@ static void gc_free(tea_State* T, GCobj* object)
             tea_mem_freet(T, GCupvalue, object);
             break;
         }
-        case TEA_TCFUNC:
-        {
-            tea_mem_freet(T, GCfuncC, object);
-            break;
-        }
     }
 }
 
@@ -238,7 +241,6 @@ static void gc_mark_roots(tea_State* T)
     for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
     {
         tea_gc_markobj(T, (GCobj*)ci->func);
-        tea_gc_markobj(T, (GCobj*)ci->cfunc);
     }
 
     for(GCupvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)

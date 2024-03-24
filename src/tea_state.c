@@ -45,7 +45,6 @@ static void stack_init(tea_State* T)
     T->ci_end = T->ci_base + T->ci_size;
     /* Initialize first ci */
     T->ci->func = NULL;
-    T->ci->cfunc = NULL;
     T->ci->state = CIST_C;
     setnullV(T->top++);
 }

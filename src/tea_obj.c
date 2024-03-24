@@ -31,7 +31,8 @@ TEA_DATADEF const char* const tea_val_typenames[] = {
 TEA_DATADEF const char* const tea_obj_typenames[] = {
     "null", "bool", "number", "pointer", 
     "string", "range", "function",
-    "function", "module", "class", "instance", "method", "list", "map", "file", "proto", "upvalue"
+    "module", "class", "instance", "list", "map", "file", 
+    "proto", "upvalue", "method"
 };
 
 /* Allocate new GC object and link it to the objects root */
@@ -398,12 +399,16 @@ GCstr* tea_val_tostring(tea_State* T, TValue* value, int depth)
             return tea_str_newlit(T, "<file>");
         case TEA_TMETHOD:
             return tea_str_newlit(T, "<method>");
-        case TEA_TCFUNC:
-            return tea_str_newlit(T, "<function>");
         case TEA_TPROTO:
             return obj_function_tostring(T, protoV(value));
         case TEA_TFUNC:
-            return obj_function_tostring(T, funcV(value)->proto);
+        {
+            GCfunc* func = funcV(value);
+            if(iscfunc(func))
+                return tea_str_newlit(T, "<function>");
+            else
+                return obj_function_tostring(T, func->t.proto);
+        }
         case TEA_TLIST:
             return obj_list_tostring(T, listV(value), depth);
         case TEA_TMAP:

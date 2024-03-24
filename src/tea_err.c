@@ -33,9 +33,9 @@ TEA_NOINLINE static void err_run(tea_State* T)
     for(CallInfo* ci = T->ci; ci > T->ci_base; ci--)
     {
         /* Skip stack trace for C functions */
-        if(ci->func == NULL) continue;
+        if(iscfunc(ci->func)) continue;
 
-        GCproto* proto = ci->func->proto;
+        GCproto* proto = ci->func->t.proto;
         size_t instruction = ci->ip - proto->bc - 1;
         fprintf(stderr, "[line %d] in ", tea_func_getline(proto, instruction));
         fprintf(stderr, "%s\n", proto->name->chars);

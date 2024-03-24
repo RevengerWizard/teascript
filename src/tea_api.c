@@ -142,9 +142,7 @@ TEA_API int tea_get_mask(tea_State* T, int index)
             return TEA_MASK_RANGE;
         case TEA_TLIST:
             return TEA_MASK_LIST;
-        case TEA_TPROTO:
         case TEA_TFUNC:
-        case TEA_TCFUNC:
             return TEA_MASK_FUNCTION;
         case TEA_TMAP:
             return TEA_MASK_MAP;
@@ -165,36 +163,7 @@ TEA_API int tea_get_type(tea_State* T, int index)
     TValue* value = index2addr(T, index);
     if(value == NULL)
         return TEA_TYPE_NONE;
-    switch(itype(value))
-    {
-        case TEA_TNULL:
-            return TEA_TYPE_NULL;
-        case TEA_TBOOL:
-            return TEA_TYPE_BOOL;
-        case TEA_TNUMBER:
-            return TEA_TYPE_NUMBER;
-        case TEA_TPOINTER:
-            return TEA_TYPE_POINTER;
-        case TEA_TRANGE:
-            return TEA_TYPE_RANGE;
-        case TEA_TLIST:
-            return TEA_TYPE_LIST;
-        case TEA_TPROTO:
-        case TEA_TFUNC:
-        case TEA_TCFUNC:
-            return TEA_TYPE_FUNCTION;
-        case TEA_TMAP:
-            return TEA_TYPE_MAP;
-        case TEA_TSTRING:
-            return TEA_TYPE_STRING;
-        case TEA_TFILE:
-            return TEA_TYPE_FILE;
-        case TEA_TMODULE:
-            return TEA_TYPE_MODULE;
-        default:
-            break;
-    }
-    return TEA_TYPE_NONE;
+    return itype(value) + 1;
 }
 
 TEA_API const char* tea_typeof(tea_State* T, int index)
@@ -254,7 +223,7 @@ TEA_API bool tea_is_object(tea_State* T, int index)
 TEA_API bool tea_is_cfunction(tea_State* T, int index)
 {
     TValue* v = index2addr(T, index);
-    return tviscfunc(v);
+    return tvisfunc(v) && !isteafunc(funcV(v));
 }
 
 TEA_API bool tea_to_bool(tea_State* T, int index)
@@ -298,8 +267,12 @@ TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int index)
 {
     TValue* v = index2addr(T, index);
     tea_CFunction f = NULL;
-    if(tviscfunc(v))
-        f = cfuncV(v)->fn;
+    if(tvisfunc(v))
+    {
+        GCfunc* func = funcV(v);
+        if(iscfunc(func))
+            f = func->c.fn;
+    }
     return f;
 }
 
@@ -449,8 +422,8 @@ TEA_API void tea_new_map(tea_State* T)
 
 TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs)
 {
-    GCfuncC* cf = tea_func_newC(T, C_FUNCTION, fn, nargs);
-    setcfuncV(T, T->top, cf);
+    GCfunc* cf = tea_func_newC(T, C_FUNCTION, fn, nargs);
+    setfuncV(T, T->top, cf);
     T->top++;
 }
 
@@ -466,18 +439,18 @@ static void set_class(tea_State* T, const tea_Class* k)
         {
             if(strcmp(k->type, "method") == 0)
             {
-                GCfuncC* cf = tea_func_newC(T, C_METHOD, k->fn, k->nargs);
-                setcfuncV(T, T->top++, cf);
+                GCfunc* cf = tea_func_newC(T, C_METHOD, k->fn, k->nargs);
+                setfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "property") == 0)
             {
-                GCfuncC* cf = tea_func_newC(T, C_PROPERTY, k->fn, k->nargs);
-                setcfuncV(T, T->top++, cf);
+                GCfunc* cf = tea_func_newC(T, C_PROPERTY, k->fn, k->nargs);
+                setfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "static") == 0)
             {
-                GCfuncC* cf = tea_func_newC(T, C_FUNCTION, k->fn, k->nargs);
-                setcfuncV(T, T->top++, cf);
+                GCfunc* cf = tea_func_newC(T, C_FUNCTION, k->fn, k->nargs);
+                setfuncV(T, T->top++, cf);
             }
         }
         tea_set_key(T, -2, k->name);
@@ -573,7 +546,7 @@ TEA_API void tea_set_item(tea_State* T, int list, int index)
 TEA_API void tea_add_item(tea_State* T, int list)
 {
     GClist* l = listV(index2addr(T, list));
-    tea_list_append(T, l, T->top - 1);
+    tea_list_add(T, l, T->top - 1);
     T->top--;
 }
 
@@ -865,11 +838,11 @@ TEA_API const char* tea_check_lstring(tea_State* T, int index, int* len)
 TEA_API tea_CFunction tea_check_cfunction(tea_State* T, int index)
 {
     TValue* value = index2addr(T, index);
-    if(!tviscfunc(value))
+    if(!tvisfunc(value) && !iscfunc(funcV(value)))
     {
         expected(T, "cfunction", index);
     }
-    return cfuncV(value)->fn;
+    return funcV(value)->c.fn;
 }
 
 TEA_API const void* tea_check_pointer(tea_State* T, int index)

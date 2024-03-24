@@ -1,3 +1,8 @@
+/*
+** tealib.h
+** Standard library header
+*/
+
 #ifndef _TEALIB_H
 #define _TEALIB_H
 

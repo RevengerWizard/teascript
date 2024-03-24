@@ -623,12 +623,12 @@ static void list_opadd(tea_State* T)
 
     for(int i = 0; i < l1->count; i++)
     {
-        tea_list_append(T, list, l1->items + i);
+        tea_list_add(T, list, l1->items + i);
     }
 
     for(int i = 0; i < l2->count; i++)
     {
-        tea_list_append(T, list, l2->items + i);
+        tea_list_add(T, list, l2->items + i);
     }
 
     tea_pop(T, 3);

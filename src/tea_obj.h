@@ -38,16 +38,15 @@ enum
     TEA_TSTRING,
     TEA_TRANGE,
     TEA_TFUNC,
-    TEA_TCFUNC,
     TEA_TMODULE,
     TEA_TCLASS,
     TEA_TINSTANCE,
-    TEA_TMETHOD,
     TEA_TLIST,
     TEA_TMAP,
     TEA_TFILE,
     TEA_TPROTO,
     TEA_TUPVALUE,
+    TEA_TMETHOD,
 };
 
 /* GC common header */
@@ -176,6 +175,10 @@ typedef struct GCupvalue
 
 /* -- Function object (closures) -------------------------------------------------- */
 
+/* Common header of functions */
+#define GCfuncHeader \
+    GCobj obj; uint8_t ffid; int upvalue_count
+
 typedef enum
 {
     C_FUNCTION,
@@ -185,7 +188,7 @@ typedef enum
 
 typedef struct
 {
-    GCobj obj;
+    GCfuncHeader;
     uint8_t type;
     tea_CFunction fn;   /* C function to be called */
     int nargs;  /* Number of arguments or -1 */
@@ -193,11 +196,21 @@ typedef struct
 
 typedef struct
 {
-    GCobj obj;
+    GCfuncHeader;
     GCproto* proto;
-    GCupvalue** upvalues;
-    int upvalue_count;
+    GCupvalue** upvalues; /* Array of _pointers_ to upvalue object */
 } GCfuncT;
+
+typedef union
+{
+    GCfuncC c;
+    GCfuncT t;
+} GCfunc;
+
+#define FF_TEA  0
+#define FF_C  1
+#define isteafunc(fn)   ((fn)->c.ffid == FF_TEA)
+#define iscfunc(fn)   ((fn)->c.ffid == FF_C)
 
 /* -- List object -------------------------------------------------- */
 
@@ -227,7 +240,7 @@ typedef struct
     MapEntry* entries;
 } GCmap;
 
-/* -- Class objects -------------------------------------------------- */
+/* -- Class object -------------------------------------------------- */
 
 typedef struct GCclass
 {
@@ -239,12 +252,16 @@ typedef struct GCclass
     Table methods;
 } GCclass;
 
+/* -- Instance object -------------------------------------------------- */
+
 typedef struct
 {
     GCobj obj;
     GCclass* klass;
     Table fields;
 } GCinstance;
+
+/* -- Bound method object -------------------------------------------------- */
 
 typedef struct
 {
@@ -258,8 +275,7 @@ typedef struct
 /* Information about a call */
 typedef struct
 {
-    GCfuncT* func;
-    GCfuncC* cfunc;
+    GCfunc* func;
     uint8_t* ip;
     int state;
     TValue* base; /* Base for this function */
@@ -356,7 +372,6 @@ struct tea_State
 #define tvisstr(o) (itype(o) == TEA_TSTRING)
 #define tvisrange(o) (itype(o) == TEA_TRANGE)
 #define tvisfunc(o) (itype(o) == TEA_TFUNC)
-#define tviscfunc(o) (itype(o) == TEA_TCFUNC)
 #define tvismodule(o) (itype(o) == TEA_TMODULE)
 #define tvislist(o) (itype(o) == TEA_TLIST)
 #define tvismap(o) (itype(o) == TEA_TMAP)
@@ -373,8 +388,7 @@ struct tea_State
 #define gcV(o) ((o)->value.gc)
 #define strV(o) ((GCstr*)gcV(o))
 #define rangeV(o) ((GCrange*)gcV(o))
-#define funcV(o) ((GCfuncT*)gcV(o))
-#define cfuncV(o) ((GCfuncC*)gcV(o))
+#define funcV(o) ((GCfunc*)gcV(o))
 #define protoV(o) ((GCproto*)gcV(o))
 #define moduleV(o) ((GCmodule*)gcV(o))
 #define instanceV(o) ((GCinstance*)gcV(o))
@@ -406,8 +420,7 @@ static TEA_AINLINE void name(tea_State* T, TValue* o, const type* v) \
 define_setV(setstrV, GCstr, TEA_TSTRING)
 define_setV(setrangeV, GCrange, TEA_TRANGE)
 define_setV(setprotoV, GCproto, TEA_TPROTO)
-define_setV(setfuncV, GCfuncT, TEA_TFUNC)
-define_setV(setcfuncV, GCfuncC, TEA_TCFUNC)
+define_setV(setfuncV, GCfunc, TEA_TFUNC)
 define_setV(setmoduleV, GCmodule, TEA_TMODULE)
 define_setV(setclassV, GCclass, TEA_TCLASS)
 define_setV(setinstanceV, GCinstance, TEA_TINSTANCE)

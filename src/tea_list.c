@@ -18,7 +18,7 @@ GClist* tea_list_new(tea_State* T)
     return list;
 }
 
-void tea_list_append(tea_State* T, GClist* list, TValue* value)
+void tea_list_add(tea_State* T, GClist* list, TValue* value)
 {
     if(list->size < list->count + 1)
     {

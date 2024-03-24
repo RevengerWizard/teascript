@@ -25,8 +25,9 @@
 #include "tea_tab.h"
 #include "tea_list.h"
 
-static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
+static bool vm_callT(tea_State* T, GCfunc* f, int arg_count)
 {
+    GCfuncT* func = &f->t;
     if(arg_count < func->proto->arity)
     {
         if((arg_count + func->proto->variadic) == func->proto->arity)
@@ -52,7 +53,7 @@ static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
             setlistV(T, T->top++, list);
             for(int i = varargs; i > 0; i--)
             {
-                tea_list_append(T, list, T->top - 1 - i);
+                tea_list_add(T, list, T->top - 1 - i);
             }
             /* +1 for the list pushed earlier on the stack */
             T->top -= varargs + 1;
@@ -69,7 +70,7 @@ static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
         /* Last argument is the variadic arg */
         GClist* list = tea_list_new(T);
         setlistV(T, T->top++, list);
-        tea_list_append(T, list, T->top - 1);
+        tea_list_add(T, list, T->top - 1);
         T->top -= 2;
         setlistV(T, T->top++, list);
     }
@@ -77,9 +78,8 @@ static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
     tea_state_growci(T);
     tea_state_checkstack(T, func->proto->max_slots);
 
-    CallInfo* ci = ++T->ci;
-    ci->func = func;
-    ci->cfunc = NULL;
+    CallInfo* ci = ++T->ci; /* Enter new function */
+    ci->func = f;
     ci->ip = func->proto->bc;
     ci->state = CIST_TEA;
     ci->base = T->top - arg_count - 1;
@@ -87,8 +87,9 @@ static bool vm_callT(tea_State* T, GCfuncT* func, int arg_count)
     return true;
 }
 
-static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
+static bool vm_callC(tea_State* T, GCfunc* f, int arg_count)
 {
+    GCfuncC* cfunc = &f->c;
     int extra = cfunc->type > C_FUNCTION;
     if((cfunc->nargs != TEA_VARARGS) && ((arg_count + extra) != cfunc->nargs))
     {
@@ -98,9 +99,8 @@ static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
     tea_state_growci(T);
     tea_state_checkstack(T, TEA_STACK_START);
 
-    CallInfo* ci = ++T->ci;
-    ci->func = NULL;
-    ci->cfunc = cfunc;
+    CallInfo* ci = ++T->ci; /* Enter new function */
+    ci->func = f;
     ci->ip = NULL;
     ci->state = CIST_C;
     ci->base = T->top - arg_count - 1;
@@ -110,7 +110,7 @@ static bool vm_callC(tea_State* T, GCfuncC* cfunc, int arg_count)
     else 
         T->base = T->top - arg_count;
 
-    cfunc->fn(T);
+    cfunc->fn(T);   /* Do the actual call */
     
     TValue* res = T->top - 1;
     ci = T->ci--;
@@ -147,9 +147,11 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             return false;
         }
         case TEA_TFUNC:
-            return vm_callT(T, funcV(callee), arg_count);
-        case TEA_TCFUNC:
-            return vm_callC(T, cfuncV(callee), arg_count);
+            GCfunc* func = funcV(callee);
+            if(isteafunc(func))
+                return vm_callT(T, func, arg_count);
+            else
+                return vm_callC(T, func, arg_count);
         default:
             break; /* Non-callable object type */
     }
@@ -203,7 +205,8 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count
             TValue* method = tea_tab_get(&klass->methods, name);
             if(method)
             {
-                if(tviscfunc(method) || funcV(method)->proto->type != PROTO_STATIC)
+                if((tvisfunc(method) && iscfunc(funcV(method))) || 
+                    funcV(method)->t.proto->type != PROTO_STATIC)
                 {
                     tea_err_run(T, TEA_ERR_NOSTATIC, name->chars);
                 }
@@ -262,7 +265,7 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
                 for(int i = start; i < end; i += step)
                 {
                     setnumberV(&n, i);
-                    tea_list_append(T, list, &n);
+                    tea_list_add(T, list, &n);
                 }
             }
             else if(step < 0)
@@ -270,7 +273,7 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
                 for(int i = end + step; i >= 0; i += step)
                 {
                     setnumberV(&n, i);
-                    tea_list_append(T, list, &n);
+                    tea_list_add(T, list, &n);
                 }
             }
             return;
@@ -280,7 +283,7 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
             GClist* l = listV(obj);
             for(int i = 0; i < l->count; i++)
             {
-                tea_list_append(T, list, l->items + i);
+                tea_list_add(T, list, l->items + i);
             }
             return;
         }
@@ -293,7 +296,7 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
                 GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str->chars, i));
                 TValue v;
                 setstrV(T, &v, c);
-                tea_list_append(T, list, &v);
+                tea_list_add(T, list, &v);
             }
             return;
         }
@@ -391,14 +394,14 @@ static void vm_slice(tea_State* T, TValue* obj, GCrange* range, bool assign)
             {
                 for(int i = start; i < end; i += step)
                 {
-                    tea_list_append(T, new_list, list->items + i);
+                    tea_list_add(T, new_list, list->items + i);
                 }
             }
             else if(step < 0)
             {
                 for(int i = end + step; i >= start; i += step)
                 {
-                    tea_list_append(T, new_list, list->items + i);
+                    tea_list_add(T, new_list, list->items + i);
                 }
             }
 
@@ -784,7 +787,8 @@ retry:
                 TValue* value = tea_tab_get(&klass->methods, name);
                 if(value)
                 {
-                    if(tviscfunc(value) && cfuncV(value)->type == C_PROPERTY)
+                    if((tvisfunc(value) && iscfunc(funcV(value))) && 
+                        funcV(value)->c.type == C_PROPERTY)
                     {
                         if(!dopop)
                         {
@@ -856,7 +860,8 @@ static void vm_set_attr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
                 TValue* value = tea_tab_get(&klass->methods, name);
                 if(value)
                 {
-                    if(tviscfunc(value) && cfuncV(value)->type == C_PROPERTY)
+                    if((tvisfunc(value) && iscfunc(funcV(value))) && 
+                        funcV(value)->c.type == C_PROPERTY)
                     {
                         tea_vm_call(T, value, 1);
                         return;
@@ -990,7 +995,7 @@ static void vm_execute(tea_State* T)
 
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
-#define READ_CONSTANT() (T->ci->func->proto->k + READ_BYTE())
+#define READ_CONSTANT() (T->ci->func->t.proto->k + READ_BYTE())
 #define READ_STRING() strV(READ_CONSTANT())
 
 #define RUNTIME_ERROR(...) \
@@ -1160,7 +1165,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_GET_MODULE):
             {
                 GCstr* name = READ_STRING();
-                TValue* value = tea_tab_get(&T->ci->func->proto->module->values, name);
+                TValue* value = tea_tab_get(&T->ci->func->t.proto->module->values, name);
                 if(!value)
                 {
                     RUNTIME_ERROR(TEA_ERR_VAR, name->chars);
@@ -1172,10 +1177,10 @@ static void vm_execute(tea_State* T)
             {
                 bool b;
                 GCstr* name = READ_STRING();
-                TValue* v = tea_tab_set(T, &T->ci->func->proto->module->values, name, &b);
+                TValue* v = tea_tab_set(T, &T->ci->func->t.proto->module->values, name, &b);
                 if(b)
                 {
-                    tea_tab_delete(&T->ci->func->proto->module->values, name);
+                    tea_tab_delete(&T->ci->func->t.proto->module->values, name);
                     RUNTIME_ERROR(TEA_ERR_VAR, name->chars);
                 }
                 copyTV(T, v, T->top - 1);
@@ -1229,7 +1234,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_DEFINE_MODULE):
             {
                 GCstr* name = READ_STRING();
-                TValue* v = tea_tab_set(T, &T->ci->func->proto->module->values, name, NULL);
+                TValue* v = tea_tab_set(T, &T->ci->func->t.proto->module->values, name, NULL);
                 copyTV(T, v, T->top - 1);
                 T->top--;
                 DISPATCH();
@@ -1237,14 +1242,14 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_GET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                TValue* v = T->ci->func->upvalues[slot]->location;
+                TValue* v = T->ci->func->t.upvalues[slot]->location;
                 copyTV(T, T->top++, v);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                TValue* v = T->ci->func->upvalues[slot]->location;
+                TValue* v = T->ci->func->t.upvalues[slot]->location;
                 copyTV(T, v, T->top - 1);
                 DISPATCH();
             }
@@ -1354,7 +1359,7 @@ static void vm_execute(tea_State* T)
                         int j;
                         for(j = i; j < list->count - (var_count - rest_pos) + 1; j++)
                         {
-                            tea_list_append(T, rest_list, list->items + j);
+                            tea_list_add(T, rest_list, list->items + j);
                         }
                         i = j - 1;
                     }
@@ -1413,7 +1418,7 @@ static void vm_execute(tea_State* T)
             {
                 GClist* list = listV(T->top - 2);
                 TValue* item = T->top - 1;
-                tea_list_append(T, list, item);
+                tea_list_add(T, list, item);
                 T->top--;
                 DISPATCH();
             }
@@ -1710,20 +1715,19 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_CLOSURE):
             {
                 GCproto* proto = protoV(READ_CONSTANT());
-                GCfuncT* func = tea_func_newT(T, proto);
+                GCfunc* func = tea_func_newT(T, proto);
                 setfuncV(T, T->top++, func);
-
-                for(int i = 0; i < func->upvalue_count; i++)
+                for(int i = 0; i < func->t.upvalue_count; i++)
                 {
                     uint8_t is_local = READ_BYTE();
                     uint8_t index = READ_BYTE();
                     if(is_local)
                     {
-                        func->upvalues[i] = tea_func_capture(T, base + index);
+                        func->t.upvalues[i] = tea_func_capture(T, base + index);
                     }
                     else
                     {
-                        func->upvalues[i] = T->ci->func->upvalues[index];
+                        func->t.upvalues[i] = T->ci->func->t.upvalues[index];
                     }
                 }
                 DISPATCH();
@@ -1744,7 +1748,9 @@ static void vm_execute(tea_State* T)
                 {
                     T->base = T->ci->base;
                     T->top = base;
-                    if(T->ci->cfunc != NULL && T->ci->cfunc->type == C_FUNCTION)
+                    if(T->ci->func != NULL &&
+                        iscfunc(T->ci->func) &&
+                        T->ci->func->c.type == C_FUNCTION)
                     {
                         T->base++;
                     }
@@ -1862,7 +1868,7 @@ static void vm_execute(tea_State* T)
             {
                 GCstr* path_name = READ_STRING();
                 STORE_FRAME;
-                tea_imp_relative(T, T->ci->func->proto->module->path, path_name);
+                tea_imp_relative(T, T->ci->func->t.proto->module->path, path_name);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1894,7 +1900,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_IMPORT_END):
             {
-                T->last_module = T->ci->func->proto->module;
+                T->last_module = T->ci->func->t.proto->module;
                 DISPATCH();
             }
             CASE_CODE(BC_END):

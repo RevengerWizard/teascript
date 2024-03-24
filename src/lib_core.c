@@ -159,9 +159,9 @@ static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
 static void core_dump(tea_State* T)
 {
     tea_check_function(T, 0);
-    TValue* fn = T->base;
+    GCfunc* fn = funcV(T->base);
     SBuf* sb = tea_buf_tmp_(T);
-    if(!tvisfunc(fn) || tea_bcwrite(T, funcV(fn)->proto, writer_buf, sb))
+    if(!isteafunc(fn) || tea_bcwrite(T, fn->t.proto, writer_buf, sb))
     {
         tea_error(T, "Unable to dump given function");
     }

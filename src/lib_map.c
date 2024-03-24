@@ -29,7 +29,7 @@ static void map_keys(tea_State* T)
     for(int i = 0; i < map->size; i++)
     {
         if(map->entries[i].empty) continue;
-        tea_list_append(T, list, &map->entries[i].key);
+        tea_list_add(T, list, &map->entries[i].key);
     }
 }
 
@@ -44,7 +44,7 @@ static void map_values(tea_State* T)
     for(int i = 0; i < map->size; i++)
     {
         if(map->entries[i].empty) continue;
-        tea_list_append(T, list, &map->entries[i].value);
+        tea_list_add(T, list, &map->entries[i].value);
     }
 }
 

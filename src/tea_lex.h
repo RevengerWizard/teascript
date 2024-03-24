@@ -43,9 +43,12 @@ enum
 #undef TKENUM
 };
 
+typedef int LexChar;  /* Lexical character*/
+typedef int LexToken; /* Lexical token */
+
 typedef struct
 {
-    int type;
+    LexToken type;
     int line;
     TValue value;
 } Token;
@@ -60,12 +63,12 @@ typedef struct Lexer
     tea_Reader reader;   /* Reader callback */
     void* data; /* Reader data */
     GCmodule* module; /* Current module */
-    int c;  /* Current character */
+    LexChar c;  /* Current character */
     Token prev; /* Previous token */
     Token curr;   /* Current used token */
     Token next; /* Lookahead token */
     int line;   /* Line counter */
-    char string;    /* Whether string is ' or " */
+    LexChar string;    /* Whether string is ' or " */
     int braces[4];  /* Tracked string interpolations */
     int num_braces; /* Number of string interpolations */
     const char* mode;   /* Load bytecode (b) and/or source text (t) */

@@ -31,7 +31,7 @@ static const char* const lex_tokennames[] = {
 #define lex_iseol(lex)  (lex->c == '\n' || lex->c == '\r')
 
 /* Get more input from reader */
-static TEA_NOINLINE int lex_more(Lexer* lex)
+static TEA_NOINLINE LexChar lex_more(Lexer* lex)
 {
     size_t size;
     const char* p = lex->reader(lex->T, lex->data, &size);
@@ -48,17 +48,17 @@ static TEA_NOINLINE int lex_more(Lexer* lex)
     }
     lex->pe = p + size;
     lex->p = p + 1;
-    return (int)(uint8_t)p[0];
+    return (LexChar)(uint8_t)p[0];
 }
 
 /* Get next character */
-static TEA_AINLINE int lex_next(Lexer* lex)
+static TEA_AINLINE LexChar lex_next(Lexer* lex)
 {
-    return (lex->c = lex->p < lex->pe ? (int)(uint8_t)*lex->p++ : lex_more(lex));
+    return (lex->c = lex->p < lex->pe ? (LexChar)(uint8_t)*lex->p++ : lex_more(lex));
 }
 
 /* Lookahead one character and backtrack */
-static int lex_lookahead(Lexer* lex)
+static LexChar lex_lookahead(Lexer* lex)
 {
     if(lex->p > lex->pe)
     {
@@ -74,13 +74,13 @@ static int lex_lookahead(Lexer* lex)
 }
 
 /* Save character */
-static TEA_AINLINE void lex_save(Lexer* lex, int c)
+static TEA_AINLINE void lex_save(Lexer* lex, LexChar c)
 {
     tea_buf_putb(lex->T, &lex->sbuf, c);
 }
 
 /* Save previous character and get next character */
-static TEA_AINLINE int lex_savenext(Lexer* lex)
+static TEA_AINLINE LexChar lex_savenext(Lexer* lex)
 {
     lex_save(lex, lex->c);
     return lex_next(lex);
@@ -121,7 +121,7 @@ static Token lex_token(Lexer* lex, int type)
 typedef struct
 {
     const char* name;
-    int type;
+    LexToken type;
 } Keyword;
 
 const Keyword lex_tokens[] = {
@@ -161,7 +161,7 @@ const Keyword lex_tokens[] = {
 static Token lex_name(Lexer* lex)
 {
     size_t len = sbuf_len(&lex->sbuf);
-    int type = TK_NAME;
+    LexToken type = TK_NAME;
 
     for(int i = 0; lex_tokens[i].name != NULL; i++)
     {
@@ -176,7 +176,6 @@ static Token lex_name(Lexer* lex)
     Token token = lex_token(lex, type);
     GCstr* str = tea_str_copy(lex->T, lex->sbuf.b, (int)len);
     setstrV(lex->T, &token.value, str);
-
     return token;
 }
 
@@ -217,7 +216,6 @@ static Token lex_number_token(Lexer* lex, int num)
 
 	Token token = lex_token(lex, TK_NUMBER);
     setnumberV(&token.value, number);
-
 	return token;
 }
 
@@ -399,9 +397,9 @@ static Token lex_number(Lexer* lex)
     return lex_number_token(lex, NUM_DEC);
 }
 
-static int lex_hex_escape(Lexer* lex)
+static LexChar lex_hex_escape(Lexer* lex)
 {
-    int c = (lex_next(lex) & 15u) << 4;
+    LexChar c = (lex_next(lex) & 15u) << 4;
     if(!tea_char_isdigit(lex->c))
     {
         if (!tea_char_isxdigit(lex->c))
@@ -420,7 +418,7 @@ static int lex_hex_escape(Lexer* lex)
 
 static int lex_unicode_escape(Lexer* lex, int len)
 {
-    int c = 0;
+    LexChar c = 0;
     for(int i = 0; i < len; i++)
     {
         c = (c << 4) | (lex->c & 15u);
@@ -492,9 +490,9 @@ static Token lex_multistring(Lexer* lex)
         }
     }
 
-    int c = lex->c;
-    int c1 = lex_savenext(lex);
-    int c2 = lex_savenext(lex);
+    LexChar c = lex->c;
+    LexChar c1 = lex_savenext(lex);
+    LexChar c2 = lex_savenext(lex);
     lex_savenext(lex);
 
     if((c != lex->string) || (c1 != lex->string) || (c2 != lex->string))
@@ -512,7 +510,7 @@ static Token lex_multistring(Lexer* lex)
 static Token lex_string(Lexer* lex)
 {
     tea_State* T = lex->T;
-    int type = TK_STRING;
+    LexToken type = TK_STRING;
 
     while(lex->c != lex->string)
     {
@@ -550,7 +548,7 @@ static Token lex_string(Lexer* lex)
             }
             case '\\':
             {
-                int c = lex_next(lex);  /* Skip the '\\' */
+                LexChar c = lex_next(lex);  /* Skip the '\\' */
                 switch(lex->c)
                 {
                     case LEX_EOF: continue; /* Will raise an error next loop */
@@ -863,7 +861,7 @@ static Token lex_scan(Lexer* lex)
             case ':': case '?':
             case '~':
             {
-                int c = lex->c;
+                LexChar c = lex->c;
                 lex_next(lex);
                 return lex_token(lex, c);
             }
@@ -1024,7 +1022,7 @@ bool tea_lex_init(tea_State* T, Lexer* lex)
 }
 
 /* Convert token to string */
-const char* tea_lex_token2str(Lexer* lex, int t)
+const char* tea_lex_token2str(Lexer* lex, LexToken t)
 {
     if(t > TK_OFS)
         return lex_tokennames[t - TK_OFS - 1];

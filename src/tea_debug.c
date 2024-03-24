@@ -31,7 +31,13 @@ void tea_debug_value(TValue* v)
             break;
         case TEA_TFUNC:
         {
-            if(funcV(v)->proto->name == NULL)
+            GCfunc* func = funcV(v);
+            if(iscfunc(func))
+            {
+                printf("<native>");
+                break;
+            }
+            if(func->t.proto->name == NULL)
                 printf("<script>");
             else
                 printf("<function>");
@@ -45,9 +51,6 @@ void tea_debug_value(TValue* v)
                 printf("<function>");
             break;
         }
-        case TEA_TCFUNC:
-            printf("<native>");
-            break;
         case TEA_TINSTANCE:
             printf("<instance>");
             break;

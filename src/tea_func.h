@@ -17,7 +17,7 @@ TEA_FUNC GCupvalue* tea_func_capture(tea_State* T, TValue* local);
 TEA_FUNC void tea_func_close(tea_State* T, TValue* last);
 
 /* Functions (closures) */
-TEA_FUNC GCfuncC* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs);
-TEA_FUNC GCfuncT* tea_func_newT(tea_State* T, GCproto* proto);
+TEA_FUNC GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs);
+TEA_FUNC GCfunc* tea_func_newT(tea_State* T, GCproto* proto);
 
 #endif

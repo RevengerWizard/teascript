@@ -12,6 +12,7 @@
 #include <signal.h>
 
 #include "tea.h"
+#include "tea_obj.h"
 
 #include "tea_arch.h"
 

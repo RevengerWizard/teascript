@@ -29,7 +29,7 @@ static void parser_f(tea_State* T, void* ud)
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex);
-    GCfuncT* func = tea_func_newT(T, proto);
+    GCfunc* func = tea_func_newT(T, proto);
     setfuncV(T, T->top++, func);
 }
 
@@ -155,8 +155,8 @@ TEA_API int tea_load_string(tea_State* T, const char* s)
 TEA_API int tea_dump(tea_State* T, tea_Writer writer, void* data)
 {
     const TValue* o = T->top - 1;
-    if(tvisfunc(o))
-        return tea_bcwrite(T, funcV(o)->proto, writer, data);
+    if(tvisfunc(o) && isteafunc(funcV(o)))
+        return tea_bcwrite(T, funcV(o)->t.proto, writer, data);
     else
         return TEA_ERROR_SYNTAX;
 }
