@@ -121,6 +121,14 @@ static bool vm_callC(tea_State* T, GCfunc* f, int arg_count)
     return false;
 }
 
+bool vm_call(tea_State* T, GCfunc* func, int arg_count)
+{
+    if(isteafunc(func))
+        return vm_callT(T, func, arg_count);
+    else
+        return vm_callC(T, func, arg_count);
+}
+
 bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
 {
     switch(itype(callee))
@@ -129,7 +137,7 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
         {
             GCmethod* bound = methodV(callee);
             copyTV(T, T->top - arg_count - 1, &bound->receiver);
-            return vm_precall(T, &bound->method, arg_count);
+            return vm_call(T, bound->method, arg_count);
         }
         case TEA_TCLASS:
         {
@@ -147,11 +155,7 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             return false;
         }
         case TEA_TFUNC:
-            GCfunc* func = funcV(callee);
-            if(isteafunc(func))
-                return vm_callT(T, func, arg_count);
-            else
-                return vm_callC(T, func, arg_count);
+            return vm_call(T, funcV(callee), arg_count);
         default:
             break; /* Non-callable object type */
     }
@@ -167,7 +171,7 @@ static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int 
     {
         tea_err_run(T, TEA_ERR_METH, name->chars);
     }
-    return vm_precall(T, method, arg_count);
+    return vm_call(T, funcV(method), arg_count);
 }
 
 static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count)
@@ -240,8 +244,7 @@ static bool vm_bind_method(tea_State* T, GCclass* klass, GCstr* name)
     {
         tea_err_run(T, TEA_ERR_METH, name->chars);
     }
-
-    GCmethod* bound = tea_obj_new_method(T, T->top - 1, method);
+    GCmethod* bound = tea_obj_new_method(T, T->top - 1, funcV(method));
     T->top--;
     setmethodV(T, T->top++, bound);
     return true;

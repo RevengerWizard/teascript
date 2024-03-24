@@ -116,11 +116,11 @@ GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass)
     return instance;
 }
 
-GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, TValue* method)
+GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, GCfunc* method)
 {
     GCmethod* bound = tea_obj_new(T, GCmethod, TEA_TMETHOD);
     copyTV(T, &bound->receiver, receiver);
-    copyTV(T, &bound->method, method);
+    bound->method = method;
     return bound;
 }
 

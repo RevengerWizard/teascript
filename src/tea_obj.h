@@ -192,6 +192,7 @@ typedef struct
     uint8_t type;
     tea_CFunction fn;   /* C function to be called */
     int nargs;  /* Number of arguments or -1 */
+    TValue upvalues[1];   /* Array of upvalues (TValue) */
 } GCfuncC;
 
 typedef struct
@@ -211,6 +212,7 @@ typedef union
 #define FF_C  1
 #define isteafunc(fn)   ((fn)->c.ffid == FF_TEA)
 #define iscfunc(fn)   ((fn)->c.ffid == FF_C)
+#define sizeCfunc(n)    (sizeof(GCfuncC) - sizeof(TValue) + sizeof(TValue) * (n))
 
 /* -- List object -------------------------------------------------- */
 
@@ -267,7 +269,7 @@ typedef struct
 {
     GCobj obj;
     TValue receiver;
-    TValue method;
+    GCfunc* method;
 } GCmethod;
 
 /* -- State objects -------------------------------------------------- */
@@ -452,7 +454,7 @@ TEA_FUNC GCfile* tea_obj_new_file(tea_State* T, GCstr* path, GCstr* type);
 TEA_FUNC GCrange* tea_obj_new_range(tea_State* T, double start, double end, double step);
 TEA_FUNC GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass);
 TEA_FUNC GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass);
-TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, TValue* method);
+TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, GCfunc* method);
 
 /* -- Object and value handling --------------------------------------- */
 

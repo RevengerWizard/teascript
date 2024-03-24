@@ -116,11 +116,11 @@ void tea_func_close(tea_State* T, TValue* last)
 
 /* -- Functions (closures) -------------------------------------------------- */
 
-GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs)
+GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs, int nupvalues)
 {
-    GCfunc* func = (GCfunc*)tea_obj_alloc(T, sizeof(GCfuncC), TEA_TFUNC);
+    GCfunc* func = (GCfunc*)tea_obj_alloc(T, sizeCfunc(nupvalues), TEA_TFUNC);
     func->c.ffid = FF_C;
-    func->c.upvalue_count = 0;
+    func->c.upvalue_count = nupvalues;
     func->c.type = type;
     func->c.fn = fn;
     func->c.nargs = nargs;

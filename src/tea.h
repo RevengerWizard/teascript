@@ -26,6 +26,19 @@
 
 #define TEA_MIN_STACK 20
 
+#define TEA_UPVALUES_INDEX (-10000)
+#define tea_upvalue_index(i) (TEA_UPVALUES_INDEX - (i))
+
+enum
+{
+    TEA_OK,
+    TEA_ERROR_SYNTAX,
+    TEA_ERROR_RUNTIME,
+    TEA_ERROR_MEMORY,
+    TEA_ERROR_FILE,
+    TEA_ERROR_ERROR
+};
+
 typedef struct tea_State tea_State;
 
 typedef void (*tea_CFunction)(tea_State* T);
@@ -71,16 +84,6 @@ typedef tea_Class tea_Instance;
 #define TEA_MASK_FILE       (1 << TEA_TYPE_FILE)
 
 #define TEA_VARARGS (-1)
-
-enum
-{
-    TEA_OK,
-    TEA_ERROR_SYNTAX,
-    TEA_ERROR_RUNTIME,
-    TEA_ERROR_MEMORY,
-    TEA_ERROR_FILE,
-    TEA_ERROR_ERROR
-};
 
 enum
 {
@@ -155,7 +158,7 @@ TEA_API const char* tea_push_string(tea_State* T, const char* s);
 TEA_API const char* tea_push_fstring(tea_State* T, const char* fmt, ...);
 TEA_API const char* tea_push_vfstring(tea_State* T, const char* fmt, va_list args);
 TEA_API void tea_push_range(tea_State* T, double start, double end, double step);
-TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs);
+TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nargs, int nupvalues);
 
 TEA_API void tea_new_list(tea_State* T);
 TEA_API void tea_new_map(tea_State* T);
@@ -221,6 +224,7 @@ TEA_API void tea_error(tea_State* T, const char* fmt, ...);
 #define tea_to_string(T, index) (tea_to_lstring(T, (index), NULL))
 
 #define tea_push_literal(T, s)  (tea_push_lstring(T, "" s, (sizeof(s)/sizeof(char))-1))
+#define tea_push_cfunction(T, f, nargs) tea_push_cclosure(T, (f), nargs, 0);
 
 #define tea_opt_string(T, index, def) (tea_opt_lstring(T, (index), (def), NULL))
 

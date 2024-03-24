@@ -31,9 +31,15 @@ static TValue* index2addr(tea_State* T, int index)
         else
             return value;
     }
-    else
+    else if(index > TEA_UPVALUES_INDEX)
     {
         return T->top + index;
+    }
+    else
+    {
+        GCfunc* func = T->ci->func;
+        index = TEA_UPVALUES_INDEX - index;
+        return index <= func->c.upvalue_count ? &func->c.upvalues[index] : NULL;
     }
 }
 
@@ -420,9 +426,12 @@ TEA_API void tea_new_map(tea_State* T)
     T->top++;
 }
 
-TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs)
+TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nargs, int nupvalues)
 {
-    GCfunc* cf = tea_func_newC(T, C_FUNCTION, fn, nargs);
+    GCfunc* cf = tea_func_newC(T, C_FUNCTION, fn, nargs, nupvalues);
+    T->top -= nupvalues;
+    while(nupvalues--)
+        copyTV(T, &cf->c.upvalues[nupvalues], T->top + nupvalues);
     setfuncV(T, T->top, cf);
     T->top++;
 }
@@ -439,17 +448,17 @@ static void set_class(tea_State* T, const tea_Class* k)
         {
             if(strcmp(k->type, "method") == 0)
             {
-                GCfunc* cf = tea_func_newC(T, C_METHOD, k->fn, k->nargs);
+                GCfunc* cf = tea_func_newC(T, C_METHOD, k->fn, k->nargs, 0);
                 setfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "property") == 0)
             {
-                GCfunc* cf = tea_func_newC(T, C_PROPERTY, k->fn, k->nargs);
+                GCfunc* cf = tea_func_newC(T, C_PROPERTY, k->fn, k->nargs, 0);
                 setfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "static") == 0)
             {
-                GCfunc* cf = tea_func_newC(T, C_FUNCTION, k->fn, k->nargs);
+                GCfunc* cf = tea_func_newC(T, C_FUNCTION, k->fn, k->nargs, 0);
                 setfuncV(T, T->top++, cf);
             }
         }

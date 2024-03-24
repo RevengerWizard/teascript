@@ -69,7 +69,7 @@ static void gc_blacken(tea_State* T, GCobj* object)
         {
             GCmethod* bound = (GCmethod*)object;
             tea_gc_markval(T, &bound->receiver);
-            tea_gc_markval(T, &bound->method);
+            tea_gc_markobj(T, (GCobj*)bound->method);
             break;
         }
         case TEA_TCLASS:
@@ -195,7 +195,7 @@ static void gc_free(tea_State* T, GCobj* object)
             }
             else
             {
-                tea_mem_freet(T, GCfuncC, object);
+                tea_mem_free(T, object, sizeCfunc(func->c.upvalue_count));
             }
             break;
         }
