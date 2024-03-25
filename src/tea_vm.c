@@ -1923,19 +1923,6 @@ static void vm_execute(tea_State* T)
 #undef BINARY_OP_FUNCTION
 #undef RUNTIME_ERROR
 
-static void vm_restore_stack(tea_State* T)
-{
-    T->stack_max = T->stack + T->stack_size - 1;
-    if(T->ci_size > TEA_MAX_CALLS)
-    {
-        int inuse = (T->ci - T->ci_base);
-        if(inuse + 1 < TEA_MAX_CALLS)
-        {
-            tea_state_reallocci(T, TEA_MAX_CALLS);
-        }
-    }
-}
-
 int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
 {
     int oldnccalls = T->nccalls;
@@ -1950,7 +1937,17 @@ int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
         T->base = T->ci->base;
         T->top = old;
         setnullV(T->top++);
-        vm_restore_stack(T);
+
+        /* Correct the stack */
+        T->stack_max = T->stack + T->stack_size - 1;
+        if(T->ci_size > TEA_MAX_CALLS)
+        {
+            int inuse = T->ci - T->ci_base;
+            if(inuse + 1 < TEA_MAX_CALLS)
+            {
+                tea_state_reallocci(T, TEA_MAX_CALLS);
+            }
+        }
     }
     return status;
 }

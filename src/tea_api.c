@@ -134,34 +134,7 @@ TEA_API int tea_get_mask(tea_State* T, int index)
     TValue* value = index2addr(T, index);
     if(value == NULL)
         return TEA_MASK_NONE;
-    switch(itype(value))
-    {
-        case TEA_TNULL:
-            return TEA_MASK_NULL;
-        case TEA_TPOINTER:
-            return TEA_MASK_POINTER;
-        case TEA_TBOOL:
-            return TEA_MASK_BOOL;
-        case TEA_TNUMBER:
-            return TEA_MASK_NUMBER;
-        case TEA_TRANGE:
-            return TEA_MASK_RANGE;
-        case TEA_TLIST:
-            return TEA_MASK_LIST;
-        case TEA_TFUNC:
-            return TEA_MASK_FUNCTION;
-        case TEA_TMAP:
-            return TEA_MASK_MAP;
-        case TEA_TSTRING:
-            return TEA_MASK_STRING;
-        case TEA_TFILE:
-            return TEA_MASK_FILE;
-        case TEA_TMODULE:
-            return TEA_MASK_MODULE;
-        default:
-            break;
-    }
-    return TEA_MASK_NONE;
+    return 1 << (itype(value) + 1);
 }
 
 TEA_API int tea_get_type(tea_State* T, int index)
