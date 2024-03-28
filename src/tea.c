@@ -30,17 +30,17 @@
 #define stdin_is_tty()  1
 #endif
 
-#define PROMPT1  "> "
-#define PROMPT2  "... "
-#define MAX_INPUT 512
+#define TEA_PROMPT1  "> "
+#define TEA_PROMPT2  "... "
+#define TEA_MAX_INPUT 512
 
-static tea_State* global = NULL;
+static tea_State* globalT = NULL;
 static char* empty_argv[2] = { NULL, NULL };
 
 void tsignal(int id)
 {
     signal(id, SIG_DFL);
-    tea_error(global, "Interrupted");
+    tea_error(globalT, "Interrupted");
 }
 
 static void clear()
@@ -104,14 +104,14 @@ static int interpret(tea_State* T, const char* s)
 #define t_initreadline(T) ((void)T)
 #define t_readline(T, b, p) \
     ((void)T, fputs(p, stdout), fflush(stdout), /* Show prompt */ \
-    fgets(b, MAX_INPUT, stdin) != NULL)     /* Get line */
+    fgets(b, TEA_MAX_INPUT, stdin) != NULL)     /* Get line */
 #define t_saveline(T, line) { (void)T; (void)line; }
 #define t_freeline(T, b) { (void)T; (void)b; }
 #endif
 
 static const char* get_prompt(bool firstline)
 {
-    return firstline ? PROMPT1 : PROMPT2;
+    return firstline ? TEA_PROMPT1 : TEA_PROMPT2;
 }
 
 static bool multiline(const char* line)
@@ -144,7 +144,7 @@ static bool multiline(const char* line)
 
 static void repl(tea_State* T)
 {
-    global = T;
+    globalT = T;
     tea_set_repl(T, true);
 
     t_initreadline(T);
@@ -157,7 +157,7 @@ static void repl(tea_State* T)
 
         const char* prompt = get_prompt(true);
 
-        char buffer[MAX_INPUT];
+        char buffer[TEA_MAX_INPUT];
         char* b = buffer;
         while(t_readline(T, b, prompt))
         {
@@ -173,7 +173,7 @@ static void repl(tea_State* T)
                 continue;
             }
 
-            if(strlen(b) != MAX_INPUT - 1 || b[MAX_INPUT - 2] == '\n')
+            if(strlen(b) != TEA_MAX_INPUT - 1 || b[TEA_MAX_INPUT - 2] == '\n')
             {
                 t_freeline(T, b);
                 break;
