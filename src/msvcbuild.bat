@@ -1,4 +1,4 @@
-@rem Based upon the msvcbuild.bat of Mike Pall
+@rem Based upon the msvcbuild.bat of LuaJIT by Mike Pall
 
 @rem Script to build Teascript with MSVC.
 @rem
@@ -19,8 +19,8 @@
 @set TEALINK=link /nologo
 @set TEAMT=mt /nologo
 @set TEALIB=lib /nologo /nodefaultlib
-@set TEADLLNAME=tea0.dll
-@set TEALIBNAME=tea0.lib
+@set TEADLLNAME=tea00.dll
+@set TEALIBNAME=tea00.lib
 @set BUILDTYPE=release
 
 @if "%1" neq "debug" goto :NODEBUG

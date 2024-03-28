@@ -1,30 +1,32 @@
-# Teascript top level Makefile
-
-PLAT = none
-
-PLATS = generic linux macosx mingw emscripten
+##############################################################################
+# Teascript top level Makefile for installation. Requires GNU Make.
+#
+# Suitable for POSIX platforms (Linux, *BSD, OSX etc.).
+# Note: src/Makefile has many more configurable options.
+#
+# ##### This Makefile is NOT useful for Windows! #####
+# For MSVC, please follow the instructions given in src/msvcbuild.bat.
+# For MinGW and Cygwin, cd to src and run make with the Makefile there.
+#
+# Based upon Makefile of LuaJIT by Mike Pall
+##############################################################################
 
 TEST = python
 
-$(PLATS) clean:
-	$(MAKE) -C src $@
+INSTALL_DEP = src/tea
 
-all: $(PLAT)
+default all $(INSTALL_DEP):
+	@echo "==== Building Teascript ===="
+	$(MAKE) -C src
+	@echo "==== Successfully built Teascript ===="
+
+clean:
+	$(MAKE) -C src $@
 
 onetea:
 	$(MAKE) -C src onetea
 
-none:
-	@echo "Please do"
-	@echo "   make PLATFORM"
-	@echo "where PLATFORM is one of these:"
-	@echo "   $(PLATS)"
-
 test:
 	@$(TEST) util/test.py
 
-# Echo config parameters
-echo:
-	@$(MAKE) -C src -s echo
-
-.PHONY: all onetea $(PLATS) clean test echo
+.PHONY: all onetea clean test
