@@ -18,6 +18,7 @@
 #include "tea_lex.h"
 #include "tea_tab.h"
 #include "tea_list.h"
+#include "tea_strfmt.h"
 
 /* -- Common helper functions --------------------------------------------- */
 
@@ -219,7 +220,7 @@ TEA_API double tea_to_numberx(tea_State* T, int index, bool* is_num)
         if(is_num != NULL) *is_num = false;
         return 0;
     }
-    return tea_val_tonumber(v, is_num);
+    return tea_obj_tonumber(v, is_num);
 }
 
 TEA_API const char* tea_to_lstring(tea_State* T, int index, int* len)
@@ -231,7 +232,7 @@ TEA_API const char* tea_to_lstring(tea_State* T, int index, int* len)
         return NULL;
     }
 
-    GCstr* str = tea_val_tostring(T, value, 0);
+    GCstr* str = tea_strfmt_obj(T, value, 0);
     setstrV(T, T->top, str);
     T->top++;
 
@@ -263,12 +264,12 @@ TEA_API const void* tea_to_pointer(tea_State* T, int index)
 
 TEA_API bool tea_equal(tea_State* T, int index1, int index2)
 {
-    return tea_val_equal(index2addr(T, index1), index2addr(T, index2));
+    return tea_obj_equal(index2addr(T, index1), index2addr(T, index2));
 }
 
 TEA_API bool tea_rawequal(tea_State* T, int index1, int index2)
 {
-    return tea_val_rawequal(index2addr(T, index1), index2addr(T, index2));
+    return tea_obj_rawequal(index2addr(T, index1), index2addr(T, index2));
 }
 
 TEA_API void tea_concat(tea_State* T)
@@ -342,40 +343,19 @@ TEA_API const char* tea_push_string(tea_State* T, const char* s)
     return str->chars;
 }
 
-static char* format(tea_State* T, const char* fmt, va_list args, int* l)
-{
-    int len = vsnprintf(NULL, 0, fmt, args);
-    char* msg = tea_mem_new(T, char, len + 1);
-    vsnprintf(msg, len + 1, fmt, args);
-    *l = len;
-    return msg;
-}
-
 TEA_API const char* tea_push_fstring(tea_State* T, const char* fmt, ...)
 {
-    va_list args;
-    va_start(args, fmt);
-    int len;
-    char* s = format(T, fmt, args, &len);
-    va_end(args);
-
-    GCstr* str = tea_str_take(T, (char*)s, len);
-    setstrV(T, T->top, str);
-    T->top++;
-
-    return str->chars;
+    const char* ret;
+    va_list argp;
+    va_start(argp, fmt);
+    ret = tea_strfmt_pushvf(T, fmt, argp);
+    va_end(argp);
+    return ret;
 }
 
-TEA_API const char* tea_push_vfstring(tea_State* T, const char* fmt, va_list args)
+TEA_API const char* tea_push_vfstring(tea_State* T, const char* fmt, va_list argp)
 {
-    int len;
-    char* s = format(T, fmt, args, &len);
-
-    GCstr* str = tea_str_take(T, (char*)s, len);
-    setstrV(T, T->top, str);
-    T->top++;
-
-    return str->chars;
+    return tea_strfmt_pushvf(T, fmt, argp);
 }
 
 TEA_API void tea_push_range(tea_State* T, double start, double end, double step)

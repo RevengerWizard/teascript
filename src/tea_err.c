@@ -12,6 +12,7 @@
 #include "tea_err.h"
 #include "tea_vm.h"
 #include "tea_func.h"
+#include "tea_strfmt.h"
 
 struct tea_longjmp
 {
@@ -121,14 +122,12 @@ TEA_API tea_CFunction tea_atpanic(tea_State* T, tea_CFunction panicf)
 
 TEA_API void tea_error(tea_State* T, const char* fmt, ...)
 {
-    va_list args;
-    va_start(args, fmt);
-
-    char msg[1024];
-    int len = vsnprintf(NULL, 0, fmt, args);
-    vsnprintf(msg, len + 1, fmt, args);
-    va_end(args);
-
+    const char* msg;
+    va_list argp;
+    va_start(argp, fmt);
+    msg = tea_strfmt_pushvf(T, fmt, argp);
+    va_end(argp);
+    
     fputs(msg, stderr);
     fputc('\n', stderr);
     err_run(T);

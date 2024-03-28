@@ -12,6 +12,7 @@ ERRDEF(CALL, "'%s' is not callable")
 
 ERRDEF(NOARGS, "Expected 0 arguments but got %d")
 ERRDEF(ARGS, "Expected %d arguments, but got %d")
+ERRDEF(NOVAL, "Expected value")
 
 ERRDEF(PATH, "Unable to resolve path '%s'")
 ERRDEF(NOMOD, "Unknown module '%s'")
@@ -63,9 +64,10 @@ ERRDEF(VARMOD, "'%s' variable can't be found in module '%s'")
 ERRDEF(ASSERT, "Assertion failed")
 ERRDEF(OPEN, "Unable to open file '%s'")
 ERRDEF(DUMP, "Unable to dump given function")
+ERRDEF(STRFMT, "Invalid option '%s' to 'format'")
 
 /* Lexer/parser errors */
-ERRDEF(XNUMBER, "Number too big")
+ERRDEF(XNUMBER, "Malformed number")
 ERRDEF(XUND, "Cannot have consecutive '_' in number literal")
 ERRDEF(XLUND, "Cannot have leading '_' in number literal")
 ERRDEF(XHEX, "Invalid hex number")

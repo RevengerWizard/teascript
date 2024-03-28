@@ -82,7 +82,7 @@ static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
                     tombstone = item;
             }
         }
-        else if(tea_val_rawequal(&item->key, key))
+        else if(tea_obj_rawequal(&item->key, key))
         {
             /* We found the key */
             return item;

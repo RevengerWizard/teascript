@@ -57,6 +57,8 @@ typedef struct GCobj
     struct GCobj* next;
 } GCobj;
 
+/* -- Common type definitions --------------------------------------------- */
+
 /* Resizable string buffer */
 typedef struct SBuf
 {
@@ -65,14 +67,33 @@ typedef struct SBuf
     char* b;    /* Base pointer */
 } SBuf;
 
+/* Union to extract the bits of a double */
+typedef union NumberBits
+{
+    uint64_t u64;   /* 64 bit pattern overlaps double */
+    double n;   /* Number */
+    struct
+    {
+        int32_t i;  /* Integer value */
+        uint32_t _;
+    };
+    struct 
+    {
+        uint32_t lo;    /* Lower 32 bits of number */
+        uint32_t hi;    /* Upper 32 bits of number */
+    } u32;
+} NumberBits;
+
 /* -- String object -------------------------------------------------- */
+
+typedef uint32_t StrHash;   /* String hash value */
 
 typedef struct GCstr
 {
     GCobj obj;
     int len;    /* Size of string */
     char* chars;    /* Data of string */
-    uint32_t hash;  /* Hash of string */
+    StrHash hash;  /* Hash of string */
 } GCstr;
 
 /* -- Hash table -------------------------------------------------- */
@@ -459,10 +480,9 @@ TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, GCfunc* me
 /* -- Object and value handling --------------------------------------- */
 
 TEA_FUNC const void* tea_obj_pointer(TValue* v);
-TEA_FUNC bool tea_val_equal(TValue* a, TValue* b);
-TEA_FUNC bool tea_val_rawequal(TValue* a, TValue* b);
-TEA_FUNC GCstr* tea_val_tostring(tea_State* T, TValue* value, int depth);
-TEA_FUNC double tea_val_tonumber(TValue* value, bool* x);
+TEA_FUNC bool tea_obj_equal(TValue* a, TValue* b);
+TEA_FUNC bool tea_obj_rawequal(TValue* a, TValue* b);
+TEA_FUNC double tea_obj_tonumber(TValue* value, bool* x);
 
 static TEA_AINLINE bool tea_obj_isfalse(TValue* value)
 {

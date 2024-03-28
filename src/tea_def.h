@@ -29,9 +29,14 @@
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 
+/* Various macros */
 #ifndef UNUSED
 #define UNUSED(x) ((void)(x))   /* Avoid warnings */
 #endif
+
+#define U64x(hi, lo)    (((uint64_t)0x##hi << 32) + (uint64_t)0x##lo)
+
+#define checki32(x) ((x) == (int32_t)(x))
 
 #if defined(__GNUC__) || defined(__clang)
 
@@ -47,6 +52,8 @@
 
 #define TEA_LIKELY(x)   __builtin_expect(!!(x), 1)
 #define TEA_UNLIKELY(x) __builtin_expect(!!(x), 0)
+
+#define tea_ffs(x)  ((uint32_t)__builtin_ctz(x))
 
 #if defined(__INTEL_COMPILER) && (defined(__i386__) || defined(__x86_64__))
 static TEA_AINLINE uint32_t tea_fls(uint32_t x)
@@ -67,6 +74,11 @@ unsigned char _BitScanForward(unsigned long*, unsigned long);
 unsigned char _BitScanReverse(unsigned long*, unsigned long);
 #pragma intrinsic(_BitScanForward)
 #pragma intrinsic(_BitScanReverse)
+
+static TEA_AINLINE uint32_t tea_ffs(uint32_t x)
+{
+    unsigned long r; _BitScanForward(&r, x); return (uint32_t)r;
+}
 
 static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 {

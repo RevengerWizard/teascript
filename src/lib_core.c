@@ -21,6 +21,7 @@
 #include "tea_str.h"
 #include "tea_gc.h"
 #include "tea_utf.h"
+#include "tea_strfmt.h"
 
 static void core_print(tea_State* T)
 {
@@ -207,14 +208,8 @@ static void core_ord(tea_State* T)
 
 static void core_hex(tea_State* T)
 {
-    int n = tea_check_number(T, 0);
-
-    int len = snprintf(NULL, 0, "0x%x", n);
-    char* string = tea_mem_new(T, char, len + 1);
-    snprintf(string, len + 1, "0x%x", n);
-
-    GCstr* s = tea_str_take(T, string, len);
-    setstrV(T, T->top++, s);
+    double n = tea_check_number(T, 0);
+    tea_strfmt_pushf(T, "0x%x", (unsigned int)n);
 }
 
 static void core_bin(tea_State* T)

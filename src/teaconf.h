@@ -20,7 +20,7 @@
 #define TEAMOD_API  extern
 
 #ifndef TEA_NUMBER_FMT
-#define TEA_NUMBER_FMT		"%.16g"
+#define TEA_NUMBER_FMT		"%.14g"
 #endif
 
 #define TEA_MAX_CSTACK  8000

@@ -17,6 +17,7 @@
 #include "tea_utf.h"
 #include "tea_str.h"
 #include "tea_buf.h"
+#include "tea_strfmt.h"
 
 static void string_len(tea_State* T)
 {
@@ -391,6 +392,14 @@ static void string_replace(tea_State* T)
     setstrV(T, T->top++, s);
 }
 
+static void string_format(tea_State* T)
+{
+    SBuf* sb;
+    sb = tea_buf_tmp_(T);
+    tea_strfmt_putarg(T, sb, 0);
+    setstrV(T, T->top - 1, tea_buf_str(T, sb));
+}
+
 static void string_iterate(tea_State* T)
 {
     int len;
@@ -526,6 +535,7 @@ static const tea_Class string_class[] = {
     { "count", "method", string_count, 2 },
     { "find", "method", string_find, TEA_VARARGS },
     { "replace", "method", string_replace, 3 },
+    { "format", "method", string_format, TEA_VARARGS },
     { "iterate", "method", string_iterate, 2 },
     { "iteratorvalue", "method", string_iteratorvalue, 2 },
     { "+", "static", string_opadd, 2 },

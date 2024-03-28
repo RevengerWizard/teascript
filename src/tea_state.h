@@ -17,7 +17,7 @@
 #define TEA_CI_MIN 8
 
 #define incr_top(T) \
-    (++T->top >= (char*)T->stack_max && (tea_state_growstack1(T), 0))
+    (++T->top >= T->stack_max && (tea_state_growstack1(T), 0))
 
 #define stack_save(T, p) ((char*)(p) - (char*)T->stack)
 #define stack_restore(T, n)  ((TValue*)((char*)T->stack + (n)))

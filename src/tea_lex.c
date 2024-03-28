@@ -17,6 +17,7 @@
 #include "tea_obj.h"
 #include "tea_str.h"
 #include "tea_utf.h"
+#include "tea_strscan.h"
 
 /* Teascript lexer token names */
 static const char* const lex_tokennames[] = {
@@ -86,14 +87,6 @@ static TEA_AINLINE LexChar lex_savenext(Lexer* lex)
     return lex_next(lex);
 }
 
-static bool lex_checknext(Lexer* lex, const char* set)
-{
-    if(!strchr(set, lex->c))
-        return false;
-    lex_savenext(lex);
-    return true;
-}
-
 /* Skip "\n", "\r", "\r\n" or "\n\r" line breaks  */
 static void lex_newline(Lexer* lex)
 {
@@ -114,7 +107,6 @@ static Token lex_token(Lexer* lex, int type)
     Token token;
     token.type = type;
     token.line = lex->line;
-
     return token;
 }
 
@@ -179,222 +171,57 @@ static Token lex_name(Lexer* lex)
     return token;
 }
 
-#define NUM_HEX 16
-#define NUM_BIN 2
-#define NUM_OCTAL 8
-#define NUM_DEC 10
-
-static Token lex_number_token(Lexer* lex, int num)
-{
-    errno = 0;
-	double number;
-
-    lex_save(lex, '\0');
-    const char* buff = lex->sbuf.b;
-
-    switch(num)
-    {
-        case NUM_HEX:
-		    number = (double)strtoll(buff, NULL, NUM_HEX);
-            break;
-        case NUM_BIN:
-		    number = (int32_t)strtoll(buff + 2, NULL, NUM_BIN);
-            break;
-        case NUM_OCTAL:
-            number = (int32_t)strtoll(buff + 2, NULL, NUM_OCTAL);
-            break;
-        default:
-		    number = strtod(buff, NULL);
-            break;
-    }
-
-	if(errno == ERANGE)
-    {
-		errno = 0;
-		lex_syntaxerror(lex, TEA_ERR_XNUMBER);
-	}
-
-	Token token = lex_token(lex, TK_NUMBER);
-    setnumberV(&token.value, number);
-	return token;
-}
-
-static Token lex_hex_number(Lexer* lex)
-{
-    bool last = false;
-
-    while(tea_char_isxdigit(lex->c) || (lex->c == '_'))
-    {
-        if(lex->c == '_')
-        {
-            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
-            lex_next(lex);
-            last = true;
-        }
-        else
-        {
-            lex_savenext(lex);
-            last = false;
-        }
-    }
-
-    if(last) lex_syntaxerror(lex, TEA_ERR_XHEX);
-
-    return lex_number_token(lex, NUM_HEX);
-}
-
-static Token lex_binary_number(Lexer* lex)
-{
-    bool last = false;
-
-    while(tea_char_isbdigit(lex->c) || (lex->c == '_'))
-    {
-        if(lex->c == '_')
-        {
-            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
-            lex_next(lex);
-            last = true;
-        }
-        else
-        {
-            lex_savenext(lex);
-            last = false;
-        }
-    }
-
-    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
-
-    return lex_number_token(lex, NUM_BIN);
-}
-
-static Token lex_octal_number(Lexer* lex)
-{
-    bool last = false;
-
-    while(tea_char_iscdigit(lex->c) || (lex->c == '_'))
-    {
-        if(lex->c == '_')
-        {
-            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
-            lex_next(lex);
-            last = true;
-        }
-        else
-        {
-            lex_savenext(lex);
-            last = false;
-        }
-    }
-
-    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
-
-    return lex_number_token(lex, NUM_OCTAL);
-}
-
-static Token lex_exponent_number(Lexer* lex)
-{
-    lex_checknext(lex, "+-"); /* Optional exponent sign */
-
-    if(!tea_char_isdigit(lex->c))
-    {
-        lex_syntaxerror(lex, TEA_ERR_XSCI);
-    }
-
-    bool last = false;
-
-    while(tea_char_isdigit(lex->c) || (lex->c == '_'))
-    {
-        if(lex->c == '_')
-        {
-            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
-            lex_next(lex);
-            last = true;
-        }
-        else
-        {
-            lex_savenext(lex);
-            last = false;
-        }
-    }
-
-    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
-
-    return lex_number_token(lex, NUM_DEC);
-}
+/* -- Scanner for terminals ----------------------------------------------- */
 
 /* Parse a number literal */
 static Token lex_number(Lexer* lex)
 {
-    if(lex->c == '0')
-    {
-        lex_savenext(lex);
-        if(lex_checknext(lex, "xX"))
-        {
-            return lex_hex_number(lex);
-        }
-        else if(lex_checknext(lex, "bB"))
-        {
-            return lex_binary_number(lex);
-        }
-        else if(lex_checknext(lex, "cC"))
-        {
-            return lex_octal_number(lex);
-        }
-    }
+    TValue tv;
+    StrScanFmt fmt;
+    LexChar c, xp = 'e';
 
-    bool last = false;
-    while(tea_char_isdigit(lex->c) || (lex->c == '_'))
+    if((c = lex->c) == '0' && (lex_savenext(lex) | 0x20) == 'x')
+        xp = 'p';
+    while(tea_char_isident(lex->c) || lex->c == '.' ||
+           ((lex->c == '-' || lex->c == '+') && (c | 0x20) == xp))
     {
+        /* Ignore underscores */
         if(lex->c == '_')
         {
-            if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
             lex_next(lex);
-            last = true;
+            continue;
         }
-        else
-        {
-            lex_savenext(lex);
-            last = false;
-        }
-    }
-
-    /* Look for a fractional part */
-    if(lex->c == '.')
-    {
         /* Do not allow leading '.' numbers */
-        if(!tea_char_isdigit(lex_lookahead(lex)))
+        if(lex->c == '.')
         {
-            return lex_number_token(lex, NUM_DEC);
+            LexChar d = lex_lookahead(lex);
+            if(d == '.') break;
+            else if(!tea_char_isxdigit(d))
+            {
+                lex_syntaxerror(lex, TEA_ERR_XNUMBER);
+            }
         }
-
-        /* Consume the "." */
+        c = lex->c;
         lex_savenext(lex);
-
-        last = false;
-        while(tea_char_isdigit(lex->c) || (lex->c == '_'))
-        {
-            if(lex->c == '_')
-            {
-                if(last) lex_syntaxerror(lex, TEA_ERR_XUND);
-                lex_next(lex);
-                last = true;
-            }
-            else
-            {
-                lex_savenext(lex);
-                last = false;
-            }
-        }
     }
+    lex_save(lex, '\0');
 
-    if(lex_checknext(lex, "eE"))
+    fmt = tea_strscan_scan((const uint8_t *)lex->sbuf.b, sbuf_len(&lex->sbuf) - 1, &tv,
+                          STRSCAN_OPT_TONUM);
+
+    if(fmt == STRSCAN_NUM)
     {
-        return lex_exponent_number(lex);
+        /* Already in correct format */
+    }
+    else
+    {
+        lex_syntaxerror(lex, TEA_ERR_XNUMBER);
     }
 
-    if(last) lex_syntaxerror(lex, TEA_ERR_XLUND);
-
-    return lex_number_token(lex, NUM_DEC);
+    Token token = lex_token(lex, TK_NUMBER);
+    tv.tt = TEA_TNUMBER;
+    copyTV(lex->T, &token.value, &tv);
+	return token;
 }
 
 static LexChar lex_hex_escape(Lexer* lex)
@@ -402,7 +229,7 @@ static LexChar lex_hex_escape(Lexer* lex)
     LexChar c = (lex_next(lex) & 15u) << 4;
     if(!tea_char_isdigit(lex->c))
     {
-        if (!tea_char_isxdigit(lex->c))
+        if(!tea_char_isxdigit(lex->c))
             return -1;
         c += 9 << 4;
     }
@@ -957,17 +784,17 @@ static Token lex_scan(Lexer* lex)
             {
                 if(tea_char_isident(lex->c))
                 {
+                    if(tea_char_isdigit(lex->c))
+                    {
+                        return lex_number(lex);
+                    }
+
                     do
                     {
                         lex_savenext(lex);
                     }
                     while(tea_char_isident(lex->c) || tea_char_isdigit(lex->c));
-
                     return lex_name(lex);
-                }
-                else if(tea_char_isdigit(lex->c))
-                {
-                    return lex_number(lex);
                 }
                 else
                     lex_syntaxerror(lex, TEA_ERR_XCHAR);

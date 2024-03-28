@@ -24,6 +24,7 @@
 #include "tea_bc.h"
 #include "tea_tab.h"
 #include "tea_list.h"
+#include "tea_strfmt.h"
 
 static bool vm_callT(tea_State* T, GCfunc* f, int arg_count)
 {
@@ -1120,7 +1121,7 @@ static void vm_execute(tea_State* T)
                 {
                     TValue* v = tea_tab_set(T, &T->globals, T->repl_string, NULL);
                     copyTV(T, v, value);
-                    GCstr* str = tea_val_tostring(T, value, 0);
+                    GCstr* str = tea_strfmt_obj(T, value, 0);
                     setstrV(T, T->top++, str);
                     fwrite(str->chars, sizeof(char), str->len, stdout);
                     putchar('\n');
@@ -1507,7 +1508,7 @@ static void vm_execute(tea_State* T)
                     if(!vm_arith_comp(T, MM_EQ, a, b))
                     {
                         T->top -= 2;
-                        bool x = tea_val_equal(a, b);
+                        bool x = tea_obj_equal(a, b);
                         setboolV(T->top++, x);
                         DISPATCH();
                     }
@@ -1517,7 +1518,7 @@ static void vm_execute(tea_State* T)
                 else
                 {
                     T->top -= 2;
-                    bool x = tea_val_equal(a, b);
+                    bool x = tea_obj_equal(a, b);
                     setboolV(T->top++, x);
                 }
                 DISPATCH();
@@ -1620,7 +1621,7 @@ static void vm_execute(tea_State* T)
                 TValue* case_value = --T->top;
                 for(int i = 0; i < count; i++)
                 {
-                    if(tea_val_equal(switch_value, case_value))
+                    if(tea_obj_equal(switch_value, case_value))
                     {
                         i++;
                         while(i <= count)
@@ -1639,7 +1640,7 @@ static void vm_execute(tea_State* T)
             {
                 uint16_t offset = READ_SHORT();
                 TValue* a = --T->top;
-                if(!tea_val_equal(T->top - 1, a))
+                if(!tea_obj_equal(T->top - 1, a))
                 {
                     ip += offset;
                 }

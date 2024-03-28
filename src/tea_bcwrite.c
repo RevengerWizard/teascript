@@ -38,22 +38,13 @@ static void bcwrite_knum(BCWriteCtx* ctx, TValue* v)
     char* p = tea_buf_more(ctx->T, &ctx->sbuf, 10);
     double num = numberV(v);
 
-    union
-    {
-        double x;
-        struct 
-        {
-            uint32_t lo;
-            uint32_t hi;
-        } u32;
-    } n;
+    NumberBits x;
+    x.n = num;
 
-    n.x = num;
-
-    p = bcwrite_wuleb128(p, 1+(2*n.u32.lo | (n.u32.lo & 0x80000000u)));
-    if(n.u32.lo >= 0x80000000u)
-	    p[-1] = (p[-1] & 7) | ((n.u32.lo>>27) & 0x18);
-    p = bcwrite_wuleb128(p, n.u32.hi);
+    p = bcwrite_wuleb128(p, 1+(2*x.u32.lo | (x.u32.lo & 0x80000000u)));
+    if(x.u32.lo >= 0x80000000u)
+	    p[-1] = (p[-1] & 7) | ((x.u32.lo>>27) & 0x18);
+    p = bcwrite_wuleb128(p, x.u32.hi);
 
     ctx->sbuf.w = p;
 }

@@ -29,6 +29,7 @@ static void buf_grow(tea_State* T, SBuf* sb, size_t size)
 
 char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size)
 {
+    tea_assertT(T, size > sbuf_left(sb), "SBuf overflow");
     buf_grow(T, sb, size);
     return sb->b;
 }
@@ -36,8 +37,23 @@ char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size)
 char* tea_buf_more2(tea_State* T, SBuf* sb, size_t size)
 {
     size_t len = sbuf_len(sb);
+    tea_assertT(T, size > sbuf_left(sb), "SBuf overflow");
     buf_grow(T, sb, len + size);
     return sb->w;
+}
+
+void tea_buf_shrink(tea_State* T, SBuf* sb)
+{
+    char* b = sb->b;
+    size_t old_size = (size_t)(sb->e - b);
+    if(old_size > 2 * TEA_MIN_BUF)
+    {
+        size_t n = (size_t)(sb->w - b);
+        b = tea_mem_realloc(T, b, old_size, (old_size >> 1));
+        sb->b = b;
+        sb->w = b + n;
+        sb->e = b + (old_size >> 1);
+    }
 }
 
 SBuf* tea_buf_putmem(tea_State* T, SBuf* sb, const void* q, size_t len)

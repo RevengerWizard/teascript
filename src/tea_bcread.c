@@ -151,21 +151,13 @@ static uint32_t bcread_uleb128_33(Lexer* lex)
 /* Read number from constants */
 static double bcread_knum(Lexer* lex)
 {
-    union
-    {
-        double x;
-        struct 
-        {
-            uint32_t lo;
-            uint32_t hi;
-        } u32;
-    } n;
-
+    NumberBits x;
+    
     uint32_t lo = bcread_uleb128_33(lex);
-    n.u32.lo = lo;
-    n.u32.hi = bcread_uleb128(lex);
+    x.u32.lo = lo;
+    x.u32.hi = bcread_uleb128(lex);
 
-    return n.x;
+    return x.n;
 }
 
 /* Read GC constants from function prototype */
