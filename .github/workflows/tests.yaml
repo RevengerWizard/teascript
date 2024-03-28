@@ -9,7 +9,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: make
-      run: make linux
+      run: make
     - name: Add Path
       run: echo "src" >> $GITHUB_PATH
     - name: python
