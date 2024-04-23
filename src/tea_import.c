@@ -38,7 +38,7 @@
 #define IS_DIR_SEP(c) (c == DIR_SEP)
 #endif
 
-#define setprogdir() (".")
+#define setprogdir(T) (".")
 
 #define TEA_LL_SYM "tea_import_"
 
