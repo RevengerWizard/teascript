@@ -21,10 +21,6 @@
 #include "tea_tab.h"
 #include "tea_gc.h"
 
-#ifdef TEA_TARGET_WINDOWS
-#include <windows.h>
-#endif
-
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -41,6 +37,8 @@
 #else
 #define IS_DIR_SEP(c) (c == DIR_SEP)
 #endif
+
+#define setprogdir "."
 
 #define TEA_LL_SYM "tea_import_"
 
@@ -73,7 +71,24 @@ static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
 
 #elif TEA_TARGET_WINDOWS
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#undef setprogdir
+
+static const char* setprogdir(tea_State* T)
+{
+    char buff[MAX_PATH + 1];
+    char* lb;
+    DWORD nsize = sizeof(buff);
+    DWORD n = GetModuleFileNameA(NULL, buff, nsize);
+    if(n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
+    {
+        tea_error(T, "unable to get ModuleFileName");
+    }
+    *lb = '\0';
+    return tea_push_lstring(T, buff, nsize);
+}
 
 static void ll_error(tea_State* T)
 {
@@ -300,20 +315,6 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     tea_call(T, 0);
-}
-
-static const char* setprogdir(tea_State* T)
-{
-    char buff[MAX_PATH + 1];
-    char* lb;
-    DWORD nsize = sizeof(buff);
-    DWORD n = GetModuleFileNameA(NULL, buff, nsize);
-    if(n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
-    {
-        tea_error(T, "unable to get ModuleFileName");
-    }
-    *lb = '\0';
-    return tea_push_lstring(T, buff, nsize);
 }
 
 void tea_imp_logical(tea_State* T, GCstr* name)
