@@ -15,6 +15,13 @@
 
 /* Resizable string buffers */
 
+/* 
+** The SBuf struct definition is in tea_obj.h:
+**   char* w;	Write pointer
+**   char* e;	End pointer
+**   char* b;	Base pointer
+*/
+
 #define sbuf_size(sb)  ((size_t)((sb)->e - (sb)->b))
 #define sbuf_len(sb)   ((size_t)((sb)->w - (sb)->b))
 #define sbuf_left(sb)   ((size_t)((sb)->e - (sb)->w))

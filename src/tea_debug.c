@@ -3,10 +3,10 @@
 ** Teascript debug functions
 */
 
+#include <stdio.h>
+
 #define tea_debug_c
 #define TEA_CORE
-
-#include <stdio.h>
 
 #include "tea_debug.h"
 #include "tea_obj.h"
@@ -27,7 +27,7 @@ void tea_debug_value(TValue* v)
             printf(TEA_NUMBER_FMT, numberV(v));
             break;
         case TEA_TCLASS:
-            printf("<class %s>", classV(v)->name->chars);
+            printf("<class %s>", str_data(classV(v)->name));
             break;
         case TEA_TFUNC:
         {
@@ -68,11 +68,11 @@ void tea_debug_value(TValue* v)
             break;
         case TEA_TSTRING:
         {
-            GCstr* string = strV(v);
-            if(string->len > 40)
+            GCstr* str = strV(v);
+            if(str->len > 40)
                 printf("<string>");
             else
-                printf("%s", strV(v)->chars);
+                printf("%s", str_data(str));
             break;
         }
         case TEA_TUPVALUE:
@@ -86,7 +86,7 @@ void tea_debug_value(TValue* v)
 
 void tea_debug_chunk(tea_State* T, GCproto* f, const char* name)
 {
-    printf("== '%s' ==\n", name);
+    printf("== " TEA_QS " ==\n", name);
     for(int offset = 0; offset < f->bc_count;)
     {
         offset = tea_debug_instruction(T, f, offset);

@@ -17,6 +17,7 @@
 #include "tea_state.h"
 #include "tea_vm.h"
 #include "tea_tab.h"
+#include "tea_lib.h"
 
 /* -- Format parser ------------------------------------------------------- */
 
@@ -368,10 +369,10 @@ static SBuf* strfmt_putfnum_uint(tea_State* T, SBuf* sb, SFormat sf, double n)
 void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
 {
     int narg = (int)(T->top - T->base);
-    tea_check_string(T, arg); GCstr* fmt = strV(T->base + arg);
+    GCstr* fmt = tea_lib_checkstr(T, arg);
     FormatState fs;
     SFormat sf;
-    tea_strfmt_init(&fs, fmt->chars, fmt->len);
+    tea_strfmt_init(&fs, str_data(fmt), fmt->len);
     while((sf = strfmt_parse(&fs)) != STRFMT_EOF)
     {
         if(sf == STRFMT_LIT)
@@ -380,7 +381,7 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
         }
         else if(sf == STRFMT_ERR)
         {
-            tea_err_run(T, TEA_ERR_STRFMT, tea_str_copy(T, fs.str, fs.len)->chars);
+            tea_err_run(T, TEA_ERR_STRFMT, str_data(tea_str_copy(T, fs.str, fs.len)));
         }
         else
         {
@@ -390,13 +391,13 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
             switch(STRFMT_TYPE(sf))
             {
                 case STRFMT_INT:
-                    strfmt_putfnum_int(T, sb, sf, tea_check_number(T, arg));
+                    strfmt_putfnum_int(T, sb, sf, tea_lib_checknumber(T, arg));
                     break;
                 case STRFMT_UINT:
-                    strfmt_putfnum_uint(T, sb, sf, tea_check_number(T, arg));
+                    strfmt_putfnum_uint(T, sb, sf, tea_lib_checknumber(T, arg));
                     break;
                 case STRFMT_NUM:
-                    tea_strfmt_putfnum(T, sb, sf, tea_check_number(T, arg));
+                    tea_strfmt_putfnum(T, sb, sf, tea_lib_checknumber(T, arg));
                     break;
                 case STRFMT_STR:
                 {
@@ -406,13 +407,13 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
                     {
                         GCstr* str = strV(o);
                         len = str->len;
-                        s = str->chars;
+                        s = str_data(str);
                     }
                     else
                     {
                         GCstr* str = tea_strfmt_obj(T, o, 0);
                         len = str->len;
-                        s = str->chars;
+                        s = str_data(str);
                         sb = tea_buf_tmp_(T);   /* Global buffer may have been overwritten */
                     }
                     if((sf & STRFMT_T_QUOTED))
@@ -449,7 +450,7 @@ static GCstr* strfmt_list(tea_State* T, GClist* list, int depth)
 
     int size = 50;
 
-    char* string = tea_mem_new(T, char, size);
+    char* string = tea_mem_newvec(T, char, size);
     memcpy(string, "[", 1);
     int len = 1;
 
@@ -470,7 +471,7 @@ static GCstr* strfmt_list(tea_State* T, GClist* list, int depth)
         else
         {
             GCstr* s = tea_strfmt_obj(T, value, depth);
-            element = s->chars;
+            element = str_data(s);
             element_size = s->len;
         }
 
@@ -519,7 +520,7 @@ static GCstr* strfmt_map(tea_State* T, GCmap* map, int depth)
     int count = 0;
     int size = 50;
 
-    char* string = tea_mem_new(T, char, size);
+    char* string = tea_mem_newvec(T, char, size);
     memcpy(string, "{", 1);
     int len = 1;
 
@@ -546,7 +547,7 @@ static GCstr* strfmt_map(tea_State* T, GCmap* map, int depth)
         else
         {
             GCstr* s = tea_strfmt_obj(T, &entry->key, depth);
-            key = s->chars;
+            key = str_data(s);
             key_size = s->len;
         }
 
@@ -591,7 +592,7 @@ static GCstr* strfmt_map(tea_State* T, GCmap* map, int depth)
         else
         {
             GCstr* s = tea_strfmt_obj(T, &entry->value, depth);
-            element = s->chars;
+            element = str_data(s);
             element_size = s->len;
         }
 
@@ -647,7 +648,7 @@ static GCstr* strfmt_instance(tea_State* T, GCinstance* instance)
         return strV(result);
     }
 
-    const char* s = tea_strfmt_pushf(T, "<%s instance>", instance->klass->name->chars);
+    const char* s = tea_strfmt_pushf(T, "<%s instance>", str_data(instance->klass->name));
     GCstr* str = tea_str_new(T, s);
     T->top--;
     return str;
@@ -661,7 +662,7 @@ static GCstr* strfmt_func(tea_State* T, GCproto* proto)
 }
 
 /* Conversion of object to string */
-GCstr* tea_strfmt_obj(tea_State* T, const TValue* o, int depth)
+GCstr* tea_strfmt_obj(tea_State* T, cTValue* o, int depth)
 {
     if(depth > TEA_MAX_TOSTR)
         return tea_str_newlit(T, "...");
@@ -697,7 +698,7 @@ GCstr* tea_strfmt_obj(tea_State* T, const TValue* o, int depth)
         case TEA_TRANGE:
         {
             GCrange* range = rangeV(o);
-            const char* s = tea_strfmt_pushf(T, "%g..%g", range->start, range->end);
+            const char* s = tea_strfmt_pushf(T, "%g..%g..%g", range->start, range->end, range->step);
             GCstr* str = tea_str_new(T, s);
             T->top--;
             return str;
@@ -705,7 +706,7 @@ GCstr* tea_strfmt_obj(tea_State* T, const TValue* o, int depth)
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(o);
-            const char* s = tea_strfmt_pushf(T, "<%s module>", module->name->chars);
+            const char* s = tea_strfmt_pushf(T, "<%s module>", str_data(module->name));
             GCstr* str = tea_str_new(T, s);
             T->top--;
             return str;
@@ -713,7 +714,7 @@ GCstr* tea_strfmt_obj(tea_State* T, const TValue* o, int depth)
         case TEA_TCLASS:
         {
             GCclass* klass = classV(o);
-            const char* s = tea_strfmt_pushf(T, "<%s>", klass->name->chars);
+            const char* s = tea_strfmt_pushf(T, "<%s>", str_data(klass->name));
             GCstr* str = tea_str_new(T, s);
             T->top--;
             return str;
@@ -786,7 +787,7 @@ const char* tea_strfmt_pushvf(tea_State* T, const char* fmt, va_list argp)
     str = tea_buf_str(T, sb);
     setstrV(T, T->top, str);
     incr_top(T);
-    return str->chars;
+    return str_data(str);
 }
 
 /* Push formatted message as a string object to Teascript stack. Vararg variant */

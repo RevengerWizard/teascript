@@ -3,11 +3,11 @@
 ** Hash table handling
 */
 
-#define tea_tab_c
-#define TEA_CORE
-
 #include <stdlib.h>
 #include <string.h>
+
+#define tea_tab_c
+#define TEA_CORE
 
 #include "tea_gc.h"
 #include "tea_tab.h"
@@ -71,7 +71,7 @@ TValue* tea_tab_get(Table* table, GCstr* key)
 
 static void tab_resize(tea_State* T, Table* table, int size)
 {
-    TableEntry* entries = tea_mem_new(T, TableEntry, size);
+    TableEntry* entries = tea_mem_newvec(T, TableEntry, size);
     for(int i = 0; i < size; i++)
     {
         entries[i].key = NULL;
@@ -136,20 +136,20 @@ bool tea_tab_delete(Table* table, GCstr* key)
     return true;
 }
 
-void tea_tab_addall(tea_State* T, Table* from, Table* to)
+void tea_tab_merge(tea_State* T, Table* from, Table* to)
 {
     for(int i = 0; i < from->size; i++)
     {
         TableEntry* entry = &from->entries[i];
         if(entry->key != NULL)
         {
-            TValue* v = tea_tab_set(T, to, entry->key, NULL);
-            copyTV(T, v, &entry->value);
+            TValue* o = tea_tab_set(T, to, entry->key, NULL);
+            copyTV(T, o, &entry->value);
         }
     }
 }
 
-GCstr* tea_tab_findstr(Table* table, const char* chars, int len, uint32_t hash)
+GCstr* tea_tab_findstr(Table* table, const char* chars, int len, StrHash hash)
 {
     if(table->count == 0)
         return NULL;
@@ -164,7 +164,7 @@ GCstr* tea_tab_findstr(Table* table, const char* chars, int len, uint32_t hash)
             if(tvisnull(&entry->value))
                 return NULL;
         }
-        else if(entry->key->len == len && entry->key->hash == hash && memcmp(entry->key->chars, chars, len) == 0)
+        else if(entry->key->len == len && entry->key->hash == hash && memcmp(str_data(entry->key), chars, len) == 0)
         {
             /* We found it */
             return entry->key;

@@ -3,10 +3,10 @@
 ** Error handling
 */
 
+#include <stdlib.h>
+
 #define tea_err_c
 #define TEA_CORE
-
-#include <stdlib.h>
 
 #include "tea_def.h"
 #include "tea_err.h"
@@ -29,7 +29,38 @@ TEA_DATADEF const char* tea_err_allmsg =
 #include "tea_errmsg.h"
 ;
 
-TEA_NOINLINE static void err_run(tea_State* T)
+/* Throw error */
+TEA_NOINLINE void tea_err_throw(tea_State* T, int code)
+{
+    if(T->error_jump)
+    {
+        T->error_jump->status = code;
+        err_throw(T);
+    }
+    else
+    {
+        T->panic(T);
+        exit(EXIT_FAILURE);
+    }
+}
+
+/* Catch error and add to the error chain */
+int tea_err_protected(tea_State* T, tea_CPFunction f, void* ud)
+{
+    struct tea_longjmp tj;
+    tj.status = TEA_OK;
+    tj.prev = T->error_jump;    /* Chain new error handler */
+    T->error_jump = &tj;
+    err_try(T, &tj,
+        (*f)(T, ud);
+    );
+    T->error_jump = tj.prev;    /* Restore old error handler */
+    return tj.status;
+}
+
+/* -- Error handling ------------------------------------------------------ */
+
+TEA_NORET TEA_NOINLINE static void err_run(tea_State* T)
 {
     for(CallInfo* ci = T->ci; ci > T->ci_base; ci--)
     {
@@ -39,7 +70,7 @@ TEA_NOINLINE static void err_run(tea_State* T)
         GCproto* proto = ci->func->t.proto;
         size_t instruction = ci->ip - proto->bc - 1;
         fprintf(stderr, "[line %d] in ", tea_func_getline(proto, instruction));
-        fprintf(stderr, "%s\n", proto->name->chars);
+        fprintf(stderr, "%s\n", str_data(proto->name));
     }
 
     tea_err_throw(T, TEA_ERROR_RUNTIME);
@@ -59,8 +90,13 @@ TEA_NOINLINE void tea_err_run(tea_State* T, ErrMsg em, ...)
     vfprintf(stderr, err2msg(em), argp);
     va_end(argp);
     fputc('\n', stderr);
-
     err_run(T);
+}
+
+/* Non-vararg variant for better calling conventions */
+TEA_NOINLINE void tea_err_msg(tea_State* T, ErrMsg em)
+{
+    tea_err_run(T, em);
 }
 
 /* Lexer error */
@@ -70,7 +106,7 @@ TEA_NOINLINE void tea_err_lex(tea_State* T, const char* src, const char* tok, in
 
     if(tok != NULL)
     {
-        fprintf(stderr, " at '%s': ", tok);
+        fprintf(stderr, " at " TEA_QS ": ", tok);
     }
     else
     {
@@ -83,32 +119,30 @@ TEA_NOINLINE void tea_err_lex(tea_State* T, const char* src, const char* tok, in
     tea_err_throw(T, TEA_ERROR_SYNTAX);
 }
 
-/* Throw error */
-TEA_NOINLINE void tea_err_throw(tea_State* T, int code)
+/* Argument error */
+TEA_NOINLINE void tea_err_arg(tea_State* T, int narg, ErrMsg em)
 {
-    if(T->error_jump)
-    {
-        T->error_jump->status = code;
-        err_throw(T);
-    }
-    else
-    {
-        T->panic(T);
-        exit(EXIT_FAILURE);
-    }
+    fputs(err2msg(em), stderr);
+    fputc('\n', stderr);
+    err_run(T);
 }
 
-int tea_err_protected(tea_State* T, tea_CPFunction f, void* ud)
+/* Typecheck error for arguments */
+TEA_NOINLINE void tea_err_argtype(tea_State* T, int narg, const char* xname)
 {
-    struct tea_longjmp tj;
-    tj.status = TEA_OK;
-    tj.prev = T->error_jump;    /* Chain new error handler */
-    T->error_jump = &tj;
-    err_try(T, &tj,
-        (*f)(T, ud);
-    );
-    T->error_jump = tj.prev;    /* Restore old error handler */
-    return tj.status;
+    const char* tname;
+    TValue* o = narg < 0 ? T->top + narg : T->base + narg;
+    tname = o < T->top ? tea_typename(o) : "no value";
+    fprintf(stderr, err2msg(TEA_ERR_BADTYPE), xname, tname);
+    
+    fputc('\n', stderr);
+    err_run(T);
+}
+
+/* Typecheck error for arguments */
+TEA_NOINLINE void tea_err_argt(tea_State* T, int narg, int tt)
+{
+    tea_err_argtype(T, narg, tea_obj_typenames[tt - 1]);
 }
 
 /* -- Public error handling API -------------------------------------------------- */
@@ -120,7 +154,7 @@ TEA_API tea_CFunction tea_atpanic(tea_State* T, tea_CFunction panicf)
     return old;
 }
 
-TEA_API void tea_error(tea_State* T, const char* fmt, ...)
+TEA_API int tea_error(tea_State* T, const char* fmt, ...)
 {
     const char* msg;
     va_list argp;
@@ -131,4 +165,5 @@ TEA_API void tea_error(tea_State* T, const char* fmt, ...)
     fputs(msg, stderr);
     fputc('\n', stderr);
     err_run(T);
+    return 0;   /* Unreachable */
 }

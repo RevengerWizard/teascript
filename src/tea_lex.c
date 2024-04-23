@@ -3,13 +3,13 @@
 ** Lexical analyzer
 */
 
-#define tea_lex_c
-#define TEA_CORE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+
+#define tea_lex_c
+#define TEA_CORE
 
 #include "tea_def.h"
 #include "tea_lex.h"
@@ -90,7 +90,8 @@ static TEA_AINLINE LexChar lex_savenext(Lexer* lex)
 /* Skip "\n", "\r", "\r\n" or "\n\r" line breaks  */
 static void lex_newline(Lexer* lex)
 {
-    int old = lex->c;
+    LexChar old = lex->c;
+    tea_assertLS(lex_iseol(lex), "bad usage");
     lex_next(lex);   /* Skip "\n" or "\r" */
     if(lex_iseol(lex) && lex->c != old)
         lex_next(lex);  /* Skip "\n\r" or "\r\n" */
@@ -180,6 +181,7 @@ static Token lex_number(Lexer* lex)
     StrScanFmt fmt;
     LexChar c, xp = 'e';
 
+    tea_assertLS(tea_char_isdigit(lex->c), "bad usage");
     if((c = lex->c) == '0' && (lex_savenext(lex) | 0x20) == 'x')
         xp = 'p';
     while(tea_char_isident(lex->c) || lex->c == '.' ||
@@ -215,6 +217,7 @@ static Token lex_number(Lexer* lex)
     }
     else
     {
+        tea_assertLS(fmt == STRSCAN_ERROR, "unexpected number format %d", fmt);
         lex_syntaxerror(lex, TEA_ERR_XNUMBER);
     }
 
@@ -865,7 +868,7 @@ const char* tea_lex_token2str(Lexer* lex, LexToken t)
 /* Lexer error */
 void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...)
 {
-    char* module_name = lex->module->name->chars;
+    char* module_name = str_data(lex->module->name);
     char c = module_name[0];
     int off = 0;
     if(c == '?' || c == '=') off = 1;

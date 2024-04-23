@@ -8,6 +8,10 @@
 
 /* -- Target definitions -------------------------------------------------- */
 
+/* Target endianess */
+#define TEA_LE 0
+#define TEA_BE 1
+
 /* Target architectures */
 #define TEA_ARCH_X86 1
 #define TEA_ARCH_X64 2
@@ -87,19 +91,32 @@
 /* Set target architecture properties */
 #if TEA_TARGET == TEA_ARCH_X86
 
+#define TEA_ARCH_NAME "x86"
 #define TEA_ARCH_BITS 32
+#define TEA_ARCH_ENDIAN TEA_LE
 
 #elif TEA_TARGET == TEA_ARCH_X64
 
+#define TEA_ARCH_NAME "x64"
 #define TEA_ARCH_BITS 64
+#define TEA_ARCH_ENDIAN TEA_LE
 
 #elif TEA_TARGET == TEA_ARCH_ARM
 
+#define TEA_ARCH_NAME "arm"
 #define TEA_ARCH_BITS 32
+#define TEA_ARCH_ENDIAN TEA_LE
 
 #elif TEA_TARGET == TEA_ARCH_ARM64
 
 #define TEA_ARCH_BITS 64
+#if defined(__AARCH64EB__)
+#define TEA_ARCH_NAME "arm64be"
+#define TEA_ARCH_ENDIAN TEA_BE
+#else
+#define TEA_ARCH_NAME "arm64"
+#define TEA_ARCH_ENDIAN LUAJIT_LE
+#endif
 
 #else
 #error "No target architecture defined"
@@ -111,6 +128,16 @@
 #else
 #define TEA_32       0
 #define TEA_64       1
+#endif
+
+#if TEA_ARCH_ENDIAN == TEA_BE
+#define TEA_ARCH_BYTEORDER "big"
+#define TEA_ENDIAN_SELECT(le, be) be
+#define TEA_ENDIAN_LOHI(lo, hi) hi lo
+#else
+#define TEA_ARCH_BYTEORDER "little"
+#define LJ_ENDIAN_SELECT(le, be) le
+#define LJ_ENDIAN_LOHI(lo, hi) lo hi
 #endif
 
 #endif

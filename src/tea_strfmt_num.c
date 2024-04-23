@@ -322,7 +322,7 @@ static int nd_similar(uint32_t *nd, uint32_t ndhi, uint32_t *ref, size_t hilen, 
     {
         prec -= hilen - 9;
     }
-    tea_assertT(prec < 9, "bad precision %d", prec);
+    tea_assertX(prec < 9, "bad precision %d", prec);
     strfmt_wuint9(nd9, nd[ndhi]);
     strfmt_wuint9(ref9, *ref);
     return !memcmp(nd9, ref9, prec) && (nd9[prec] < '5') == (ref9[prec] < '5');
@@ -783,7 +783,7 @@ SBuf* tea_strfmt_putfnum(tea_State* T, SBuf* sb, SFormat sf, double n)
 /* -- Conversions to strings ---------------------------------------------- */
 
 /* Convert number to string */
-GCstr* tea_strfmt_num(tea_State* T, const TValue* o)
+GCstr* tea_strfmt_num(tea_State* T, cTValue* o)
 {
     char buf[STRFMT_MAXBUF_NUM];
     int len = (int)(strfmt_wfnum(T, NULL, STRFMT_G14, numberV(o), buf) - buf);

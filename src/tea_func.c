@@ -12,9 +12,9 @@
 
 /* -- Prototypes -------------------------------------------------- */
 
-GCproto* tea_func_newproto(tea_State* T, ProtoType type, GCmodule* module, int max_slots)
+GCproto* tea_func_newproto(tea_State* T, ProtoType type, int max_slots)
 {
-    GCproto* pt = tea_obj_new(T, GCproto, TEA_TPROTO);
+    GCproto* pt = tea_mem_newobj(T, GCproto, TEA_TPROTO);
     pt->arity = 0;
     pt->arity_optional = 0;
     pt->variadic = 0;
@@ -22,7 +22,6 @@ GCproto* tea_func_newproto(tea_State* T, ProtoType type, GCmodule* module, int m
     pt->max_slots = max_slots;
     pt->type = type;
     pt->name = NULL;
-    pt->module = module;
     pt->bc_count = 0;
     pt->bc_size = 0;
     pt->bc = NULL;
@@ -64,7 +63,7 @@ int tea_func_getline(GCproto* f, int instruction)
 /* Create an empty and closed upvalue */
 static GCupvalue* func_newuv(tea_State* T, TValue* slot)
 {
-    GCupvalue* uv = tea_obj_new(T, GCupvalue, TEA_TUPVALUE);
+    GCupvalue* uv = tea_mem_newobj(T, GCupvalue, TEA_TUPVALUE);
     setnullV(&uv->closed);
     uv->location = slot;
     uv->next = NULL;
@@ -72,7 +71,7 @@ static GCupvalue* func_newuv(tea_State* T, TValue* slot)
 }
 
 /* Find existing open upvalue for a stack slot or create a new one */
-GCupvalue* tea_func_capture(tea_State* T, TValue* local)
+GCupvalue* tea_func_finduv(tea_State* T, TValue* local)
 {
     GCupvalue* prev_upvalue = NULL;
     GCupvalue* upvalue = T->open_upvalues;
@@ -103,7 +102,7 @@ GCupvalue* tea_func_capture(tea_State* T, TValue* local)
 }
 
 /* Close all open upvalues pointing to some stack level or above */
-void tea_func_close(tea_State* T, TValue* last)
+void tea_func_closeuv(tea_State* T, TValue* last)
 {
     while(T->open_upvalues != NULL && T->open_upvalues->location >= last)
     {
@@ -118,7 +117,7 @@ void tea_func_close(tea_State* T, TValue* last)
 
 GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs, int nupvalues)
 {
-    GCfunc* func = (GCfunc*)tea_obj_alloc(T, sizeCfunc(nupvalues), TEA_TFUNC);
+    GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeCfunc(nupvalues), TEA_TFUNC);
     func->c.ffid = FF_C;
     func->c.upvalue_count = nupvalues;
     func->c.type = type;
@@ -128,17 +127,23 @@ GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs,
 }
 
 /* Create a new Teascript function with empty upvalues */
-GCfunc* tea_func_newT(tea_State* T, GCproto* proto)
+GCfunc* tea_func_newT(tea_State* T, GCproto* proto, GCmodule* module)
 {
-    GCupvalue** upvalues = tea_mem_new(T, GCupvalue*, proto->upvalue_count);
-    for(int i = 0; i < proto->upvalue_count; i++)
-    {
-        upvalues[i] = NULL;
-    }
-    GCfunc* func = (GCfunc*)tea_obj_alloc(T, sizeof(GCfuncT), TEA_TFUNC);
+    GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeTfunc(proto->upvalue_count), TEA_TFUNC);
     func->t.ffid = FF_TEA;
     func->t.upvalue_count = proto->upvalue_count;
     func->t.proto = proto;
-    func->t.upvalues = upvalues;
+    func->t.module = module;
+    for(int i = 0; i < proto->upvalue_count; i++)
+    {
+        func->t.upvalues[i] = NULL;
+    }
     return func;
+}
+
+void tea_func_free(tea_State* T, GCfunc* fn)
+{
+    size_t size = isteafunc(fn) ? sizeTfunc(fn->t.upvalue_count) :
+                sizeCfunc(fn->c.upvalue_count);
+    tea_mem_free(T, fn, size);
 }

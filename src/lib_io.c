@@ -3,10 +3,10 @@
 ** Teascript io module
 */
 
+#include <stdio.h>
+
 #define lib_io_c
 #define TEA_LIB
-
-#include "stdio.h"
 
 #include "tea.h"
 #include "tealib.h"
@@ -20,9 +20,8 @@ static void io_stdfile(tea_State* T, FILE* f, const char* name, const char* mode
     GCfile* file = tea_obj_new_file(T, tea_str_newlit(T, ""), tea_str_new(T, mode));
     file->file = f;
     file->is_open = -1;
-
     setfileV(T, T->top++, file);
-    tea_set_key(T, 0, name);
+    tea_set_attr(T, 0, name);
 }
 
 static const tea_Module io_module[] = {

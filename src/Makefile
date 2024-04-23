@@ -28,7 +28,7 @@ CC = $(DEFAULT_CC)
 CCOPT = -O2 #-fomit-frame-pointer
 # Use this if you want to generate a smaller binary (but it's slower):
 #CCOPT = -Os -fomit-frame-pointer
-# Note: it's no longer recommended to use -O3 with GCC 4.x.
+# Note: it's no longer recommended to use -O3 with GCC 4.x
 # The I-Cache bloat usually outweighs the benefits from aggressive inlining.
 #
 CCDEBUG =
@@ -77,9 +77,13 @@ XCFLAGS =
 # with "make clean", followed by "make".
 # Note that most of these are NOT suitable for benchmarking or release mode!
 #
+# Turn on assertions for the Teascript C API to debug problems with tea_* calls.
+# This is rather slow -- use only while developing C libraries/embeddings.
+#XCFLAGS += -DTEA_USE_APICHECK
+#
 # Turn on assertions for the whole Teascript VM. This significantly slows down
 # everything. Use only if you suspect a problem with Teascript itself.
-#XCFLAGS+= -DTEA_USE_ASSERT
+#XCFLAGS += -DTEA_USE_ASSERT
 #
 ##############################################################################
 # You probably don't need to change anything below this line!
@@ -243,7 +247,8 @@ TEALIB_O = lib_core.o \
 	lib_sys.o lib_time.o
 TEALIB_C = $(TEALIB_O:.o=.c)
 
-TEACORE_O = tea_api.o tea_load.o tea_bcwrite.o tea_bcread.o \
+TEACORE_O = tea_assert.o tea_api.o tea_lib.o \
+	tea_load.o tea_bcwrite.o tea_bcread.o \
 	tea_bc.o tea_parse.o tea_debug.o \
 	tea_err.o tea_gc.o tea_import.o tea_obj.o tea_func.o \
 	tea_list.o tea_map.o tea_str.o tea_lex.o tea_buf.o \

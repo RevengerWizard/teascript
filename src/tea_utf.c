@@ -65,16 +65,14 @@ static int utf_encode_bytes(int value)
 	return 0;
 }
 
-int tea_utf_len(GCstr* string)
+int tea_utf_len(GCstr* str)
 {
 	int len = 0;
-
-	for(uint32_t i = 0; i < string->len;)
+	for(uint32_t i = 0; i < str->len;)
     {
-		i += utf_decode_bytes(string->chars[i]);
+		i += utf_decode_bytes(str_data(str)[i]);
 		len++;
 	}
-
 	return len;
 }
 
@@ -171,22 +169,19 @@ int tea_utf_encode(int value, uint8_t* bytes)
 
 /* -- UTF-8 transformations -------------------------------------------------- */
 
-GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* string, uint32_t index)
+GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* str, uint32_t index)
 {
-	if(index >= string->len)
+	if(index >= str->len)
     {
 		return NULL;
 	}
 
-	int code_point = tea_utf_decode((uint8_t*)string->chars + index, string->len - index);
-
+	int code_point = tea_utf_decode((uint8_t*)str_data(str) + index, str->len - index);
 	if(code_point == -1)
     {
 		char bytes[2];
-
-		bytes[0] = string->chars[index];
+		bytes[0] = str_data(str)[index];
 		bytes[1] = '\0';
-
 		return tea_str_copy(T, bytes, 1);
 	}
 
@@ -196,7 +191,7 @@ GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* string, uint32_t index)
 GCstr* tea_utf_from_codepoint(tea_State* T, int value)
 {
 	int len = utf_encode_bytes(value);
-	char* bytes = tea_mem_new(T, char, len + 1);
+	char* bytes = tea_mem_newvec(T, char, len + 1);
 	bytes[len] = '\0';
 
 	tea_utf_encode(value, (uint8_t*)bytes);
@@ -204,9 +199,9 @@ GCstr* tea_utf_from_codepoint(tea_State* T, int value)
 	return tea_str_take(T, bytes, len);
 }
 
-GCstr* tea_utf_from_range(tea_State* T, GCstr* source, int start, uint32_t count, int step)
+GCstr* tea_utf_from_range(tea_State* T, GCstr* str, int start, uint32_t count, int step)
 {
-	uint8_t* from = (uint8_t*)source->chars;
+	uint8_t* from = (uint8_t*)str_data(str);
 	int len = 0;
 
 	for(uint32_t i = 0; i < count; i++)
@@ -214,7 +209,7 @@ GCstr* tea_utf_from_range(tea_State* T, GCstr* source, int start, uint32_t count
 		len += utf_decode_bytes(from[start + i * step]);
 	}
 
-	char* bytes = tea_mem_new(T, char, len + 1);
+	char* bytes = tea_mem_newvec(T, char, len + 1);
 	bytes[len] = '\0';
 
 	uint8_t* to = (uint8_t*)bytes;
@@ -222,7 +217,7 @@ GCstr* tea_utf_from_range(tea_State* T, GCstr* source, int start, uint32_t count
 	for(uint32_t i = 0; i < count; i++)
     {
 		int index = start + i * step;
-		int code_point = tea_utf_decode(from + index, source->len - index);
+		int code_point = tea_utf_decode(from + index, str->len - index);
 
 		if(code_point != -1)
         {
@@ -263,19 +258,18 @@ static void utf_rev(char* str, int len)
     }
 }
 
-TEA_FUNC GCstr* tea_utf_reverse(tea_State* T, GCstr* string)
+TEA_FUNC GCstr* tea_utf_reverse(tea_State* T, GCstr* str)
 {
-	size_t len = string->len;
-	char* reversed = tea_mem_new(T, char, len + 1);
-	strcpy(reversed, string->chars);
+	size_t len = str->len;
+	char* reversed = tea_mem_newvec(T, char, len + 1);
+	strcpy(reversed, str_data(str));
 	utf_rev(reversed, len);
-
     return tea_str_take(T, reversed, len);
 }
 
 int tea_utf_char_offset(char* str, int index)
 {
-	#define is_utf(c) (((c) & 0xc0) != 0x80)
+#define is_utf(c) (((c) & 0xc0) != 0x80)
 	int offset = 0;
 
 	while(index > 0 && str[offset])
@@ -285,5 +279,5 @@ int tea_utf_char_offset(char* str, int index)
 	}
 
 	return offset;
-	#undef is_utf
+#undef is_utf
 }

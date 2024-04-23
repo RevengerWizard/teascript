@@ -3,11 +3,11 @@
 ** Teascript global state
 */
 
-#define tea_state_c
-#define TEA_CORE
-
 #include <stdlib.h>
 #include <string.h>
+
+#define tea_state_c
+#define TEA_CORE
 
 #include "tealib.h"
 
@@ -33,12 +33,12 @@ static void stack_free(tea_State* T)
 static void stack_init(tea_State* T)
 {
     /* Initialize stack array */
-    T->stack = tea_mem_new(T, TValue, TEA_STACK_START + TEA_STACK_EXTRA);
+    T->stack = tea_mem_newvec(T, TValue, TEA_STACK_START + TEA_STACK_EXTRA);
     T->stack_size = TEA_STACK_START + TEA_STACK_EXTRA;
     T->top = T->stack;
     T->stack_max = T->stack + (T->stack_size - TEA_STACK_EXTRA) - 1;
     /* Initialize CallInfo array */
-    T->ci_base = tea_mem_new(T, CallInfo, TEA_CI_MIN);
+    T->ci_base = tea_mem_newvec(T, CallInfo, TEA_CI_MIN);
     T->ci_size = TEA_CI_MIN;
     T->ci = T->ci_base;
     T->base = T->ci->base = T->top;
@@ -147,8 +147,10 @@ static void* mem_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
         free(ptr);
         return NULL;
     }
-
-    return realloc(ptr, nsize);
+    else
+    {
+        return realloc(ptr, nsize);
+    }
 }
 
 /* -- State handling -------------------------------------------------- */
@@ -164,7 +166,7 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     allocf = (allocf != NULL) ? allocf : mem_alloc;
     T = (tea_State*)allocf(ud, NULL, 0, sizeof(*T));
     if(T == NULL)
-        return T;
+        return NULL;
     T->allocf = allocf;
     T->allocd = ud;
     T->error_jump = NULL;
@@ -172,7 +174,7 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->nccalls = 0;
     T->last_module = NULL;
     T->gc.objects = NULL;
-    T->gc.bytes_allocated = 0;
+    T->gc.total = 0;
     T->gc.gray_stack = NULL;
     T->gc.gray_count = 0;
     T->gc.gray_size = 0;
@@ -190,6 +192,7 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->map_class = NULL;
     T->file_class = NULL;
     T->range_class = NULL;
+    setnullV(&T->nullval);
     stack_init(T);
     tea_buf_init(&T->tmpbuf);
     tea_tab_init(&T->modules);
@@ -216,11 +219,7 @@ TEA_API void tea_close(tea_State* T)
     tea_tab_free(T, &T->strings);
     stack_free(T);
     tea_gc_freeall(T);
-
-#if defined(TEA_DEBUG_TRACE_MEMORY) || defined(TEA_DEBUG_FINAL_MEMORY)
-    printf("total bytes lost: %llu\n", T->gc.bytes_allocated);
-#endif
-
+    tea_assertT(T->gc.total == 0, "memory leak of %llu bytes", T->gc.total);
     state_free(T);
 }
 

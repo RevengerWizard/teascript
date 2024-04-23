@@ -3,21 +3,22 @@
 ** Teascript String class
 */
 
+#include <string.h>
+
 #define lib_string_c
 #define TEA_CORE
-
-#include <string.h>
-#include <ctype.h>
 
 #include "tea.h"
 #include "tealib.h"
 
+#include "tea_char.h"
 #include "tea_vm.h"
 #include "tea_gc.h"
 #include "tea_utf.h"
 #include "tea_str.h"
 #include "tea_buf.h"
 #include "tea_strfmt.h"
+#include "tea_lib.h"
 
 static void string_len(tea_State* T)
 {
@@ -27,20 +28,21 @@ static void string_len(tea_State* T)
 
 static void string_constructor(tea_State* T)
 {
-    const char* string = tea_to_string(T, 1);
+    const char* str = tea_to_string(T, 1);
     tea_pop(T, 1);
-    tea_push_string(T, string);
+    tea_push_string(T, str);
 }
 
 static void string_upper(tea_State* T)
 {
     int len;
-    const char* string = tea_get_lstring(T, 0, &len);
-    char* temp = tea_mem_new(T, char, len + 1);
+    const char* str = tea_get_lstring(T, 0, &len);
+    char* temp = tea_mem_newvec(T, char, len + 1);
 
-    for(int i = 0; string[i]; i++)
+    for(int i = 0; str[i]; i++)
     {
-        temp[i] = toupper(string[i]);
+        unsigned char c = (unsigned char)(str[i]);
+        temp[i] = tea_char_toupper(c);
     }
     temp[len] = '\0';
 
@@ -51,12 +53,13 @@ static void string_upper(tea_State* T)
 static void string_lower(tea_State* T)
 {
     int len;
-    const char* string = tea_get_lstring(T, 0, &len);
-    char* temp = tea_mem_new(T, char, len + 1);
+    const char* str = tea_get_lstring(T, 0, &len);
+    char* temp = tea_mem_newvec(T, char, len + 1);
 
-    for(int i = 0; string[i]; i++)
+    for(int i = 0; str[i]; i++)
     {
-        temp[i] = tolower(string[i]);
+        unsigned char c = (unsigned char)(str[i]);
+        temp[i] = tea_char_tolower(c);
     }
     temp[len] = '\0';
 
@@ -66,11 +69,8 @@ static void string_lower(tea_State* T)
 
 static void string_reverse(tea_State* T)
 {
-    tea_check_string(T, 0);
-
-    GCstr* string = strV(T->base);
-    GCstr* reversed = tea_utf_reverse(T, string);
-
+    GCstr* str = tea_lib_checkstr(T, 0);
+    GCstr* reversed = tea_utf_reverse(T, str);
     setstrV(T, T->top++, reversed);
 }
 
@@ -80,7 +80,7 @@ static void string_split(tea_State* T)
     tea_check_args(T, count < 1 || count > 3, "Expected 0 to 2 arguments, got %d", count);
 
     int len;
-    char* string = (char*)tea_get_lstring(T, 0, &len);
+    char* str = (char*)tea_get_lstring(T, 0, &len);
 
     const char* sep = "";
     int sep_len;
@@ -105,9 +105,9 @@ static void string_split(tea_State* T)
         }
     }
 
-    char* temp = tea_mem_new(T, char, len + 1);
+    char* temp = tea_mem_newvec(T, char, len + 1);
     char* temp_free = temp;
-    memcpy(temp, string, len);
+    memcpy(temp, str, len);
     temp[len] = '\0';
 
     char* token;
@@ -121,7 +121,7 @@ static void string_split(tea_State* T)
         for(; index < len && list_len < max_split; index++)
         {
             list_len++;
-            *(temp) = string[index];
+            *(temp) = str[index];
             *(temp + 1) = '\0';
 
             tea_push_string(T, temp);
@@ -130,7 +130,7 @@ static void string_split(tea_State* T)
 
         if(index != len && list_len >= max_split)
         {
-            temp = string + index;
+            temp = str + index;
         }
         else
         {
@@ -171,23 +171,26 @@ static void string_split(tea_State* T)
 static void string_title(tea_State* T)
 {
     int len;
-    const char* string = tea_get_lstring(T, 0, &len);
-    char* temp = tea_mem_new(T, char, len + 1);
+    const char* str = tea_get_lstring(T, 0, &len);
+    char* temp = tea_mem_newvec(T, char, len + 1);
 
+    unsigned char c;
     bool next = true;
-    for(int i = 0; string[i]; i++)
+    for(int i = 0; str[i]; i++)
     {
-        if(string[i] == ' ')
+        if(str[i] == ' ')
         {
             next = true;
         }
         else if(next)
         {
-            temp[i] = toupper(string[i]);
+            c = (unsigned char)(str[i]);
+            temp[i] = tea_char_toupper(c);
             next = false;
             continue;
         }
-        temp[i] = tolower(string[i]);
+        c = (unsigned char)(str[i]);
+        temp[i] = tea_char_tolower(c);
     }
     temp[len] = '\0';
 
@@ -197,42 +200,41 @@ static void string_title(tea_State* T)
 
 static void string_contains(tea_State* T)
 {
-    const char* string = tea_get_string(T, 0);
-    const char* delimiter = tea_check_string(T, 1);
-
-    tea_push_bool(T, strstr(string, delimiter) != NULL);
+    const char* str = tea_get_string(T, 0);
+    const char* del = tea_check_string(T, 1);
+    tea_push_bool(T, strstr(str, del) != NULL);
 }
 
 static void string_startswith(tea_State* T)
 {
-    const char* string = tea_get_string(T, 0);
+    const char* str = tea_get_string(T, 0);
     int len;
     const char* start = tea_check_lstring(T, 1, &len);
-
-    tea_push_bool(T, strncmp(string, start, len) == 0);
+    tea_push_bool(T, strncmp(str, start, len) == 0);
 }
 
 static void string_endswith(tea_State* T)
 {
     int l1, l2;
-    const char* string = tea_get_lstring(T, 0, &l1);
+    const char* str = tea_get_lstring(T, 0, &l1);
     const char* end = tea_check_lstring(T, 1, &l2);
-
-    tea_push_bool(T, strcmp(string + (l1 - l2), end) == 0);
+    tea_push_bool(T, strcmp(str + (l1 - l2), end) == 0);
 }
 
 static void string_leftstrip(tea_State* T)
 {
     int len;
-    const char* string = tea_get_lstring(T, 0, &len);
+    const char* str = tea_check_lstring(T, 0, &len);
 
     int i = 0;
     int count = 0;
-    char* temp = tea_mem_new(T, char, len + 1);
+    char* temp = tea_mem_newvec(T, char, len + 1);
 
+    unsigned char c;
     for(i = 0; i < len; i++)
     {
-        if(!isspace(string[i]))
+        c = (unsigned char)(str[i]);
+        if(!tea_char_isspace(c))
         {
             break;
         }
@@ -244,7 +246,7 @@ static void string_leftstrip(tea_State* T)
         temp = tea_mem_reallocvec(T, char, temp, len + 1, (len - count) + 1);
     }
 
-    memcpy(temp, string + count, len - count);
+    memcpy(temp, str + count, len - count);
     temp[len - count] = '\0';
 
     GCstr* s = tea_str_take(T, temp, len - count);
@@ -254,14 +256,16 @@ static void string_leftstrip(tea_State* T)
 static void string_rightstrip(tea_State* T)
 {
     int l;
-    const char* string = tea_get_lstring(T, 0, &l);
+    const char* str = tea_check_lstring(T, 0, &l);
 
     int len;
-    char* temp = tea_mem_new(T, char, l + 1);
+    char* temp = tea_mem_newvec(T, char, l + 1);
 
+    unsigned char c;
     for(len = l - 1; len > 0; len--)
     {
-        if(!isspace(string[len]))
+        c = (unsigned char)(str[len]);
+        if(!tea_char_isspace(c))
         {
             break;
         }
@@ -273,7 +277,7 @@ static void string_rightstrip(tea_State* T)
         temp = tea_mem_reallocvec(T, char, temp, l + 1, len + 2);
     }
 
-    memcpy(temp, string, len + 1);
+    memcpy(temp, str, len + 1);
     temp[len + 1] = '\0';
 
     GCstr* s = tea_str_take(T, temp, len + 1);
@@ -293,16 +297,14 @@ static void string_strip(tea_State* T)
 
 static void string_count(tea_State* T)
 {
-    const char* string = tea_get_string(T, 0);
+    const char* str = tea_get_string(T, 0);
     const char* needle = tea_check_string(T, 1);
-
     int count = 0;
-    while((string = strstr(string, needle)))
+    while((str = strstr(str, needle)))
     {
         count++;
-        string++;
+        str++;
     }
-
     tea_push_number(T, count);
 }
 
@@ -318,21 +320,21 @@ static void string_find(tea_State* T)
     }
 
     int len;
-    const char* string = tea_get_string(T, 0);
+    const char* str = tea_get_string(T, 0);
     const char* substr = tea_check_lstring(T, 1, &len);
 
     int position = 0;
     for(int i = 0; i < index; i++)
     {
-        char* result = strstr(string, substr);
+        char* result = strstr(str, substr);
         if(!result)
         {
             position = -1;
             break;
         }
 
-        position += (result - string) + (i * len);
-        string = result + len;
+        position += (result - str) + (i * len);
+        str = result + len;
     }
 
     tea_push_number(T, position);
@@ -341,7 +343,7 @@ static void string_find(tea_State* T)
 static void string_replace(tea_State* T)
 {
     int len, slen, rlen;
-    const char* string = tea_check_lstring(T, 0, &len);
+    const char* str = tea_check_lstring(T, 0, &len);
     const char* search = tea_check_lstring(T, 1, &slen);
     const char* replace = tea_check_lstring(T, 2, &rlen);
 
@@ -356,37 +358,37 @@ static void string_replace(tea_State* T)
         return;
     }
 
-    if(strstr(string, search) == NULL)
+    if(strstr(str, search) == NULL)
     {
         tea_pop(T, 2);
         return;
     }
 
-    if(string == search)
+    if(str == search)
     {
         return;
     }
 
     size_t result_size = len;
-    for(const char* p = string; (p = strstr(p, search)); p += slen)
+    for(const char* p = str; (p = strstr(p, search)); p += slen)
     {
         result_size += rlen - slen;
     }
 
-    char* result = tea_mem_new(T, char, result_size + 1);
+    char* result = tea_mem_newvec(T, char, result_size + 1);
 
     /* Perform the replacement */
     char* q = result;
-    for(const char* p = string; (p = strstr(p, search)); p += slen)
+    for(const char* p = str; (p = strstr(p, search)); p += slen)
     {
-        size_t n = p - string;
-        memcpy(q, string, n);
+        size_t n = p - str;
+        memcpy(q, str, n);
         q += n;
         memcpy(q, replace, rlen);
         q += rlen;
-        string = p + slen;
+        str = p + slen;
     }
-    strcpy(q, string);
+    strcpy(q, str);
 
     GCstr* s = tea_str_take(T, result, result_size);
     setstrV(T, T->top++, s);
@@ -403,7 +405,7 @@ static void string_format(tea_State* T)
 static void string_iterate(tea_State* T)
 {
     int len;
-    const char* string = tea_get_lstring(T, 0, &len);
+    const char* str = tea_get_lstring(T, 0, &len);
 
 	if(tea_is_null(T, 1))
     {
@@ -432,7 +434,7 @@ static void string_iterate(tea_State* T)
             return;
         }
 	}
-    while((string[index] & 0xc0) == 0x80);
+    while((str[index] & 0xc0) == 0x80);
 
 	tea_push_number(T, index);
 }
@@ -447,32 +449,27 @@ static void string_iteratorvalue(tea_State* T)
 
 static void string_opadd(tea_State* T)
 {
-    tea_check_string(T, 0);
-    tea_check_string(T, 1);
-
-    GCstr* s1 = strV(T->top - 2);
-    GCstr* s2 = strV(T->top - 1);
-
+    GCstr* s1 = tea_lib_checkstr(T, 0);
+    GCstr* s2 = tea_lib_checkstr(T, 1);
     GCstr* str = tea_buf_cat2str(T, s1, s2);
-
     T->top -= 2;
     setstrV(T, T->top++, str);
 }
 
 static bool repeat(tea_State* T)
 {
-    GCstr* string;
+    GCstr* str;
     int n;
 
     if(tvisstr(T->top - 1) && tvisnumber(T->top - 2))
     {
-        string = strV(T->top - 1);
+        str = strV(T->top - 1);
         n = numberV(T->top - 2);
     }
     else if(tvisnumber(T->top - 1) && tvisstr(T->top - 2))
     {
         n = numberV(T->top - 1);
-        string = strV(T->top - 2);
+        str = strV(T->top - 2);
     }
     else
     {
@@ -489,18 +486,18 @@ static bool repeat(tea_State* T)
     else if(n == 1)
     {
         T->top -= 2;
-        setstrV(T, T->top++, string);
+        setstrV(T, T->top++, str);
         return true;
     }
 
-    int len = string->len;
-    char* chars = tea_mem_new(T, char, (n * len) + 1);
+    int len = str->len;
+    char* chars = tea_mem_newvec(T, char, (n * len) + 1);
 
     int i;
     char* p;
     for(i = 0, p = chars; i < n; ++i, p += len)
     {
-        memcpy(p, string->chars, len);
+        memcpy(p, str_data(str), len);
     }
     *p = '\0';
 

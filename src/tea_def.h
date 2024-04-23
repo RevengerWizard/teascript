@@ -18,16 +18,19 @@
 #define TEA_COMPUTED_GOTO
 #endif
 
-#define TEA_MAX_MEM32   0x7fffff00
-#define TEA_MAX_MEM64 ((uint64_t)1<<47)
+#define TEA_MAX_MEM32   0x7fffff00  /* Max. 32 bit memory allocation */
+#define TEA_MAX_MEM64 ((uint64_t)1<<47) /* Max. 64 bit memory allocation */
 
 #define TEA_BUFFER_SIZE 512
 
-#define TEA_MIN_BUF 32
+/* Minimum buffer sizes */
+#define TEA_MIN_SBUF 32     /* Min. string buffer length */
+#define TEA_MIN_VECSIZE 8   /* Min. size for growable vectors */
 
-#define TEA_MAX_BUF TEA_MAX_MEM32
+#define TEA_MAX_BUF TEA_MAX_MEM32   /* Max. buffer length */
 
-#define UINT8_COUNT (UINT8_MAX + 1)
+#define TEA_MAX_UPVAL 256  /* Max. # of upvalues */
+#define TEA_MAX_LOCAL 256  /* Max. # of local variables */
 
 /* Various macros */
 #ifndef UNUSED
@@ -40,13 +43,14 @@
 
 #if defined(__GNUC__) || defined(__clang)
 
-#define TEA_INLINE  inline
+#define TEA_NORET __attribute__((noreturn))
+#define TEA_INLINE inline
 #define TEA_AINLINE inline __attribute__((always_inline))
 #define TEA_NOINLINE __attribute__((noinline))
 
 #if defined(__ELF__) || defined(__MACH__) || defined(__psp2__)
 #if !((defined(__sun__) && defined(__svr4__)) || defined(__CELLOS_LV2__))
-#define LJ_NOAPI    extern __attribute__((visibility("hidden")))
+#define TEA_NOAPI    extern __attribute__((visibility("hidden")))
 #endif
 #endif
 
@@ -66,6 +70,7 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 
 #elif defined(_MSC_VER)
 
+#define TEA_NORET __declspec(noreturn)
 #define TEA_INLINE __inline
 #define TEA_AINLINE __forceinline
 #define TEA_NOINLINE __declspec(noinline)
@@ -113,16 +118,25 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #define TEA_FUNC_NORET  TEA_FUNC TEA_NORET
 
 /* Internal assertions */
-#if defined(TEA_USE_ASSERT)
+#if defined(TEA_USE_ASSERT) || defined(TEA_USE_APICHECK)
 #define tea_assert_check(T, c, ...) \
     ((c) ? (void)0 : \
     (tea_assert_fail((T), __FILE__, __LINE__, __func__, __VA_ARGS__), 0))
+#define tea_checkapi(c, ...) tea_assert_check((T), (c), __VA_ARGS__)
+#else
+#define tea_checkapi(c, ...) ((void)0)
 #endif
 
 #ifdef TEA_USE_ASSERT
-#define tea_assertT(T, c, ...) tea_assert_check((T), (c), __VA_ARGS__)
+#define tea_assertT_(T, c, ...) tea_assert_check((T), (c), __VA_ARGS__)
+#define tea_assertT(c, ...) tea_assert_check((T), (c), __VA_ARGS__)
+#define tea_assertX(c, ...) tea_assert_check(NULL, (c), __VA_ARGS__)
+/* (tea_assertX((c), #c), (e)) */
+#define check_exp(c, e) (e)
 #else
-#define tea_assertT(T, c, ...) ((void)0)
+#define tea_assertT(c, ...) ((void)0)
+#define tea_assertX(c, ...) ((void)0)
+#define check_exp(c, e) (e)
 #endif
 
 #endif

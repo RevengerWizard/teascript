@@ -3,12 +3,12 @@
 ** Teascript os module
 */
 
-#define lib_os_c
-#define TEA_LIB
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define lib_os_c
+#define TEA_LIB
 
 #include "tea.h"
 #include "tealib.h"
@@ -99,38 +99,49 @@ static void os_execute(tea_State* T)
     tea_push_number(T, system(arg));
 }
 
+static void os_rename(tea_State* T)
+{
+    const char* fromname = tea_check_string(T, 0);
+    const char* toname = tea_check_string(T, 1);
+    tea_push_bool(T, rename(fromname, toname) == 0);
+}
+
+static void os_remove(tea_State* T)
+{
+    const char* filename = tea_check_string(T, 0);
+    tea_push_bool(T, remove(filename) == 0);
+}
+
 static void init_env(tea_State* T)
 {
-    /* This is not a portable feature on all the C compilers */
     extern char** environ;
 
     tea_new_map(T);
 
     for(char** current = environ; *current; current++)
     {
-        char* key = strdup(*current);  /* Create a copy of the environment variable */
+        const char* key = tea_push_string(T, *current);
         char* value = strchr(key, '=');
-
         if(value != NULL)
         {
             *value = '\0';  /* Split the variable and value */
             value++;
-
             tea_push_string(T, value);
-            tea_set_key(T, -2, key);
+            tea_set_field(T, -3);
         }
-
-        free(key);
     }
 
-    tea_set_key(T, 0, "env");
+    tea_set_attr(T, 0, "env");
 }
 
 static const tea_Module os_module[] = {
     { "getenv", os_getenv, TEA_VARARGS },
     { "setenv", os_setenv, TEA_VARARGS },
     { "execute", os_execute, 1 },
+    { "remove", os_remove, 1 },
+    { "rename", os_rename, 2 },
     { "name", NULL },
+    { "arch", NULL },
     { "env", NULL },
     { NULL, NULL }
 };
@@ -139,6 +150,8 @@ TEAMOD_API void tea_import_os(tea_State* T)
 {
     tea_create_module(T, TEA_MODULE_OS, os_module);
     tea_push_string(T, TEA_OS_NAME);
-    tea_set_key(T, 0, "name");
+    tea_set_attr(T, 0, "name");
+    tea_push_string(T, TEA_ARCH_NAME);
+    tea_set_attr(T, 0, "arch");
     init_env(T);
 }

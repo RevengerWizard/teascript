@@ -21,6 +21,12 @@ typedef struct BCWriteCtx
     int status; /* Status for writer callback */
 } BCWriteCtx;
 
+#ifdef TEA_USE_ASSERT
+#define tea_assertBCW(c, ...)   tea_assertT_(ctx->T, (c), __VA_ARGS__)
+#else
+#define tea_assertBCW(c, ...)   ((void)ctx)
+#endif
+
 /* -- Bytecode writer -------------------------------------------------- */
 
 /* Write ULEB128 to buffer */
@@ -83,7 +89,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
         if(type >= BCDUMP_KGC_STR)
         {
             GCstr* str = strV(v);
-            p = tea_buf_wmem(p, str->chars, str->len);
+            p = tea_buf_wmem(p, str_data(str), str->len);
         }
         ctx->sbuf.w = p;
         if(type == BCDUMP_KGC_NUM)
@@ -122,7 +128,7 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
 
     /* Write prototype name */
     p = bcwrite_wuleb128(p, len);
-    p = tea_buf_wmem(p, pt->name->chars, len);
+    p = tea_buf_wmem(p, str_data(pt->name), len);
 
     /* Write prototype header */
     *p++ = pt->arity;
@@ -148,6 +154,7 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
         size_t nn = (tea_fls(n)+8)*9 >> 6;
         char* q = ctx->sbuf.b + (5 - nn);
         p = bcwrite_wuleb128(q, n); /* Fill in final size */
+        tea_assertBCW(p == ctx->sbuf.b + 5, "bad ULEB128 write");
         ctx->status = ctx->writer(ctx->T, ctx->data, q, nn+n);
     }
 }
@@ -178,7 +185,6 @@ static void bcwrite_footer(BCWriteCtx* ctx)
 static void f_writer(tea_State* T, void* ud)
 {
     BCWriteCtx* ctx = (BCWriteCtx*)ud;
-    UNUSED(T);
     tea_buf_need(T, &ctx->sbuf, 1024);  /* Avoid resize */
     bcwrite_header(ctx);
     bcwrite_proto(ctx, ctx->f);

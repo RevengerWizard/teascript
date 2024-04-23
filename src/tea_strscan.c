@@ -84,7 +84,7 @@ static void strscan_double(uint64_t x, TValue* o, int32_t ex2, int32_t neg)
     if(TEA_UNLIKELY(ex2 <= -1075 && x != 0))
     {
 #if (defined(__GNUC__) || defined(__clang__)) && TEA_64
-        int32_t b = (int32_t)(__builtin_clzll(x)^63);
+        int32_t b = (int32_t)(__builtin_clzll(x) ^ 63);
 #else
         int32_t b = (x >> 32) ? 32 + (int32_t)tea_fls((uint32_t)(x >> 32)) : (int32_t)tea_fls((uint32_t)x);
 #endif
@@ -98,7 +98,7 @@ static void strscan_double(uint64_t x, TValue* o, int32_t ex2, int32_t neg)
     }
 
     /* Convert to double using a signed int64_t conversion, then rescale */
-    tea_assertT((int64_t)x >= 0, "bad double conversion");
+    tea_assertX((int64_t)x >= 0, "bad double conversion");
     n = (double)(int64_t)x;
     if(neg) n = -n;
     if(ex2) n = ldexp(n, ex2);
@@ -245,7 +245,7 @@ static StrScanFmt strscan_dec(const uint8_t* p, TValue* o, StrScanFmt fmt, uint3
         uint32_t hi = 0, lo = (uint32_t)(xip - xi);
         int32_t ex2 = 0, idig = (int32_t)lo + (ex10 >> 1);
 
-        tea_assertT(lo > 0 && (ex10 & 1) == 0, "bad lo %d ex10 %d", lo, ex10);
+        tea_assertX(lo > 0 && (ex10 & 1) == 0, "bad lo %d ex10 %d", lo, ex10);
 
         /* Handle simple overflow/underflow */
         if(idig > 310 / 2)
@@ -551,7 +551,11 @@ StrScanFmt tea_strscan_scan(const uint8_t* p, size_t len, TValue* o, uint32_t op
 
 bool tea_strscan_num(GCstr* str, TValue* o)
 {
-    StrScanFmt fmt = tea_strscan_scan((const uint8_t*)str->chars, str->len, o, STRSCAN_OPT_TONUM);
-    tea_assertT(fmt == STRSCAN_ERROR || fmt == STRSCAN_NUM, "bad scan format");
+    StrScanFmt fmt = tea_strscan_scan((const uint8_t*)(str_data(str)), str->len, o, STRSCAN_OPT_TONUM);
+    tea_assertX(fmt == STRSCAN_ERROR || fmt == STRSCAN_NUM, "bad scan format");
     return (fmt != STRSCAN_ERROR);
 }
+
+#undef DNEXT
+#undef DPREV
+#undef DLEN

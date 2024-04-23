@@ -3,13 +3,13 @@
 ** Teascript standalone interpreter
 */
 
-#define tea_c
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <signal.h>
+
+#define tea_c
 
 #include "tea.h"
 #include "tea_obj.h"
@@ -334,24 +334,25 @@ static int run_args(tea_State* T, char** argv, int n)
     return 0;
 }
 
-int main(int argc, char** argv)
+static struct Smain
 {
-    if(!argv[0])
-        argv = empty_argv;
-    tea_State* T = tea_open();
-    if(T == NULL)
-    {
-        t_message("Cannot create state: not enough memory");
-        return EXIT_FAILURE;
-    }
+    char** argv;
+    int argc;
+    int status;
+} smain;
 
-    int status = EXIT_SUCCESS;
+static void pmain(tea_State* T)
+{
+    struct Smain* s = &smain;
+    char** argv = s->argv;
+    int argc = s->argc;
+    
     int flags = 0;
     int script = collect_args(argv, &flags);
     if(script < 0)
     {
         print_usage();
-        goto finish;
+        return;
     }
 
     tea_set_argv(T, argc, argv, script);
@@ -359,15 +360,15 @@ int main(int argc, char** argv)
     if(flags & FLAG_V)
         print_version();
 
-    status = run_args(T, argv, script);
-    if(status != TEA_OK)
-        goto finish;
+    s->status = run_args(T, argv, script);
+    if(s->status != TEA_OK)
+        return;
     
     if(argc > script)
     {
-        status = handle_script(T, argv + script, (flags & FLAG_I) ? "=<stdin>" : NULL);
-        if(status != TEA_OK)
-            goto finish;
+        s->status = handle_script(T, argv + script, (flags & FLAG_I) ? "=<stdin>" : NULL);
+        if(s->status != TEA_OK)
+            return;
     }
 
     if((flags & FLAG_I))
@@ -386,9 +387,21 @@ int main(int argc, char** argv)
             do_file(T, NULL); /* Executes stdin as a file */
         }
     }
+}
 
-finish:
+int main(int argc, char** argv)
+{
+    tea_State* T;
+    if(!argv[0]) argv = empty_argv;
+    T = tea_open();
+    if(T == NULL)
+    {
+        t_message("Cannot create state: not enough memory");
+        return EXIT_FAILURE;
+    }
+    smain.argc = argc;
+    smain.argv = argv;
+    tea_cpcall(T, pmain, NULL);
     tea_close(T);
-
-    return status;
+    return smain.status;
 }

@@ -28,6 +28,8 @@ typedef struct
     } value;
 } TValue;
 
+typedef const TValue cTValue;
+
 /* Internal object tags */
 enum
 {
@@ -58,6 +60,9 @@ typedef struct GCobj
 } GCobj;
 
 /* -- Common type definitions --------------------------------------------- */
+
+/* Types for handling bytecodes */
+typedef uint8_t BCIns;
 
 /* Resizable string buffer */
 typedef struct SBuf
@@ -91,10 +96,12 @@ typedef uint32_t StrHash;   /* String hash value */
 typedef struct GCstr
 {
     GCobj obj;
-    int len;    /* Size of string */
+    uint32_t len;    /* Size of string */
     char* chars;    /* Data of string */
     StrHash hash;  /* Hash of string */
 } GCstr;
+
+#define str_data(s) ((s)->chars)
 
 /* -- Hash table -------------------------------------------------- */
 
@@ -107,8 +114,8 @@ typedef struct
 
 typedef struct
 {
-    int count;
-    int size;
+    uint32_t count;
+    uint32_t size;
     TableEntry* entries;
 } Table;
 
@@ -158,8 +165,8 @@ typedef enum
 
 typedef struct
 {
-    int offset; /* Bytecode instruction */
-    int line;   /* Line number for this bytecode */
+    uint32_t offset; /* Bytecode instruction */
+    uint32_t line;   /* Line number for this bytecode */
 } LineStart;
 
 typedef struct
@@ -168,20 +175,19 @@ typedef struct
     uint8_t arity;  /* Number of arguments */
     uint8_t arity_optional; /* Number of optional arguments */
     uint8_t variadic;   /* Function has variadic argument */
-    int upvalue_count;  /* Number of upvalues */
+    uint32_t upvalue_count;  /* Number of upvalues */
     uint8_t max_slots;  /* Max stack size used by the function */
     uint8_t type;   /* Function type information */
-    int bc_count;  /* Number of bytecode instructions */
-    int bc_size;
-    uint8_t* bc;  /* Bytecode instructions */
-    int k_size;
-    int k_count;    /* Number of constants */
+    uint32_t bc_count;  /* Number of bytecode instructions */
+    uint32_t bc_size;
+    BCIns* bc;  /* Bytecode instructions */
+    uint32_t k_size;
+    uint32_t k_count;    /* Number of constants */
     TValue* k;  /* Constants used by the function */
-    int line_count; /* Number of lines for the function definition */
-    int line_size;
+    uint32_t line_count; /* Number of lines for the function definition */
+    uint32_t line_size;
     LineStart* lines;   /* Map from bytecode ins. to source lines */
     GCstr* name;    /* Name of the function */
-    GCmodule* module;  /* Module namespace for the function */
 } GCproto;
 
 /* -- Upvalue object -------------------------------------------------- */
@@ -198,7 +204,8 @@ typedef struct GCupvalue
 
 /* Common header of functions */
 #define GCfuncHeader \
-    GCobj obj; uint8_t ffid; int upvalue_count
+    GCobj obj; uint8_t ffid; uint8_t upvalue_count; \
+    GCmodule* module
 
 typedef enum
 {
@@ -220,7 +227,7 @@ typedef struct
 {
     GCfuncHeader;
     GCproto* proto;
-    GCupvalue** upvalues; /* Array of _pointers_ to upvalue object */
+    GCupvalue* upvalues[1]; /* Array of _pointers_ to upvalue object */
 } GCfuncT;
 
 typedef union
@@ -234,14 +241,15 @@ typedef union
 #define isteafunc(fn)   ((fn)->c.ffid == FF_TEA)
 #define iscfunc(fn)   ((fn)->c.ffid == FF_C)
 #define sizeCfunc(n)    (sizeof(GCfuncC) - sizeof(TValue) + sizeof(TValue) * (n))
+#define sizeTfunc(n)    (sizeof(GCfuncT) - sizeof(GCupvalue*) + sizeof(GCupvalue*) * (n))
 
 /* -- List object -------------------------------------------------- */
 
 typedef struct
 {
     GCobj obj;
-    int count;  /* Number of list items */
-    int size;
+    uint32_t count;  /* Number of list items */
+    uint32_t size;
     TValue* items;  /* Array of list values */
 } GClist;
 
@@ -258,8 +266,8 @@ typedef struct
 typedef struct
 {
     GCobj obj;
-    int count;  /* Number of map fields */
-    int size;
+    uint32_t count;  /* Number of map fields */
+    uint32_t size;
     MapEntry* entries;
 } GCmap;
 
@@ -317,6 +325,7 @@ typedef struct
     _(BXOR, ^) _(LSHIFT, <<) _(RSHIFT, >>) \
     _(LT, <) _(LE, <=) _(GT, >) _(GE, >=) _(EQ, ==) \
     _(INDEX, []) _(TOSTRING, tostring) \
+    _(CALL, call) \
     _(ITER, iterate) _(NEXT, iteratorvalue) \
     _(CONTAINS, contains) _(GC, gc)
 
@@ -332,10 +341,10 @@ MMDEF(MMENUM)
 typedef struct GCState
 {
     GCobj* objects;    /* List of all collectable objects */
-    size_t bytes_allocated; /* Number of bytes currently allocated */
-    size_t next_gc; /* Number of bytes to activate next GC */
-    int gray_count; /* Number of grayed GC objects */
-    int gray_size;
+    size_t total; /* Memory currently allocated */
+    size_t next_gc; /* Memory threshold to activate GC */
+    uint32_t gray_count; /* Number of grayed GC objects */
+    uint32_t gray_size;
     GCobj** gray_stack; /* List of gray objects */
 } GCState;
 
@@ -346,11 +355,11 @@ struct tea_State
     TValue* stack;    /* Stack base */
     TValue* top;  /* First free slot in the stack */
     TValue* base; /* Base of current function */
-    int stack_size; 
+    uint32_t stack_size; 
     CallInfo* ci;    /* CallInfo for current function */
     CallInfo* ci_end;    /* Points after end of ci array */
     CallInfo* ci_base;   /* CallInfo base */
-    int ci_size;    /* Size of array 'ci_base' */
+    uint32_t ci_size;    /* Size of array 'ci_base' */
     GCupvalue* open_upvalues; /* List of open upvalues in the stack */
     struct tea_longjmp* error_jump; /* Current error recovery point */
     int nccalls;    /* Number of nested C calls */
@@ -362,6 +371,7 @@ struct tea_State
     Table constants;    /* Table to keep track of 'const' variables */
     Table strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
+    TValue nullval; /* A null value */
     GCmodule* last_module;    /* Last cached module */
     GCclass* number_class;
     GCclass* bool_class;
@@ -382,6 +392,13 @@ struct tea_State
     int argf;
     bool repl;
 };
+
+#define nulltv(T) \
+    check_exp(tvisnull(&T->nullval), &T->nullval)
+
+#if defined(TEA_USE_ASSERT) || defined(TEA_USE_APICHECK)
+TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, const char* func, const char* fmt, ...);
+#endif
 
 /* -- TValue getters/setters -------------------------------------------------- */
 
@@ -405,21 +422,21 @@ struct tea_State
 #define tvisproto(o) (itype(o) == TEA_TPROTO)
 
 /* Macros to get tagged values */
-#define boolV(o) ((o)->value.b)
-#define numberV(o) ((o)->value.n)
-#define pointerV(o) ((o)->value.p)
-#define gcV(o) ((o)->value.gc)
-#define strV(o) ((GCstr*)gcV(o))
-#define rangeV(o) ((GCrange*)gcV(o))
-#define funcV(o) ((GCfunc*)gcV(o))
-#define protoV(o) ((GCproto*)gcV(o))
-#define moduleV(o) ((GCmodule*)gcV(o))
-#define instanceV(o) ((GCinstance*)gcV(o))
-#define methodV(o) ((GCmethod*)gcV(o))
-#define classV(o) ((GCclass*)gcV(o))
-#define listV(o) ((GClist*)gcV(o))
-#define mapV(o) ((GCmap*)gcV(o))
-#define fileV(o) ((GCfile*)gcV(o))
+#define boolV(o) check_exp(tvisbool(o), (o)->value.b)
+#define numberV(o) check_exp(tvisnumber(o), (o)->value.n)
+#define pointerV(o) check_exp(tvispointer(o), (o)->value.p)
+#define gcV(o) check_exp(tvisgcv(o), (o)->value.gc)
+#define strV(o) check_exp(tvisstr(o), (GCstr*)gcV(o))
+#define rangeV(o) check_exp(tvisrange(o), (GCrange*)gcV(o))
+#define funcV(o) check_exp(tvisfunc(o), (GCfunc*)gcV(o))
+#define protoV(o) check_exp(tvisproto(o), (GCproto*)gcV(o))
+#define moduleV(o) check_exp(tvismodule(o), (GCmodule*)gcV(o))
+#define instanceV(o) check_exp(tvisinstance(o), (GCinstance*)gcV(o))
+#define methodV(o) check_exp(tvismethod(o), (GCmethod*)gcV(o))
+#define classV(o) check_exp(tvisclass(o), (GCclass*)gcV(o))
+#define listV(o) check_exp(tvislist(o), (GClist*)gcV(o))
+#define mapV(o) check_exp(tvismap(o), (GCmap*)gcV(o))
+#define fileV(o) check_exp(tvisfile(o), (GCfile*)gcV(o))
 
 /* Macros to set tagged values */
 #define setnullV(o) ((o)->tt = TEA_TNULL)
@@ -454,21 +471,16 @@ define_setV(setfileV, GCfile, TEA_TFILE)
 #undef define_setV
 
 /* Copy tagged values */
-static TEA_AINLINE void copyTV(tea_State* T, TValue* o1, const TValue* o2)
+static TEA_AINLINE void copyTV(tea_State* T, TValue* o1, cTValue* o2)
 {
     o1->value = o2->value;
     o1->tt = o2->tt;
 }
 
 /* Names for internal and external object tags */
-TEA_DATA const char* const tea_val_typenames[];
 TEA_DATA const char* const tea_obj_typenames[];
 
 #define tea_typename(o) (tea_obj_typenames[itype(o)])
-
-#define tea_obj_new(T, type, object_type) (type*)tea_obj_alloc(T, sizeof(type), object_type)
-
-TEA_FUNC GCobj* tea_obj_alloc(tea_State* T, size_t size, uint8_t type);
 
 TEA_FUNC GCmodule* tea_obj_new_module(tea_State* T, GCstr* name);
 TEA_FUNC GCfile* tea_obj_new_file(tea_State* T, GCstr* path, GCstr* type);
@@ -479,17 +491,17 @@ TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, GCfunc* me
 
 /* -- Object and value handling --------------------------------------- */
 
-TEA_FUNC const void* tea_obj_pointer(TValue* v);
-TEA_FUNC bool tea_obj_equal(TValue* a, TValue* b);
-TEA_FUNC bool tea_obj_rawequal(TValue* a, TValue* b);
+TEA_FUNC const void* tea_obj_pointer(cTValue* v);
+TEA_FUNC bool tea_obj_equal(cTValue* a, cTValue* b);
+TEA_FUNC bool tea_obj_rawequal(cTValue* a, cTValue* b);
 TEA_FUNC double tea_obj_tonumber(TValue* value, bool* x);
 
-static TEA_AINLINE bool tea_obj_isfalse(TValue* value)
+static TEA_AINLINE bool tea_obj_isfalse(cTValue* value)
 {
     return  tvisnull(value) ||
             (tvisbool(value) && !boolV(value)) ||
             (tvisnumber(value) && numberV(value) == 0) ||
-            (tvisstr(value) && strV(value)->chars[0] == '\0') ||
+            (tvisstr(value) && str_data(strV(value))[0] == '\0') ||
             (tvislist(value) && listV(value)->count == 0) ||
             (tvismap(value) && mapV(value)->count == 0);
 }

@@ -16,7 +16,7 @@ static void buf_grow(tea_State* T, SBuf* sb, size_t size)
 {
     size_t old_size = sbuf_size(sb), len = sbuf_len(sb), new_size = old_size;
 
-    if(new_size < TEA_MIN_BUF) new_size = TEA_MIN_BUF;
+    if(new_size < TEA_MIN_SBUF) new_size = TEA_MIN_SBUF;
     while(new_size < size) new_size += new_size;
 
     char* b = (char*)tea_mem_realloc(T, sb->b, old_size, new_size);
@@ -29,7 +29,7 @@ static void buf_grow(tea_State* T, SBuf* sb, size_t size)
 
 char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size)
 {
-    tea_assertT(T, size > sbuf_left(sb), "SBuf overflow");
+    tea_assertT(size > sbuf_left(sb), "SBuf overflow");
     buf_grow(T, sb, size);
     return sb->b;
 }
@@ -37,7 +37,7 @@ char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size)
 char* tea_buf_more2(tea_State* T, SBuf* sb, size_t size)
 {
     size_t len = sbuf_len(sb);
-    tea_assertT(T, size > sbuf_left(sb), "SBuf overflow");
+    tea_assertT(size > sbuf_left(sb), "SBuf overflow");
     buf_grow(T, sb, len + size);
     return sb->w;
 }
@@ -46,7 +46,7 @@ void tea_buf_shrink(tea_State* T, SBuf* sb)
 {
     char* b = sb->b;
     size_t old_size = (size_t)(sb->e - b);
-    if(old_size > 2 * TEA_MIN_BUF)
+    if(old_size > 2 * TEA_MIN_SBUF)
     {
         size_t n = (size_t)(sb->w - b);
         b = tea_mem_realloc(T, b, old_size, (old_size >> 1));
@@ -90,7 +90,7 @@ GCstr* tea_buf_cat2str(tea_State* T, GCstr* s1, GCstr* s2)
 {
     size_t len1 = s1->len, len2 = s2->len;
     char* buf = tea_buf_tmp(T, len1 + len2);
-    memcpy(buf, s1->chars, len1);
-    memcpy(buf + len1, s2->chars, len2);
+    memcpy(buf, str_data(s1), len1);
+    memcpy(buf + len1, str_data(s2), len2);
     return tea_str_copy(T, buf, len1 + len2);
 }

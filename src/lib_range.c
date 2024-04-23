@@ -3,15 +3,16 @@
 ** Teascript Range class
 */
 
+#include <math.h>
+
 #define lib_range_c
 #define TEA_CORE
-
-#include <math.h>
 
 #include "tea.h"
 #include "tealib.h"
 
 #include "tea_vm.h"
+#include "tea_lib.h"
 
 static void range_start(tea_State* T)
 {
@@ -151,29 +152,35 @@ static void range_contains(tea_State* T)
     double number = tea_check_number(T, 1);
     double start, end, step;
     tea_get_range(T, 0, &start, &end, &step);
-
     tea_push_bool(T, !(number < start || number > end) && (fmod(number, step) == 0));
 }
 
 static void range_reverse(tea_State* T)
 {
+    GCrange* range = tea_lib_checkrange(T, 0);
     double start, end, step;
-    tea_get_range(T, 0, &start, &end, &step);
-
-    double new_start, new_end;
-    if (step > 0)
+    if(range->step > 0)
     {
-        new_start = end;
-        new_end = start;
+        start = range->end;
+        end = range->start;
     }
     else
     {
-        new_start = start;
-        new_end = end;
+        start = range->start;
+        end = range->end;
     }
+    step = -range->step;
+    /* Reverse the range */
+    range->start = start;
+    range->end = end;
+    range->step = step;
+}
 
-    double new_step = -step;
-    tea_push_range(T, new_start, new_end, new_step);
+static void range_copy(tea_State* T)
+{
+    GCrange* range = tea_lib_checkrange(T, 0);
+    GCrange* newrange = tea_obj_new_range(T, range->start, range->end, range->step);
+    setrangeV(T, T->top++, newrange);
 }
 
 static const tea_Class range_class[] = {
@@ -184,6 +191,7 @@ static const tea_Class range_class[] = {
     { "constructor", "method", range_constructor, TEA_VARARGS },
     { "contains", "method", range_contains, 2 },
     { "reverse", "method", range_reverse, 1 },
+    { "copy", "method", range_copy, 1 },
     { "iterate", "method", range_iterate, 2 },
     { "iteratorvalue", "method", range_iteratorvalue, 2 },
     { NULL, NULL, NULL }

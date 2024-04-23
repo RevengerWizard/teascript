@@ -3,10 +3,10 @@
 ** Teascript bytecode reader
 */
 
+#include <stdlib.h>
+
 #define tea_bcread_c
 #define TEA_CORE
-
-#include <stdlib.h>
 
 #include "tea_def.h"
 #include "tea_bcdump.h"
@@ -27,9 +27,9 @@ static TEA_NOINLINE void bcread_error(Lexer* lex, const char* msg)
 /* Refill buffer */
 static TEA_NOINLINE void bcread_fill(Lexer* lex, size_t len, bool need)
 {
+    tea_assertLS(len != 0, "empty refill");
     if(len > TEA_MAX_BUF || lex->c < 0)
         bcread_error(lex, "Malformed bytecode");
-
     do
     {
         const char* buf;
@@ -43,6 +43,7 @@ static TEA_NOINLINE void bcread_fill(Lexer* lex, size_t len, bool need)
             /* Move down in buffer */
             if(sbuf_len(&lex->sbuf))
             {
+                tea_assertLS(lex->pe == lex->sbuf.w, "bad buffer pointer");
                 if(lex->p != p) 
                     memmove(p, lex->p, n);
             }
@@ -105,6 +106,7 @@ static TEA_AINLINE uint8_t* bcread_mem(Lexer* lex, size_t len)
 {
     uint8_t* p = (uint8_t*)lex->p;
     lex->p += len;
+    tea_assertLS(lex->p <= lex->pe, "buffer read overflow");
     return p;
 }
 
@@ -117,6 +119,7 @@ static void bcread_block(Lexer* lex, void* q, size_t len)
 /* Read byte from buffer */
 static TEA_AINLINE uint32_t bcread_byte(Lexer* lex)
 {
+    tea_assertLS(lex->p < lex->pe, "buffer read overflow");
     return (uint32_t)(uint8_t)*lex->p++;
 }
 
@@ -124,6 +127,7 @@ static TEA_AINLINE uint32_t bcread_byte(Lexer* lex)
 static TEA_AINLINE uint32_t bcread_uleb128(Lexer* lex)
 {
     uint32_t v = tea_buf_ruleb128(&lex->p);
+    tea_assertLS(lex->p <= lex->pe, "buffer read overflow");
     return v;
 }
 
@@ -143,6 +147,7 @@ static uint32_t bcread_uleb128_33(Lexer* lex)
         while(*p++ >= 0x80);
     }
     lex->p = (char*)p;
+    tea_assertLS(lex->p <= lex->pe, "buffer read overflow");
     return v;
 }
 
@@ -163,7 +168,7 @@ static double bcread_knum(Lexer* lex)
 /* Read GC constants from function prototype */
 static void bcread_kgc(Lexer* lex, GCproto* f, size_t count)
 {
-    f->k = tea_mem_new(lex->T, TValue, count);
+    f->k = tea_mem_newvec(lex->T, TValue, count);
     f->k_count = count;
     f->k_size = count;
 
@@ -184,6 +189,7 @@ static void bcread_kgc(Lexer* lex, GCproto* f, size_t count)
         }
         else
         {
+            tea_assertLS(type == BCDUMP_KGC_FUNC, "bad constant type %d", type);
             lex->T->top--;
             TValue* v = lex->T->top;
             copyTV(lex->T, f->k + i, v);
@@ -194,7 +200,7 @@ static void bcread_kgc(Lexer* lex, GCproto* f, size_t count)
 /* Read bytecode instructions */
 static void bcread_bytecode(Lexer* lex, GCproto* f, size_t count)
 {
-    f->bc = tea_mem_new(lex->T, uint8_t, count);
+    f->bc = tea_mem_newvec(lex->T, BCIns, count);
     f->bc_count = count;
     f->bc_size = count;
     bcread_block(lex, f->bc, f->bc_count);
@@ -223,7 +229,7 @@ static GCproto* bcread_proto(Lexer* lex)
     k_count = bcread_uleb128(lex);
 
     /* Allocate prototype and initialize its fields */
-    pt = tea_func_newproto(lex->T, type, lex->module, max_slots);
+    pt = tea_func_newproto(lex->T, type, max_slots);
     pt->name = tea_str_copy(lex->T, name, len);
     pt->arity = arity;
     pt->arity_optional = arity_optional;
@@ -256,6 +262,7 @@ static bool bcread_header(Lexer* lex)
 GCproto* tea_bcread(Lexer* lex)
 {
     tea_State* T = lex->T;
+    tea_assertLS(lex->c == BCDUMP_HEAD1, "bad bytecode header");
     tea_buf_reset(&lex->sbuf);
     /* Check for a valid bytecode dump header */
     if(!bcread_header(lex))

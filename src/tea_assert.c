@@ -6,9 +6,12 @@
 #define tea_assert_c
 #define TEA_CORE
 
-#if defined(TEA_USE_ASSERT)
+#if defined(TEA_USE_ASSERT) || defined(TEA_USE_APICHECK)
 
 #include <stdio.h>
+#include <stdlib.h>
+
+#include "tea_obj.h"
 
 void tea_assert_fail(tea_State* T, const char* file, int line, const char* func, const char* fmt, ...)
 {

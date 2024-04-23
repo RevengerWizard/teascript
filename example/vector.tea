@@ -24,7 +24,7 @@ class Vector
 
     * (a, b)
     {
-        if(typeof(b) == 'number') return Vector(a.x * b, a.y * b)
+        if(b is Number) return Vector(a.x * b, a.y * b)
 
         assert(a is Vector and b is Vector, "wrong argument type")
 

@@ -21,7 +21,7 @@
 #define TEA_CHAR_GRAPH  (TEA_CHAR_ALNUM | TEA_CHAR_PUNCT)
 
 /* Only pass -1 or 0..255 to these macros. Never pass a signed char! */
-#define tea_char_isa(c, t)  ((tea_char_bits+1)[(c)] & t)
+#define tea_char_isa(c, t)  ((tea_char_bits + 1)[(c)] & t)
 #define tea_char_iscntrl(c) tea_char_isa((c), TEA_CHAR_CNTRL)
 #define tea_char_isspace(c) tea_char_isa((c), TEA_CHAR_SPACE)
 #define tea_char_ispunct(c) tea_char_isa((c), TEA_CHAR_PUNCT)

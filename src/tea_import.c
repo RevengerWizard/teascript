@@ -3,11 +3,11 @@
 ** Import loader
 */
 
-#define tea_import_c
-#define TEA_CORE
-
 #include <stdlib.h>
 #include <string.h>
+
+#define tea_import_c
+#define TEA_CORE
 
 #include "tea.h"
 #include "tealib.h"
@@ -20,6 +20,29 @@
 #include "tea_err.h"
 #include "tea_tab.h"
 #include "tea_gc.h"
+
+#ifdef TEA_TARGET_WINDOWS
+#include <windows.h>
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
+#if TEA_TARGET_WINDOWS
+#define DIR_SEP '\\'
+#define DIR_ALT_SEP '/'
+#else
+#define DIR_SEP '/'
+#endif
+
+#ifdef DIR_ALT_SEP
+#define IS_DIR_SEP(c) ((c) == DIR_SEP || (c) == DIR_ALT_SEP)
+#else
+#define IS_DIR_SEP(c) (c == DIR_SEP)
+#endif
+
+#define TEA_LL_SYM "tea_import_"
 
 /* ------------------------------------------------------------------------ */
 
@@ -121,9 +144,9 @@ static const tea_Reg modules[] = {
     { NULL, NULL }
 };
 
-GCstr* tea_imp_dirname(tea_State* T, char* path, int len) 
+GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
 {
-    if(!len) 
+    if(!len)
     {
         return tea_str_newlit(T, ".");
     }
@@ -131,7 +154,7 @@ GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
     char* sep = path + len;
 
     /* Trailing slashes */
-    while(sep != path) 
+    while(sep != path)
     {
         if(0 == IS_DIR_SEP(*sep))
             break;
@@ -139,7 +162,7 @@ GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
     }
 
     /* First found */
-    while(sep != path) 
+    while(sep != path)
     {
         if(IS_DIR_SEP(*sep))
             break;
@@ -147,14 +170,14 @@ GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
     }
 
     /* Trim again */
-    while(sep != path) 
+    while(sep != path)
     {
         if(0 == IS_DIR_SEP(*sep))
             break;
         sep--;
     }
 
-    if(sep == path && !IS_DIR_SEP(*sep)) 
+    if(sep == path && !IS_DIR_SEP(*sep))
     {
         return tea_str_newlit(T, ".");
     }
@@ -164,55 +187,33 @@ GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
     return tea_str_copy(T, path, len);
 }
 
-bool tea_imp_resolvepath(char* directory, char* path, char* ret) 
+bool tea_imp_resolvepath(char* directory, char* path, char* ret)
 {
     char buf[PATH_MAX];
-
     snprintf(buf, PATH_MAX, "%s%c%s", directory, DIR_SEP, path);
 
 #if TEA_TARGET_WINDOWS
     _fullpath(ret, buf, PATH_MAX);
 #else
-    if(realpath(buf, ret) == NULL) 
+    if(realpath(buf, ret) == NULL)
     {
         return false;
     }
 #endif
-
     return true;
 }
 
-GCstr* tea_imp_getdir(tea_State* T, char* source) 
+GCstr* tea_imp_getdir(tea_State* T, char* source)
 {
     char res[PATH_MAX];
-    if(!tea_imp_resolvepath(".", source, res)) 
+    if(!tea_imp_resolvepath(".", source, res))
     {
         tea_err_run(T, TEA_ERR_PATH, source);
     }
-
     return tea_imp_dirname(T, res, strlen(res));
 }
 
-static void call_native_module(tea_State* T, int index)
-{
-    tea_push_cfunction(T, modules[index].fn, 0);
-    tea_call(T, 0);
-}
-
-static int find_native_module(char* name, int len)
-{
-    for(int i = 0; modules[i].name != NULL; i++) 
-    {
-        if(strncmp(modules[i].name, name, len) == 0) 
-        {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-static bool get_filename_ext(const char* filename, const char* ext) 
+static bool get_filename_ext(const char* filename, const char* ext)
 {
     const char* dot = strrchr(filename, '.');
     if(!dot || dot == filename) return false;
@@ -244,10 +245,10 @@ static GCstr* resolve_filename(tea_State* T, char* dir, char* path_name)
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     size_t l;
-    for(int i = 0; i < n; i++) 
+    for(int i = 0; i < n; i++)
     {
         l = strlen(path_name) + strlen(exts[i]);
-        char* filename = tea_mem_new(T, char, l + 1);
+        char* filename = tea_mem_newvec(T, char, l + 1);
         sprintf(filename, "%s%s", path_name, exts[i]);
 
         char path[PATH_MAX];
@@ -269,80 +270,119 @@ static GCstr* resolve_filename(tea_State* T, char* dir, char* path_name)
 
 void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
 {
-    GCstr* path = resolve_filename(T, dir->chars, path_name->chars);
+    GCstr* path = resolve_filename(T, str_data(dir), str_data(path_name));
     if(path == NULL)
     {
-        tea_err_run(T, TEA_ERR_NOPATH, path_name->chars);
+        tea_err_run(T, TEA_ERR_NOPATH, str_data(path_name));
     }
 
-    TValue* v = tea_tab_get(&T->modules, path);
-    if(v) 
+    TValue* o = tea_tab_get(&T->modules, path);
+    if(o)
     {
-        T->last_module = moduleV(v);
-        setnullV(T->top++);
+        T->last_module = moduleV(o);
+        copyTV(T, T->top++, o);
         return;
     }
 
     GCmodule* module = tea_obj_new_module(T, path);
-    module->path = tea_imp_dirname(T, path->chars, path->len);
+    module->path = tea_imp_dirname(T, str_data(path), path->len);
     T->last_module = module;
 
-    int status = tea_load_file(T, path->chars, NULL);
+    int status = tea_load_file(T, str_data(path), NULL);
     if(status == TEA_ERROR_FILE)
     {
-        tea_err_run(T, TEA_ERR_NOPATH, path_name->chars);
+        tea_err_run(T, TEA_ERR_NOPATH, str_data(path_name));
     }
-
     if(status != TEA_OK)
     {
+        /* Rethrow the syntax error */
         tea_pop(T, 1);
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
-
     tea_call(T, 0);
+}
+
+static const char* setprogdir(tea_State* T)
+{
+    char buff[MAX_PATH + 1];
+    char* lb;
+    DWORD nsize = sizeof(buff);
+    DWORD n = GetModuleFileNameA(NULL, buff, nsize);
+    if(n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
+    {
+        tea_error(T, "unable to get ModuleFileName");
+    }
+    *lb = '\0';
+    return tea_push_lstring(T, buff, nsize);
 }
 
 void tea_imp_logical(tea_State* T, GCstr* name)
 {
-    TValue* v = tea_tab_get(&T->modules, name);
-    if(v)
+    TValue* o = tea_tab_get(&T->modules, name);
+    if(o)
     {
-        T->last_module = moduleV(v);
-        copyTV(T, T->top++, v);
+        T->last_module = moduleV(o);
+        copyTV(T, T->top++, o);
         return;
     }
 
-    int index = find_native_module(name->chars, name->len);
-    if(index != -1) 
+    for(int i = 0; modules[i].name; i++)
     {
-        call_native_module(T, index);
-    }
-    else
-    {
-        GCstr* module = resolve_filename(T, ".", name->chars);
-        if(module == NULL)
+        if(strncmp(modules[i].name, str_data(name), name->len) == 0)
         {
-            tea_err_run(T, TEA_ERR_NOMOD, name->chars);
-        }
-
-        printf("shared %s\n", module->chars);
-        if(get_filename_ext(module->chars, SHARED_EXT))
-        {
-            const char* symname = tea_push_fstring(T, TEA_LL_SYM "%s", name->chars);
-
-            void* lib = ll_load(T, module->chars);
-            tea_CFunction fn = ll_sym(T, lib, symname);
-            T->top--;
-
-            tea_push_cfunction(T, fn, 0);
+            tea_push_cfunction(T, modules[i].fn, 0);
             tea_call(T, 0);
-        }
-        else
-        {
-            tea_err_run(T, TEA_ERR_NOMOD, name->chars);
+            TValue* module = T->top - 1;
+            T->last_module = moduleV(module);
+            return;
         }
     }
 
-    TValue* module = T->top - 1;
-    T->last_module = moduleV(module);
+    GCstr* dir = tea_str_new(T, setprogdir(T));
+    //printf("dir %s + %s\n", str_data(dir), str_data(name));
+
+    const char* exts[] = { "tea", "lib", "package" };
+    const int n = sizeof(exts) / sizeof(exts[0]);
+
+    GCstr* path;
+    for(int i = 0; i < n; i++)
+    {
+        const char* x = tea_push_fstring(T, "%s%c%s", exts[i], DIR_SEP, str_data(name));
+        path = resolve_filename(T, str_data(dir), (char*)x);
+        tea_pop(T, 1);
+        if(path)
+            break;
+    }
+
+    if(path == NULL)
+    {
+        tea_err_run(T, TEA_ERR_NOPATH, str_data(name));
+    }
+
+    o = tea_tab_get(&T->modules, path);
+    if(o)
+    {
+        T->last_module = moduleV(o);
+        copyTV(T, T->top++, o);
+        return;
+    }
+
+    GCmodule* module = tea_obj_new_module(T, path);
+    module->path = tea_imp_dirname(T, str_data(path), path->len);
+    T->last_module = module;
+
+    int status = tea_load_file(T, str_data(path), NULL);
+    if(status == TEA_ERROR_FILE)
+    {
+        tea_err_run(T, TEA_ERR_NOPATH, str_data(name));
+    }
+    if(status != TEA_OK)
+    {
+        /* Rethrow the syntax error */
+        tea_pop(T, 1);
+        tea_err_throw(T, TEA_ERROR_SYNTAX);
+    }
+    tea_call(T, 0);
+
+    setmoduleV(T, T->top++, T->last_module);
 }

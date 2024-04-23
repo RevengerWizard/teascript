@@ -19,10 +19,12 @@
 
 #define TEAMOD_API  extern
 
-#ifndef TEA_NUMBER_FMT
 #define TEA_NUMBER_FMT		"%.14g"
-#endif
 
 #define TEA_MAX_CSTACK  8000
+
+/* Quoting in error messages */
+#define TEA_QL(x)   "'" x "'"
+#define TEA_QS      TEA_QL("%s")
 
 #endif

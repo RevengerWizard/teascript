@@ -3,15 +3,14 @@
 ** Teascript File class
 */
 
-#define lib_file_c
-#define TEA_CORE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <errno.h>
 #include <math.h>
+
+#define lib_file_c
+#define TEA_CORE
 
 #include "tea.h"
 #include "tealib.h"
@@ -58,7 +57,7 @@ static void file_write(tea_State* T)
     int len;
     const char* string = tea_check_lstring(T, 1, &len);
 
-    if(strcmp(file->type->chars, "r") == 0)
+    if(strcmp(str_data(file->type), "r") == 0)
     {
         tea_error(T, "File is not writable");
     }
@@ -76,7 +75,7 @@ static void file_writeline(tea_State* T)
     int len;
     const char* string = tea_check_lstring(T, 1, &len);
 
-    if(strcmp(file->type->chars, "r") == 0)
+    if(strcmp(str_data(file->type), "r") == 0)
     {
         tea_error(T, "File is not writable");
     }
@@ -94,13 +93,13 @@ static void file_read(tea_State* T)
 {
     GCfile* file = get_file(T);
 
-    if(strcmp(file->type->chars, "w") == 0)
+    if(strcmp(str_data(file->type), "w") == 0)
     {
         tea_error(T, "File is not readable");
     }
 
     size_t current_size = BUFFER_SIZE;
-    char* contents = tea_mem_new(T, char, current_size);
+    char* contents = tea_mem_newvec(T, char, current_size);
     size_t read_bytes = 0;
     size_t total_read_bytes = 0;
     do
@@ -128,13 +127,13 @@ static void file_readline(tea_State* T)
 {
     GCfile* file = get_file(T);
 
-    if(strcmp(file->type->chars, "w") == 0)
+    if(strcmp(str_data(file->type), "w") == 0)
     {
         tea_error(T, "File is not readable");
     }
 
     int current_size = BUFFER_SIZE;
-    char* line = tea_mem_new(T, char, current_size);
+    char* line = tea_mem_newvec(T, char, current_size);
 
     while(fgets(line, BUFFER_SIZE, file->file) != NULL)
     {
@@ -196,7 +195,7 @@ static void file_seek(tea_State* T)
 
     int offset = tea_check_number(T, 1);
 
-    if(offset != 0 && !strstr(file->type->chars, "b"))
+    if(offset != 0 && !strstr(str_data(file->type), "b"))
     {
         tea_error(T, "May not have non-zero offset if file is opened in text mode");
     }

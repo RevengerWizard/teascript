@@ -73,9 +73,9 @@ typedef struct Parser
     GCproto* proto; /* Current prototype function */
     GCstr* name;    /* Name of prototype function */
     ProtoType type;
-    Local locals[UINT8_COUNT];  /* Current scoped locals */
+    Local locals[TEA_MAX_LOCAL];  /* Current scoped locals */
     int local_count;    /* Number of local variables in scope */
-    Upvalue upvalues[UINT8_COUNT];  /* Saved upvalues */
+    Upvalue upvalues[TEA_MAX_UPVAL];  /* Saved upvalues */
     int slot_count; /* Stack max size */
     int scope_depth;    /* Current scope depth */
 } Parser;

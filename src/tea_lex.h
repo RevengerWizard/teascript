@@ -76,8 +76,14 @@ typedef struct Lexer
 } Lexer;
 
 TEA_FUNC bool tea_lex_init(tea_State* T, Lexer* lex);
-TEA_FUNC const char* tea_lex_token2str(Lexer* lex, int t);
-TEA_FUNC void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...);
+TEA_FUNC const char* tea_lex_token2str(Lexer* lex, LexToken t);
+TEA_FUNC_NORET void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...);
 TEA_FUNC void tea_lex_next(Lexer* lex);
+
+#ifdef TEA_USE_ASSERT
+#define tea_assertLS(c, ...) (tea_assertT_(lex->T, (c), __VA_ARGS__))
+#else
+#define tea_assertLS(c, ...) ((void)0)
+#endif
 
 #endif

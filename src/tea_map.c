@@ -11,7 +11,7 @@
 
 GCmap* tea_map_new(tea_State* T)
 {
-    GCmap* map = tea_obj_new(T, GCmap, TEA_TMAP);
+    GCmap* map = tea_mem_newobj(T, GCmap, TEA_TMAP);
     map->count = 0;
     map->size = 0;
     map->entries = NULL;
@@ -44,24 +44,28 @@ static TEA_INLINE uint32_t map_hash(uint64_t hash)
     return (uint32_t)(hash & 0x3fffffff);
 }
 
-static uint32_t map_hash_value(TValue* value)
+static uint32_t map_hash_obj(TValue* value)
 {
     switch(itype(value))
     {
-        case TEA_TNULL:  return 1;
-        case TEA_TNUMBER:   return map_hash(numberV(value));
-        case TEA_TBOOL:  return 2;
+        case TEA_TNULL:
+            return 1;
+        case TEA_TBOOL:
+            return 2;
+        case TEA_TNUMBER:
+            return map_hash(numberV(value));
+        case TEA_TPOINTER:
+            return map_hash((uint64_t)pointerV(value));
         case TEA_TSTRING:
             return strV(value)->hash;
         default:
-            break;
+            return map_hash((uint64_t)gcV(value));
     }
-    return 0;
 }
 
 static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
 {
-    uint32_t hash = map_hash_value(key);
+    uint32_t hash = map_hash_obj(key);
     uint32_t index = hash & (size - 1);
     MapEntry* tombstone = NULL;
 
@@ -94,7 +98,7 @@ static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
 
 /* -- Map getters ------------------------------------------------------ */
 
-TValue* tea_map_get(GCmap* map, TValue* key)
+cTValue* tea_map_get(GCmap* map, TValue* key)
 {
     if(map->count == 0)
         return NULL;
@@ -106,12 +110,19 @@ TValue* tea_map_get(GCmap* map, TValue* key)
     return &item->value;
 }
 
+cTValue* tea_map_getstr(tea_State* T, GCmap* map, GCstr* key)
+{
+    TValue o;
+    setstrV(T, &o, key);
+    return tea_map_get(map, &o);
+}
+
 #define MAP_MAX_LOAD 0.75
 
 /* Resize a map to fit the new size */
 static void map_resize(tea_State* T, GCmap* map, int size)
 {
-    MapEntry* entries = tea_mem_new(T, MapEntry, size);
+    MapEntry* entries = tea_mem_newvec(T, MapEntry, size);
     for(int i = 0; i < size; i++)
     {
         setnullV(&entries[i].key);
@@ -160,6 +171,25 @@ TValue* tea_map_set(tea_State* T, GCmap* map, TValue* key)
     return &item->value;
 }
 
+TValue* tea_map_setstr(tea_State* T, GCmap* map, GCstr* str)
+{
+    TValue o;
+    setstrV(T, &o, str);
+    return tea_map_set(T, map, &o);
+}
+
+GCmap* tea_map_copy(tea_State* T, GCmap* map)
+{
+    GCmap* m = tea_map_new(T);
+    for(int i = 0; i < map->size; i++)
+    {
+        if(map->entries[i].empty) continue;
+        TValue* o = tea_map_set(T, m, &map->entries[i].key);
+        copyTV(T, o, &map->entries[i].value);
+    }
+    return m;
+}
+
 bool tea_map_delete(tea_State* T, GCmap* map, TValue* key)
 {
     if(map->count == 0)
@@ -185,22 +215,21 @@ bool tea_map_delete(tea_State* T, GCmap* map, TValue* key)
     {
         uint32_t size = map->size / 2;
         if(size < 16) size = 16;
-
         map_resize(T, map, size);
     }
 
     return true;
 }
 
-void tea_map_addall(tea_State* T, GCmap* from, GCmap* to)
+void tea_map_merge(tea_State* T, GCmap* from, GCmap* to)
 {
     for(int i = 0; i < from->size; i++)
     {
         MapEntry* item = &from->entries[i];
         if(!item->empty)
         {
-            TValue* v = tea_map_set(T, to, &item->key);
-            copyTV(T, v, &item->value);
+            TValue* o = tea_map_set(T, to, &item->key);
+            copyTV(T, o, &item->value);
         }
     }
 }

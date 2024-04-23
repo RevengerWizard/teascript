@@ -11,6 +11,7 @@
 #include "tea_vm.h"
 #include "tea_map.h"
 #include "tea_list.h"
+#include "tea_lib.h"
 
 static void map_len(tea_State* T)
 {
@@ -57,16 +58,13 @@ static void map_get(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
-
     tea_opt_any(T, 2);
-
-    GCmap* map = mapV(T->base);
+    GCmap* map = tea_lib_checkmap(T, 0);
     TValue* key = T->base + 1;
-
-    TValue* value = tea_map_get(map, key);
-    if(value)
+    cTValue* o = tea_map_get(map, key);
+    if(o)
     {
-        copyTV(T, T->top++, value);
+        copyTV(T, T->top++, o);
     }
 }
 
@@ -74,93 +72,64 @@ static void map_set(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
-
     tea_opt_any(T, 2);
-
-    GCmap* map = mapV(T->base);
-    TValue* key = T->base + 1;
+    GCmap* map = tea_lib_checkmap(T, 0);
+    TValue* key = tea_lib_checkany(T, 1);
     TValue* value = T->base + 2;
-
-    TValue* v = tea_map_set(T, map, key);
-    copyTV(T, v, value);
-    if(tea_map_set(T, map, key))
+    cTValue* o = tea_map_get(map, key);
+    if(!o)
     {
-        copyTV(T, T->top++, value);
+        copyTV(T, tea_map_set(T, map, key), value);
+    }
+    else
+    {
+        copyTV(T, T->base + 2, o);
     }
 }
 
 static void map_update(tea_State* T)
 {
-    tea_check_type(T, 1, TEA_TYPE_MAP);
-
-    GCmap* map = mapV(T->base);
-    GCmap* m = mapV(T->base + 1);
-
-    tea_map_addall(T, m, map);
-
+    GCmap* map = tea_lib_checkmap(T, 0);
+    GCmap* m = tea_lib_checkmap(T, 1);
+    tea_map_merge(T, m, map);
     tea_push_value(T, 0);
 }
 
 static void map_clear(tea_State* T)
 {
-    GCmap* map = mapV(T->base);
+    GCmap* map = tea_lib_checkmap(T, 0);
     tea_map_clear(T, map);
 }
 
 static void map_contains(tea_State* T)
 {
-    GCmap* map = mapV(T->base);
-
-    if(!tea_map_hashable(T->base + 1))
-    {
-        tea_error(T, "Map key isn't hashable");
-    }
-
-    TValue* _ = tea_map_get(map, T->base + 1);
-    tea_push_bool(T, _ != NULL);
+    GCmap* map = tea_lib_checkmap(T, 0);
+    TValue* o = tea_lib_checkany(T, 1);
+    tea_push_bool(T, tea_map_get(map, o) != NULL);
 }
 
 static void map_delete(tea_State* T)
 {
-    GCmap* map = mapV(T->base);
-    TValue* key = T->base + 1;
-
-    if(!tea_map_hashable(key))
+    GCmap* map = tea_lib_checkmap(T, 0);
+    TValue* key = tea_lib_checkany(T, 1);
+    if(!tea_map_delete(T, map, key))
     {
-        tea_error(T, "Map key isn't hashable");
+        tea_err_msg(T, TEA_ERR_MAPKEY);
     }
-    
-    TValue* _ = tea_map_get(map, key);
-    if(!_)
-    {
-        tea_error(T, "No such key in the map");
-    }
-
-    tea_map_delete(T, map, key);
-
     tea_push_value(T, 0);
 }
 
 static void map_copy(tea_State* T)
 {
-    GCmap* map = mapV(T->base);
-
-    tea_new_map(T);
-
-    GCmap* m = mapV(T->base + 1);
-    for(int i = 0; i < map->size; i++)
-    {
-        if(map->entries[i].empty) continue;
-        TValue* v = tea_map_set(T, m, &map->entries[i].key);
-        copyTV(T, &map->entries[i].value, v);
-    }
+    GCmap* map = tea_lib_checkmap(T, 0);
+    GCmap* newmap = tea_map_copy(T, map);
+    setmapV(T, T->top++, newmap);
 }
 
 static void map_foreach(tea_State* T)
 {
+    GCmap* map = tea_lib_checkmap(T, 0);
     tea_check_function(T, 1);
-
-    GCmap* map = mapV(T->base);
 
     for(int i = 0; i < map->size; i++)
     {
@@ -180,7 +149,7 @@ static void map_foreach(tea_State* T)
 
 static void map_iterate(tea_State* T)
 {
-    GCmap* map = mapV(T->base);
+    GCmap* map = tea_lib_checkmap(T, 0);
     if(map->count == 0)
     {
         tea_push_null(T);
@@ -231,15 +200,13 @@ static void map_iterate(tea_State* T)
 
 static void map_iteratorvalue(tea_State* T)
 {
-    GCmap* map = mapV(T->base);
+    GCmap* map = tea_lib_checkmap(T, 0);
     int index = tea_check_number(T, 1);
-
     MapEntry* entry = &map->entries[index];
     if(entry->empty)
     {
         tea_error(T, "Invalid map iterator");
     }
-
     tea_new_list(T);
     copyTV(T, T->top++, &entry->key);
     tea_add_item(T, 2);
@@ -249,18 +216,12 @@ static void map_iteratorvalue(tea_State* T)
 
 static void map_opadd(tea_State* T)
 {
-    tea_check_map(T, 0);
-    tea_check_map(T, 1);
-
-    GCmap* m1 = mapV(T->base);
-    GCmap* m2 = mapV(T->base + 1);
-
+    GCmap* m1 = tea_lib_checkmap(T, 0);
+    GCmap* m2 = tea_lib_checkmap(T, 1);
     GCmap* map = tea_map_new(T);
     setmapV(T, T->top++, map);
-
-    tea_map_addall(T, m1, map);
-    tea_map_addall(T, m2, map);
-
+    tea_map_merge(T, m1, map);
+    tea_map_merge(T, m2, map);
     tea_pop(T, 3);
     setmapV(T, T->top++, map);
 }

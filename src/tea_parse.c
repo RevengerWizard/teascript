@@ -3,13 +3,13 @@
 ** Teascript parser (source code -> bytecode)
 */
 
-#define tea_parse_c
-#define TEA_CORE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
+#define tea_parse_c
+#define TEA_CORE
 
 #include "tea_def.h"
 #include "tea_state.h"
@@ -114,7 +114,7 @@ static void bcemit_byte(Parser* parser, uint8_t byte)
 
     if(f->bc_size < f->bc_count + 1)
     {
-        f->bc = tea_mem_growvec(T, uint8_t, f->bc, f->bc_size, INT_MAX);
+        f->bc = tea_mem_growvec(T, BCIns, f->bc, f->bc_size, INT_MAX);
     }
 
     f->bc[f->bc_count] = byte;
@@ -265,7 +265,7 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
 
     lexer->T->parser = parser;
 
-    parser->proto = tea_func_newproto(lexer->T, type, lexer->module, parser->slot_count);
+    parser->proto = tea_func_newproto(lexer->T, type, parser->slot_count);
 
     switch(type)
     {
@@ -320,7 +320,7 @@ static GCproto* parser_end(Parser* parser)
 
 #ifdef TEA_DEBUG_PRINT_CODE
     tea_State* T = parser->lex->T;
-    tea_debug_chunk(T, proto, proto->name->chars);
+    tea_debug_chunk(T, proto, str_data(proto->name));
 #endif
 
     if(parser->enclosing != NULL)
@@ -428,7 +428,7 @@ static int add_upvalue(Parser* parser, uint8_t index, bool is_local, bool consta
         }
     }
 
-    if(upvalue_count == UINT8_COUNT)
+    if(upvalue_count == TEA_MAX_UPVAL)
     {
         error(parser, TEA_ERR_XUPVAL);
     }
@@ -466,7 +466,7 @@ static int resolve_upvalue(Parser* parser, Token* name)
 
 static void add_local(Parser* parser, Token name)
 {
-    if(parser->local_count == UINT8_COUNT)
+    if(parser->local_count == TEA_MAX_LOCAL)
     {
         error(parser, TEA_ERR_XLOCALS);
     }
@@ -535,8 +535,8 @@ static void define_variable(Parser* parser, uint8_t global, bool constant)
     GCstr* string = strV(parser->proto->k + global);
     if(constant)
     {
-        TValue* v = tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL);
-        setnullV(v);
+        TValue* o = tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL);
+        setnullV(o);
     }
 
     TValue* value = tea_tab_get(&parser->lex->T->globals, string);
@@ -1702,7 +1702,7 @@ static void parse_operator(Parser* parser)
 
     if(i == SENTINEL)
     {
-        error_at_current(parser, TEA_ERR_XMETH);
+        error_at_current(parser, TEA_ERR_XMETHOD);
     }
 
     GCstr* name = NULL;

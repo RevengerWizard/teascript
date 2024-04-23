@@ -3,18 +3,18 @@
 ** Teascript core classes and functions
 */
 
-#define lib_core_c
-#define TEA_CORE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <math.h>
+
+#define lib_core_c
+#define TEA_CORE
 
 #include "tea.h"
 #include "tealib.h"
 
+#include "tea_char.h"
 #include "tea_bcdump.h"
 #include "tea_buf.h"
 #include "tea_vm.h"
@@ -22,6 +22,8 @@
 #include "tea_gc.h"
 #include "tea_utf.h"
 #include "tea_strfmt.h"
+#include "tea_strscan.h"
+#include "tea_lib.h"
 
 static void core_print(tea_State* T)
 {
@@ -60,7 +62,7 @@ static void core_input(tea_State* T)
     }
 
     uint64_t current_size = 128;
-    char* line = tea_mem_new(T, char, current_size);
+    char* line = tea_mem_newvec(T, char, current_size);
 
     int c = EOF;
     uint64_t len = 0;
@@ -102,12 +104,11 @@ static void core_open(tea_State* T)
     FILE* fp = fopen(path, type);
     if(fp == NULL)
     {
-        tea_error(T, "Unable to open file '%s'", path);
+        tea_error(T, "Unable to open file " TEA_QS, path);
     }
 
     GCfile* file = tea_obj_new_file(T, tea_str_new(T, path), tea_str_new(T, type));
     file->file = fp;
-
     setfileV(T, T->top++, file);
 }
 
@@ -185,7 +186,7 @@ static void core_loadstring(tea_State* T)
 {
     int len;
     const char* str = tea_check_lstring(T, 0, &len);
-    const char* name = tea_opt_string(T, 1, NULL);
+    const char* name = tea_opt_string(T, 1, "t");
     int status = tea_load_bufferx(T, str, len, name ? name : "?<load>", NULL);
     if(status != TEA_OK)
     {
@@ -246,6 +247,39 @@ static void core_bin(tea_State* T)
     tea_push_string(T, buffer);
 }
 
+static void core_rawequal(tea_State* T)
+{
+    cTValue* o1 = tea_lib_checkany(T, 0);
+    cTValue* o2 = tea_lib_checkany(T, 1);
+    tea_push_bool(T, tea_obj_rawequal(o1, o2));
+}
+
+static void core_hasattr(tea_State* T)
+{
+    tea_check_any(T, 0);
+    const char* attr = tea_check_string(T, 1);
+    bool found = tea_get_attr(T, 0, attr);
+    tea_push_bool(T, found);
+}
+
+static void core_getattr(tea_State* T)
+{
+    tea_check_any(T, 0);
+    const char* attr = tea_check_string(T, 1);
+    bool found = tea_get_attr(T, 0, attr);
+    if(!found)
+        tea_error(T, TEA_QS " has no attribute " TEA_QS, tea_typename(T->base), attr);
+}
+
+static void core_setattr(tea_State* T)
+{
+    tea_check_any(T, 0);
+    const char* attr = tea_check_string(T, 1);
+    tea_check_any(T, 2);
+    tea_set_attr(T, 0, attr);
+    T->top--;
+}
+
 static void bool_constructor(tea_State* T)
 {
     bool b = tea_to_bool(T, 1);
@@ -254,17 +288,51 @@ static void bool_constructor(tea_State* T)
 
 static void number_constructor(tea_State* T)
 {
-    bool is_num;
-    double n = tea_to_numberx(T, 1, &is_num);
-    if(!is_num)
+    int count = tea_get_top(T);
+    tea_check_args(T, count > 3, "Expected at least 2 argument, got %d", count);
+    int base = tea_opt_number(T, 2, 10);
+    if(base == 10)
     {
-        tea_error(T, "Failed conversion");
+        bool is_num;
+        double n = tea_to_numberx(T, 1, &is_num);
+        if(is_num)
+        {
+            tea_push_number(T, n);
+            return;
+        }
     }
-    tea_push_number(T, n);
+    else
+    {
+        const char* p = str_data(tea_lib_checkstr(T, 1));
+        char* ep;
+        unsigned int neg = 0;
+        unsigned long ul;
+        if(base < 2 || base > 36)
+            tea_error(T, "Number base out of range");
+        while(tea_char_isspace((unsigned char)(*p))) p++;
+        if(*p == '-') { p++; neg = 1; } else if(*p == '+') { p++; }
+        if(tea_char_isalnum((unsigned char)(*p)))
+        {
+            ul = strtoul(p, &ep, base);
+            if(p != ep)
+            {
+                while(tea_char_isspace((unsigned char)(*ep))) ep++;
+                if(*ep == '\0')
+                {
+
+                    double n = (double)ul;
+                    if(neg) n = -n;
+                    tea_push_number(T, n);
+                    return;
+                }
+            }
+        }
+    }
+    tea_push_null(T);
 }
 
 static const tea_Class number_class[] = {
-    { "constructor", "method", number_constructor, 2 },
+    { "constructor", "method", number_constructor, TEA_VARARGS },
     { NULL, NULL }
 };
 
@@ -289,6 +357,10 @@ static const tea_Reg globals[] = {
     { "ord", core_ord, 1 },
     { "hex", core_hex, 1 },
     { "bin", core_bin, 1 },
+    { "rawequal", core_rawequal, 2 },
+    { "hasattr", core_hasattr, 2 },
+    { "getattr", core_getattr, 2 },
+    { "setattr", core_setattr, 3 },
     { NULL, NULL }
 };
 

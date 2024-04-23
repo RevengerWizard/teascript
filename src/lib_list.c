@@ -3,10 +3,10 @@
 ** Teascript List class
 */
 
+#include <math.h>
+
 #define lib_list_c
 #define TEA_CORE
-
-#include <math.h>
 
 #include "tea.h"
 #include "tealib.h"
@@ -15,6 +15,7 @@
 #include "tea_gc.h"
 #include "tea_str.h"
 #include "tea_list.h"
+#include "tea_lib.h"
 
 static void list_len(tea_State* T)
 {
@@ -29,7 +30,9 @@ static void list_constructor(tea_State* T)
 
 static void list_add(tea_State* T)
 {
-    tea_add_item(T, 0);
+    GClist* list = tea_lib_checklist(T, 0);
+    TValue* o = tea_lib_checkany(T, 1);
+    tea_list_add(T, list, o);
     tea_set_top(T, 1);
 }
 
@@ -88,76 +91,50 @@ static void list_remove(tea_State* T)
         return;
     }
 
-    tea_error(T, "TValue does not exist within the list");
+    tea_error(T, "Value does not exist within the list");
 }
 
 static void list_delete(tea_State* T)
 {
-    int len = tea_len(T, 0);
-
-    if(len == 0)
+    GClist* list = tea_lib_checklist(T, 0);
+    if(list->count == 0)
     {
         tea_pop(T, 1);
         return;
     }
 
     int index = tea_check_number(T, 1);
-
-    if(index < 0 || index > len)
+    if(index < 0 || index > list->count - 1)
     {
         tea_error(T, "Index out of bounds");
     }
 
-    for(int i = index; i < len - 1; i++)
-    {
-        tea_get_item(T, 0, i + 1);
-        tea_set_item(T, 0, i);
-    }
-
-    listV(T->base)->count--;
+    tea_list_delete(T, list, index);
     tea_pop(T, 1);
 }
 
 static void list_clear(tea_State* T)
 {
-    GClist* list = listV(T->base);
-    list->items = NULL;
+    GClist* list = tea_lib_checklist(T, 0);
     list->count = 0;
-    list->size = 0;
 }
 
 static void list_insert(tea_State* T)
 {
-    GClist* list = listV(T->base);
-    TValue insert_value = T->base[1];
+    GClist* list = tea_lib_checklist(T, 0);
+    TValue* o = tea_lib_checkany(T, 1);
     int index = tea_check_number(T, 2);
-
-    if(index < 0 || index > list->count)
+    if(index < 0 || index > list->count - 1)
     {
         tea_error(T, "Index out of bounds for the list given");
     }
-
-    if(list->size < list->count + 1)
-    {
-        int old_size = list->size;
-        list->size = TEA_MEM_GROW(old_size);
-        list->items = tea_mem_reallocvec(T, TValue, list->items, old_size, list->size);
-    }
-
-    list->count++;
-
-    for(int i = list->count - 1; i > index; --i)
-    {
-        list->items[i] = list->items[i - 1];
-    }
-
-    list->items[index] = insert_value;
+    tea_list_insert(T, list, o, index);
     tea_pop(T, 2);
 }
 
 static void list_extend(tea_State* T)
 {
-    tea_check_list(T, 1);
+    tea_check_list(T, 0);
     int len = tea_len(T, 1);
 
     /* list index 0, list index 1 */
@@ -184,7 +161,6 @@ static void list_reverse(tea_State* T)
 static void list_contains(tea_State* T)
 {
     int len = tea_len(T, 0);
-
     for(int i = 0; i < len; i++)
     {
         tea_get_item(T, 0, i);
@@ -202,7 +178,6 @@ static void list_contains(tea_State* T)
 static void list_count(tea_State* T)
 {
     int len = tea_len(T, 0);
-
     int n = 0;
     for(int i = 0; i < len; i++)
     {
@@ -220,7 +195,6 @@ static void list_count(tea_State* T)
 static void list_fill(tea_State* T)
 {
     int len = tea_len(T, 0);
-
     for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
@@ -250,8 +224,8 @@ static bool sort_comp(tea_State* T, int a, int b)
     }
     else
     {
-        double n1 = tea_check_number(T, a);
-        double n2 = tea_check_number(T, b);
+        tea_Number n1 = tea_check_number(T, a);
+        tea_Number n2 = tea_check_number(T, b);
         return n1 < n2;
     }
 }
@@ -340,7 +314,6 @@ static void auxsort(tea_State* T, int l, int u)
 static void list_sort(tea_State* T)
 {
     int len = tea_len(T, 0);
-
     if(!tea_is_nonenull(T, 1))
         tea_check_function(T, 1);
     tea_set_top(T, 2);
@@ -351,7 +324,6 @@ static void list_sort(tea_State* T)
 static void list_index(tea_State* T)
 {
     int len = tea_len(T, 0);
-
     for(int i = 0; i < len; i++)
     {
         tea_get_item(T, 0, i);
@@ -362,7 +334,6 @@ static void list_index(tea_State* T)
         }
         tea_pop(T, 1);
     }
-
     tea_push_null(T);
 }
 
@@ -420,15 +391,9 @@ static void list_join(tea_State* T)
 
 static void list_copy(tea_State* T)
 {
-    int len = tea_len(T, 0);
-
-    tea_new_list(T);
-
-    for(int i = 0; i < len; i++)
-    {
-        tea_get_item(T, 0, i);
-        tea_add_item(T, 1);
-    }
+    GClist* list = tea_lib_checklist(T, 0);
+    GClist* newlist = tea_list_copy(T, list);
+    setlistV(T, T->top++, newlist);
 }
 
 static void list_find(tea_State* T)
@@ -437,7 +402,6 @@ static void list_find(tea_State* T)
     tea_check_function(T, 1);
 
     int len = tea_len(T, 0);
-
     for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
@@ -479,7 +443,6 @@ static void flatten(tea_State* T, int src, int len)
 static void list_flat(tea_State* T)
 {
     int len = tea_len(T, 0);
-
     tea_new_list(T);
     flatten(T, 0, len);
 }
@@ -611,12 +574,9 @@ static void list_iteratorvalue(tea_State* T)
 }
 
 static void list_opadd(tea_State* T)
-{
-    tea_check_list(T, 0);
-    tea_check_list(T, 1);
-    
-    GClist* l1 = listV(T->base);
-    GClist* l2 = listV(T->base + 1);
+{    
+    GClist* l1 = tea_lib_checklist(T, 0);
+    GClist* l2 = tea_lib_checklist(T, 1);
 
     GClist* list = tea_list_new(T);
     setlistV(T, T->top++, list);

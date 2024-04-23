@@ -3,17 +3,18 @@
 ** Teascript random module
 */
 
-#define lib_random_c
-#define TEA_LIB
-
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+
+#define lib_random_c
+#define TEA_LIB
 
 #include "tea.h"
 #include "tealib.h"
 
 #include "tea_import.h"
+#include "tea_lib.h"
 
 static void random_seed(tea_State* T)
 {
@@ -39,17 +40,17 @@ static void random_range(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
-    if(tea_is_number(T, 0) && tea_is_number(T, 1) && count == 2)
+    if(count == 2)
     {
-        int upper = tea_get_number(T, 1);
-        int lower = tea_get_number(T, 0);
+        int upper = tea_check_number(T, 1);
+        int lower = tea_check_number(T, 0);
         tea_push_number(T, (rand() % (upper - lower + 1)) + lower);
         return;
     }
-    else if(tea_is_range(T, 0) && count == 1)
+    else if(count == 1)
     {
         double u, l;
-        tea_get_range(T, 0, &l, &u, NULL);
+        tea_check_range(T, 0, &l, &u, NULL);
         int upper = u, lower = l;
         tea_push_number(T, (rand() % (upper - lower + 1)) + lower);
         return;
@@ -59,32 +60,23 @@ static void random_range(tea_State* T)
 
 static void random_shuffle(tea_State* T)
 {
-    tea_check_list(T, 0);
-
-    GClist* list = listV(T->base);
-
+    GClist* list = tea_lib_checklist(T, 0);
     if(list->count < 2)
-    {
         return;
-    }
-
     for(int i = 0; i < list->count - 1; i++)
     {
         int j = floor(i + rand() / (RAND_MAX / (list->count - i) + 1));
-        TValue value = list->items[j];
-        list->items[j] = list->items[i];
-        list->items[i] = value;
+        TValue* o = list->items + j;
+        copyTV(T, list->items + j, list->items + i);
+        copyTV(T, list->items + i, o);
     }
 }
 
 static void random_choice(tea_State* T)
 {
-    tea_check_list(T, 0);
-
-    int len = tea_len(T, 0);
-    int index = rand() % len;
-
-    tea_get_item(T, 0, index);
+    GClist* list = tea_lib_checklist(T, 0);
+    int index = rand() % list->count;
+    copyTV(T, T->top++, list->items + index);
 }
 
 static const tea_Module random_module[] = {

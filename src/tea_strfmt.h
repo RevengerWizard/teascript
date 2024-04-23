@@ -78,6 +78,8 @@ static TEA_AINLINE void tea_strfmt_init(FormatState* fs, const char* p, size_t l
 {
     fs->p = (const uint8_t*)p;
     fs->e = (const uint8_t*)p + len;
+    /* Must be NULL-terminated. May have NULLs inside, too. */
+    tea_assertX(*fs->e == 0, "format not NULL-terminated");
 }
 
 /* Raw conversions */
@@ -88,8 +90,8 @@ TEA_FUNC SBuf* tea_strfmt_putfnum(tea_State* T, SBuf* sb, SFormat sf, double n);
 TEA_FUNC void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg);
 
 /* Conversions to strings */
-TEA_FUNC GCstr* tea_strfmt_num(tea_State* T, const TValue* o);
-TEA_FUNC GCstr* tea_strfmt_obj(tea_State* T, const TValue* o, int depth);
+TEA_FUNC GCstr* tea_strfmt_num(tea_State* T, cTValue* o);
+TEA_FUNC GCstr* tea_strfmt_obj(tea_State* T, cTValue* o, int depth);
 
 /* Internal string formatting */
 TEA_FUNC const char* tea_strfmt_pushvf(tea_State* T, const char* fmt, va_list argp);

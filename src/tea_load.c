@@ -29,14 +29,14 @@ static void parser_f(tea_State* T, void* ud)
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex);
-    GCfunc* func = tea_func_newT(T, proto);
+    GCfunc* func = tea_func_newT(T, proto, lex->module);
     setfuncV(T, T->top++, func);
 }
 
 TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* name, const char* mode)
 {
     GCstr* mname = tea_str_new(T, name);
-    setstrV(T, T->top, mname); T->top++;
+    setstrV(T, T->top++, mname);
     GCmodule* module = tea_obj_new_module(T, mname);
     T->top--;
     if(T->last_module != NULL && T->last_module->name == module->name)
@@ -46,7 +46,7 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     else
     {
         char c = name[0];
-        setmoduleV(T, T->top, module); T->top++;
+        setmoduleV(T, T->top++, module);
         if(c != '<' && c != '?' && c != '=')
         {
             module->path = tea_imp_getdir(T, (char*)name);
@@ -69,6 +69,11 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     return status;
 }
 
+TEA_API int tea_load(tea_State* T, tea_Reader reader, void* data, const char* name)
+{
+    return tea_loadx(T, reader, data, name, NULL);
+}
+
 typedef struct FileReaderCtx
 {
     FILE* f;
@@ -85,25 +90,10 @@ static const char* reader_file(tea_State* T, void* ud, size_t* size)
     return (*size > 0) ? ctx->buf : NULL;
 }
 
-static int load_file(tea_State* T, FileReaderCtx* ctx, const char* filename, const char* name, const char* mode)
-{
-    int status = tea_loadx(T, reader_file, ctx, name, mode);
-    if(ferror(ctx->f))
-    {
-        if(filename)
-            fclose(ctx->f);
-        return TEA_ERROR_FILE;
-    }
-    if(filename)
-    {
-        fclose(ctx->f);
-    }
-    return status;
-}
-
 TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* name, const char* mode)
 {
     FileReaderCtx ctx;
+    int status;
     if(filename)
     {
         ctx.f = fopen(filename, "rb");
@@ -117,7 +107,23 @@ TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* name,
         ctx.f = stdin;
         name = "=<stdin>";
     }
-    return load_file(T, &ctx, filename, name, mode);
+    status = tea_loadx(T, reader_file, &ctx, name, mode);
+    if(ferror(ctx.f))
+    {
+        if(filename)
+            fclose(ctx.f);
+        return TEA_ERROR_FILE;
+    }
+    if(filename)
+    {
+        fclose(ctx.f);
+    }
+    return status;
+}
+
+TEA_API int tea_load_file(tea_State* T, const char* filename, const char* name)
+{
+    return tea_load_filex(T, filename, name, NULL);
 }
 
 typedef struct StringReaderCtx
@@ -145,6 +151,11 @@ TEA_API int tea_load_bufferx(tea_State* T, const char* buffer, size_t size, cons
     return tea_loadx(T, reader_string, &ctx, name, mode);
 }
 
+TEA_API int tea_load_buffer(tea_State* T, const char* buffer, size_t size, const char* name)
+{
+    return tea_load_bufferx(T, buffer, (size), name, NULL);
+}
+
 TEA_API int tea_load_string(tea_State* T, const char* s)
 {
     return tea_load_buffer(T, s, strlen(s), "?<string>");
@@ -154,7 +165,8 @@ TEA_API int tea_load_string(tea_State* T, const char* s)
 
 TEA_API int tea_dump(tea_State* T, tea_Writer writer, void* data)
 {
-    const TValue* o = T->top - 1;
+    cTValue* o = T->top - 1;
+    tea_checkapi(T->top > T->base, "top slot empty");
     if(tvisfunc(o) && isteafunc(funcV(o)))
         return tea_bcwrite(T, funcV(o)->t.proto, writer, data);
     else
