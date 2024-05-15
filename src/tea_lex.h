@@ -14,6 +14,14 @@
 
 /* Teascript lexer tokens */
 #define TKDEF(_) \
+    _(AND, and) _(NOT, not) _(CLASS, class) _(STATIC, static) _(ELSE, else) _(FALSE, false) \
+    _(FOR, for) _(FUNCTION, function) _(CASE, case) _(SWITCH, switch) _(DEFAULT, default) \
+    _(IF, if) _(NULL, null) _(OR, or) _(IS, is) \
+    _(IMPORT, import) _(FROM, from) _(AS, as) _(ENUM, enum) \
+    _(RETURN, return) _(SUPER, super) _(THIS, this) \
+    _(CONTINUE, continue) _(BREAK, break) _(IN, in) \
+    _(TRUE, true) _(VAR, var) _(CONST, const) \
+    _(DO, do) _(WHILE, while) \
     _(PLUS_PLUS, ++) _(MINUS_MINUS, --) \
     _(PLUS_EQUAL, +=) _(MINUS_EQUAL, -=) _(STAR_EQUAL, *=) _(SLASH_EQUAL, /=) \
     _(BANG_EQUAL, !=) _(EQUAL_EQUAL, ==) \
@@ -25,14 +33,6 @@
     _(GREATER_GREATER, >>) _(LESS_LESS, <<) \
     _(GREATER_GREATER_EQUAL, >>=) _(LESS_LESS_EQUAL, <<=) \
     _(NAME, <name>) _(STRING, <string>) _(INTERPOLATION, <interpolation>) _(NUMBER, <number>) \
-    _(AND, and) _(NOT, not) _(CLASS, class) _(STATIC, static) _(ELSE, else) _(FALSE, false) \
-    _(FOR, for) _(FUNCTION, function) _(CASE, case) _(SWITCH, switch) _(DEFAULT, default) \
-    _(IF, if) _(NULL, null) _(OR, or) _(IS, is) \
-    _(IMPORT, import) _(FROM, from) _(AS, as) _(ENUM, enum) \
-    _(RETURN, return) _(SUPER, super) _(THIS, this) \
-    _(CONTINUE, continue) _(BREAK, break) _(IN, in) \
-    _(TRUE, true) _(VAR, var) _(CONST, const) \
-    _(WHILE, while) _(DO, do) \
     _(EOF, <eof>)
 
 enum
@@ -41,6 +41,7 @@ enum
 #define TKENUM(name, sym) TK_##name,
     TKDEF(TKENUM)
 #undef TKENUM
+    TK_RESERVED = TK_WHILE - TK_OFS
 };
 
 typedef int LexChar;  /* Lexical character*/
@@ -57,7 +58,7 @@ typedef struct
 typedef struct Lexer
 {
     tea_State* T;    /* Teascript state */
-    SBuf sbuf;  /* String buffer for tokens */
+    SBuf sb;  /* String buffer for tokens */
     const char* p;  /* Current position in input buffer */
     const char* pe;   /* End of input buffer */
     tea_Reader reader;   /* Reader callback */
@@ -75,10 +76,13 @@ typedef struct Lexer
     bool endmark;   /* Trust bytecode end marker, even if not at EOF */
 } Lexer;
 
-TEA_FUNC bool tea_lex_init(tea_State* T, Lexer* lex);
+TEA_DATA const char* const lex_tokennames[];
+
+TEA_FUNC bool tea_lex_setup(tea_State* T, Lexer* lex);
 TEA_FUNC const char* tea_lex_token2str(Lexer* lex, LexToken t);
 TEA_FUNC_NORET void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...);
 TEA_FUNC void tea_lex_next(Lexer* lex);
+TEA_FUNC void tea_lex_init(tea_State* T);
 
 #ifdef TEA_USE_ASSERT
 #define tea_assertLS(c, ...) (tea_assertT_(lex->T, (c), __VA_ARGS__))

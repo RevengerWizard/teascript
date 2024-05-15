@@ -28,10 +28,10 @@ TEA_DATADEF const char* const tea_obj_typenames[] = {
     "null", "bool", "number", "pointer", 
     "string", "range", "function",
     "module", "class", "instance", "list", "map",
-    "file", "proto", "upvalue", "method"
+    "userdata", "proto", "upvalue", "method"
 };
 
-GCmodule* tea_obj_new_module(tea_State* T, GCstr* name)
+GCmodule* tea_module_new(tea_State* T, GCstr* name)
 {
     char c = str_data(name)[0];
 
@@ -48,25 +48,16 @@ GCmodule* tea_obj_new_module(tea_State* T, GCstr* name)
 
     setmoduleV(T, T->top++, module);
 
-    TValue v;
-    setmoduleV(T, &v, module);
-    copyTV(T, tea_tab_set(T, &T->modules, name, NULL), &v);
+    TValue o;
+    setmoduleV(T, &o, module);
+    copyTV(T, tea_tab_set(T, &T->modules, name, NULL), &o);
     
     T->top--;
 
     return module;
 }
 
-GCfile* tea_obj_new_file(tea_State* T, GCstr* path, GCstr* type)
-{
-    GCfile* file = tea_mem_newobj(T, GCfile, TEA_TFILE);
-    file->path = path;
-    file->type = type;
-    file->is_open = true;
-    return file;
-}
-
-GCrange* tea_obj_new_range(tea_State* T, double start, double end, double step)
+GCrange* tea_range_new(tea_State* T, double start, double end, double step)
 {
     GCrange* range = tea_mem_newobj(T, GCrange, TEA_TRANGE);
     range->start = start;
@@ -75,18 +66,17 @@ GCrange* tea_obj_new_range(tea_State* T, double start, double end, double step)
     return range;
 }
 
-GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass)
+GCclass* tea_class_new(tea_State* T, GCstr* name, GCclass* superclass)
 {
     GCclass* k = tea_mem_newobj(T, GCclass, TEA_TCLASS);
     k->name = name;
     k->super = superclass;
     setnullV(&k->constructor);
-    tea_tab_init(&k->statics);
     tea_tab_init(&k->methods);
     return k;
 }
 
-GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass)
+GCinstance* tea_instance_new(tea_State* T, GCclass* klass)
 {
     GCinstance* instance = tea_mem_newobj(T, GCinstance, TEA_TINSTANCE);
     instance->klass = klass;
@@ -94,7 +84,7 @@ GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass)
     return instance;
 }
 
-GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, GCfunc* method)
+GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* method)
 {
     GCmethod* bound = tea_mem_newobj(T, GCmethod, TEA_TMETHOD);
     copyTV(T, &bound->receiver, receiver);
@@ -105,7 +95,9 @@ GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, GCfunc* method)
 /* Return pointer to object or its object data */
 const void* tea_obj_pointer(cTValue* o)
 {
-    if(tvispointer(o))
+    if(tvisudata(o))
+        return ud_data(udataV(o));
+    else if(tvispointer(o))
         return pointerV(o);
     else if(tvisgcv(o))
         return gcV(o);
@@ -130,7 +122,7 @@ static bool obj_list_equal(GClist* a, GClist* b)
 
     for(int i = 0; i < a->count; i++)
     {
-        if(!tea_obj_equal(a->items + i, b->items + i))
+        if(!tea_obj_equal(list_slot(a, i), list_slot(b, i)))
         {
             return false;
         }

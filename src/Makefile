@@ -240,14 +240,14 @@ endif
 # Files and pathnames
 ##############################################################################
 
-TEALIB_O = lib_core.o \
-	lib_file.o lib_list.o lib_map.o lib_range.o \
-	lib_string.o \
+TEALIB_O = lib_base.o \
+	lib_list.o lib_map.o lib_range.o \
+	lib_string.o lib_buffer.o \
 	lib_io.o lib_os.o lib_random.o lib_math.o \
 	lib_sys.o lib_time.o
-TEALIB_C = $(TEALIB_O:.o=.c)
 
-TEACORE_O = tea_assert.o tea_api.o tea_lib.o \
+TEACORE_O = tea_assert.o tea_api.o tea_lib.o tea_prng.o \
+	tea_udata.o \
 	tea_load.o tea_bcwrite.o tea_bcread.o \
 	tea_bc.o tea_parse.o tea_debug.o \
 	tea_err.o tea_gc.o tea_import.o tea_obj.o tea_func.o \

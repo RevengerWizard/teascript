@@ -20,7 +20,7 @@
 #include "tea_strscan.h"
 
 /* Teascript lexer token names */
-static const char* const lex_tokennames[] = {
+TEA_DATADEF const char* const lex_tokennames[] = {
 #define TKSTR(name, sym) #sym,
     TKDEF(TKSTR)
 #undef TKSTR
@@ -77,7 +77,7 @@ static LexChar lex_lookahead(Lexer* lex)
 /* Save character */
 static TEA_AINLINE void lex_save(Lexer* lex, LexChar c)
 {
-    tea_buf_putb(lex->T, &lex->sbuf, c);
+    tea_buf_putb(lex->T, &lex->sb, c);
 }
 
 /* Save previous character and get next character */
@@ -108,67 +108,6 @@ static Token lex_token(Lexer* lex, int type)
     Token token;
     token.type = type;
     token.line = lex->line;
-    return token;
-}
-
-typedef struct
-{
-    const char* name;
-    LexToken type;
-} Keyword;
-
-const Keyword lex_tokens[] = {
-    { "and", TK_AND },
-    { "not", TK_NOT },
-    { "class", TK_CLASS },
-    { "static", TK_STATIC },
-    { "else", TK_ELSE },
-    { "false", TK_FALSE },
-    { "for", TK_FOR },
-    { "function", TK_FUNCTION },
-    { "case", TK_CASE },
-    { "switch", TK_SWITCH },
-    { "default", TK_DEFAULT },
-    { "if", TK_IF },
-    { "null", TK_NULL },
-    { "or", TK_OR },
-    { "is", TK_IS },
-    { "import", TK_IMPORT },
-    { "from", TK_FROM },
-    { "as", TK_AS },
-    { "enum", TK_ENUM },
-    { "return", TK_RETURN },
-    { "super", TK_SUPER },
-    { "this", TK_THIS },
-    { "continue", TK_CONTINUE },
-    { "break", TK_BREAK },
-    { "in", TK_IN },
-    { "true", TK_TRUE },
-    { "var", TK_VAR },
-    { "const", TK_CONST },
-    { "while", TK_WHILE },
-    { "do", TK_DO },
-    { NULL, 0 }
-};
-
-static Token lex_name(Lexer* lex)
-{
-    size_t len = sbuf_len(&lex->sbuf);
-    LexToken type = TK_NAME;
-
-    for(int i = 0; lex_tokens[i].name != NULL; i++)
-    {
-        if(len == strlen(lex_tokens[i].name) &&
-            memcmp(lex->sbuf.b, lex_tokens[i].name, len) == 0)
-        {
-            type = lex_tokens[i].type;
-            break;
-        }
-    }
-
-    Token token = lex_token(lex, type);
-    GCstr* str = tea_str_copy(lex->T, lex->sbuf.b, (int)len);
-    setstrV(lex->T, &token.value, str);
     return token;
 }
 
@@ -208,7 +147,7 @@ static Token lex_number(Lexer* lex)
     }
     lex_save(lex, '\0');
 
-    fmt = tea_strscan_scan((const uint8_t *)lex->sbuf.b, sbuf_len(&lex->sbuf) - 1, &tv,
+    fmt = tea_strscan_scan((const uint8_t *)lex->sb.b, sbuf_len(&lex->sb) - 1, &tv,
                           STRSCAN_OPT_TONUM);
 
     if(fmt == STRSCAN_NUM)
@@ -331,7 +270,7 @@ static Token lex_multistring(Lexer* lex)
     }
 
     Token token = lex_token(lex, TK_STRING);
-    GCstr* str = tea_str_copy(lex->T, lex->sbuf.b + 3, sbuf_len(&lex->sbuf) - 6);
+    GCstr* str = tea_str_new(lex->T, lex->sb.b + 3, sbuf_len(&lex->sb) - 6);
     setstrV(lex->T, &token.value, str);
     return token;
 }
@@ -456,7 +395,7 @@ static Token lex_string(Lexer* lex)
     lex_savenext(lex);
 
     Token token = lex_token(lex, type);
-    GCstr* str = tea_str_copy(T, lex->sbuf.b + 1, sbuf_len(&lex->sbuf) - 2);
+    GCstr* str = tea_str_new(T, lex->sb.b + 1, sbuf_len(&lex->sb) - 2);
     setstrV(T, &token.value, str);
 
 	return token;
@@ -467,7 +406,7 @@ static Token lex_string(Lexer* lex)
 /* Get next lexical token */
 static Token lex_scan(Lexer* lex)
 {
-    tea_buf_reset(&lex->sbuf);
+    tea_buf_reset(&lex->sb);
     while(true)
     {
         switch(lex->c)
@@ -792,12 +731,27 @@ static Token lex_scan(Lexer* lex)
                         return lex_number(lex);
                     }
 
+                    /* Identifier or reserved word */
                     do
                     {
                         lex_savenext(lex);
                     }
                     while(tea_char_isident(lex->c) || tea_char_isdigit(lex->c));
-                    return lex_name(lex);
+                    TValue tv;
+                    GCstr* s = tea_str_new(lex->T, lex->sb.b, sbuf_len(&lex->sb));
+                    setstrV(lex->T, &tv, s);
+                    Token token;
+                    if(s->reserved > 0)
+                    {
+                        token = lex_token(lex, TK_OFS + s->reserved);
+                        copyTV(lex->T, &token.value, &tv);
+                    }
+                    else
+                    {
+                        token = lex_token(lex, TK_NAME);
+                        copyTV(lex->T, &token.value, &tv);
+                    }
+                    return token;
                 }
                 else
                     lex_syntaxerror(lex, TEA_ERR_XCHAR);
@@ -808,8 +762,8 @@ static Token lex_scan(Lexer* lex)
 
 /* -- Lexer API ----------------------------------------------------------- */
 
-/* Initialize lexer */
-bool tea_lex_init(tea_State* T, Lexer* lex)
+/* Setup lexer */
+bool tea_lex_setup(tea_State* T, Lexer* lex)
 {
     bool header = false;
     lex->T = T;
@@ -868,7 +822,7 @@ const char* tea_lex_token2str(Lexer* lex, LexToken t)
 /* Lexer error */
 void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...)
 {
-    char* module_name = str_data(lex->module->name);
+    char* module_name = str_datawr(lex->module->name);
     char c = module_name[0];
     int off = 0;
     if(c == '?' || c == '=') off = 1;
@@ -894,4 +848,16 @@ void tea_lex_next(Lexer* lex)
     if(lex->curr.type == TK_EOF) return;
 
     lex->next = lex_scan(lex);
+}
+
+/* Initialize strings for reserved words */
+void tea_lex_init(tea_State* T)
+{
+    uint32_t i;
+    for(i = 0; i < TK_RESERVED; i++)
+    {
+        GCstr* s = tea_str_newlen(T, lex_tokennames[i]);
+        fix_string(s);
+        s->reserved = (uint8_t)(i + 1);
+    }
 }

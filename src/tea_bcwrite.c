@@ -14,7 +14,7 @@
 typedef struct BCWriteCtx
 {
     tea_State* T;
-    SBuf sbuf;  /* Output buffer */
+    SBuf sb;  /* Output buffer */
     GCproto* f;  /* Root prototype */
     tea_Writer writer;   /* Writer callback */
     void* data;   /* Writer data */
@@ -41,7 +41,7 @@ static char* bcwrite_wuleb128(char* p, uint32_t v)
 /* Write number from constants */
 static void bcwrite_knum(BCWriteCtx* ctx, TValue* v)
 {
-    char* p = tea_buf_more(ctx->T, &ctx->sbuf, 10);
+    char* p = tea_buf_more(ctx->T, &ctx->sb, 10);
     double num = numberV(v);
 
     NumberBits x;
@@ -52,7 +52,7 @@ static void bcwrite_knum(BCWriteCtx* ctx, TValue* v)
 	    p[-1] = (p[-1] & 7) | ((x.u32.lo>>27) & 0x18);
     p = bcwrite_wuleb128(p, x.u32.hi);
 
-    ctx->sbuf.w = p;
+    ctx->sb.w = p;
 }
 
 /* Write constants of a prototype */
@@ -60,7 +60,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
 {
     for(int i = 0; i < pt->k_count; i++)
     {
-        TValue* v = pt->k + i;
+        TValue* v = proto_kgc(pt, i);
         size_t type = 0;
         size_t need = 1;
         char* p;
@@ -82,7 +82,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
         }
 
         /* Write constant type */
-        p = tea_buf_more(ctx->T, &ctx->sbuf, need);
+        p = tea_buf_more(ctx->T, &ctx->sb, need);
         p = bcwrite_wuleb128(p, type);
 
         /* Write constant data */
@@ -91,7 +91,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
             GCstr* str = strV(v);
             p = tea_buf_wmem(p, str_data(str), str->len);
         }
-        ctx->sbuf.w = p;
+        ctx->sb.w = p;
         if(type == BCDUMP_KGC_NUM)
         {
             bcwrite_knum(ctx, v);
@@ -113,17 +113,17 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     /* Recursively write children of prototype */
     for(int i = pt->k_count - 1; i >= 0; i--)
     {
-        TValue* v = pt->k + i;
-        if(tvisproto(v))
+        TValue* o = proto_kgc(pt, i);
+        if(tvisproto(o))
         {
-            bcwrite_proto(ctx, protoV(v));
+            bcwrite_proto(ctx, protoV(o));
         }    
     }
 
     size_t len = pt->name->len;
 
     /* Start writing the prototype into the buffer */
-    char* p = tea_buf_need(ctx->T, &ctx->sbuf, 5+(5+len)+6+2*5+(pt->bc_count-1));
+    char* p = tea_buf_need(ctx->T, &ctx->sb, 5+(5+len)+6+2*5+(pt->bc_count-1));
     p += 5; /* Leave room for final size */
 
     /* Write prototype name */
@@ -142,7 +142,7 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
 
     /* Write bytecode instructions */
     p = bcwrite_bytecode(ctx, pt, p);
-    ctx->sbuf.w = p;
+    ctx->sb.w = p;
 
     /* Write constants */
     bcwrite_kgc(ctx, pt);
@@ -150,11 +150,11 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     /* Pass buffer to writer function prototype */
     if(ctx->status == TEA_OK)
     {
-        size_t n = sbuf_len(&ctx->sbuf) - 5;
+        size_t n = sbuf_len(&ctx->sb) - 5;
         size_t nn = (tea_fls(n)+8)*9 >> 6;
-        char* q = ctx->sbuf.b + (5 - nn);
+        char* q = ctx->sb.b + (5 - nn);
         p = bcwrite_wuleb128(q, n); /* Fill in final size */
-        tea_assertBCW(p == ctx->sbuf.b + 5, "bad ULEB128 write");
+        tea_assertBCW(p == ctx->sb.b + 5, "bad ULEB128 write");
         ctx->status = ctx->writer(ctx->T, ctx->data, q, nn+n);
     }
 }
@@ -162,14 +162,14 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
 /* Write header of bytecode dump */
 static void bcwrite_header(BCWriteCtx* ctx)
 {
-    char* p = tea_buf_need(ctx->T, &ctx->sbuf, 5);
+    char* p = tea_buf_need(ctx->T, &ctx->sb, 5);
     *p++ = BCDUMP_HEAD1;
     *p++ = BCDUMP_HEAD2;
     *p++ = BCDUMP_HEAD3;
     *p++ = BCDUMP_HEAD4;
     *p++ = BCDUMP_VERSION;
 
-    ctx->status = ctx->writer(ctx->T, ctx->data, ctx->sbuf.b, (size_t)(p - ctx->sbuf.b));
+    ctx->status = ctx->writer(ctx->T, ctx->data, ctx->sb.b, (size_t)(p - ctx->sb.b));
 }
 
 /* Write footer of bytecode dump */
@@ -185,7 +185,7 @@ static void bcwrite_footer(BCWriteCtx* ctx)
 static void f_writer(tea_State* T, void* ud)
 {
     BCWriteCtx* ctx = (BCWriteCtx*)ud;
-    tea_buf_need(T, &ctx->sbuf, 1024);  /* Avoid resize */
+    tea_buf_need(T, &ctx->sb, 1024);  /* Avoid resize */
     bcwrite_header(ctx);
     bcwrite_proto(ctx, ctx->f);
     bcwrite_footer(ctx);
@@ -201,10 +201,10 @@ int tea_bcwrite(tea_State* T, GCproto* proto, tea_Writer writer, void* data)
     ctx.data = data;
     ctx.status = TEA_OK;
 
-    tea_buf_init(&ctx.sbuf);
+    tea_buf_init(&ctx.sb);
     int status = tea_vm_pcall(T, f_writer, &ctx, stack_save(T, T->top));
     if(status == TEA_OK)
         status = ctx.status;
-    tea_buf_free(T, &ctx.sbuf);
+    tea_buf_free(T, &ctx.sb);
     return status;
 }

@@ -42,8 +42,7 @@
 #include "tea_utf.c"
 #include "tea_vm.c"
 
-#include "lib_core.c"
-#include "lib_file.c"
+#include "lib_base.c"
 #include "lib_list.c"
 #include "lib_map.c"
 #include "lib_range.c"

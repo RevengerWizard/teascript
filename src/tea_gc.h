@@ -8,6 +8,10 @@
 
 #include "tea_obj.h"
 
+#define TEA_GC_FIXED 0x10
+
+#define fix_string(s) (((GCobj*)(s))->marked = TEA_GC_FIXED)
+
 /* Collector */
 TEA_FUNC void tea_gc_markobj(tea_State* T, GCobj* object);
 TEA_FUNC void tea_gc_markval(tea_State* T, TValue* value);

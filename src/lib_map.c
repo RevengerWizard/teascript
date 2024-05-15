@@ -226,6 +226,8 @@ static void map_opadd(tea_State* T)
     setmapV(T, T->top++, map);
 }
 
+/* ------------------------------------------------------------------------ */
+
 static const tea_Class map_class[] = {
     { "len", "property", map_len, TEA_VARARGS },
     { "keys", "property", map_keys, TEA_VARARGS },

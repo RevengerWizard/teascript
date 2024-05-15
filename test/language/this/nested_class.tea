@@ -2,17 +2,17 @@ class Outer
 {
     method() 
     {
-        print(this) // expect: <Outer instance>
+        print(this) // expect: <Outer>
 
         function f() 
         {
-            print(this) // expect: <Outer instance>
+            print(this) // expect: <Outer>
 
             class Inner 
             {
                 method() 
                 {
-                    print(this) // expect: <Inner instance>
+                    print(this) // expect: <Inner>
                 }
             }
 

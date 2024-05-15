@@ -66,13 +66,13 @@ typedef enum FormatType
 #define STRFMT_S    (STRFMT_STR)
 #define STRFMT_U    (STRFMT_UINT)
 #define STRFMT_X    (STRFMT_UINT | STRFMT_T_HEX)
-#define STRFMT_G14    (STRFMT_G | ((14+1) << STRFMT_SH_PREC))
+#define STRFMT_G14    (STRFMT_G | ((14 + 1) << STRFMT_SH_PREC))
 
 /* Maximum buffer sizes for conversions */
-#define STRFMT_MAXBUF_XINT  (1+22)  /* '0' prefix + uint64_t in octal */
-#define STRFMT_MAXBUF_INT  (1+10)  /* Sign + int32_t in decimal */
+#define STRFMT_MAXBUF_XINT  (1 + 22)  /* '0' prefix + uint64_t in octal */
+#define STRFMT_MAXBUF_INT  (1 + 10)  /* Sign + int32_t in decimal */
 #define STRFMT_MAXBUF_NUM  32  /* Must correspond with STRFMT_G14 */
-#define STRFMT_MAXBUF_PTR  (2+2*sizeof(ptrdiff_t))  /* "0x" + hex ptr */
+#define STRFMT_MAXBUF_PTR  (2 + 2 * sizeof(ptrdiff_t))  /* "0x" + hex ptr */
 
 static TEA_AINLINE void tea_strfmt_init(FormatState* fs, const char* p, size_t len)
 {
@@ -84,14 +84,15 @@ static TEA_AINLINE void tea_strfmt_init(FormatState* fs, const char* p, size_t l
 
 /* Raw conversions */
 TEA_FUNC char* tea_strfmt_wint(char* p, int32_t k);
+TEA_FUNC const char* tea_strfmt_wstrnum(tea_State* T, cTValue* o, int* len);
 
 /* Formatted conversions to buffer */
 TEA_FUNC SBuf* tea_strfmt_putfnum(tea_State* T, SBuf* sb, SFormat sf, double n);
-TEA_FUNC void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg);
+TEA_FUNC int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry);
 
 /* Conversions to strings */
 TEA_FUNC GCstr* tea_strfmt_num(tea_State* T, cTValue* o);
-TEA_FUNC GCstr* tea_strfmt_obj(tea_State* T, cTValue* o, int depth);
+TEA_FUNC void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth);
 
 /* Internal string formatting */
 TEA_FUNC const char* tea_strfmt_pushvf(tea_State* T, const char* fmt, va_list argp);

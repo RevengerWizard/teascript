@@ -20,6 +20,7 @@
 #include "tea_gc.h"
 #include "tea_tab.h"
 #include "tea_buf.h"
+#include "tea_lex.h"
 
 /* -- Stack handling -------------------------------------------------- */
 
@@ -55,43 +56,34 @@ static const char* const opmnames[] = {
 #undef MMSTR
 };
 
+/* String interning of special method names for fast indexing */
 static void state_init_mms(tea_State* T)
 {
     for(int i = 0; i < MM__MAX; i++)
     {
-        T->opm_name[i] = tea_str_new(T, opmnames[i]);
+        GCstr* s = tea_str_newlen(T, opmnames[i]);
+        fix_string(s);
+        T->opm_name[i] = s;
     }
 }
 
-/* Adjust pointers in state */
-static void stack_correct(tea_State* T, TValue* old_stack)
-{
-    T->top = (T->top - old_stack) + T->stack;
-
-    for(GCupvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
-    {
-        upvalue->location = (upvalue->location - old_stack) + T->stack;
-    }
-
-    for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
-    {
-        ci->base = (ci->base - old_stack) + T->stack;
-    }
-
-    T->base = (T->base - old_stack) + T->stack;
-}
-
-/* Resize stack slots */
-static void stack_realloc(tea_State* T, int new_size)
+/* Resize stack slots and adjust pointers in state */
+static void stack_resize(tea_State* T, int new_size)
 {
 	TValue* old_stack = T->stack;
 	T->stack = tea_mem_reallocvec(T, TValue, T->stack, T->stack_size, new_size);
 	T->stack_size = new_size;
     T->stack_max = T->stack + new_size - 1 - TEA_STACK_EXTRA;
-    if(old_stack != T->stack)
+    T->top = (T->top - old_stack) + T->stack;
+    for(GCupvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
     {
-        stack_correct(T, old_stack);
+        upvalue->location = (upvalue->location - old_stack) + T->stack;
     }
+    for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
+    {
+        ci->base = (ci->base - old_stack) + T->stack;
+    }
+    T->base = (T->base - old_stack) + T->stack;
 }
 
 void tea_state_reallocci(tea_State* T, int new_size)
@@ -116,12 +108,12 @@ void tea_state_growci(tea_State* T)
 }
 
 /* Try to grow stack */
-void tea_state_growstack(tea_State* T, int needed)
+void tea_state_growstack(tea_State* T, int need)
 {
-	if(needed <= T->stack_size)
-        stack_realloc(T, 2 * T->stack_size);
+	if(need <= T->stack_size)
+        stack_resize(T, 2 * T->stack_size);
     else
-        stack_realloc(T, T->stack_size + needed + TEA_STACK_EXTRA);
+        stack_resize(T, T->stack_size + need + TEA_STACK_EXTRA);
 }
 
 void tea_state_growstack1(tea_State* T)
@@ -167,43 +159,30 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T = (tea_State*)allocf(ud, NULL, 0, sizeof(*T));
     if(T == NULL)
         return NULL;
+    memset(T, 0, sizeof(*T));
     T->allocf = allocf;
     T->allocd = ud;
-    T->error_jump = NULL;
-    T->parser = NULL;
-    T->nccalls = 0;
-    T->last_module = NULL;
-    T->gc.objects = NULL;
-    T->gc.total = 0;
-    T->gc.gray_stack = NULL;
-    T->gc.gray_count = 0;
-    T->gc.gray_size = 0;
     T->gc.next_gc = 1024 * 1024;
     T->panic = panic;
-    T->argc = 0;
-    T->argv = NULL;
-    T->argf = 0;
-    T->repl = false;
-    T->open_upvalues = NULL;
-    T->number_class = NULL;
-    T->bool_class = NULL;
-    T->list_class = NULL;
-    T->string_class = NULL;
-    T->map_class = NULL;
-    T->file_class = NULL;
-    T->range_class = NULL;
     setnullV(&T->nullval);
     stack_init(T);
     tea_buf_init(&T->tmpbuf);
+    tea_buf_init(&T->strbuf);
     tea_tab_init(&T->modules);
     tea_tab_init(&T->globals);
     tea_tab_init(&T->constants);
     tea_tab_init(&T->strings);
+    T->strempty.obj.gct = TEA_TSTRING;
+    T->strempty.obj.marked = TEA_GC_FIXED;
     T->constructor_string = tea_str_newlit(T, "constructor");
+    fix_string(T->constructor_string);
     T->repl_string = tea_str_newlit(T, "_");
-    T->memerr = tea_str_new(T, err2msg(TEA_ERR_MEM));
+    fix_string(T->repl_string);
+    T->memerr = tea_str_newlen(T, err2msg(TEA_ERR_MEM));
+    fix_string(T->memerr);
     state_init_mms(T);
-    tea_open_core(T);
+    tea_lex_init(T);
+    tea_open_base(T);
     return T;
 }
 
@@ -213,6 +192,7 @@ TEA_API void tea_close(tea_State* T)
         tea_tab_free(T, &T->constants);
 
     tea_buf_free(T, &T->tmpbuf);
+    tea_buf_free(T, &T->strbuf);
     tea_tab_free(T, &T->modules);
     tea_tab_free(T, &T->globals);
     tea_tab_free(T, &T->constants);
@@ -231,6 +211,8 @@ GCclass* tea_state_getclass(tea_State* T, TValue* value)
             return T->number_class;
         case TEA_TBOOL:
             return T->bool_class;
+        case TEA_TFUNC:
+            return T->func_class;
         case TEA_TINSTANCE:
             return instanceV(value)->klass;
         case TEA_TLIST: 
@@ -241,8 +223,6 @@ GCclass* tea_state_getclass(tea_State* T, TValue* value)
             return T->string_class;
         case TEA_TRANGE: 
             return T->range_class;
-        case TEA_TFILE: 
-            return T->file_class;
         default: 
             return NULL;
     }
@@ -253,9 +233,9 @@ bool tea_state_isclass(tea_State* T, GCclass* klass)
 {
     return (klass == T->number_class ||
             klass == T->bool_class ||
+            klass == T->func_class ||
             klass == T->list_class ||
             klass == T->map_class ||
             klass == T->string_class ||
-            klass == T->range_class ||
-            klass == T->file_class);
+            klass == T->range_class);
 }

@@ -16,6 +16,8 @@
 #include "tea_str.h"
 #include "tea_list.h"
 #include "tea_lib.h"
+#include "tea_buf.h"
+#include "tea_strfmt.h"
 
 static void list_len(tea_State* T)
 {
@@ -31,8 +33,11 @@ static void list_constructor(tea_State* T)
 static void list_add(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
-    TValue* o = tea_lib_checkany(T, 1);
-    tea_list_add(T, list, o);
+    TValue* tv;
+    for(tv = T->base + 1; tv < T->top; tv++)
+    {
+        tea_list_add(T, list, tv);
+    }
     tea_set_top(T, 1);
 }
 
@@ -110,7 +115,7 @@ static void list_delete(tea_State* T)
     }
 
     tea_list_delete(T, list, index);
-    tea_pop(T, 1);
+    T->top = T->base + 1;   /* Chain list */
 }
 
 static void list_clear(tea_State* T)
@@ -129,7 +134,7 @@ static void list_insert(tea_State* T)
         tea_error(T, "Index out of bounds for the list given");
     }
     tea_list_insert(T, list, o, index);
-    tea_pop(T, 2);
+    T->top = T->base + 1;   /* Chain list */
 }
 
 static void list_extend(tea_State* T)
@@ -171,7 +176,6 @@ static void list_contains(tea_State* T)
         }
         tea_pop(T, 1);
     }
-
     tea_push_bool(T, false);
 }
 
@@ -188,7 +192,6 @@ static void list_count(tea_State* T)
         }
         tea_pop(T, 1);
     }
-
     tea_push_number(T, n);
 }
 
@@ -200,7 +203,7 @@ static void list_fill(tea_State* T)
         tea_push_value(T, 1);
         tea_set_item(T, 0, i);
     }
-    tea_pop(T, 1);
+    T->top = T->base + 1;   /* Chain list */
 }
 
 static void set2(tea_State* T, int i, int j)
@@ -318,7 +321,7 @@ static void list_sort(tea_State* T)
         tea_check_function(T, 1);
     tea_set_top(T, 2);
     auxsort(T, 0, len - 1);
-    tea_pop(T, 1);
+    T->top = T->base + 1;   /* Chain list */
 }
 
 static void list_index(tea_State* T)
@@ -342,58 +345,39 @@ static void list_join(tea_State* T)
     int count = tea_get_top(T);
     tea_check_args(T, count < 1 || count > 2, "Expected 0 or 1 argument, got %d", count);
 
-    int list_len = tea_len(T, 0);
-    if(list_len == 0)
+    GClist* list = tea_lib_checklist(T, 0);
+    if(list->count == 0)
     {
         tea_push_literal(T, "");
         return;
     }
 
     const char* sep = "";
-    int sep_len = 0;
+    size_t sep_len = 0;
     if(count == 2)
     {
         sep = tea_check_lstring(T, 1, &sep_len);
     }
 
-    char* output;
-    char* string = NULL;
-    int len = 0;
-    int element_len;
+    SBuf* sb = tea_buf_tmp_(T);
 
-    for(int i = 0; i < list_len - 1; i++)
+    TValue* o;
+    for(int i = 0; i < list->count; i++)
     {
-        tea_get_item(T, 0, i);
-        output = (char*)tea_to_lstring(T, count, &element_len);
+        o = list_slot(list, i);
+        tea_strfmt_obj(T, sb, o, 0);
 
-        string = tea_mem_reallocvec(T, char, string, len, len + element_len + sep_len);
-
-        memcpy(string + len, output, element_len);
-        len += element_len;
-        memcpy(string + len, sep, sep_len);
-        len += sep_len;
-        tea_pop(T, 2);
+        if(i != list->count - 1)
+            tea_buf_putmem(T, sb, sep, sep_len);
     }
-
-    tea_get_item(T, 0, list_len - 1);
-    /* Outside the loop as we do not want the append the delimiter on the last element */
-    output = (char*)tea_to_lstring(T, count, &element_len);
-
-    string = tea_mem_reallocvec(T, char, string, len, len + element_len + 1);
-    memcpy(string + len, output, element_len);
-    len += element_len;
-    string[len] = '\0';
-    tea_pop(T, 2);
-
-    GCstr* s = tea_str_take(T, string, len);
-    setstrV(T, T->top++, s);
+    setstrV(T, T->top++, tea_buf_str(T, sb));
 }
 
 static void list_copy(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
     GClist* newlist = tea_list_copy(T, list);
-    setlistV(T, T->top++, newlist);
+    setlistV(T, T->top - 1, newlist);
 }
 
 static void list_find(tea_State* T)
@@ -583,22 +567,24 @@ static void list_opadd(tea_State* T)
 
     for(int i = 0; i < l1->count; i++)
     {
-        tea_list_add(T, list, l1->items + i);
+        tea_list_add(T, list, list_slot(l1, i));
     }
 
     for(int i = 0; i < l2->count; i++)
     {
-        tea_list_add(T, list, l2->items + i);
+        tea_list_add(T, list, list_slot(l2, i));
     }
 
     tea_pop(T, 3);
     setlistV(T, T->top++, list);
 }
 
+/* ------------------------------------------------------------------------ */
+
 static const tea_Class list_class[] = {
     { "len", "property", list_len, TEA_VARARGS },
     { "constructor", "method", list_constructor, 1 },
-    { "add", "method", list_add, 2 },
+    { "add", "method", list_add, TEA_VARARGS },
     { "remove", "method", list_remove, 2 },
     { "delete", "method", list_delete, 2 },
     { "clear", "method", list_clear, 1 },

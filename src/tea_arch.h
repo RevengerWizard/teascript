@@ -115,7 +115,7 @@
 #define TEA_ARCH_ENDIAN TEA_BE
 #else
 #define TEA_ARCH_NAME "arm64"
-#define TEA_ARCH_ENDIAN LUAJIT_LE
+#define TEA_ARCH_ENDIAN TEA_LE
 #endif
 
 #else

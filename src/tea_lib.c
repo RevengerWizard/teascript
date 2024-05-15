@@ -22,8 +22,8 @@ TValue* tea_lib_checkany(tea_State* T, int index)
 tea_Number tea_lib_checknumber(tea_State* T, int index)
 {
     TValue* o = T->base + index;
-    if(o >= T->top)
-        tea_err_arg(T, index, TEA_ERR_NOVAL);
+    if(!(o < T->top && tvisnumber(o)))
+        tea_err_argt(T, index, TEA_TYPE_NUMBER);
     return numberV(o);
 }
 
@@ -57,4 +57,13 @@ GCrange* tea_lib_checkrange(tea_State* T, int index)
     if(!(o < T->top && tvisrange(o)))
         tea_err_argt(T, index, TEA_TYPE_RANGE);
     return rangeV(o);
+}
+
+void tea_lib_fileresult(tea_State* T, const char* fname)
+{
+    int en = errno; /* Teascript API calls may change this value */
+    if(fname)
+        tea_error(T, "%s: %s", fname, strerror(en));
+    else
+        tea_error(T, "%s", strerror(en));
 }

@@ -7,9 +7,10 @@
 
 ERRDEF(MEM, "Not enough memory")
 
+ERRDEF(STROV, "String length overflow")
+
 ERRDEF(TOSTR,  TEA_QL("tostring") " must return a string")
 ERRDEF(STKOV, "Stack overflow")
-ERRDEF(CSTKOV, "C stack overflow")
 ERRDEF(CALL, TEA_QS " is not callable")
 
 ERRDEF(NOARGS, "Expected 0 arguments but got %d")

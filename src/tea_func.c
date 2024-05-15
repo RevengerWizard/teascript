@@ -119,7 +119,8 @@ GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs,
 {
     GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeCfunc(nupvalues), TEA_TFUNC);
     func->c.ffid = FF_C;
-    func->c.upvalue_count = nupvalues;
+    func->c.upvalue_count = (uint8_t)nupvalues;
+    func->c.module = NULL;
     func->c.type = type;
     func->c.fn = fn;
     func->c.nargs = nargs;
@@ -132,8 +133,8 @@ GCfunc* tea_func_newT(tea_State* T, GCproto* proto, GCmodule* module)
     GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeTfunc(proto->upvalue_count), TEA_TFUNC);
     func->t.ffid = FF_TEA;
     func->t.upvalue_count = proto->upvalue_count;
-    func->t.proto = proto;
     func->t.module = module;
+    func->t.proto = proto;
     for(int i = 0; i < proto->upvalue_count; i++)
     {
         func->t.upvalues[i] = NULL;

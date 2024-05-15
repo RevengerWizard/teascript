@@ -9,7 +9,7 @@
 #include "tea_def.h"
 #include "tea_obj.h"
 
-TEA_FUNC int tea_utf_len(GCstr* str);
+TEA_FUNC uint32_t tea_utf_len(GCstr* str);
 TEA_FUNC int tea_utf_decode(const uint8_t* bytes, uint32_t len);
 TEA_FUNC int tea_utf_encode(int value, uint8_t* bytes);
 

@@ -21,6 +21,12 @@ static void buf_grow(tea_State* T, SBuf* sb, size_t size)
 
     char* b = (char*)tea_mem_realloc(T, sb->b, old_size, new_size);
 
+    if(sb->flag == SBUF_FLAG_EXT)
+    {
+        SBufExt* sbx = (SBufExt*)sb;
+        sbx->r = sbx->r - sb->b + b;  /* Adjust read pointer, too */
+    }
+
     /* Adjust buffer pointers */
     sb->b = b;
     sb->w = b + len;
@@ -36,9 +42,27 @@ char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size)
 
 char* tea_buf_more2(tea_State* T, SBuf* sb, size_t size)
 {
-    size_t len = sbuf_len(sb);
-    tea_assertT(size > sbuf_left(sb), "SBuf overflow");
-    buf_grow(T, sb, len + size);
+    if(sb->flag == SBUF_FLAG_EXT)
+    {
+        SBufExt* sbx = (SBufExt*)sb;
+        size_t len = sbufx_len(sbx);
+        if(len + size > sbuf_size(sbx))  /* Must grow */
+            buf_grow(T, (SBuf*)sbx, len + size);
+        if (sbx->r != sbx->b)
+        { 
+            /* Compact by moving down */
+            memmove(sbx->b, sbx->r, len);
+            sbx->r = sbx->b;
+            sbx->w = sbx->b + len;
+            tea_assertT(len + size <= sbuf_size(sbx), "bad SBuf compact");
+        }
+    }
+    else
+    {
+        size_t len = sbuf_len(sb);
+        tea_assertT(size > sbuf_left(sb), "SBuf overflow");
+        buf_grow(T, sb, len + size);
+    }
     return sb->w;
 }
 
@@ -60,6 +84,15 @@ SBuf* tea_buf_putmem(tea_State* T, SBuf* sb, const void* q, size_t len)
 {
     char* w = tea_buf_more(T, sb, len);
     w = tea_buf_wmem(w, q, len);
+    sb->w = w;
+    return sb;
+}
+
+SBuf* tea_buf_putstr(tea_State* T, SBuf* sb, GCstr* str)
+{
+    size_t len = str->len;
+    char* w = tea_buf_more(T, sb, len);
+    w = tea_buf_wmem(w, str_data(str), len);
     sb->w = w;
     return sb;
 }
@@ -92,5 +125,5 @@ GCstr* tea_buf_cat2str(tea_State* T, GCstr* s1, GCstr* s2)
     char* buf = tea_buf_tmp(T, len1 + len2);
     memcpy(buf, str_data(s1), len1);
     memcpy(buf + len1, str_data(s2), len2);
-    return tea_str_copy(T, buf, len1 + len2);
+    return tea_str_new(T, buf, len1 + len2);
 }

@@ -179,9 +179,11 @@ static void range_reverse(tea_State* T)
 static void range_copy(tea_State* T)
 {
     GCrange* range = tea_lib_checkrange(T, 0);
-    GCrange* newrange = tea_obj_new_range(T, range->start, range->end, range->step);
+    GCrange* newrange = tea_range_new(T, range->start, range->end, range->step);
     setrangeV(T, T->top++, newrange);
 }
+
+/* ------------------------------------------------------------------------ */
 
 static const tea_Class range_class[] = {
     { "start", "property", range_start, TEA_VARARGS },

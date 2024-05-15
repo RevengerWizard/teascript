@@ -15,4 +15,6 @@ TEA_FUNC GClist* tea_lib_checklist(tea_State* T, int index);
 TEA_FUNC GCmap* tea_lib_checkmap(tea_State* T, int index);
 TEA_FUNC GCrange* tea_lib_checkrange(tea_State* T, int index);
 
+TEA_FUNC void tea_lib_fileresult(tea_State* T, const char* fname);
+
 #endif

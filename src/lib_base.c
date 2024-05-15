@@ -1,6 +1,6 @@
 /*
 ** lib_core.c
-** Teascript core classes and functions
+** Teascript base classes and functions
 */
 
 #include <stdio.h>
@@ -8,7 +8,7 @@
 #include <string.h>
 #include <math.h>
 
-#define lib_core_c
+#define lib_base_c
 #define TEA_CORE
 
 #include "tea.h"
@@ -25,94 +25,51 @@
 #include "tea_strscan.h"
 #include "tea_lib.h"
 
-static void core_print(tea_State* T)
+static void base_print(tea_State* T)
 {
     int count = tea_get_top(T);
-    if(count == 0)
-    {
-        putchar('\n');
-        tea_push_null(T);
-        return;
-    }
-
     for(int i = 0; i < count; i++)
     {
-        int len;
-        const char* string = tea_to_lstring(T, i, &len);
+        size_t len;
+        const char* str = tea_to_lstring(T, i, &len);
         if(i)
             putchar('\t');
 
-        fwrite(string, sizeof(char), len, stdout);
+        fwrite(str, sizeof(char), len, stdout);
         tea_pop(T, 1);
     }
-
     putchar('\n');
     tea_push_null(T);
 }
 
-static void core_input(tea_State* T)
+static void base_input(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count > 1, "Expected 0 or 1 arguments, got %d", count);
     if(count != 0)
     {
-        int len;
-        const char* prompt = tea_check_lstring(T, 0, &len);
-        fwrite(prompt, sizeof(char), len, stdout);
+        GCstr* str = tea_lib_checkstr(T, 0);
+        fwrite(str_data(str), sizeof(char), str->len, stdout);
     }
 
-    uint64_t current_size = 128;
-    char* line = tea_mem_newvec(T, char, current_size);
-
-    int c = EOF;
-    uint64_t len = 0;
-    while((c = getchar()) != '\n' && c != EOF)
+    size_t m = TEA_BUFFER_SIZE, n = 0, ok = 0;
+    char* buf;
+    while(true)
     {
-        line[len++] = (char)c;
-
-        if(len + 1 == current_size)
-        {
-            int old_size = current_size;
-            current_size = TEA_MEM_GROW(current_size);
-            line = tea_mem_reallocvec(T, char, line, old_size, current_size);
-        }
+        buf = tea_buf_tmp(T, m);
+        if(fgets(buf + n, m - n, stdin) == NULL)
+            break;
+        n += strlen(buf + n);
+        ok |= n;
+        if(n && buf[n - 1] == '\n') { n -= 1; break; }
+        if(n >= m - 64) m += m;
     }
-
-    /* If length has changed, shrink */
-    if(len != current_size)
-    {
-        line = tea_mem_reallocvec(T, char, line, current_size, len + 1);
-    }
-
-    line[len] = '\0';
-
-    GCstr* s = tea_str_take(T, line, len);
-    setstrV(T, T->top++, s);
+    setstrV(T, T->top++, tea_str_new(T, buf, n));
+    if(!ok)
+        setnullV(T->top - 1);
 }
 
-static void core_open(tea_State* T)
-{
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
-
-    const char* path = tea_check_string(T, 0);
-    const char* type = "r";
-
-    if(count == 2)
-        type = tea_check_string(T, 1);
-
-    FILE* fp = fopen(path, type);
-    if(fp == NULL)
-    {
-        tea_error(T, "Unable to open file " TEA_QS, path);
-    }
-
-    GCfile* file = tea_obj_new_file(T, tea_str_new(T, path), tea_str_new(T, type));
-    file->file = fp;
-    setfileV(T, T->top++, file);
-}
-
-static void core_assert(tea_State* T)
+static void base_assert(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 1, "Expected at least 1 argument, got %d", count);
@@ -123,26 +80,26 @@ static void core_assert(tea_State* T)
     tea_push_value(T, 0);
 }
 
-static void core_error(tea_State* T)
+static void base_error(tea_State* T)
 {
     tea_error(T, "%s", tea_check_string(T, 0));
     tea_push_null(T);
 }
 
-static void core_typeof(tea_State* T)
+static void base_typeof(tea_State* T)
 {
     tea_push_string(T, tea_typeof(T, 0));
 }
 
-static void core_gc(tea_State* T)
+static void base_gc(tea_State* T)
 {
     int collected = tea_gc(T);
     tea_push_number(T, collected);
 }
 
-static void core_eval(tea_State* T)
+static void base_eval(tea_State* T)
 {
-    int len;
+    size_t len;
     const char* s = tea_check_lstring(T, 0, &len);
     if(tea_load_buffer(T, s, len, "?<interpret>") == TEA_OK)
     {
@@ -158,7 +115,7 @@ static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
     return 0;
 }
 
-static void core_dump(tea_State* T)
+static void base_dump(tea_State* T)
 {
     tea_check_function(T, 0);
     GCfunc* fn = funcV(T->base);
@@ -167,11 +124,10 @@ static void core_dump(tea_State* T)
     {
         tea_error(T, "Unable to dump given function");
     }
-    GCstr* str = tea_buf_str(T, sb);
-    setstrV(T, T->top++, str);
+    setstrV(T, T->top++, tea_buf_str(T, sb));
 }
 
-static void core_loadfile(tea_State* T)
+static void base_loadfile(tea_State* T)
 {
     const char* fname = tea_check_string(T, 0);
     const char* mode = tea_opt_string(T, 1, "t");
@@ -182,11 +138,11 @@ static void core_loadfile(tea_State* T)
     }
 }
 
-static void core_loadstring(tea_State* T)
+static void base_loadstring(tea_State* T)
 {
-    int len;
+    size_t len;
     const char* str = tea_check_lstring(T, 0, &len);
-    const char* name = tea_opt_string(T, 1, "t");
+    const char* name = tea_opt_string(T, 1, "b");
     int status = tea_load_bufferx(T, str, len, name ? name : "?<load>", NULL);
     if(status != TEA_OK)
     {
@@ -194,26 +150,25 @@ static void core_loadstring(tea_State* T)
     }
 }
 
-static void core_char(tea_State* T)
+static void base_char(tea_State* T)
 {
     int n = tea_check_number(T, 0);
-    GCstr* c = tea_utf_from_codepoint(T, n);
-    setstrV(T, T->top++, c);
+    setstrV(T, T->top++, tea_utf_from_codepoint(T, n));
 }
 
-static void core_ord(tea_State* T)
+static void base_ord(tea_State* T)
 {
-    const char* c = tea_check_string(T, 0);
-    tea_push_number(T, tea_utf_decode((uint8_t*)c, 1));
+    GCstr* c = tea_lib_checkstr(T, 0);
+    tea_push_number(T, tea_utf_decode((uint8_t*)str_data(c), c->len));
 }
 
-static void core_hex(tea_State* T)
+static void base_hex(tea_State* T)
 {
     double n = tea_check_number(T, 0);
     tea_strfmt_pushf(T, "0x%x", (unsigned int)n);
 }
 
-static void core_bin(tea_State* T)
+static void base_bin(tea_State* T)
 {
     int n = tea_check_number(T, 0);
 
@@ -247,14 +202,14 @@ static void core_bin(tea_State* T)
     tea_push_string(T, buffer);
 }
 
-static void core_rawequal(tea_State* T)
+static void base_rawequal(tea_State* T)
 {
     cTValue* o1 = tea_lib_checkany(T, 0);
     cTValue* o2 = tea_lib_checkany(T, 1);
     tea_push_bool(T, tea_obj_rawequal(o1, o2));
 }
 
-static void core_hasattr(tea_State* T)
+static void base_hasattr(tea_State* T)
 {
     tea_check_any(T, 0);
     const char* attr = tea_check_string(T, 1);
@@ -262,7 +217,7 @@ static void core_hasattr(tea_State* T)
     tea_push_bool(T, found);
 }
 
-static void core_getattr(tea_State* T)
+static void base_getattr(tea_State* T)
 {
     tea_check_any(T, 0);
     const char* attr = tea_check_string(T, 1);
@@ -271,7 +226,7 @@ static void core_getattr(tea_State* T)
         tea_error(T, TEA_QS " has no attribute " TEA_QS, tea_typename(T->base), attr);
 }
 
-static void core_setattr(tea_State* T)
+static void base_setattr(tea_State* T)
 {
     tea_check_any(T, 0);
     const char* attr = tea_check_string(T, 1);
@@ -331,6 +286,18 @@ static void number_constructor(tea_State* T)
     tea_push_null(T);
 }
 
+static void invalid_constructor(tea_State* T)
+{
+    tea_error(T, "Invalid constructor");
+}
+
+/* ------------------------------------------------------------------------ */
+
+static const tea_Class func_class[] = {
+    { "constructor", "method", invalid_constructor, TEA_VARARGS },
+    { NULL, NULL }
+};
+
 static const tea_Class number_class[] = {
     { "constructor", "method", number_constructor, TEA_VARARGS },
     { NULL, NULL }
@@ -342,25 +309,24 @@ static const tea_Class bool_class[] = {
 };
 
 static const tea_Reg globals[] = {
-    { "print", core_print, TEA_VARARGS },
-    { "input", core_input, TEA_VARARGS },
-    { "open", core_open, TEA_VARARGS },
-    { "assert", core_assert, TEA_VARARGS },
-    { "error", core_error, 1 },
-    { "typeof", core_typeof, 1 },
-    { "gc", core_gc, 0 },
-    { "eval", core_eval, 1 },
-    { "dump", core_dump, 1 },
-    { "loadfile", core_loadfile, 1 },
-    { "loadstring", core_loadstring, 1 },
-    { "char", core_char, 1 },
-    { "ord", core_ord, 1 },
-    { "hex", core_hex, 1 },
-    { "bin", core_bin, 1 },
-    { "rawequal", core_rawequal, 2 },
-    { "hasattr", core_hasattr, 2 },
-    { "getattr", core_getattr, 2 },
-    { "setattr", core_setattr, 3 },
+    { "print", base_print, TEA_VARARGS },
+    { "input", base_input, TEA_VARARGS },
+    { "assert", base_assert, TEA_VARARGS },
+    { "error", base_error, 1 },
+    { "typeof", base_typeof, 1 },
+    { "gc", base_gc, 0 },
+    { "eval", base_eval, 1 },
+    { "dump", base_dump, 1 },
+    { "loadfile", base_loadfile, 1 },
+    { "loadstring", base_loadstring, 1 },
+    { "char", base_char, 1 },
+    { "ord", base_ord, 1 },
+    { "hex", base_hex, 1 },
+    { "bin", base_bin, 1 },
+    { "rawequal", base_rawequal, 2 },
+    { "hasattr", base_hasattr, 2 },
+    { "getattr", base_getattr, 2 },
+    { "setattr", base_setattr, 3 },
     { NULL, NULL }
 };
 
@@ -373,16 +339,19 @@ static void tea_open_global(tea_State* T)
     tea_create_class(T, "Bool", bool_class);
     T->bool_class = classV(T->top - 1);
     tea_set_global(T, "Bool");
+    tea_create_class(T, "Function", func_class);
+    T->func_class = classV(T->top - 1);
+    tea_set_global(T, "Function");
     tea_push_null(T);
 }
 
-void tea_open_core(tea_State* T)
+void tea_open_base(tea_State* T)
 {
-    const tea_CFunction core[] = { tea_open_global, tea_open_file, tea_open_list, tea_open_map, tea_open_string, tea_open_range, NULL };
+    const tea_CFunction funcs[] = { tea_open_global, tea_open_list, tea_open_map, tea_open_string, tea_open_range, tea_open_buffer, NULL };
 
-    for(int i = 0; core[i] != NULL; i++)
+    for(int i = 0; funcs[i] != NULL; i++)
     {
-        tea_push_cfunction(T, core[i], 0);
+        tea_push_cfunction(T, funcs[i], 0);
         tea_call(T, 0);
         tea_pop(T, 1);
     }

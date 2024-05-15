@@ -45,7 +45,7 @@ enum
     TEA_TINSTANCE,
     TEA_TLIST,
     TEA_TMAP,
-    TEA_TFILE,
+    TEA_TUSERDATA,
     TEA_TPROTO,
     TEA_TUPVALUE,
     TEA_TMETHOD,
@@ -64,12 +64,11 @@ typedef struct GCobj
 /* Types for handling bytecodes */
 typedef uint8_t BCIns;
 
-/* Resizable string buffer */
+/* Resizable string buffer. Need this here, details in tea_buf.h */
+#define SBufHeader  char* w, *e, *b; uint8_t flag
 typedef struct SBuf
 {
-    char* w;    /* Write pointer */
-    char* e;    /* End pointer */
-    char* b;    /* Base pointer */
+    SBufHeader;
 } SBuf;
 
 /* Union to extract the bits of a double */
@@ -93,15 +92,39 @@ typedef union NumberBits
 
 typedef uint32_t StrHash;   /* String hash value */
 
+/* String object header. String payload follows */
 typedef struct GCstr
 {
     GCobj obj;
-    uint32_t len;    /* Size of string */
-    char* chars;    /* Data of string */
+    uint8_t reserved;   /* Used by lexer for fast lookup of reserved words */
     StrHash hash;  /* Hash of string */
+    uint32_t len;    /* Size of string */
 } GCstr;
 
-#define str_data(s) ((s)->chars)
+#define str_data(s) ((const char*)((s) + 1))
+#define str_datawr(s) ((char*)((s) + 1))
+
+/* -- Userdata object ----------------------------------------------------- */
+
+/* Userdata object. Payload follows */
+typedef struct GCudata
+{
+    GCobj obj;
+    uint8_t udtype; /* Userdata type */
+    uint32_t len;
+    tea_Finalizer fd;
+} GCudata;
+
+/* Userdata types */
+enum
+{
+    UDTYPE_USERDATA,    /* Regular userdata */
+    UDTYPE_IOFILE,  /* io module FILE */
+    UDTYPE_BUFFER,  /* String buffer */
+    UDTYPE__MAX
+};
+
+#define ud_data(u) ((void*)((u) + 1))
 
 /* -- Hash table -------------------------------------------------- */
 
@@ -129,17 +152,6 @@ typedef struct
     double step;
 } GCrange;
 
-/* -- File object -------------------------------------------------- */
-
-typedef struct GCfile
-{
-    GCobj obj;
-    FILE* file;
-    GCstr* path;
-    GCstr* type;
-    int is_open;
-} GCfile;
-
 /* -- Module object -------------------------------------------------- */
 
 typedef struct
@@ -157,7 +169,6 @@ typedef enum
     PROTO_FUNCTION,
     PROTO_ANONYMOUS,
     PROTO_CONSTRUCTOR,
-    PROTO_STATIC,
     PROTO_METHOD,
     PROTO_OPERATOR,
     PROTO_SCRIPT
@@ -189,6 +200,8 @@ typedef struct
     LineStart* lines;   /* Map from bytecode ins. to source lines */
     GCstr* name;    /* Name of the function */
 } GCproto;
+
+#define proto_kgc(pt, i) (&((pt)->k[(i)]))
 
 /* -- Upvalue object -------------------------------------------------- */
 
@@ -253,6 +266,8 @@ typedef struct
     TValue* items;  /* Array of list values */
 } GClist;
 
+#define list_slot(l, i) (&((l)->items)[(i)])
+
 /* -- Map object -------------------------------------------------- */
 
 /* Map node */
@@ -279,7 +294,6 @@ typedef struct GCclass
     GCstr* name;
     struct GCclass* super;
     TValue constructor; /* Cached */
-    Table statics;
     Table methods;
 } GCclass;
 
@@ -337,6 +351,8 @@ MMDEF(MMENUM)
     MM__MAX
 } MMS;
 
+#define mmname_str(T, mm) ((T)->opm_name[(mm)])
+
 /* Garbage collector state */
 typedef struct GCState
 {
@@ -362,7 +378,7 @@ struct tea_State
     uint32_t ci_size;    /* Size of array 'ci_base' */
     GCupvalue* open_upvalues; /* List of open upvalues in the stack */
     struct tea_longjmp* error_jump; /* Current error recovery point */
-    int nccalls;    /* Number of nested C calls */
+    uint16_t nccalls;    /* Number of nested C calls */
     /* ------ The following fields are global to the state ------ */
     GCState gc; /* Garbage collector */
     struct Parser* parser;
@@ -371,15 +387,18 @@ struct tea_State
     Table constants;    /* Table to keep track of 'const' variables */
     Table strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
+    SBuf strbuf;    /* Termorary string conversion buffer */
     TValue nullval; /* A null value */
     GCmodule* last_module;    /* Last cached module */
     GCclass* number_class;
     GCclass* bool_class;
+    GCclass* func_class;
     GCclass* string_class;
     GCclass* list_class;
     GCclass* map_class;
-    GCclass* file_class;
     GCclass* range_class;
+    GCstr strempty; /* Empty string */
+    uint8_t strempty0;  /* Zero terminator for empty string */
     GCstr* constructor_string;  /* "constructor" */
     GCstr* repl_string; /* "_" */
     GCstr* memerr;  /* String message for out-of-memory situation */
@@ -393,8 +412,7 @@ struct tea_State
     bool repl;
 };
 
-#define nulltv(T) \
-    check_exp(tvisnull(&T->nullval), &T->nullval)
+#define nulltv(T) (&T->nullval)
 
 #if defined(TEA_USE_ASSERT) || defined(TEA_USE_APICHECK)
 TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, const char* func, const char* fmt, ...);
@@ -418,25 +436,25 @@ TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, co
 #define tvisclass(o) (itype(o) == TEA_TCLASS)
 #define tvisinstance(o) (itype(o) == TEA_TINSTANCE)
 #define tvismethod(o) (itype(o) == TEA_TMETHOD)
-#define tvisfile(o) (itype(o) == TEA_TFILE)
 #define tvisproto(o) (itype(o) == TEA_TPROTO)
+#define tvisudata(o) (itype(o) == TEA_TUSERDATA)
 
 /* Macros to get tagged values */
-#define boolV(o) check_exp(tvisbool(o), (o)->value.b)
-#define numberV(o) check_exp(tvisnumber(o), (o)->value.n)
-#define pointerV(o) check_exp(tvispointer(o), (o)->value.p)
-#define gcV(o) check_exp(tvisgcv(o), (o)->value.gc)
-#define strV(o) check_exp(tvisstr(o), (GCstr*)gcV(o))
-#define rangeV(o) check_exp(tvisrange(o), (GCrange*)gcV(o))
-#define funcV(o) check_exp(tvisfunc(o), (GCfunc*)gcV(o))
-#define protoV(o) check_exp(tvisproto(o), (GCproto*)gcV(o))
-#define moduleV(o) check_exp(tvismodule(o), (GCmodule*)gcV(o))
-#define instanceV(o) check_exp(tvisinstance(o), (GCinstance*)gcV(o))
-#define methodV(o) check_exp(tvismethod(o), (GCmethod*)gcV(o))
-#define classV(o) check_exp(tvisclass(o), (GCclass*)gcV(o))
-#define listV(o) check_exp(tvislist(o), (GClist*)gcV(o))
-#define mapV(o) check_exp(tvismap(o), (GCmap*)gcV(o))
-#define fileV(o) check_exp(tvisfile(o), (GCfile*)gcV(o))
+#define boolV(o) ((o)->value.b)
+#define numberV(o) ((o)->value.n)
+#define pointerV(o) ((o)->value.p)
+#define gcV(o) ((o)->value.gc)
+#define strV(o) ((GCstr*)gcV(o))
+#define rangeV(o) ((GCrange*)gcV(o))
+#define funcV(o) ((GCfunc*)gcV(o))
+#define protoV(o) ((GCproto*)gcV(o))
+#define moduleV(o) ((GCmodule*)gcV(o))
+#define instanceV(o) ((GCinstance*)gcV(o))
+#define methodV(o) ((GCmethod*)gcV(o))
+#define classV(o) ((GCclass*)gcV(o))
+#define listV(o) ((GClist*)gcV(o))
+#define mapV(o) ((GCmap*)gcV(o))
+#define udataV(o) ((GCudata*)gcV(o))
 
 /* Macros to set tagged values */
 #define setnullV(o) ((o)->tt = TEA_TNULL)
@@ -467,7 +485,7 @@ define_setV(setinstanceV, GCinstance, TEA_TINSTANCE)
 define_setV(setmethodV, GCmethod, TEA_TMETHOD)
 define_setV(setlistV, GClist, TEA_TLIST)
 define_setV(setmapV, GCmap, TEA_TMAP)
-define_setV(setfileV, GCfile, TEA_TFILE)
+define_setV(setudataV, GCudata, TEA_TUSERDATA)
 #undef define_setV
 
 /* Copy tagged values */
@@ -482,12 +500,11 @@ TEA_DATA const char* const tea_obj_typenames[];
 
 #define tea_typename(o) (tea_obj_typenames[itype(o)])
 
-TEA_FUNC GCmodule* tea_obj_new_module(tea_State* T, GCstr* name);
-TEA_FUNC GCfile* tea_obj_new_file(tea_State* T, GCstr* path, GCstr* type);
-TEA_FUNC GCrange* tea_obj_new_range(tea_State* T, double start, double end, double step);
-TEA_FUNC GCclass* tea_obj_new_class(tea_State* T, GCstr* name, GCclass* superclass);
-TEA_FUNC GCinstance* tea_obj_new_instance(tea_State* T, GCclass* klass);
-TEA_FUNC GCmethod* tea_obj_new_method(tea_State* T, TValue* receiver, GCfunc* method);
+TEA_FUNC GCmodule* tea_module_new(tea_State* T, GCstr* name);
+TEA_FUNC GCrange* tea_range_new(tea_State* T, double start, double end, double step);
+TEA_FUNC GCclass* tea_class_new(tea_State* T, GCstr* name, GCclass* superclass);
+TEA_FUNC GCinstance* tea_instance_new(tea_State* T, GCclass* klass);
+TEA_FUNC GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* method);
 
 /* -- Object and value handling --------------------------------------- */
 

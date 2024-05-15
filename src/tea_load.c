@@ -23,7 +23,7 @@
 static void parser_f(tea_State* T, void* ud)
 {
     Lexer* lex = (Lexer*)ud;
-    bool bc = tea_lex_init(T, lex);
+    bool bc = tea_lex_setup(T, lex);
     if(lex->mode && !strchr(lex->mode, bc ? 'b' : 't'))
     {
         tea_err_throw(T, TEA_ERROR_SYNTAX);
@@ -35,9 +35,9 @@ static void parser_f(tea_State* T, void* ud)
 
 TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* name, const char* mode)
 {
-    GCstr* mname = tea_str_new(T, name);
+    GCstr* mname = tea_str_newlen(T, name);
     setstrV(T, T->top++, mname);
-    GCmodule* module = tea_obj_new_module(T, mname);
+    GCmodule* module = tea_module_new(T, mname);
     T->top--;
     if(T->last_module != NULL && T->last_module->name == module->name)
     {
@@ -63,9 +63,9 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     lex.reader = reader;
     lex.data = data;
     lex.mode = mode;
-    tea_buf_init(&lex.sbuf);
+    tea_buf_init(&lex.sb);
     int status = tea_vm_pcall(T, parser_f, &lex, stack_save(T, T->top));
-    tea_buf_free(T, &lex.sbuf);
+    tea_buf_free(T, &lex.sb);
     return status;
 }
 

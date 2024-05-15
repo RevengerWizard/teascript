@@ -26,9 +26,6 @@ TEAMOD_API void tea_import_io(tea_State* T);
 #define TEA_MODULE_RANDOM "random"
 TEAMOD_API void tea_import_random(tea_State* T);
 
-#define TEA_CLASS_FILE "File"
-TEAMOD_API void tea_open_file(tea_State* T);
-
 #define TEA_CLASS_LIST "List"
 TEAMOD_API void tea_open_list(tea_State* T);
 
@@ -41,6 +38,9 @@ TEAMOD_API void tea_open_string(tea_State* T);
 #define TEA_CLASS_RANGE "Range"
 TEAMOD_API void tea_open_range(tea_State* T);
 
-TEAMOD_API void tea_open_core(tea_State* T);
+#define TEA_CLASS_BUFFER "Buffer"
+TEAMOD_API void tea_open_buffer(tea_State* T);
+
+TEAMOD_API void tea_open_base(tea_State* T);
 
 #endif

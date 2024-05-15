@@ -10,20 +10,7 @@
 #include "tea_state.h"
 #include "tea_tab.h"
 #include "tea_gc.h"
-
-/* -- String interning ---------------------------------------------------- */
-
-static GCstr* str_alloc(tea_State* T, char* chars, int len, StrHash hash)
-{
-    GCstr* str = tea_mem_newobj(T, GCstr, TEA_TSTRING);
-    str->len = len;
-    str->chars = chars;
-    str->hash = hash;
-    setstrV(T, T->top++, str);
-    setnullV(tea_tab_set(T, &T->strings, str, NULL));
-    T->top--;
-    return str;
-}
+#include "tea_err.h"
 
 /* -- String hashing ------------------------------------------------------ */
 
@@ -38,29 +25,45 @@ static StrHash str_hash(const char* key, int len)
     return hash;
 }
 
-GCstr* tea_str_take(tea_State* T, char* chars, int len)
+/* -- String interning ---------------------------------------------------- */
+
+/* Allocate a new string and add to string interning table */
+static GCstr* str_alloc(tea_State* T, const char* chars, int len, StrHash hash)
 {
-    StrHash hash = str_hash(chars, len);
-    GCstr* interned = tea_tab_findstr(&T->strings, chars, len, hash);
-    if(interned != NULL)
-    {
-        tea_mem_freevec(T, char, chars, len + 1);
-        return interned;
-    }
-    return str_alloc(T, chars, len, hash);
+    GCstr* str = (GCstr*)tea_mem_newgco(T, tea_str_size(len), TEA_TSTRING);
+    str->reserved = 0;
+    str->len = len;
+    str->hash = hash;
+    memcpy(str_datawr(str), chars, len);
+    str_datawr(str)[len] = '\0';
+    setstrV(T, T->top++, str);
+    setnullV(tea_tab_set(T, &T->strings, str, NULL));
+    T->top--;
+    return str;
 }
 
-GCstr* tea_str_copy(tea_State* T, const char* chars, int len)
+/* Intern a string and/or return string object */
+GCstr* tea_str_new(tea_State* T, const char* chars, size_t len)
 {
-    StrHash hash = str_hash(chars, len);
+    if(len - 1 < TEA_MAX_STR - 1)
+    {
+        StrHash hash = str_hash(chars, len);
+        /* Check if the string has already been interned */
+        GCstr* str = tea_tab_findstr(&T->strings, chars, len, hash);
+        if(str != NULL)
+            return str; /* Return existing string */
+        /* Otherwise allocate a new string */
+        return str_alloc(T, chars, len, hash);
+    }
+    else
+    {
+        if(len)
+            tea_err_msg(T, TEA_ERR_STROV);
+        return &T->strempty;
+    }
+}
 
-    GCstr* interned = tea_tab_findstr(&T->strings, chars, len, hash);
-    if(interned != NULL)
-        return interned;
-
-    char* heap_chars = tea_mem_newvec(T, char, len + 1);
-    memcpy(heap_chars, chars, len);
-    heap_chars[len] = '\0';
-
-    return str_alloc(T, heap_chars, len, hash);
+void tea_str_free(tea_State* T, GCstr* str)
+{
+    tea_mem_free(T, str, tea_str_size(str->len));
 }

@@ -199,7 +199,7 @@ GCstr* tea_imp_dirname(tea_State* T, char* path, int len)
 
     len = sep - path + 1;
 
-    return tea_str_copy(T, path, len);
+    return tea_str_new(T, path, len);
 }
 
 bool tea_imp_resolvepath(char* directory, char* path, char* ret)
@@ -271,7 +271,7 @@ static GCstr* resolve_filename(tea_State* T, char* dir, char* path_name)
         {
             if(readable(path))
             {
-                file = tea_str_copy(T, path, strlen(path));
+                file = tea_str_new(T, path, strlen(path));
                 tea_mem_freevec(T, char, filename, l + 1);
                 break;
             }
@@ -285,7 +285,7 @@ static GCstr* resolve_filename(tea_State* T, char* dir, char* path_name)
 
 void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
 {
-    GCstr* path = resolve_filename(T, str_data(dir), str_data(path_name));
+    GCstr* path = resolve_filename(T, str_datawr(dir), str_datawr(path_name));
     if(path == NULL)
     {
         tea_err_run(T, TEA_ERR_NOPATH, str_data(path_name));
@@ -299,8 +299,8 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
         return;
     }
 
-    GCmodule* module = tea_obj_new_module(T, path);
-    module->path = tea_imp_dirname(T, str_data(path), path->len);
+    GCmodule* module = tea_module_new(T, path);
+    module->path = tea_imp_dirname(T, str_datawr(path), path->len);
     T->last_module = module;
 
     int status = tea_load_file(T, str_data(path), NULL);
@@ -339,7 +339,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         }
     }
 
-    GCstr* dir = tea_str_new(T, setprogdir(T));
+    GCstr* dir = tea_str_newlen(T, setprogdir(T));
     //printf("dir %s + %s\n", str_data(dir), str_data(name));
 
     const char* exts[] = { "tea", "lib", "package" };
@@ -349,7 +349,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     for(int i = 0; i < n; i++)
     {
         const char* x = tea_push_fstring(T, "%s%c%s", exts[i], DIR_SEP, str_data(name));
-        path = resolve_filename(T, str_data(dir), (char*)x);
+        path = resolve_filename(T, str_datawr(dir), (char*)x);
         tea_pop(T, 1);
         if(path)
             break;
@@ -368,8 +368,8 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         return;
     }
 
-    GCmodule* module = tea_obj_new_module(T, path);
-    module->path = tea_imp_dirname(T, str_data(path), path->len);
+    GCmodule* module = tea_module_new(T, path);
+    module->path = tea_imp_dirname(T, str_datawr(path), path->len);
     T->last_module = module;
 
     int status = tea_load_file(T, str_data(path), NULL);

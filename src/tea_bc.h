@@ -82,7 +82,6 @@
     _(GET_ITER, 1) \
     _(FOR_ITER, 1) \
     _(CLASS, 1) \
-    _(SET_CLASS_VAR, 0) \
     _(INHERIT, 0) \
     _(METHOD, -1) \
     _(EXTENSION_METHOD, 0) \

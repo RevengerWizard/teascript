@@ -32,6 +32,7 @@
 ** Pseudo-indeces
 */
 #define TEA_UPVALUES_INDEX (-10000)
+#define TEA_MODULE_INDEX (-10000)
 #define tea_upvalue_index(i) (TEA_UPVALUES_INDEX - (i))
 
 /* Type of numbers in Teascript */
@@ -56,6 +57,8 @@ enum
 typedef struct tea_State tea_State;
 
 typedef void (*tea_CFunction)(tea_State* T);
+
+typedef void (*tea_Finalizer)(void* p);
 
 /*
 ** Functions that read/write blocks when loading/dumping Teascript code
@@ -104,7 +107,7 @@ typedef tea_Class tea_Instance;
 #define TEA_MASK_INSTANCE   (1 << TEA_TYPE_INSTANCE)
 #define TEA_MASK_LIST       (1 << TEA_TYPE_LIST)
 #define TEA_MASK_MAP        (1 << TEA_TYPE_MAP)
-#define TEA_MASK_FILE       (1 << TEA_TYPE_FILE)
+#define TEA_MASK_USERDATA   (1 << TEA_TYPE_USERDATA)
 
 /* Option for variadic functions */
 #define TEA_VARARGS (-1)
@@ -127,7 +130,7 @@ enum
     TEA_TYPE_INSTANCE,
     TEA_TYPE_LIST,
     TEA_TYPE_MAP,
-    TEA_TYPE_FILE,
+    TEA_TYPE_USERDATA,
 };
 
 /*
@@ -165,8 +168,11 @@ TEA_API tea_Number tea_get_number(tea_State* T, int index);
 TEA_API tea_Integer tea_get_integer(tea_State* T, int index);
 TEA_API const void* tea_get_pointer(tea_State* T, int index);
 TEA_API void tea_get_range(tea_State* T, int index, tea_Number* start, tea_Number* end, tea_Number* step);
-TEA_API const char* tea_get_lstring(tea_State* T, int index, int* len);
+TEA_API const char* tea_get_lstring(tea_State* T, int index, size_t* len);
 TEA_API const char* tea_get_string(tea_State* T, int index);
+TEA_API void* tea_get_userdata(tea_State* T, int index);
+
+TEA_API void tea_set_finalizer(tea_State* T, tea_Finalizer f);
 
 /*
 ** Access functions (stack -> C)
@@ -182,7 +188,7 @@ TEA_API tea_Number tea_to_number(tea_State* T, int index);
 TEA_API tea_Integer tea_to_integerx(tea_State* T, int index, bool* is_num);
 TEA_API tea_Integer tea_to_integer(tea_State* T, int index);
 TEA_API const void* tea_to_pointer(tea_State* T, int index);
-TEA_API const char* tea_to_lstring(tea_State* T, int index, int* len);
+TEA_API const char* tea_to_lstring(tea_State* T, int index, size_t* len);
 TEA_API const char* tea_to_string(tea_State* T, int index);
 TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int index);
 
@@ -199,7 +205,7 @@ TEA_API void tea_push_bool(tea_State* T, bool b);
 TEA_API void tea_push_number(tea_State* T, tea_Number n);
 TEA_API void tea_push_integer(tea_State* T, tea_Integer n);
 TEA_API void tea_push_pointer(tea_State* T, void* p);
-TEA_API const char* tea_push_lstring(tea_State* T, const char* s, int len);
+TEA_API const char* tea_push_lstring(tea_State* T, const char* s, size_t len);
 TEA_API const char* tea_push_string(tea_State* T, const char* s);
 TEA_API const char* tea_push_fstring(tea_State* T, const char* fmt, ...);
 TEA_API const char* tea_push_vfstring(tea_State* T, const char* fmt, va_list args);
@@ -209,6 +215,7 @@ TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs);
 
 TEA_API void tea_new_list(tea_State* T);
 TEA_API void tea_new_map(tea_State* T);
+TEA_API void* tea_new_userdata(tea_State* T, size_t size);
 
 TEA_API void tea_create_class(tea_State* T, const char* name, const tea_Class* klass);
 TEA_API void tea_create_module(tea_State* T, const char* name, const tea_Module* module);
@@ -217,7 +224,8 @@ TEA_API int tea_len(tea_State* T, int index);
 
 TEA_API void tea_add_item(tea_State* T, int list);
 TEA_API bool tea_get_item(tea_State* T, int list, int index);
-TEA_API void tea_set_item(tea_State* T, int list, int index);
+TEA_API bool tea_set_item(tea_State* T, int list, int index);
+TEA_API bool tea_insert_item(tea_State* T, int list, int index);
 
 TEA_API bool tea_get_field(tea_State* T, int obj);
 TEA_API void tea_set_field(tea_State* T, int obj);
@@ -232,8 +240,6 @@ TEA_API bool tea_get_global(tea_State* T, const char* name);
 TEA_API void tea_set_global(tea_State* T, const char* name);
 TEA_API void tea_set_funcs(tea_State* T, const tea_Reg* reg);
 
-TEA_API bool tea_has_module(tea_State* T, const char* module);
-
 TEA_API bool tea_test_stack(tea_State* T, int size);
 TEA_API void tea_check_stack(tea_State* T, int size, const char* msg);
 
@@ -244,9 +250,10 @@ TEA_API tea_Number tea_check_number(tea_State* T, int index);
 TEA_API tea_Integer tea_check_integer(tea_State* T, int index);
 TEA_API const void* tea_check_pointer(tea_State* T, int index);
 TEA_API void tea_check_range(tea_State* T, int index, tea_Number* start, tea_Number* end, tea_Number* step);
-TEA_API const char* tea_check_lstring(tea_State* T, int index, int* len);
+TEA_API const char* tea_check_lstring(tea_State* T, int index, size_t* len);
 TEA_API const char* tea_check_string(tea_State* T, int index);
 TEA_API tea_CFunction tea_check_cfunction(tea_State* T, int index);
+TEA_API void* tea_check_userdata(tea_State* T, int index);
 TEA_API int tea_check_option(tea_State* T, int index, const char* def, const char* const options[]);
 
 TEA_API void tea_opt_any(tea_State* T, int index);
@@ -254,7 +261,7 @@ TEA_API bool tea_opt_bool(tea_State* T, int index, bool def);
 TEA_API tea_Number tea_opt_number(tea_State* T, int index, tea_Number def);
 TEA_API tea_Integer tea_opt_integer(tea_State* T, int index, tea_Integer def);
 TEA_API const void* tea_opt_pointer(tea_State* T, int index, void* def);
-TEA_API const char* tea_opt_lstring(tea_State* T, int index, const char* def, int* len);
+TEA_API const char* tea_opt_lstring(tea_State* T, int index, const char* def, size_t* len);
 TEA_API const char* tea_opt_string(tea_State* T, int index, const char* def);
 
 /*
@@ -298,7 +305,7 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_check_list(T, index) tea_check_type(T, (index), TEA_TYPE_LIST)
 #define tea_check_function(T, index) tea_check_type(T, (index), TEA_TYPE_FUNCTION)
 #define tea_check_map(T, index) tea_check_type(T, (index), TEA_TYPE_MAP)
-#define tea_check_file(T, index) tea_check_type(T, (index), TEA_TYPE_FILE)
+#define tea_check_instance(T, index) tea_check_type(T, (index), TEA_TYPE_INSTANCE)
 
 #define tea_is_mask(T, n, m) (tea_get_mask(T, (n)) & (m))
 #define tea_is_nonenull(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NONE)
@@ -313,6 +320,5 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_is_map(T, n) (tea_get_type(T, (n)) == TEA_TYPE_MAP)
 #define tea_is_function(T, n) (tea_get_type(T, (n)) == TEA_TYPE_FUNCTION)
 #define tea_is_instance(T, n) (tea_get_type(T, (n)) == TEA_TYPE_INSTANCE)
-#define tea_is_file(T, n) (tea_get_type(T, (n)) == TEA_TYPE_FILE)
 
 #endif

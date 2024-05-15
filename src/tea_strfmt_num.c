@@ -787,5 +787,5 @@ GCstr* tea_strfmt_num(tea_State* T, cTValue* o)
 {
     char buf[STRFMT_MAXBUF_NUM];
     int len = (int)(strfmt_wfnum(T, NULL, STRFMT_G14, numberV(o), buf) - buf);
-    return tea_str_copy(T, buf, len);
+    return tea_str_new(T, buf, len);
 }

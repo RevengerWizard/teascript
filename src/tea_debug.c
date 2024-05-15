@@ -93,21 +93,21 @@ void tea_debug_chunk(tea_State* T, GCproto* f, const char* name)
     }
 }
 
-static int debug_constant(GCproto* f, int offset)
+static int debug_constant(GCproto* pt, int offset)
 {
-    uint8_t constant = f->bc[offset + 1];
+    uint8_t constant = pt->bc[offset + 1];
     printf("%4d '", constant);
-    tea_debug_value(f->k + constant);
+    tea_debug_value(proto_kgc(pt, constant));
     printf("'\n");
     return offset + 2;
 }
 
-static int debug_invoke(GCproto* f, int offset)
+static int debug_invoke(GCproto* pt, int offset)
 {
-    uint8_t constant = f->bc[offset + 1];
-    uint8_t arg_count = f->bc[offset + 2];
+    uint8_t constant = pt->bc[offset + 1];
+    uint8_t arg_count = pt->bc[offset + 2];
     printf("   (%d args) %4d '", arg_count, constant);
-    tea_debug_value(f->k + constant);
+    tea_debug_value(proto_kgc(pt, constant));
     printf("'\n");
     return offset + 3;
 }
@@ -184,7 +184,6 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
     {
         case BC_CONSTANT:
         case BC_PUSH_ATTR:
-        case BC_SET_CLASS_VAR:
         case BC_GET_GLOBAL:
         case BC_SET_GLOBAL:
         case BC_GET_MODULE:
@@ -271,10 +270,10 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
             offset++;
             uint8_t constant = f->bc[offset++];
             printf("%4d ", constant);
-            tea_debug_value(f->k + constant);
+            tea_debug_value(proto_kgc(f, constant));
             printf("\n");
 
-            GCproto* proto = protoV(f->k + constant);
+            GCproto* proto = protoV(proto_kgc(f, constant));
             for(int j = 0; j < proto->upvalue_count; j++)
             {
                 int is_local = f->bc[offset++];

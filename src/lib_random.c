@@ -15,44 +15,79 @@
 
 #include "tea_import.h"
 #include "tea_lib.h"
+#include "tea_prng.h"
+#include "tea_list.h"
+
+/* ------------------------------------------------------------------------ */
+
+/* 
+** This implements a Tausworthe PRNG with period 2^223. Based on:
+**   Tables of maximally-equidistributed combined LFSR generators,
+**   Pierre L'Ecuyer, 1991, table 3, 1st entry.
+** Full-period ME-CF generator with L=64, J=4, k=223, N1=49
+*/
+
+/* Union needed for bit-pattern conversion between uint64_t and double */
+typedef union { uint64_t u64; double d; } U64double;
+
+/* PRNG seeding function */
+static void prng_seed(PRNGState* rs, double d)
+{
+    uint32_t r = 0x11090601;  /* 64-k[i] as four 8 bit constants */
+    int i;
+    for(i = 0; i < 4; i++)
+    {
+        U64double u;
+        uint32_t m = 1u << (r&255);
+        r >>= 8;
+        u.d = d = d * 3.14159265358979323846 + 2.7182818284590452354;
+        if(u.u64 < m) u.u64 += m;  /* Ensure k[i] MSB of u[i] are non-zero */
+        rs->u[i] = u.u64;
+    }
+    for(i = 0; i < 10; i++)
+        (void)tea_prng_u64(rs);
+}
 
 static void random_seed(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 0 or 1 arguments, got %d", count);
-    if(count == 0)
-    {
-        srand(time(NULL));
-    }
-    else
-    {
-        srand((unsigned int)tea_check_number(T, 0));
-    }
+    PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
+    prng_seed(rs, tea_lib_checknumber(T, 0));
     tea_push_null(T);
 }
 
 static void random_random(tea_State* T)
 {
-    tea_push_number(T, ((double)rand()) / (double)RAND_MAX);
+    PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
+    U64double u;
+    double d;
+    u.u64 = tea_prng_u64d(rs);
+    d = u.d - 1.0;
+    setnumberV(T->top++, d);
 }
 
 static void random_range(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
+    PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
+    U64double u;
+    double d;
+    u.u64 = tea_prng_u64d(rs);
+    d = u.d - 1.0;
     if(count == 2)
     {
-        int upper = tea_check_number(T, 1);
-        int lower = tea_check_number(T, 0);
-        tea_push_number(T, (rand() % (upper - lower + 1)) + lower);
+        double r1 = tea_check_number(T, 0);
+        double r2 = tea_check_number(T, 1);
+        d = floor(d * (r2 - r1)) + r1;
+        setnumberV(T->top++, d);
         return;
     }
     else if(count == 1)
     {
-        double u, l;
-        tea_check_range(T, 0, &l, &u, NULL);
-        int upper = u, lower = l;
-        tea_push_number(T, (rand() % (upper - lower + 1)) + lower);
+        double r1, r2;
+        tea_check_range(T, 0, &r1, &r2, NULL);
+        d = floor(d * (r2 - r1)) + r1;
+        setnumberV(T->top++, d);
         return;
     }
     tea_error(T, "Expected two numbers or a range");
@@ -63,24 +98,40 @@ static void random_shuffle(tea_State* T)
     GClist* list = tea_lib_checklist(T, 0);
     if(list->count < 2)
         return;
-    for(int i = 0; i < list->count - 1; i++)
+    PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
+    U64double u;
+    double d;
+    for(int i = 0; i < list->count; i++)
     {
-        int j = floor(i + rand() / (RAND_MAX / (list->count - i) + 1));
-        TValue* o = list->items + j;
-        copyTV(T, list->items + j, list->items + i);
-        copyTV(T, list->items + i, o);
+        u.u64 = tea_prng_u64d(rs);
+        d = u.d - 1.0;
+        int j = floor(d * i);
+
+        TValue tmp1, tmp2;
+        copyTV(T, &tmp1, list_slot(list, i));
+        copyTV(T, &tmp2, list_slot(list, j));
+
+        copyTV(T, list_slot(list, i), &tmp2);
+        copyTV(T, list_slot(list, j), &tmp1);
     }
 }
 
 static void random_choice(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
-    int index = rand() % list->count;
-    copyTV(T, T->top++, list->items + index);
+    PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
+    U64double u;
+    double d;
+    u.u64 = tea_prng_u64d(rs);
+    d = u.d - 1.0;
+    int32_t index = floor(d * list->count);
+    copyTV(T, T->top++, list_slot(list, index));
 }
 
+/* ------------------------------------------------------------------------ */
+
 static const tea_Module random_module[] = {
-    { "seed", random_seed, TEA_VARARGS },
+    { "seed", random_seed, 1 },
     { "random", random_random, 0 },
     { "range", random_range, TEA_VARARGS },
     { "choice", random_choice, 1 },
@@ -90,6 +141,15 @@ static const tea_Module random_module[] = {
 
 TEAMOD_API void tea_import_random(tea_State* T)
 {
-    srand(time(NULL));
-    tea_create_module(T, TEA_MODULE_RANDOM, random_module);
+    tea_create_module(T, TEA_MODULE_RANDOM, NULL);
+    PRNGState* rs = (PRNGState*)tea_new_userdata(T, sizeof(PRNGState));
+    prng_seed(rs, (double)time(NULL));
+    const tea_Module* m = random_module;
+    for(; m->name != NULL; m++)
+    {
+        tea_push_value(T, -1);
+        tea_push_cclosure(T, m->fn, m->nargs, 1);
+        tea_set_attr(T, 0, m->name);
+    }
+    T->top--;
 }

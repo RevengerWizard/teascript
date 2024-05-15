@@ -34,6 +34,8 @@ static void sys_exit(tea_State* T)
     exit(status);
 }
 
+/* ------------------------------------------------------------------------ */
+
 static void init_argv(tea_State* T)
 {
     int argc = T->argc;

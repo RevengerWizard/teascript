@@ -166,7 +166,7 @@ static void time_format(tea_State* T)
             size_t len = strftime(buf, sbuf_size(sb), s, stm);
             if(len)
             {
-                setstrV(T, T->top++, tea_str_copy(T, buf, len));
+                setstrV(T, T->top++, tea_str_new(T, buf, len));
                 break;
             }
             size += (size | 1);
@@ -174,8 +174,7 @@ static void time_format(tea_State* T)
     }
     else
     {
-        GCstr* str = tea_str_newlit(T, "");
-        setstrV(T, T->top++, str);
+        setstrV(T, T->top++, &T->strempty);
     }
 }
 
@@ -213,6 +212,8 @@ static void time_diff(tea_State* T)
     tea_push_number(T, difftime((time_t)(tea_check_number(T, 0)),
                                 (time_t)(tea_opt_number(T, 1, 0))));
 }
+
+/* ------------------------------------------------------------------------ */
 
 static const tea_Module time_module[] = {
     { "sleep", time_sleep, 1 },

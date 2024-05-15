@@ -43,7 +43,7 @@ TEA_NORET TEA_NOINLINE static void error_at_current(Parser* parser, ErrMsg em)
 static Token lex_synthetic(Parser* parser, const char* text)
 {
     Token token;
-    GCstr* s = tea_str_new(parser->lex->T, text);
+    GCstr* s = tea_str_newlen(parser->lex->T, text);
     setstrV(parser->lex->T, &token.value, s);
     return token;
 }
@@ -85,7 +85,7 @@ static int const_add(tea_State* T, GCproto* f, TValue* value)
     {
         f->k = tea_mem_growvec(T, TValue, f->k, f->k_size, INT_MAX);
     }
-    copyTV(T, f->k + f->k_count, value);
+    copyTV(T, proto_kgc(f, f->k_count), value);
     f->k_count++;
 
     T->top--;
@@ -220,7 +220,7 @@ static void bcemit_return(Parser* parser)
 static void bcemit_invoke(Parser* parser, int args, const char* name)
 {
     TValue v;
-    GCstr* str = tea_str_copy(parser->lex->T, name, strlen(name));
+    GCstr* str = tea_str_new(parser->lex->T, name, strlen(name));
     setstrV(parser->lex->T, &v, str);
     bcemit_argued(parser, BC_INVOKE, const_make(parser, &v));
     bcemit_byte(parser, args);
@@ -271,7 +271,6 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
     {
         case PROTO_FUNCTION:
         case PROTO_CONSTRUCTOR:
-        case PROTO_STATIC:
         case PROTO_METHOD:
             parser->proto->name = strV(&parser->lex->prev.value);
             break;
@@ -298,8 +297,7 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
         case PROTO_SCRIPT:
         case PROTO_FUNCTION:
         case PROTO_ANONYMOUS:
-        case PROTO_STATIC:
-            s = tea_str_newlit(lexer->T, "");
+            s = &lexer->T->strempty;
             setstrV(lexer->T, &local->name.value, s);
             break;
         case PROTO_CONSTRUCTOR:
@@ -532,7 +530,7 @@ static void define_variable(Parser* parser, uint8_t global, bool constant)
         return;
     }
 
-    GCstr* string = strV(parser->proto->k + global);
+    GCstr* string = strV(proto_kgc(parser->proto, global));
     if(constant)
     {
         TValue* o = tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL);
@@ -1103,7 +1101,7 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
         case BC_SET_GLOBAL:
         case BC_SET_MODULE:
         {
-            GCstr* string = strV(parser->proto->k + arg);
+            GCstr* string = strV(proto_kgc(parser->proto, arg));
             TValue* _ = tea_tab_get(&parser->lex->T->constants, string);
             if(_)
             {
@@ -1711,12 +1709,12 @@ static void parse_operator(Parser* parser)
     {
         parser->klass->is_static = false;
         lex_consume(parser, ']');
-        name = parser->lex->T->opm_name[MM_INDEX];
+        name = mmname_str(parser->lex->T, MM_INDEX);
     }
     else
     {
         parser->klass->is_static = true;
-        name = parser->lex->T->opm_name[i];
+        name = mmname_str(parser->lex->T, i);
     }
 
     TValue v;
@@ -1754,29 +1752,7 @@ static void parse_class_body(Parser* parser)
 {
     while(!lex_check(parser, '}') && !lex_check(parser, TK_EOF))
     {
-        if(lex_match(parser, TK_VAR))
-        {
-            lex_consume(parser, TK_NAME);
-            uint8_t name = identifier_constant(parser, &parser->lex->prev);
-
-            if(lex_match(parser, '='))
-            {
-                expr(parser);
-            }
-            else
-            {
-                bcemit_op(parser, BC_NULL);
-            }
-            bcemit_argued(parser, BC_SET_CLASS_VAR, name);
-        }
-        else if(lex_match(parser, TK_STATIC))
-        {
-            parser->klass->is_static = true;
-            lex_consume(parser, TK_NAME);
-            parse_method(parser, PROTO_STATIC);
-            parser->klass->is_static = false;
-        }
-        else if(lex_match(parser, TK_NAME))
+        if(lex_match(parser, TK_NAME))
         {
             parse_method(parser, PROTO_METHOD);
         }
@@ -2080,7 +2056,6 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_SET_ATTR:
         case BC_GET_SUPER:
         case BC_CLASS:
-        case BC_SET_CLASS_VAR:
         case BC_CALL:
         case BC_METHOD:
         case BC_EXTENSION_METHOD:

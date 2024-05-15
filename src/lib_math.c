@@ -304,6 +304,8 @@ static void math_isnan(tea_State* T)
     tea_push_bool(T, isnan(tea_lib_checknumber(T, 0)));
 }
 
+/* ------------------------------------------------------------------------ */
+
 static const tea_Module math_module[] =
 {
     { "min", math_min, TEA_VARARGS },
@@ -346,6 +348,8 @@ static const tea_Module math_module[] =
     { "phi", NULL },
     { "infinity", NULL },
     { "nan", NULL },
+    { "maxinteger", NULL },
+    { "mininteger", NULL },
     { NULL, NULL }
 };
 
@@ -364,4 +368,8 @@ TEAMOD_API void tea_import_math(tea_State* T)
     tea_set_attr(T, 0, "infinity");
     tea_push_number(T, NAN);
     tea_set_attr(T, 0, "nan");
+    tea_push_number(T, TEA_MAX_INTEGER);
+    tea_set_attr(T, 0, "maxinteger");
+    tea_push_number(T, TEA_MIN_INTEGER);
+    tea_set_attr(T, 0, "mininteger");
 }

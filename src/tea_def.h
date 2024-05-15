@@ -18,16 +18,24 @@
 #define TEA_COMPUTED_GOTO
 #endif
 
+/* Various VM limits */
 #define TEA_MAX_MEM32   0x7fffff00  /* Max. 32 bit memory allocation */
-#define TEA_MAX_MEM64 ((uint64_t)1<<47) /* Max. 64 bit memory allocation */
+#define TEA_MAX_MEM64 ((uint64_t)1 << 47) /* Max. 64 bit memory allocation */
+
+#define TEA_MAX_STR TEA_MAX_MEM32   /* Max string length */
+#define TEA_MAX_BUF TEA_MAX_MEM32   /* Max. buffer length */
+#define TEA_MAX_UDATA TEA_MAX_MEM32 /* Max. userdata length */
 
 #define TEA_BUFFER_SIZE 512
+
+#define TEA_MAX_INTEGER 9007199254740991
+#define TEA_MIN_INTEGER -9007199254740991
 
 /* Minimum buffer sizes */
 #define TEA_MIN_SBUF 32     /* Min. string buffer length */
 #define TEA_MIN_VECSIZE 8   /* Min. size for growable vectors */
 
-#define TEA_MAX_BUF TEA_MAX_MEM32   /* Max. buffer length */
+#define TEA_MAX_TOSTR 8    /* Max. string depth conversion */
 
 #define TEA_MAX_UPVAL 256  /* Max. # of upvalues */
 #define TEA_MAX_LOCAL 256  /* Max. # of local variables */
@@ -131,12 +139,15 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #define tea_assertT_(T, c, ...) tea_assert_check((T), (c), __VA_ARGS__)
 #define tea_assertT(c, ...) tea_assert_check((T), (c), __VA_ARGS__)
 #define tea_assertX(c, ...) tea_assert_check(NULL, (c), __VA_ARGS__)
-/* (tea_assertX((c), #c), (e)) */
-#define check_exp(c, e) (e)
 #else
 #define tea_assertT(c, ...) ((void)0)
 #define tea_assertX(c, ...) ((void)0)
-#define check_exp(c, e) (e)
 #endif
+
+/* PRNG state. Need this here, details in tea_prng.h */
+typedef struct PRNGState
+{
+    uint64_t u[4];
+} PRNGState;
 
 #endif

@@ -134,7 +134,6 @@ TEA_NOINLINE void tea_err_argtype(tea_State* T, int narg, const char* xname)
     TValue* o = narg < 0 ? T->top + narg : T->base + narg;
     tname = o < T->top ? tea_typename(o) : "no value";
     fprintf(stderr, err2msg(TEA_ERR_BADTYPE), xname, tname);
-    
     fputc('\n', stderr);
     err_run(T);
 }

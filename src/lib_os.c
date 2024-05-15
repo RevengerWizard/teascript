@@ -16,7 +16,14 @@
 #include "tea_arch.h"
 #include "tea_import.h"
 
+#if TEA_TARGET_POSIX
+#include <sys/types.h> 
+#include <sys/stat.h> 
+#endif
+
 #if TEA_TARGET_WINDOWS
+#include <direct.h>
+
 #define unsetenv(NAME) _putenv_s(NAME, "")
 int setenv(const char* name, const char* value, int overwrite)
 {
@@ -34,6 +41,9 @@ int setenv(const char* name, const char* value, int overwrite)
         return 0;
     }
 }
+
+#undef mkdir
+#define mkdir(dir) _mkdir(dir)
 #endif
 
 static void os_getenv(tea_State* T)
@@ -74,7 +84,7 @@ static void os_setenv(tea_State* T)
         tea_error(T, "Expected string or null");
     }
 
-    const char* key = tea_get_string(T, 0);
+    const char* key = tea_check_string(T, 0);
     int ret;
     if(tea_is_null(T, 1))
     {
@@ -82,7 +92,7 @@ static void os_setenv(tea_State* T)
     }
     else
     {
-        ret = setenv(key, tea_get_string(T, 1), 1);
+        ret = setenv(key, tea_check_string(T, 1), 1);
     }
 
     if(ret == -1)
@@ -112,6 +122,17 @@ static void os_remove(tea_State* T)
     tea_push_bool(T, remove(filename) == 0);
 }
 
+static void os_mkdir(tea_State* T)
+{
+    const char* dir = tea_check_string(T, 0);
+    if(mkdir(dir) == -1)
+    {
+        tea_error(T, "Cannot create directory");
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+
 static void init_env(tea_State* T)
 {
     extern char** environ;
@@ -127,8 +148,12 @@ static void init_env(tea_State* T)
             *value = '\0';  /* Split the variable and value */
             value++;
             tea_push_string(T, value);
-            tea_set_field(T, -3);
         }
+        else
+        {
+            tea_push_null(T);
+        }
+        tea_set_field(T, -3);
     }
 
     tea_set_attr(T, 0, "env");
@@ -140,6 +165,7 @@ static const tea_Module os_module[] = {
     { "execute", os_execute, 1 },
     { "remove", os_remove, 1 },
     { "rename", os_rename, 2 },
+    { "mkdir", os_mkdir, 1 },
     { "name", NULL },
     { "arch", NULL },
     { "env", NULL },

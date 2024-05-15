@@ -173,6 +173,28 @@ static char* strfmt_wptr(char* p, const void* v)
     return p + n;
 }
 
+/* Return string or write number to tmp buffer and return pointer to start */
+const char* tea_strfmt_wstrnum(tea_State* T, cTValue* o, int* len)
+{
+    SBuf* sb;
+    if(tvisstr(o))
+    {
+        GCstr* str = strV(o);
+        *len = str->len;
+        return str_data(str);
+    }
+    else if(tvisnumber(o))
+    {
+        sb = tea_strfmt_putfnum(T, tea_buf_tmp_(T), STRFMT_G14, numberV(o));
+    }
+    else
+    {
+        return NULL;
+    }
+    *len = sbuf_len(sb);
+    return sb->b;
+}
+
 /* -- Unformatted conversions to buffer ----------------------------------- */
 
 /* Add integer to buffer */
@@ -366,7 +388,7 @@ static SBuf* strfmt_putfnum_uint(tea_State* T, SBuf* sb, SFormat sf, double n)
 }
 
 /* Format stack arguments to buffer */
-void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
+int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
 {
     int narg = (int)(T->top - T->base);
     GCstr* fmt = tea_lib_checkstr(T, arg);
@@ -381,7 +403,7 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
         }
         else if(sf == STRFMT_ERR)
         {
-            tea_err_run(T, TEA_ERR_STRFMT, str_data(tea_str_copy(T, fs.str, fs.len)));
+            tea_err_run(T, TEA_ERR_STRFMT, str_data(tea_str_new(T, fs.str, fs.len)));
         }
         else
         {
@@ -403,6 +425,27 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
                 {
                     int len;
                     const char* s;
+                    TValue* mo;
+                    if(tvisinstance(o) && retry >= 0 &&
+                    (mo = tea_tab_get(&instanceV(o)->klass->methods, mmname_str(T, MM_TOSTRING))) != NULL)
+                    {
+                        /* Call tostring method once */
+                        setinstanceV(T, T->top++, instanceV(o));
+                        copyTV(T, T->top++, mo);
+                        copyTV(T, T->top++, o);
+                        tea_vm_call(T, mo, 0);
+                        o = &T->base[arg];  /* Stack may have been reallocated */
+                        TValue* tv = --T->top;
+                        if(!tvisstr(tv))
+                            tea_err_run(T, TEA_ERR_TOSTR);
+                        copyTV(T, o, tv); /* Replace inline for retry */
+                        if(retry < 2)
+                        {
+                            /* Global buffer may have been overwritten */
+                            retry = 1;
+                            break;
+                        }
+                    }
                     if(TEA_LIKELY(tvisstr(o)))
                     {
                         GCstr* str = strV(o);
@@ -411,10 +454,12 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
                     }
                     else
                     {
-                        GCstr* str = tea_strfmt_obj(T, o, 0);
+                        SBuf* strbuf = &T->strbuf;
+                        tea_buf_reset(strbuf);
+                        tea_strfmt_obj(T, strbuf, o, 0);
+                        GCstr* str = tea_buf_str(T, strbuf);
                         len = str->len;
                         s = str_data(str);
-                        sb = tea_buf_tmp_(T);   /* Global buffer may have been overwritten */
                     }
                     if((sf & STRFMT_T_QUOTED))
                         strfmt_putquotedlen(T, sb, s, len);  /* No formatting */
@@ -423,7 +468,7 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
                     break;
                 }
                 case STRFMT_CHAR:
-                    strfmt_putfchar(T, sb, sf, tea_check_number(T, arg));
+                    strfmt_putfchar(T, sb, sf, tea_lib_checknumber(T, arg));
                     break;
                 case STRFMT_PTR:
                     strfmt_putptr(T, sb, tea_obj_pointer(o));
@@ -434,97 +479,70 @@ void tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg)
             }
         }
     }
+    return retry;
 }
 
 /* -- Conversions to strings ---------------------------------------------- */
 
-#define TEA_MAX_TOSTR 16
-
-static GCstr* strfmt_list(tea_State* T, GClist* list, int depth)
+static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth)
 {
     if(list->count == 0)
-        return tea_str_newlit(T, "[]");
+    {
+        tea_buf_putlit(T, sb, "[]");
+        return;
+    }
 
     if(depth > TEA_MAX_TOSTR)
-        return tea_str_newlit(T, "[...]");
+    {
+        tea_buf_putlit(T, sb, "[...]");
+        return;
+    }
+    
+    tea_buf_putlit(T, sb, "[");
 
-    int size = 50;
-
-    char* string = tea_mem_newvec(T, char, size);
-    memcpy(string, "[", 1);
-    int len = 1;
-
-    TValue v;
+    TValue self;
+    setlistV(T, &self, list);
     for(int i = 0; i < list->count; i++)
     {
-        TValue* value = list->items + i;
+        TValue* o = list_slot(list, i);
 
-        char* element;
-        int element_size;
-
-        setlistV(T, &v, list);
-        if(tea_obj_rawequal(value, &v))
+        if(tea_obj_rawequal(o, &self))
         {
-            element = "[...]";
-            element_size = 5;
+            tea_buf_putlit(T, sb, "[...]");
         }
         else
         {
-            GCstr* s = tea_strfmt_obj(T, value, depth);
-            element = str_data(s);
-            element_size = s->len;
+            tea_strfmt_obj(T, sb, o, depth);
         }
-
-        if(element_size > (size - len - 6))
-        {
-            int old_size = size;
-            if(element_size > size)
-            {
-                size = size + element_size * 2 + 6;
-            }
-            else
-            {
-                size = size * 2 + 6;
-            }
-
-            string = tea_mem_reallocvec(T, char, string, old_size, size);
-        }
-
-        memcpy(string + len, element, element_size);
-        len += element_size;
 
         if(i != list->count - 1)
         {
-            memcpy(string + len, ", ", 2);
-            len += 2;
+            tea_buf_putlit(T, sb, ", ");
         }
     }
-
-    memcpy(string + len, "]", 1);
-    len += 1;
-    string[len] = '\0';
-
-    string = tea_mem_reallocvec(T, char, string, size, len + 1);
-
-    return tea_str_take(T, string, len);
+    tea_buf_putlit(T, sb, "]");
 }
 
-static GCstr* strfmt_map(tea_State* T, GCmap* map, int depth)
+static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth)
 {
     if(map->count == 0)
-        return tea_str_newlit(T, "{}");
+    {
+        tea_buf_putlit(T, sb, "{}");
+        return;
+    }
     
     if(depth > TEA_MAX_TOSTR)
-        return tea_str_newlit(T, "{...}");
+    {
+        tea_buf_putlit(T, sb, "{...}");
+        return;
+    }
 
     int count = 0;
-    int size = 50;
 
-    char* string = tea_mem_newvec(T, char, size);
-    memcpy(string, "{", 1);
-    int len = 1;
+    tea_buf_putlit(T, sb, "{");
 
-    TValue v;
+    TValue self;
+    setmapV(T, &self, map);
     for(int i = 0; i < map->size; i++)
     {
         MapEntry* entry = &map->entries[i];
@@ -532,204 +550,155 @@ static GCstr* strfmt_map(tea_State* T, GCmap* map, int depth)
         {
             continue;
         }
+        TValue* key = &entry->key;
+        TValue* value = &entry->value;
 
         count++;
 
-        char* key;
-        int key_size;
-
-        setmapV(T, &v, map);
-        if(tea_obj_rawequal(&entry->key, &v))
+        if(tea_obj_rawequal(key, &self))
         {
-            key = "{...}";
-            key_size = 5;
+            tea_buf_putlit(T, sb, "{...}");
         }
         else
         {
-            GCstr* s = tea_strfmt_obj(T, &entry->key, depth);
-            key = str_data(s);
-            key_size = s->len;
-        }
-
-        if(key_size > (size - len - key_size - 4))
-        {
-            int old_size = size;
-            if(key_size > size)
+            if(!tvisstr(key))
             {
-                size += key_size * 2 + 4;
+                tea_buf_putlit(T, sb, "[");
+                tea_strfmt_obj(T, sb, key, depth);
+                tea_buf_putlit(T, sb, "] = ");
             }
             else
             {
-                size *= 2 + 4;
+                tea_strfmt_obj(T, sb, key, depth);
+                tea_buf_putlit(T, sb, " = ");
             }
-
-            string = tea_mem_reallocvec(T, char, string, old_size, size);
         }
 
-        if(!tvisstr(&entry->key))
+        if(tea_obj_rawequal(value, &self))
         {
-            memcpy(string + len, "[", 1);
-            memcpy(string + len + 1, key, key_size);
-            memcpy(string + len + 1 + key_size, "] = ", 4);
-            len += 5 + key_size;
+            tea_buf_putlit(T, sb, "{...}");
         }
         else
         {
-            memcpy(string + len, key, key_size);
-            memcpy(string + len + key_size, " = ", 3);
-            len += 3 + key_size;
+            tea_strfmt_obj(T, sb, value, depth);
         }
-
-        char* element;
-        int element_size;
-
-        setmapV(T, &v, map);
-        if(tea_obj_rawequal(&entry->value, &v))
-        {
-            element = "{...}";
-            element_size = 5;
-        }
-        else
-        {
-            GCstr* s = tea_strfmt_obj(T, &entry->value, depth);
-            element = str_data(s);
-            element_size = s->len;
-        }
-
-        if(element_size > (size - len - element_size - 6))
-        {
-            int old_size = size;
-            if(element_size > size)
-            {
-                size += element_size * 2 + 6;
-            }
-            else
-            {
-                size = size * 2 + 6;
-            }
-
-            string = tea_mem_reallocvec(T, char, string, old_size, size);
-        }
-
-        memcpy(string + len, element, element_size);
-        len += element_size;
 
         if(count != map->count)
         {
-            memcpy(string + len, ", ", 2);
-            len += 2;
+            tea_buf_putlit(T, sb, ", ");
         }
     }
-
-    memcpy(string + len, "}", 1);
-    len += 1;
-    string[len] = '\0';
-
-    string = tea_mem_reallocvec(T, char, string, size, len + 1);
-
-    return tea_str_take(T, string, len);
+    tea_buf_putlit(T, sb, "}");
 }
 
-static GCstr* strfmt_instance(tea_State* T, GCinstance* instance)
+static void strfmt_func(tea_State* T, SBuf* sb, GCproto* proto)
 {
-    GCstr* _tostring = T->opm_name[MM_TOSTRING];
-    TValue* tostring = tea_tab_get(&instance->klass->methods, _tostring);
-    if(tostring)
+    if(proto->type > PROTO_FUNCTION)
     {
-        setinstanceV(T, T->top++, instance);
-        tea_vm_call(T, tostring, 0);
-
-        TValue* result = T->top--;
-        if(!tvisstr(result))
-        {
-            tea_err_run(T, TEA_ERR_TOSTR);
-        }
-
-        return strV(result);
+        tea_buf_putmem(T, sb, str_data(proto->name), proto->name->len);
     }
-
-    const char* s = tea_strfmt_pushf(T, "<%s instance>", str_data(instance->klass->name));
-    GCstr* str = tea_str_new(T, s);
-    T->top--;
-    return str;
-}
-
-static GCstr* strfmt_func(tea_State* T, GCproto* proto)
-{
-    if(proto->type > PROTO_FUNCTION) 
-        return proto->name;
-    return tea_str_newlit(T, "<function>");
+    else
+    {
+        tea_buf_putlit(T, sb, "<function>");
+    }
 }
 
 /* Conversion of object to string */
-GCstr* tea_strfmt_obj(tea_State* T, cTValue* o, int depth)
+void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
 {
     if(depth > TEA_MAX_TOSTR)
-        return tea_str_newlit(T, "...");
+    {
+        tea_buf_putlit(T, sb, "...");
+        return;
+    }
     depth++;
     switch(itype(o))
     {
         case TEA_TNULL:
-            return tea_str_newlit(T, "null");
+            tea_buf_putlit(T, sb, "null");
+            break;
         case TEA_TBOOL:
-            return boolV(o) ? tea_str_newlit(T, "true") : tea_str_newlit(T, "false");
+        {
+            if(boolV(o))
+                tea_buf_putlit(T, sb, "true");
+            else
+                tea_buf_putlit(T, sb, "false");
+            break;
+        }
         case TEA_TNUMBER:
-            return tea_strfmt_num(T, o);
+            tea_strfmt_putfnum(T, sb, STRFMT_G14, numberV(o));
+            break;
         case TEA_TPOINTER:
-            return tea_str_newlit(T, "pointer");
-        case TEA_TFILE:
-            return tea_str_newlit(T, "<file>");
+            tea_buf_putlit(T, sb, "pointer");
+            break;
         case TEA_TMETHOD:
-            return tea_str_newlit(T, "<method>");
+            tea_buf_putlit(T, sb, "<method>");
+            break;
         case TEA_TPROTO:
-            return strfmt_func(T, protoV(o));
+            strfmt_func(T, sb, protoV(o));
+            break;
         case TEA_TFUNC:
         {
             GCfunc* func = funcV(o);
             if(iscfunc(func))
-                return tea_str_newlit(T, "<function>");
+                tea_buf_putlit(T, sb, "<function>");
             else
-                return strfmt_func(T, func->t.proto);
+                strfmt_func(T, sb, func->t.proto);
+            break;
         }
         case TEA_TLIST:
-            return strfmt_list(T, listV(o), depth);
+            strfmt_list(T, sb, listV(o), depth);
+            break;
         case TEA_TMAP:
-            return strfmt_map(T, mapV(o), depth);
+            strfmt_map(T, sb, mapV(o), depth);
+            break;
         case TEA_TRANGE:
         {
             GCrange* range = rangeV(o);
-            const char* s = tea_strfmt_pushf(T, "%g..%g..%g", range->start, range->end, range->step);
-            GCstr* str = tea_str_new(T, s);
-            T->top--;
-            return str;
+            tea_strfmt_putfnum(T, sb, STRFMT_G14, range->start);
+            tea_buf_putlit(T, sb, "..");
+            tea_strfmt_putfnum(T, sb, STRFMT_G14, range->end);
+            tea_buf_putlit(T, sb, "..");
+            tea_strfmt_putfnum(T, sb, STRFMT_G14, range->step);
+            break;
         }
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(o);
-            const char* s = tea_strfmt_pushf(T, "<%s module>", str_data(module->name));
-            GCstr* str = tea_str_new(T, s);
-            T->top--;
-            return str;
+            tea_buf_putlit(T, sb, "<");
+            tea_buf_putmem(T, sb, str_data(module->name), module->name->len);
+            tea_buf_putlit(T, sb, " module>");
+            break;
         }
         case TEA_TCLASS:
         {
             GCclass* klass = classV(o);
-            const char* s = tea_strfmt_pushf(T, "<%s>", str_data(klass->name));
-            GCstr* str = tea_str_new(T, s);
-            T->top--;
-            return str;
+            tea_buf_putlit(T, sb, "<");
+            tea_buf_putmem(T, sb, str_data(klass->name), klass->name->len);
+            tea_buf_putlit(T, sb, " class>");
+            break;
         }
         case TEA_TINSTANCE:
-            return strfmt_instance(T, instanceV(o));
+        {
+            GCstr* name = instanceV(o)->klass->name;
+            tea_buf_putlit(T, sb, "<");
+            tea_buf_putmem(T, sb, str_data(name), name->len);
+            tea_buf_putlit(T, sb, ">");
+            break;
+        }
         case TEA_TSTRING:
-            return strV(o);
+            tea_buf_putstr(T, sb, strV(o));
+            break;
         case TEA_TUPVALUE:
-            return tea_str_newlit(T, "<upvalue>");
+            tea_buf_putlit(T, sb, "<upvalue>");
+            break;
+        case TEA_TUSERDATA:
+            tea_buf_putlit(T, sb, "<userdata>");
+            break;
         default:
             tea_assertT(T, "unknown type");
             break;
     }
-    return tea_str_newlit(T, "unknown");
 }
 
 /* -- Internal string formatting ------------------------------------------ */
@@ -740,7 +709,7 @@ GCstr* tea_strfmt_obj(tea_State* T, cTValue* o, int depth)
 ** String.format(), only a limited subset of formats and flags are supported!
 */
 
-/* Push formatted message as a string object to Lua stack. va_list variant */
+/* Push formatted message as a string object to Teascript stack. va_list variant */
 const char* tea_strfmt_pushvf(tea_State* T, const char* fmt, va_list argp)
 {
     SBuf* sb = tea_buf_tmp_(T);
