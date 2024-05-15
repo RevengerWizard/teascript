@@ -43,7 +43,7 @@ int setenv(const char* name, const char* value, int overwrite)
 }
 
 #undef mkdir
-#define mkdir(dir) _mkdir(dir)
+#define mkdir(dir, mode) _mkdir(dir)
 #endif
 
 static void os_getenv(tea_State* T)
@@ -125,7 +125,7 @@ static void os_remove(tea_State* T)
 static void os_mkdir(tea_State* T)
 {
     const char* dir = tea_check_string(T, 0);
-    if(mkdir(dir) == -1)
+    if(mkdir(dir, 0777) == -1)
     {
         tea_error(T, "Cannot create directory");
     }
