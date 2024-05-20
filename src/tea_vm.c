@@ -1563,7 +1563,7 @@ static void vm_execute(tea_State* T)
                 }
                 DISPATCH();
             }
-            CASE_CODE(BC_JUMP_IF_NULL):
+            CASE_CODE(BC_JUMP_IF_NIL):
             {
                 uint16_t offset = READ_SHORT();
                 if(tvisnil(T->top - 1))

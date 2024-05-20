@@ -614,7 +614,7 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
     depth++;
     switch(itype(o))
     {
-        case TEA_TNULL:
+        case TEA_TNIL:
             tea_buf_putlit(T, sb, "nil");
             break;
         case TEA_TBOOL:

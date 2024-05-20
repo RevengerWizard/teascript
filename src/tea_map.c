@@ -48,7 +48,7 @@ static uint32_t map_hash_obj(TValue* value)
 {
     switch(itype(value))
     {
-        case TEA_TNULL:
+        case TEA_TNIL:
             return 1;
         case TEA_TBOOL:
             return 2;

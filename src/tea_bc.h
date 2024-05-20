@@ -71,7 +71,7 @@
     _(COMPARE_JUMP, 0) \
     _(JUMP, 0) \
     _(JUMP_IF_FALSE, -1) \
-    _(JUMP_IF_NULL, -1) \
+    _(JUMP_IF_NIL, -1) \
     _(LOOP, 0) \
     _(CALL, 0) \
     _(INVOKE, 0) \

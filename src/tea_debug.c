@@ -17,7 +17,7 @@ void tea_debug_value(TValue* v)
 {
     switch(itype(v))
     {
-        case TEA_TNULL:
+        case TEA_TNIL:
             printf("nil");
             break;
         case TEA_TBOOL:
@@ -258,7 +258,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_COMPARE_JUMP:
         case BC_JUMP:
         case BC_JUMP_IF_FALSE:
-        case BC_JUMP_IF_NULL:
+        case BC_JUMP_IF_NIL:
             return debug_jump(1, f, offset);
         case BC_LOOP:
             return debug_jump(-1, f, offset);

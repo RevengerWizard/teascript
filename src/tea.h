@@ -95,7 +95,7 @@ typedef tea_Class tea_Instance;
 ** Basic type masks
 */
 #define TEA_MASK_NONE       (1 << TEA_TYPE_NONE)
-#define TEA_MASK_NULL       (1 << TEA_TYPE_NULL)
+#define TEA_MASK_NIL       (1 << TEA_TYPE_NIL)
 #define TEA_MASK_BOOL       (1 << TEA_TYPE_BOOL)
 #define TEA_MASK_NUMBER     (1 << TEA_TYPE_NUMBER)
 #define TEA_MASK_POINTER    (1 << TEA_TYPE_POINTER)
@@ -118,7 +118,7 @@ typedef tea_Class tea_Instance;
 enum
 {
     TEA_TYPE_NONE,
-    TEA_TYPE_NULL,
+    TEA_TYPE_NIL,
     TEA_TYPE_BOOL,
     TEA_TYPE_NUMBER,
     TEA_TYPE_POINTER,
@@ -311,10 +311,10 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_is_mask(T, n, m) (tea_get_mask(T, (n)) & (m))
 #define tea_is_nonenil(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NONE)
 #define tea_is_none(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NONE)
-#define tea_is_nil(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
+#define tea_is_nil(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NIL)
 #define tea_is_bool(T, n) (tea_get_type(T, (n)) == TEA_TYPE_BOOL)
 #define tea_is_number(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NUMBER)
-#define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
+#define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NIL)
 #define tea_is_range(T, n) (tea_get_type(T, (n)) == TEA_TYPE_RANGE)
 #define tea_is_string(T, n) (tea_get_type(T, (n)) == TEA_TYPE_STRING)
 #define tea_is_list(T, n) (tea_get_type(T, (n)) == TEA_TYPE_LIST)

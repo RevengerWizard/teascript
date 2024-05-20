@@ -177,7 +177,7 @@ bool tea_obj_equal(cTValue* a, cTValue* b)
         return false;
     switch(itype(a))
     {
-        case TEA_TNULL:
+        case TEA_TNIL:
             return true;
         case TEA_TBOOL:
             return boolV(a) == boolV(b);
@@ -203,7 +203,7 @@ bool tea_obj_rawequal(cTValue* a, cTValue* b)
         return false;
     switch(itype(a))
     {
-        case TEA_TNULL:
+        case TEA_TNIL:
             return true;
         case TEA_TBOOL:
             return boolV(a) == boolV(b);
@@ -223,7 +223,7 @@ double tea_obj_tonumber(TValue* o, bool* x)
         *x = true;
     switch(itype(o))
     {
-        case TEA_TNULL:
+        case TEA_TNIL:
             return 0;
         case TEA_TNUMBER:
             return numberV(o);

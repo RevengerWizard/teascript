@@ -2070,7 +2070,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_COMPARE_JUMP:
         case BC_JUMP:
         case BC_JUMP_IF_FALSE:
-        case BC_JUMP_IF_NULL:
+        case BC_JUMP_IF_NIL:
         case BC_LOOP:
         case BC_INVOKE:
         case BC_SUPER:
@@ -2158,7 +2158,7 @@ static void parse_for_in(Parser* parser, Token var, bool constant)
     /* Get the iterator index. If it's nil, it means the loop is over */
     bcemit_op(parser, BC_GET_ITER);
     bcemit_bytes(parser, seq_slot, iter_slot);
-    parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_NULL);
+    parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_NIL);
     bcemit_op(parser, BC_POP);
 
     /* Get the iterator value */
