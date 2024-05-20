@@ -25,13 +25,13 @@ CC = $(DEFAULT_CC)
 # Use this if you want to force a 32 bit build on a 64 bit multilib OS.
 #CC = $(DEFAULT_CC) -m32
 #
-CCOPT = #-O2 #-fomit-frame-pointer
+CCOPT = -O2 #-fomit-frame-pointer
 # Use this if you want to generate a smaller binary (but it's slower):
 #CCOPT = -Os -fomit-frame-pointer
 # Note: it's no longer recommended to use -O3 with GCC 4.x
 # The I-Cache bloat usually outweighs the benefits from aggressive inlining.
 #
-CCDEBUG = -O0 -g
+CCDEBUG =
 # Uncomment the next line to generate debug information:
 #CCDEBUG = -g
 #
@@ -64,7 +64,7 @@ BUILDMODE = mixed
 ##############################################################################
 # Enable/disable these features as needed, but make sure you force a full
 # recompile with "make clean", followed by "make"
-XCFLAGS = #-DTEA_DEBUG_PRINT_CODE
+XCFLAGS =
 #
 # No special feature flags as of now :(
 #
@@ -79,11 +79,11 @@ XCFLAGS = #-DTEA_DEBUG_PRINT_CODE
 #
 # Turn on assertions for the Teascript C API to debug problems with tea_* calls.
 # This is rather slow -- use only while developing C libraries/embeddings.
-XCFLAGS += -DTEA_USE_APICHECK
+#XCFLAGS += -DTEA_USE_APICHECK
 #
 # Turn on assertions for the whole Teascript VM. This significantly slows down
 # everything. Use only if you suspect a problem with Teascript itself.
-XCFLAGS += -DTEA_USE_ASSERT
+#XCFLAGS += -DTEA_USE_ASSERT
 #
 ##############################################################################
 # You probably don't need to change anything below this line!
