@@ -16,7 +16,7 @@
 #define TKDEF(_) \
     _(AND, and) _(NOT, not) _(CLASS, class) _(STATIC, static) _(ELSE, else) _(FALSE, false) \
     _(FOR, for) _(FUNCTION, function) _(CASE, case) _(SWITCH, switch) _(DEFAULT, default) \
-    _(IF, if) _(NULL, null) _(OR, or) _(IS, is) \
+    _(IF, if) _(NIL, nil) _(OR, or) _(IS, is) \
     _(IMPORT, import) _(FROM, from) _(AS, as) _(ENUM, enum) \
     _(RETURN, return) _(SUPER, super) _(THIS, this) \
     _(CONTINUE, continue) _(BREAK, break) _(IN, in) \

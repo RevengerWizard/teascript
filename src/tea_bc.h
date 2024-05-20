@@ -15,7 +15,7 @@
 */
 #define BCDEF(_) \
     _(CONSTANT, 1) \
-    _(NULL, 1) \
+    _(NIL, 1) \
     _(TRUE, 1) \
     _(FALSE, 1) \
     _(POP, -1) \

@@ -52,7 +52,7 @@ static void random_seed(tea_State* T)
 {
     PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
     prng_seed(rs, tea_lib_checknumber(T, 0));
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void random_random(tea_State* T)

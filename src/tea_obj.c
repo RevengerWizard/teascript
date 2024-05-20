@@ -25,7 +25,7 @@
 
 /* Object type names */
 TEA_DATADEF const char* const tea_obj_typenames[] = {
-    "null", "bool", "number", "pointer", 
+    "nil", "bool", "number", "pointer", 
     "string", "range", "function",
     "module", "class", "instance", "list", "map",
     "userdata", "proto", "upvalue", "method"
@@ -71,7 +71,7 @@ GCclass* tea_class_new(tea_State* T, GCstr* name, GCclass* superclass)
     GCclass* k = tea_mem_newobj(T, GCclass, TEA_TCLASS);
     k->name = name;
     k->super = superclass;
-    setnullV(&k->constructor);
+    setnilV(&k->constructor);
     tea_tab_init(&k->methods);
     return k;
 }

@@ -64,7 +64,7 @@ int tea_func_getline(GCproto* f, int instruction)
 static GCupvalue* func_newuv(tea_State* T, TValue* slot)
 {
     GCupvalue* uv = tea_mem_newobj(T, GCupvalue, TEA_TUPVALUE);
-    setnullV(&uv->closed);
+    setnilV(&uv->closed);
     uv->location = slot;
     uv->next = NULL;
     return uv;

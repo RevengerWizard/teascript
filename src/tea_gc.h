@@ -23,6 +23,8 @@ TEA_FUNC void* tea_mem_grow(tea_State* T, void* pointer, uint32_t* size, size_t 
 TEA_FUNC GCobj* tea_mem_newgco(tea_State* T, size_t size, uint8_t type);
 TEA_FUNC void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, size_t new_size);
 
+#define tea_mem_new(T, size) tea_mem_realloc(T, NULL, 0, (size));
+
 static TEA_AINLINE void tea_mem_free(tea_State* T, void* pointer, size_t old_size)
 {
     T->gc.total -= old_size;

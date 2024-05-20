@@ -371,11 +371,11 @@ static void string_iterate(tea_State* T)
     size_t len;
     const char* str = tea_check_lstring(T, 0, &len);
 
-	if(tea_is_null(T, 1))
+	if(tea_is_nil(T, 1))
     {
 		if(len == 0)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
             return;
         }
 		tea_push_number(T, 0);
@@ -385,7 +385,7 @@ static void string_iterate(tea_State* T)
     int index = tea_check_number(T, 1);
 	if(index < 0)
     {
-        tea_push_null(T);
+        tea_push_nil(T);
         return;
     }
 
@@ -394,7 +394,7 @@ static void string_iterate(tea_State* T)
 		index++;
 		if(index >= len)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
             return;
         }
 	}
@@ -507,5 +507,5 @@ void tea_open_string(tea_State* T)
     tea_create_class(T, TEA_CLASS_STRING, string_class);
     T->string_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_STRING);
-    tea_push_null(T);
+    tea_push_nil(T);
 }

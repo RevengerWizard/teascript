@@ -32,7 +32,7 @@ static TValue* index2addr(tea_State* T, int index)
     {
         TValue* o = T->base + index;
         if(o >= T->top)
-            return nulltv(T);
+            return niltv(T);
         else
             return o;
     }
@@ -46,14 +46,14 @@ static TValue* index2addr(tea_State* T, int index)
         GCfunc* func = T->ci->func;
         tea_checkapi(!isteafunc(func), "caller is not a C function");
         index = TEA_UPVALUES_INDEX - index;
-        return index < func->c.upvalue_count ? &func->c.upvalues[index] : nulltv(T);
+        return index < func->c.upvalue_count ? &func->c.upvalues[index] : niltv(T);
     }
 }
 
 static TEA_AINLINE TValue* index2addr_check(tea_State* T, int index)
 {
     TValue* o = index2addr(T, index);
-    tea_checkapi(o != nulltv(T), "invalid stack slot #%d", index);
+    tea_checkapi(o != niltv(T), "invalid stack slot #%d", index);
     return o;
 }
 
@@ -65,7 +65,7 @@ static TValue* index2addr_stack(tea_State* T, int index)
         if(o >= T->top)
         {
             tea_checkapi(0, "invalid stack slot #%d", index);
-            return nulltv(T);
+            return niltv(T);
         }
         else
             return o;
@@ -101,7 +101,7 @@ TEA_API void tea_set_top(tea_State* T, int index)
     if(index >= 0)
     {
         tea_checkapi(index <= T->stack_max - T->base, "bad stack slot #%d", index);
-        do { setnullV(T->top++); } while(T->top < T->base + index); 
+        do { setnilV(T->top++); } while(T->top < T->base + index); 
         T->top = T->base + index;
     }
     else
@@ -154,7 +154,7 @@ TEA_API void tea_push_value(tea_State* T, int index)
 TEA_API int tea_get_mask(tea_State* T, int index)
 {
     cTValue* o = index2addr(T, index);
-    if(o == nulltv(T))
+    if(o == niltv(T))
         return TEA_MASK_NONE;
     return 1 << (itype(o) + 1);
 }
@@ -162,7 +162,7 @@ TEA_API int tea_get_mask(tea_State* T, int index)
 TEA_API int tea_get_type(tea_State* T, int index)
 {
     cTValue* o = index2addr(T, index);
-    if(o == nulltv(T))
+    if(o == niltv(T))
         return TEA_TYPE_NONE;
     return itype(o) + 1;
 }
@@ -170,7 +170,7 @@ TEA_API int tea_get_type(tea_State* T, int index)
 TEA_API const char* tea_typeof(tea_State* T, int index)
 {
     cTValue* o = index2addr(T, index);
-    return (o == nulltv(T)) ? "no value" : tea_typename(o);
+    return (o == niltv(T)) ? "no value" : tea_typename(o);
 }
 
 TEA_API tea_Number tea_get_number(tea_State* T, int index)
@@ -258,13 +258,13 @@ TEA_API bool tea_is_cfunction(tea_State* T, int index)
 TEA_API bool tea_to_bool(tea_State* T, int index)
 {
     TValue* o = index2addr(T, index);
-    return (o == nulltv(T)) ? false : !tea_obj_isfalse(o);
+    return (o == niltv(T)) ? false : !tea_obj_isfalse(o);
 }
 
 TEA_API tea_Number tea_to_numberx(tea_State* T, int index, bool* is_num)
 {
     TValue* o = index2addr(T, index);
-    if(o == nulltv(T))
+    if(o == niltv(T))
     {
         if(is_num) *is_num = false;
         return 0;
@@ -281,7 +281,7 @@ TEA_API tea_Number tea_to_number(tea_State* T, int index)
 TEA_API tea_Integer tea_to_integerx(tea_State* T, int index, bool* is_num)
 {
     TValue* o = index2addr(T, index);
-    if(o == nulltv(T))
+    if(o == niltv(T))
     {
         if(is_num) *is_num = false;
         return 0;
@@ -324,7 +324,7 @@ static GCstr* obj_tostring(tea_State* T, cTValue* o)
 TEA_API const char* tea_to_lstring(tea_State* T, int index, size_t* len)
 {
     cTValue* o = index2addr(T, index);
-    if(o == nulltv(T))
+    if(o == niltv(T))
     {
         if(len) *len = 0;
         return NULL;
@@ -339,7 +339,7 @@ TEA_API const char* tea_to_lstring(tea_State* T, int index, size_t* len)
 TEA_API const char* tea_to_string(tea_State* T, int index)
 {
     cTValue* o = index2addr(T, index);
-    if(o == nulltv(T))
+    if(o == niltv(T))
         return NULL;
     GCstr* str = obj_tostring(T, o);
     setstrV(T, T->top, str);
@@ -364,6 +364,17 @@ TEA_API const void* tea_to_pointer(tea_State* T, int index)
 {
     cTValue* o = index2addr(T, index);
     return tea_obj_pointer(o);
+}
+
+TEA_API void* tea_to_userdata(tea_State* T, int index)
+{
+    cTValue* o = index2addr(T, index);
+    if(tvisudata(o))
+        return ud_data(udataV(o));
+    else if(tvispointer(o))
+        return pointerV(o);
+    else
+        return NULL;
 }
 
 TEA_API bool tea_equal(tea_State* T, int index1, int index2)
@@ -404,9 +415,9 @@ TEA_API void tea_push_pointer(tea_State* T, void* p)
     incr_top(T);
 }
 
-TEA_API void tea_push_null(tea_State* T)
+TEA_API void tea_push_nil(tea_State* T)
 {
-    setnullV(T->top);
+    setnilV(T->top);
     incr_top(T);
 }
 
@@ -526,7 +537,7 @@ static void set_class(tea_State* T, const tea_Class* k)
     {
         if(k->fn == NULL)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
         }
         else
         {
@@ -567,7 +578,7 @@ static void set_module(tea_State* T, const tea_Module* m)
     {
         if(m->fn == NULL)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
         }
         else
         {
@@ -849,7 +860,7 @@ static void set_globals(tea_State* T, const tea_Reg* reg)
     {
         if(reg->fn == NULL)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
         }
         else
         {
@@ -910,7 +921,7 @@ TEA_API void tea_check_range(tea_State* T, int index, tea_Number* start, tea_Num
 
 TEA_API void tea_check_any(tea_State* T, int index)
 {
-    if(index2addr(T, index) == nulltv(T))
+    if(index2addr(T, index) == niltv(T))
         tea_err_arg(T, index, TEA_ERR_NOVAL);
 }
 
@@ -973,27 +984,27 @@ TEA_API const void* tea_check_pointer(tea_State* T, int index)
 TEA_API void tea_opt_any(tea_State* T, int index)
 {
     if(tea_is_none(T, index)) 
-        tea_push_null(T);
+        tea_push_nil(T);
 }
 
 TEA_API bool tea_opt_bool(tea_State* T, int index, bool def)
 {
-    return tea_is_nonenull(T, index) ? def : tea_check_bool(T, index);
+    return tea_is_nonenil(T, index) ? def : tea_check_bool(T, index);
 }
 
 TEA_API tea_Number tea_opt_number(tea_State* T, int index, tea_Number def)
 {
-    return tea_is_nonenull(T, index) ? def : tea_check_number(T, index);
+    return tea_is_nonenil(T, index) ? def : tea_check_number(T, index);
 }
 
 TEA_API tea_Integer tea_opt_integer(tea_State* T, int index, tea_Integer def)
 {
-    return tea_is_nonenull(T, index) ? def : tea_check_integer(T, index);
+    return tea_is_nonenil(T, index) ? def : tea_check_integer(T, index);
 }
 
 TEA_API const char* tea_opt_lstring(tea_State* T, int index, const char* def, size_t* len)
 {
-    if(tea_is_nonenull(T, index))
+    if(tea_is_nonenil(T, index))
     {
         if(len) *len = (def ? strlen(def) : 0);
         return def;
@@ -1004,12 +1015,12 @@ TEA_API const char* tea_opt_lstring(tea_State* T, int index, const char* def, si
 
 TEA_API const char* tea_opt_string(tea_State* T, int index, const char* def)
 {
-    return tea_is_nonenull(T, index) ? def : tea_check_string(T, index);
+    return tea_is_nonenil(T, index) ? def : tea_check_string(T, index);
 }
 
 TEA_API const void* tea_opt_pointer(tea_State* T, int index, void* def)
 {
-    return tea_is_nonenull(T, index) ? def : tea_check_pointer(T, index);
+    return tea_is_nonenil(T, index) ? def : tea_check_pointer(T, index);
 }
 
 TEA_API int tea_check_option(tea_State* T, int index, const char* def, const char* const options[])

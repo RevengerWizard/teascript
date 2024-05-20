@@ -44,7 +44,7 @@ static void time_sleep(tea_State* T)
     usleep(fmod(stop, 1) * 1000000);
 #endif
 
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void time_clock(tea_State* T)
@@ -137,7 +137,7 @@ static void time_format(tea_State* T)
     if(stm == NULL)
     {
         /* Invalid date? */
-        setnullV(T->top++);
+        setnilV(T->top++);
     }
     else if(strcmp(s, "*t") == 0)
     {

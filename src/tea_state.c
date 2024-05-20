@@ -47,7 +47,7 @@ static void stack_init(tea_State* T)
     /* Initialize first ci */
     T->ci->func = NULL;
     T->ci->state = CIST_C;
-    setnullV(T->top++);
+    setnilV(T->top++);
 }
 
 static const char* const opmnames[] = {
@@ -164,7 +164,7 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->allocd = ud;
     T->gc.next_gc = 1024 * 1024;
     T->panic = panic;
-    setnullV(&T->nullval);
+    setnilV(&T->nilval);
     stack_init(T);
     tea_buf_init(&T->tmpbuf);
     tea_buf_init(&T->strbuf);

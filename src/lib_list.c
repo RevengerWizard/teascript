@@ -214,7 +214,7 @@ static void set2(tea_State* T, int i, int j)
 
 static bool sort_comp(tea_State* T, int a, int b)
 {
-    if(!tea_is_null(T, 1))
+    if(!tea_is_nil(T, 1))
     {
         bool res;
         tea_push_value(T, 1);
@@ -317,7 +317,7 @@ static void auxsort(tea_State* T, int l, int u)
 static void list_sort(tea_State* T)
 {
     int len = tea_len(T, 0);
-    if(!tea_is_nonenull(T, 1))
+    if(!tea_is_nonenil(T, 1))
         tea_check_function(T, 1);
     tea_set_top(T, 2);
     auxsort(T, 0, len - 1);
@@ -337,7 +337,7 @@ static void list_index(tea_State* T)
         }
         tea_pop(T, 1);
     }
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void list_join(tea_State* T)
@@ -401,7 +401,7 @@ static void list_find(tea_State* T)
             return;
         }
     }
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void flatten(tea_State* T, int src, int len)
@@ -522,11 +522,11 @@ static void list_iterate(tea_State* T)
     int len = tea_len(T, 0);
 
     /* If we're starting the iteration, return the first index */
-    if(tea_is_null(T, 1))
+    if(tea_is_nil(T, 1))
     {
         if(len == 0)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
             return;
         }
         tea_push_number(T, 0);
@@ -543,7 +543,7 @@ static void list_iterate(tea_State* T)
     /* Stop if we're out of bounds */
     if(index < 0 || index >= len - 1)
     {
-        tea_push_null(T);
+        tea_push_nil(T);
         return;
     }
 
@@ -615,5 +615,5 @@ void tea_open_list(tea_State* T)
     tea_create_class(T, TEA_CLASS_LIST, list_class);
     T->list_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_LIST);
-    tea_push_null(T);
+    tea_push_nil(T);
 }

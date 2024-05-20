@@ -154,7 +154,7 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             GCclass* klass = classV(callee);
             GCinstance* instance = tea_instance_new(T, klass);
             setinstanceV(T, T->top - arg_count - 1, instance);
-            if(!tvisnull(&klass->constructor)) 
+            if(!tvisnil(&klass->constructor)) 
             {
                 return vm_precall(T, &klass->constructor, arg_count);
             }
@@ -480,7 +480,7 @@ static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool as
                     copyTV(T, T->top++, obj);
                     copyTV(T, T->top++, index_value);
                 }
-                setnullV(T->top++);
+                setnilV(T->top++);
                 tea_vm_call(T, method, 2);
                 return;
             }
@@ -822,7 +822,7 @@ static void vm_arith_unary(tea_State* T, MMS op, TValue* v)
     T->top--;
     copyTV(T, T->top++, method);
     copyTV(T, T->top++, &v1);
-    setnullV(T->top++);
+    setnilV(T->top++);
     tea_vm_call(T, method, 2);
 }
 
@@ -1002,9 +1002,9 @@ static void vm_execute(tea_State* T)
                 copyTV(T, T->top++, o);
                 DISPATCH();
             }
-            CASE_CODE(BC_NULL):
+            CASE_CODE(BC_NIL):
             {
-                setnullV(T->top++);
+                setnilV(T->top++);
                 DISPATCH();
             }
             CASE_CODE(BC_TRUE):
@@ -1025,7 +1025,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_PRINT):
             {
                 TValue* o = T->top - 1;
-                if(!tvisnull(o))
+                if(!tvisnil(o))
                 {
                     copyTV(T, tea_tab_set(T, &T->globals, T->repl_string, NULL), o);
                     tea_get_global(T, "print");
@@ -1566,7 +1566,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_JUMP_IF_NULL):
             {
                 uint16_t offset = READ_SHORT();
-                if(tvisnull(T->top - 1))
+                if(tvisnil(T->top - 1))
                 {
                     ip += offset;
                 }
@@ -1817,7 +1817,7 @@ int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
         T->ci = ci_restore(T, old_ci);
         T->base = T->ci->base;
         T->top = old;
-        setnullV(T->top++);
+        setnilV(T->top++);
 
         /* Correct the stack */
         T->stack_max = T->stack + T->stack_size - 1;

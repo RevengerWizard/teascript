@@ -81,12 +81,12 @@ static void range_iterate(tea_State* T)
     /* Empty range */
     if(start == end)
     {
-        tea_push_null(T);
+        tea_push_nil(T);
         return;
     }
 
     /* Start the iteration */
-    if(tea_is_null(T, 1))
+    if(tea_is_nil(T, 1))
     {
         tea_push_number(T, start);
         return;
@@ -105,7 +105,7 @@ static void range_iterate(tea_State* T)
         iterator++;
         if(iterator > end)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
             return;
         }
     }
@@ -114,13 +114,13 @@ static void range_iterate(tea_State* T)
         iterator--;
         if(iterator < end)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
             return;
         }
     }
     if(iterator == end)
     {
-        tea_push_null(T);
+        tea_push_nil(T);
         return;
     }
 
@@ -204,5 +204,5 @@ void tea_open_range(tea_State* T)
     tea_create_class(T, TEA_CLASS_RANGE, range_class);
     T->range_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_RANGE);
-    tea_push_null(T);
+    tea_push_nil(T);
 }

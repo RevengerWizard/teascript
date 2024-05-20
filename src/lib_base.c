@@ -39,7 +39,7 @@ static void base_print(tea_State* T)
         tea_pop(T, 1);
     }
     putchar('\n');
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void base_input(tea_State* T)
@@ -66,7 +66,7 @@ static void base_input(tea_State* T)
     }
     setstrV(T, T->top++, tea_str_new(T, buf, n));
     if(!ok)
-        setnullV(T->top - 1);
+        setnilV(T->top - 1);
 }
 
 static void base_assert(tea_State* T)
@@ -83,7 +83,7 @@ static void base_assert(tea_State* T)
 static void base_error(tea_State* T)
 {
     tea_error(T, "%s", tea_check_string(T, 0));
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void base_typeof(tea_State* T)
@@ -105,7 +105,7 @@ static void base_eval(tea_State* T)
     {
         tea_call(T, 0);
     }
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
@@ -283,7 +283,7 @@ static void number_constructor(tea_State* T)
             }
         }
     }
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void invalid_constructor(tea_State* T)
@@ -342,7 +342,7 @@ static void tea_open_global(tea_State* T)
     tea_create_class(T, "Function", func_class);
     T->func_class = classV(T->top - 1);
     tea_set_global(T, "Function");
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 void tea_open_base(tea_State* T)

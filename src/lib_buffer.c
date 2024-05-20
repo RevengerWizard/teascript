@@ -125,5 +125,5 @@ void tea_open_buffer(tea_State* T)
 {
     tea_create_class(T, TEA_CLASS_BUFFER, buffer_class);
     tea_set_global(T, TEA_CLASS_BUFFER);
-    tea_push_null(T);
+    tea_push_nil(T);
 }

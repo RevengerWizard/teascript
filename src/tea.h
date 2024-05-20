@@ -188,6 +188,7 @@ TEA_API tea_Number tea_to_number(tea_State* T, int index);
 TEA_API tea_Integer tea_to_integerx(tea_State* T, int index, bool* is_num);
 TEA_API tea_Integer tea_to_integer(tea_State* T, int index);
 TEA_API const void* tea_to_pointer(tea_State* T, int index);
+TEA_API void* tea_to_userdata(tea_State* T, int index);
 TEA_API const char* tea_to_lstring(tea_State* T, int index, size_t* len);
 TEA_API const char* tea_to_string(tea_State* T, int index);
 TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int index);
@@ -198,7 +199,7 @@ TEA_API bool tea_rawequal(tea_State* T, int index1, int index2);
 /*
 ** Push functions (C -> stack)
 */
-TEA_API void tea_push_null(tea_State* T);
+TEA_API void tea_push_nil(tea_State* T);
 TEA_API void tea_push_true(tea_State* T);
 TEA_API void tea_push_false(tea_State* T);
 TEA_API void tea_push_bool(tea_State* T, bool b);
@@ -308,9 +309,9 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_check_instance(T, index) tea_check_type(T, (index), TEA_TYPE_INSTANCE)
 
 #define tea_is_mask(T, n, m) (tea_get_mask(T, (n)) & (m))
-#define tea_is_nonenull(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NONE)
+#define tea_is_nonenil(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NONE)
 #define tea_is_none(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NONE)
-#define tea_is_null(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
+#define tea_is_nil(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)
 #define tea_is_bool(T, n) (tea_get_type(T, (n)) == TEA_TYPE_BOOL)
 #define tea_is_number(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NUMBER)
 #define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NULL)

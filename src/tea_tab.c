@@ -35,7 +35,7 @@ static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
         TableEntry* entry = &entries[index];
         if(entry->key == NULL)
         {
-            if(tvisnull(&entry->value))
+            if(tvisnil(&entry->value))
             {
                 /* Empty entry */
                 return tombstone != NULL ? tombstone : entry;
@@ -75,7 +75,7 @@ static void tab_resize(tea_State* T, Table* table, int size)
     for(int i = 0; i < size; i++)
     {
         entries[i].key = NULL;
-        setnullV(&entries[i].value);
+        setnilV(&entries[i].value);
     }
 
     table->count = 0;
@@ -109,7 +109,7 @@ TValue* tea_tab_set(tea_State* T, Table* table, GCstr* key, bool* b)
     TableEntry* entry = tab_find_entry(table->entries, table->size, key);
     bool is_new_key = entry->key == NULL;
 
-    if(is_new_key && tvisnull(&entry->value))
+    if(is_new_key && tvisnil(&entry->value))
         table->count++;
 
     entry->key = key;
@@ -161,7 +161,7 @@ GCstr* tea_tab_findstr(Table* table, const char* chars, int len, StrHash hash)
         if(entry->key == NULL)
         {
             /* Stop if we find an empty non-tombstone entry */
-            if(tvisnull(&entry->value))
+            if(tvisnil(&entry->value))
                 return NULL;
         }
         else if(entry->key->len == len && entry->key->hash == hash && memcmp(str_data(entry->key), chars, len) == 0)

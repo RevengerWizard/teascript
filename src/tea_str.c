@@ -37,7 +37,7 @@ static GCstr* str_alloc(tea_State* T, const char* chars, int len, StrHash hash)
     memcpy(str_datawr(str), chars, len);
     str_datawr(str)[len] = '\0';
     setstrV(T, T->top++, str);
-    setnullV(tea_tab_set(T, &T->strings, str, NULL));
+    setnilV(tea_tab_set(T, &T->strings, str, NULL));
     T->top--;
     return str;
 }

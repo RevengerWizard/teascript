@@ -388,7 +388,7 @@ struct tea_State
     Table strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
     SBuf strbuf;    /* Termorary string conversion buffer */
-    TValue nullval; /* A null value */
+    TValue nilval; /* A nil value */
     GCmodule* last_module;    /* Last cached module */
     GCclass* number_class;
     GCclass* bool_class;
@@ -412,7 +412,7 @@ struct tea_State
     bool repl;
 };
 
-#define nulltv(T) (&T->nullval)
+#define niltv(T) (&T->nilval)
 
 #if defined(TEA_USE_ASSERT) || defined(TEA_USE_APICHECK)
 TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, const char* func, const char* fmt, ...);
@@ -422,7 +422,7 @@ TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, co
 
 /* Macros to test types */
 #define itype(o) ((o)->tt)
-#define tvisnull(o) (itype(o) == TEA_TNULL)
+#define tvisnil(o) (itype(o) == TEA_TNULL)
 #define tvisbool(o) (itype(o) == TEA_TBOOL)
 #define tvisnumber(o) (itype(o) == TEA_TNUMBER)
 #define tvispointer(o) (itype(o) == TEA_TPOINTER)
@@ -457,7 +457,7 @@ TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, co
 #define udataV(o) ((GCudata*)gcV(o))
 
 /* Macros to set tagged values */
-#define setnullV(o) ((o)->tt = TEA_TNULL)
+#define setnilV(o) ((o)->tt = TEA_TNULL)
 #define setfalseV(o) { TValue* _tv = (o); _tv->value.b = false; _tv->tt = TEA_TBOOL; }
 #define settrueV(o) { TValue* _tv = (o); _tv->value.b = true; _tv->tt = TEA_TBOOL; }
 #define setboolV(o, x) { TValue* _tv = (o); _tv->value.b = (x); _tv->tt = TEA_TBOOL; }
@@ -515,7 +515,7 @@ TEA_FUNC double tea_obj_tonumber(TValue* value, bool* x);
 
 static TEA_AINLINE bool tea_obj_isfalse(cTValue* value)
 {
-    return  tvisnull(value) ||
+    return  tvisnil(value) ||
             (tvisbool(value) && !boolV(value)) ||
             (tvisnumber(value) && numberV(value) == 0) ||
             (tvisstr(value) && str_data(strV(value))[0] == '\0') ||

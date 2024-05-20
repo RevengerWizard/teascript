@@ -153,7 +153,7 @@ static void file_write(tea_State* T)
 {
     IOFileUD* iof = io_get_file(T);
     io_file_write(T, iof->fp, 1);
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void file_read(tea_State* T)
@@ -174,7 +174,7 @@ static void file_readline(tea_State* T)
     IOFileUD* iof = io_get_file(T);
     int ok = io_file_readline(T, iof->fp);
     if(!ok)
-        setnullV(T->top - 1);
+        setnilV(T->top - 1);
 }
 
 static void file_seek(tea_State* T)
@@ -194,14 +194,14 @@ static void file_seek(tea_State* T)
         tea_error(T, "Unable to seek file");
     }
 
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void file_flush(tea_State* T)
 {
     IOFileUD* iof = io_get_file(T);
     fflush(iof->fp);
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void file_setvbuf(tea_State* T)
@@ -211,7 +211,7 @@ static void file_setvbuf(tea_State* T)
     IOFileUD* iof = io_get_file(T);
     int opt = tea_check_option(T, 1, NULL, modenames);
     setvbuf(iof->fp, NULL, mode[opt], TEA_BUFFER_SIZE);
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void file_close(tea_State* T)
@@ -224,7 +224,7 @@ static void file_close(tea_State* T)
     fclose(iof->fp);
     iof->fp = NULL;
     iof->type = IOFILE_TYPE_CLOSE;
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void file_tostring(tea_State* T)
@@ -307,7 +307,7 @@ static const tea_Class file_class[] = {
     { "readline", "method", file_readline, 1 },
     { "seek", "method", file_seek, TEA_VARARGS },
     { "flush", "method", file_flush, 1 },
-    { "setvbuf", "method", file_setvbuf, 1 },
+    { "setvbuf", "method", file_setvbuf, 2 },
     { "close", "method", file_close, 1 },
     { "tostring", "method", file_tostring, 1 },
     { "iterate", "method", file_iterate, 2 },

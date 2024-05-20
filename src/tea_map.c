@@ -74,7 +74,7 @@ static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
         MapEntry* item = &items[index];
         if(item->empty)
         {
-            if(tvisnull(&item->value))
+            if(tvisnil(&item->value))
             {
                 /* Empty item */
                 return tombstone != NULL ? tombstone : item;
@@ -125,8 +125,8 @@ static void map_resize(tea_State* T, GCmap* map, int size)
     MapEntry* entries = tea_mem_newvec(T, MapEntry, size);
     for(int i = 0; i < size; i++)
     {
-        setnullV(&entries[i].key);
-        setnullV(&entries[i].value);
+        setnilV(&entries[i].key);
+        setnilV(&entries[i].value);
         entries[i].empty = true;
     }
 
@@ -162,7 +162,7 @@ TValue* tea_map_set(tea_State* T, GCmap* map, TValue* key)
     MapEntry* item = map_find_entry(map->entries, map->size, key);
     bool is_new_key = item->empty;
 
-    if(is_new_key && tvisnull(&item->value))
+    if(is_new_key && tvisnil(&item->value))
         map->count++;
 
     copyTV(T, &item->key, key);
@@ -201,8 +201,8 @@ bool tea_map_delete(tea_State* T, GCmap* map, TValue* key)
         return false;
 
     /* Place a tombstone in the entry */
-    setnullV(&item->key);
-    setnullV(&item->value);
+    setnilV(&item->key);
+    setnilV(&item->value);
     item->empty = true;
 
     map->count--;

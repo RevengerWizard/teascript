@@ -71,7 +71,7 @@ static void os_getenv(tea_State* T)
         return;
     }
 
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void os_setenv(tea_State* T)
@@ -79,14 +79,14 @@ static void os_setenv(tea_State* T)
     int count = tea_get_top(T);
     tea_check_args(T, count < 1, "Expected at 1 or 2 arguments, got %d", count);
 
-    if(!tea_is_string(T, 0) || (!tea_is_string(T, 1) && !tea_is_null(T, 1)))
+    if(!tea_is_string(T, 0) || (!tea_is_string(T, 1) && !tea_is_nil(T, 1)))
     {
-        tea_error(T, "Expected string or null");
+        tea_error(T, "Expected string or nil");
     }
 
     const char* key = tea_check_string(T, 0);
     int ret;
-    if(tea_is_null(T, 1))
+    if(tea_is_nil(T, 1))
     {
         ret = unsetenv(key);
     }
@@ -100,7 +100,7 @@ static void os_setenv(tea_State* T)
         tea_error(T, "Failed to set environment variable");
     }
 
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void os_execute(tea_State* T)
@@ -151,7 +151,7 @@ static void init_env(tea_State* T)
         }
         else
         {
-            tea_push_null(T);
+            tea_push_nil(T);
         }
         tea_set_field(T, -3);
     }

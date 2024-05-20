@@ -211,7 +211,7 @@ static void bcemit_return(Parser* parser)
     }
     else
     {
-        bcemit_op(parser, BC_NULL);
+        bcemit_op(parser, BC_NIL);
     }
 
     bcemit_byte(parser, BC_RETURN);
@@ -534,7 +534,7 @@ static void define_variable(Parser* parser, uint8_t global, bool constant)
     if(constant)
     {
         TValue* o = tea_tab_set(parser->lex->T, &parser->lex->T->constants, string, NULL);
-        setnullV(o);
+        setnilV(o);
     }
 
     TValue* value = tea_tab_get(&parser->lex->T->globals, string);
@@ -833,9 +833,9 @@ static void expr_bool(Parser* parser, bool assign)
     bcemit_op(parser, parser->lex->prev.type == TK_FALSE ? BC_FALSE : BC_TRUE);
 }
 
-static void expr_null(Parser* parser, bool assign)
+static void expr_nil(Parser* parser, bool assign)
 {
-    bcemit_op(parser, BC_NULL);
+    bcemit_op(parser, BC_NIL);
 }
 
 static void expr_list(Parser* parser, bool assign)
@@ -1461,8 +1461,8 @@ static ParseRule expr_rule(int type)
             return PREFIX(expr_static);
         case TK_FUNCTION:
             return PREFIX(expr_anonymous);
-        case TK_NULL:
-            return PREFIX(expr_null);
+        case TK_NIL:
+            return PREFIX(expr_nil);
         case TK_OR:
             return OPERATOR(expr_or, PREC_OR);
         case TK_IS:
@@ -1956,7 +1956,7 @@ static void parse_var(Parser* parser, bool constant)
     {
         for(int i = 0; i < var_count; i++)
         {
-            bcemit_op(parser, BC_NULL);
+            bcemit_op(parser, BC_NIL);
         }
     }
 
@@ -1998,7 +1998,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
 {
     switch(code[ip])
     {
-        case BC_NULL:
+        case BC_NIL:
         case BC_TRUE:
         case BC_FALSE:
         case BC_RANGE:
@@ -2147,7 +2147,7 @@ static void parse_for_in(Parser* parser, Token var, bool constant)
     expr(parser);
     int seq_slot = add_init_local(parser, lex_synthetic(parser, "seq "));
 
-    expr_null(parser, false);
+    expr_nil(parser, false);
     int iter_slot = add_init_local(parser, lex_synthetic(parser, "iter "));
 
     lex_consume(parser, ')');
@@ -2155,7 +2155,7 @@ static void parse_for_in(Parser* parser, Token var, bool constant)
     Loop loop;
     loop_begin(parser, &loop);
 
-    /* Get the iterator index. If it's null, it means the loop is over */
+    /* Get the iterator index. If it's nil, it means the loop is over */
     bcemit_op(parser, BC_GET_ITER);
     bcemit_bytes(parser, seq_slot, iter_slot);
     parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_NULL);
@@ -2224,7 +2224,7 @@ static void parse_for(Parser* parser)
         }
         else
         {
-            bcemit_op(parser, BC_NULL);
+            bcemit_op(parser, BC_NIL);
         }
 
         define_variable(parser, global, constant);

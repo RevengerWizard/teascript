@@ -11,7 +11,7 @@ function link(value, next)
 function traverse(n, fn)
 {
     fn(n)
-    if(n("next") != null)
+    if(n("next") != nil)
     {
         return traverse(n("next"), fn)
     }
@@ -32,7 +32,7 @@ function print_tail(n)
     print(tail("value"))
 }
 
-var list = link(1, link(2, link(3, link(4, link(5, null)))))
+var list = link(1, link(2, link(3, link(4, link(5, nil)))))
 
 traverse(list, print_value)
 print_tail(list)

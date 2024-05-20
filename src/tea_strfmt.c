@@ -615,7 +615,7 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
     switch(itype(o))
     {
         case TEA_TNULL:
-            tea_buf_putlit(T, sb, "null");
+            tea_buf_putlit(T, sb, "nil");
             break;
         case TEA_TBOOL:
         {
@@ -736,7 +736,7 @@ const char* tea_strfmt_pushvf(tea_State* T, const char* fmt, va_list argp)
             case STRFMT_STR:
             {
                 const char* s = va_arg(argp, char*);
-                if(s == NULL) s = "(null)";
+                if(s == NULL) s = "(nil)";
                 tea_buf_putmem(T, sb, s, strlen(s));
                 break;
             }

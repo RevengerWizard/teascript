@@ -152,7 +152,7 @@ static void map_iterate(tea_State* T)
     GCmap* map = tea_lib_checkmap(T, 0);
     if(map->count == 0)
     {
-        tea_push_null(T);
+        tea_push_nil(T);
         return;
     }
 
@@ -160,7 +160,7 @@ static void map_iterate(tea_State* T)
     int index = 0;
 
     /* Otherwise, start one past the last entry we stopped at */
-    if(!tea_is_null(T, 1))
+    if(!tea_is_nil(T, 1))
     {
         if(!tea_is_number(T, 1))
         {
@@ -170,13 +170,13 @@ static void map_iterate(tea_State* T)
         index = (uint32_t)tea_get_number(T, 1);
         if(index < 0)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
             return;
         }
 
         if(index >= map->size)
         {
-            tea_push_null(T);
+            tea_push_nil(T);
             return;
         }
 
@@ -195,7 +195,7 @@ static void map_iterate(tea_State* T)
     }
 
     /* If we get here, walked all of the entries */
-    tea_push_null(T);
+    tea_push_nil(T);
 }
 
 static void map_iteratorvalue(tea_State* T)
@@ -252,5 +252,5 @@ void tea_open_map(tea_State* T)
     tea_create_class(T, TEA_CLASS_MAP, map_class);
     T->map_class = classV(T->top - 1);
     tea_set_global(T, TEA_CLASS_MAP);
-    tea_push_null(T);
+    tea_push_nil(T);
 }
