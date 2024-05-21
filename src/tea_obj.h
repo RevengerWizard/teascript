@@ -37,7 +37,7 @@ enum
     TEA_TBOOL,
     TEA_TNUMBER,
     TEA_TPOINTER,
-    TEA_TSTRING,
+    TEA_TSTR,
     TEA_TRANGE,
     TEA_TFUNC,
     TEA_TMODULE,
@@ -45,7 +45,7 @@ enum
     TEA_TINSTANCE,
     TEA_TLIST,
     TEA_TMAP,
-    TEA_TUSERDATA,
+    TEA_TUDATA,
     TEA_TPROTO,
     TEA_TUPVALUE,
     TEA_TMETHOD,
@@ -426,8 +426,8 @@ TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, co
 #define tvisbool(o) (itype(o) == TEA_TBOOL)
 #define tvisnumber(o) (itype(o) == TEA_TNUMBER)
 #define tvispointer(o) (itype(o) == TEA_TPOINTER)
-#define tvisgcv(o) (itype(o) >= TEA_TSTRING)
-#define tvisstr(o) (itype(o) == TEA_TSTRING)
+#define tvisgcv(o) (itype(o) >= TEA_TSTR)
+#define tvisstr(o) (itype(o) == TEA_TSTR)
 #define tvisrange(o) (itype(o) == TEA_TRANGE)
 #define tvisfunc(o) (itype(o) == TEA_TFUNC)
 #define tvismodule(o) (itype(o) == TEA_TMODULE)
@@ -437,7 +437,7 @@ TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, co
 #define tvisinstance(o) (itype(o) == TEA_TINSTANCE)
 #define tvismethod(o) (itype(o) == TEA_TMETHOD)
 #define tvisproto(o) (itype(o) == TEA_TPROTO)
-#define tvisudata(o) (itype(o) == TEA_TUSERDATA)
+#define tvisudata(o) (itype(o) == TEA_TUDATA)
 
 /* Macros to get tagged values */
 #define boolV(o) ((o)->value.b)
@@ -475,7 +475,7 @@ static TEA_AINLINE void name(tea_State* T, TValue* o, const type* v) \
 { \
     setgcV(T, o, (GCobj*)v, tag); \
 }
-define_setV(setstrV, GCstr, TEA_TSTRING)
+define_setV(setstrV, GCstr, TEA_TSTR)
 define_setV(setrangeV, GCrange, TEA_TRANGE)
 define_setV(setprotoV, GCproto, TEA_TPROTO)
 define_setV(setfuncV, GCfunc, TEA_TFUNC)
@@ -485,7 +485,7 @@ define_setV(setinstanceV, GCinstance, TEA_TINSTANCE)
 define_setV(setmethodV, GCmethod, TEA_TMETHOD)
 define_setV(setlistV, GClist, TEA_TLIST)
 define_setV(setmapV, GCmap, TEA_TMAP)
-define_setV(setudataV, GCudata, TEA_TUSERDATA)
+define_setV(setudataV, GCudata, TEA_TUDATA)
 #undef define_setV
 
 /* Copy tagged values */

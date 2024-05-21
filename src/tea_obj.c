@@ -229,7 +229,7 @@ double tea_obj_tonumber(TValue* o, bool* x)
             return numberV(o);
         case TEA_TBOOL:
             return boolV(o) ? 1 : 0;
-        case TEA_TSTRING:
+        case TEA_TSTR:
         {
             GCstr* str = strV(o);
             TValue tv;

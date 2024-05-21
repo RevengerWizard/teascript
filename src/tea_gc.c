@@ -114,7 +114,7 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             tea_gc_markval(T, &uv->closed);
             break;
         }
-        case TEA_TSTRING:
+        case TEA_TSTR:
         case TEA_TRANGE:
             break;
     }
@@ -184,13 +184,13 @@ static void gc_free(tea_State* T, GCobj* obj)
             tea_mem_freet(T, GCinstance, obj);
             break;
         }
-        case TEA_TSTRING:
+        case TEA_TSTR:
         {
             GCstr* str = (GCstr*)obj;
             tea_str_free(T, str);
             break;
         }
-        case TEA_TUSERDATA:
+        case TEA_TUDATA:
         {
             GCudata* ud = (GCudata*)obj;
             tea_udata_free(T, ud);

@@ -172,7 +172,7 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_tab_init(&T->globals);
     tea_tab_init(&T->constants);
     tea_tab_init(&T->strings);
-    T->strempty.obj.gct = TEA_TSTRING;
+    T->strempty.obj.gct = TEA_TSTR;
     T->strempty.obj.marked = TEA_GC_FIXED;
     T->init_str = tea_str_newlit(T, "init");
     fix_string(T->init_str);
@@ -219,7 +219,7 @@ GCclass* tea_state_getclass(tea_State* T, TValue* value)
             return T->list_class;
         case TEA_TMAP: 
             return T->map_class;
-        case TEA_TSTRING: 
+        case TEA_TSTR: 
             return T->string_class;
         case TEA_TRANGE: 
             return T->range_class;

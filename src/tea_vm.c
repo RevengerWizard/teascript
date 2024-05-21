@@ -286,7 +286,7 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
             }
             return;
         }
-        case TEA_TSTRING:
+        case TEA_TSTR:
         {
             GCstr* str = strV(obj);
             int len = tea_utf_len(str);
@@ -413,7 +413,7 @@ static void vm_slice(tea_State* T, TValue* obj, GCrange* range, bool assign)
             setlistV(T, T->top++, new_list);
             return;
         }
-        case TEA_TSTRING:
+        case TEA_TSTR:
         {
             GCstr* str = strV(obj);
             int len = tea_utf_len(str);
@@ -560,7 +560,7 @@ static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool as
             }
             tea_err_run(T, TEA_ERR_MAPKEY);
         }
-        case TEA_TSTRING:
+        case TEA_TSTR:
         {
             if(!tvisnumber(index_value))
             {

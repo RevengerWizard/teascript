@@ -608,7 +608,7 @@ TEA_API int tea_len(tea_State* T, int index)
     cTValue* o = index2addr_check(T, index);
     switch(itype(o))
     {
-        case TEA_TSTRING:
+        case TEA_TSTR:
         {
             return strV(o)->len;
         }

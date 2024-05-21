@@ -686,13 +686,13 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
             tea_buf_putlit(T, sb, ">");
             break;
         }
-        case TEA_TSTRING:
+        case TEA_TSTR:
             tea_buf_putstr(T, sb, strV(o));
             break;
         case TEA_TUPVALUE:
             tea_buf_putlit(T, sb, "<upvalue>");
             break;
-        case TEA_TUSERDATA:
+        case TEA_TUDATA:
             tea_buf_putlit(T, sb, "<userdata>");
             break;
         default:

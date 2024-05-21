@@ -56,7 +56,7 @@ static uint32_t map_hash_obj(TValue* value)
             return map_hash(numberV(value));
         case TEA_TPOINTER:
             return map_hash((uint64_t)pointerV(value));
-        case TEA_TSTRING:
+        case TEA_TSTR:
             return strV(value)->hash;
         default:
             return map_hash((uint64_t)gcV(value));

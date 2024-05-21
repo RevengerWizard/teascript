@@ -30,7 +30,7 @@ static StrHash str_hash(const char* key, int len)
 /* Allocate a new string and add to string interning table */
 static GCstr* str_alloc(tea_State* T, const char* chars, int len, StrHash hash)
 {
-    GCstr* str = (GCstr*)tea_mem_newgco(T, tea_str_size(len), TEA_TSTRING);
+    GCstr* str = (GCstr*)tea_mem_newgco(T, tea_str_size(len), TEA_TSTR);
     str->reserved = 0;
     str->len = len;
     str->hash = hash;

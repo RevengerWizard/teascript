@@ -66,7 +66,7 @@ void tea_debug_value(TValue* v)
         case TEA_TRANGE:
             printf("<range>");
             break;
-        case TEA_TSTRING:
+        case TEA_TSTR:
         {
             GCstr* str = strV(v);
             if(str->len > 40)
