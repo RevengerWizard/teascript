@@ -168,7 +168,7 @@ typedef enum
 {
     PROTO_FUNCTION,
     PROTO_ANONYMOUS,
-    PROTO_CONSTRUCTOR,
+    PROTO_INIT,
     PROTO_METHOD,
     PROTO_OPERATOR,
     PROTO_SCRIPT
@@ -293,7 +293,7 @@ typedef struct GCclass
     GCobj obj;
     GCstr* name;
     struct GCclass* super;
-    TValue constructor; /* Cached */
+    TValue init; /* Cached */
     Table methods;
 } GCclass;
 
@@ -399,8 +399,8 @@ struct tea_State
     GCclass* range_class;
     GCstr strempty; /* Empty string */
     uint8_t strempty0;  /* Zero terminator for empty string */
-    GCstr* constructor_string;  /* "constructor" */
-    GCstr* repl_string; /* "_" */
+    GCstr* init_str;  /* "init" */
+    GCstr* repl_str; /* "_" */
     GCstr* memerr;  /* String message for out-of-memory situation */
     GCstr* opm_name[MM__MAX];   /* Array with special method names  */
     tea_CFunction panic; /* Function to be called in unprotected errors */

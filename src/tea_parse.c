@@ -205,7 +205,7 @@ static int bcemit_jump(Parser* parser, uint8_t instruction)
 
 static void bcemit_return(Parser* parser)
 {
-    if(parser->type == PROTO_CONSTRUCTOR)
+    if(parser->type == PROTO_INIT)
     {
         bcemit_argued(parser, BC_GET_LOCAL, 0);
     }
@@ -270,7 +270,7 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
     switch(type)
     {
         case PROTO_FUNCTION:
-        case PROTO_CONSTRUCTOR:
+        case PROTO_INIT:
         case PROTO_METHOD:
             parser->proto->name = strV(&parser->lex->prev.value);
             break;
@@ -300,7 +300,7 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
             s = &lexer->T->strempty;
             setstrV(lexer->T, &local->name.value, s);
             break;
-        case PROTO_CONSTRUCTOR:
+        case PROTO_INIT:
         case PROTO_METHOD:
         case PROTO_OPERATOR:
             s = tea_str_newlit(lexer->T, "this");
@@ -1284,10 +1284,10 @@ static void expr_super(Parser* parser, bool assign)
         return;
     }
 
-    /* super() -> super.constructor() */
+    /* super() -> super.init() */
     if(lex_match(parser, '('))
     {
-        Token token = lex_synthetic(parser, "constructor");
+        Token token = lex_synthetic(parser, "init");
 
         uint8_t name = identifier_constant(parser, &token);
         named_variable(parser, lex_synthetic(parser, "this"), false);
@@ -1731,9 +1731,9 @@ static void parse_method(Parser* parser, ProtoType type)
 {
     uint8_t constant = identifier_constant(parser, &parser->lex->prev);
 
-    if(strV(&parser->lex->prev.value) == parser->lex->T->constructor_string)
+    if(strV(&parser->lex->prev.value) == parser->lex->T->init_str)
     {
-        type = PROTO_CONSTRUCTOR;
+        type = PROTO_INIT;
     }
 
     function(parser, type);
@@ -2425,7 +2425,7 @@ static void parse_return(Parser* parser)
     }
     else
     {
-        if(parser->type == PROTO_CONSTRUCTOR)
+        if(parser->type == PROTO_INIT)
         {
             error(parser, TEA_ERR_XINIT);
         }

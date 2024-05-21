@@ -812,9 +812,9 @@ TEA_API void tea_set_attr(tea_State* T, int obj, const char* key)
         {
             GCclass* klass = classV(object);
             copyTV(T, tea_tab_set(T, &klass->methods, str, NULL), item);
-            if(str == T->constructor_string)
+            if(str == T->init_str)
             {
-                copyTV(T, &klass->constructor, item);
+                copyTV(T, &klass->init, item);
             }
             break;
         }

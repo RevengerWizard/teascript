@@ -154,9 +154,9 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             GCclass* klass = classV(callee);
             GCinstance* instance = tea_instance_new(T, klass);
             setinstanceV(T, T->top - arg_count - 1, instance);
-            if(!tvisnil(&klass->constructor)) 
+            if(!tvisnil(&klass->init)) 
             {
-                return vm_precall(T, &klass->constructor, arg_count);
+                return vm_precall(T, &klass->init, arg_count);
             }
             else if(arg_count != 0)
             {
@@ -794,7 +794,7 @@ static void vm_define_method(tea_State* T, GCstr* name)
     TValue* method = T->top - 1;
     GCclass* klass = classV(T->top - 2);
     copyTV(T, tea_tab_set(T, &klass->methods, name, NULL), method);
-    if(name == T->constructor_string) copyTV(T, &klass->constructor, method);
+    if(name == T->init_str) copyTV(T, &klass->init, method);
     T->top--;
 }
 
@@ -1027,7 +1027,7 @@ static void vm_execute(tea_State* T)
                 TValue* o = T->top - 1;
                 if(!tvisnil(o))
                 {
-                    copyTV(T, tea_tab_set(T, &T->globals, T->repl_string, NULL), o);
+                    copyTV(T, tea_tab_set(T, &T->globals, T->repl_str, NULL), o);
                     tea_get_global(T, "print");
                     copyTV(T, T->top++, o);
                     tea_call(T, 1);
@@ -1728,7 +1728,7 @@ static void vm_execute(tea_State* T)
                     RUNTIME_ERROR(TEA_ERR_SELF);
                 }
                 klass->super = superclass;
-                klass->constructor = superclass->constructor;
+                klass->init = superclass->init;
 
                 tea_tab_merge(T, &superclass->methods, &klass->methods);
                 T->top--;

@@ -235,13 +235,13 @@ static void base_setattr(tea_State* T)
     T->top--;
 }
 
-static void bool_constructor(tea_State* T)
+static void bool_init(tea_State* T)
 {
     bool b = tea_to_bool(T, 1);
     tea_push_bool(T, b);
 }
 
-static void number_constructor(tea_State* T)
+static void number_init(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count > 3, "Expected at least 2 argument, got %d", count);
@@ -286,25 +286,25 @@ static void number_constructor(tea_State* T)
     tea_push_nil(T);
 }
 
-static void invalid_constructor(tea_State* T)
+static void invalid_init(tea_State* T)
 {
-    tea_error(T, "Invalid constructor");
+    tea_error(T, "Invalid init");
 }
 
 /* ------------------------------------------------------------------------ */
 
 static const tea_Class func_class[] = {
-    { "constructor", "method", invalid_constructor, TEA_VARARGS },
+    { "init", "method", invalid_init, TEA_VARARGS },
     { NULL, NULL }
 };
 
 static const tea_Class number_class[] = {
-    { "constructor", "method", number_constructor, TEA_VARARGS },
+    { "init", "method", number_init, TEA_VARARGS },
     { NULL, NULL }
 };
 
 static const tea_Class bool_class[] = {
-    { "constructor", "method", bool_constructor, 2 },
+    { "init", "method", bool_init, 2 },
     { NULL, NULL }
 };
 

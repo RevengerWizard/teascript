@@ -1,15 +1,15 @@
 class Foo 
 {
-    constructor(arg) 
+    init(arg) 
     {
-        print("Foo.constructor(" + arg + ")")
-        this.field = "constructor"
+        print("Foo.init(" + arg + ")")
+        this.field = "init"
     }
 }
 
-function constructor() 
+function init() 
 {
-    print("not constructor")
+    print("not init")
 }
 
-constructor() // expect: not constructor
+init() // expect: not init

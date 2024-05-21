@@ -174,10 +174,10 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_tab_init(&T->strings);
     T->strempty.obj.gct = TEA_TSTRING;
     T->strempty.obj.marked = TEA_GC_FIXED;
-    T->constructor_string = tea_str_newlit(T, "constructor");
-    fix_string(T->constructor_string);
-    T->repl_string = tea_str_newlit(T, "_");
-    fix_string(T->repl_string);
+    T->init_str = tea_str_newlit(T, "init");
+    fix_string(T->init_str);
+    T->repl_str = tea_str_newlit(T, "_");
+    fix_string(T->repl_str);
     T->memerr = tea_str_newlen(T, err2msg(TEA_ERR_MEM));
     fix_string(T->memerr);
     state_init_mms(T);

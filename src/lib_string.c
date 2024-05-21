@@ -26,7 +26,7 @@ static void string_len(tea_State* T)
     tea_push_number(T, tea_utf_len(strV(T->base)));
 }
 
-static void string_constructor(tea_State* T)
+static void string_init(tea_State* T)
 {
     const char* str = tea_to_string(T, 1);
     tea_pop(T, 1);
@@ -480,7 +480,7 @@ static void string_opmultiply(tea_State* T)
 
 static const tea_Class string_class[] = {
     { "len", "property", string_len, TEA_VARARGS },
-    { "constructor", "method", string_constructor, 2 },
+    { "init", "method", string_init, 2 },
     { "upper", "method", string_upper, 1 },
     { "lower", "method", string_lower, 1 },
     { "reverse", "method", string_reverse, 1 },

@@ -1,6 +1,6 @@
 class Person 
 {
-    constructor(name) 
+    init(name) 
     {
         this.name = name
         this.eyes = 2
@@ -19,7 +19,7 @@ print(p1.sleep())   // "slept"
 
 class Employee : Person
 {
-    constructor(name, salary)
+    init(name, salary)
     {
         super(name)
         this.salary = salary

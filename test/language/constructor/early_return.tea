@@ -1,12 +1,12 @@
 class Foo 
 {
-    constructor() 
+    init() 
     {
-        print("constructor")
+        print("init")
         return;
         print("nope")
     }
 }
 
-var foo = Foo() // expect: constructor
+var foo = Foo() // expect: init
 print(foo) // expect: <Foo>

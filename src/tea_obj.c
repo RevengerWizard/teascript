@@ -71,7 +71,7 @@ GCclass* tea_class_new(tea_State* T, GCstr* name, GCclass* superclass)
     GCclass* k = tea_mem_newobj(T, GCclass, TEA_TCLASS);
     k->name = name;
     k->super = superclass;
-    setnilV(&k->constructor);
+    setnilV(&k->init);
     tea_tab_init(&k->methods);
     return k;
 }

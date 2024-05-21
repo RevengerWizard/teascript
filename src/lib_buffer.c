@@ -39,7 +39,7 @@ static void buffer_len(tea_State* T)
     tea_push_number(T, sbufx_len(sbx));
 }
 
-static void buffer_constructor(tea_State* T)
+static void buffer_init(tea_State* T)
 {
     tea_check_instance(T, 0);
     SBufExt* sbx = (SBufExt*)tea_new_userdata(T, sizeof(SBufExt));
@@ -112,7 +112,7 @@ static void buffer_tostring(tea_State* T)
 
 static const tea_Class buffer_class[] = {
     { "len", "property", buffer_len, TEA_VARARGS },
-    { "constructor", "method", buffer_constructor, 1 },
+    { "init", "method", buffer_init, 1 },
     { "skip", "method", buffer_skip, 2 },
     { "reset", "method", buffer_reset, 1 },
     { "put", "method", buffer_put, TEA_VARARGS },

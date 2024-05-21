@@ -25,7 +25,7 @@ static void list_len(tea_State* T)
     tea_push_number(T, tea_len(T, 0));
 }
 
-static void list_constructor(tea_State* T)
+static void list_init(tea_State* T)
 {
     tea_new_list(T);
 }
@@ -583,7 +583,7 @@ static void list_opadd(tea_State* T)
 
 static const tea_Class list_class[] = {
     { "len", "property", list_len, TEA_VARARGS },
-    { "constructor", "method", list_constructor, 1 },
+    { "init", "method", list_init, 1 },
     { "add", "method", list_add, TEA_VARARGS },
     { "remove", "method", list_remove, 2 },
     { "delete", "method", list_delete, 2 },

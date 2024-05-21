@@ -49,7 +49,7 @@ static void map_values(tea_State* T)
     }
 }
 
-static void map_constructor(tea_State* T)
+static void map_init(tea_State* T)
 {
     tea_new_map(T);
 }
@@ -232,7 +232,7 @@ static const tea_Class map_class[] = {
     { "len", "property", map_len, TEA_VARARGS },
     { "keys", "property", map_keys, TEA_VARARGS },
     { "values", "property", map_values, TEA_VARARGS },
-    { "constructor", "method", map_constructor, 1 },
+    { "init", "method", map_init, 1 },
     { "get", "method", map_get, TEA_VARARGS },
     { "set", "method", map_set, TEA_VARARGS },
     { "update", "method", map_update, 2 },
