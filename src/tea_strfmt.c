@@ -675,7 +675,7 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
             GCclass* klass = classV(o);
             tea_buf_putlit(T, sb, "<");
             tea_buf_putmem(T, sb, str_data(klass->name), klass->name->len);
-            tea_buf_putlit(T, sb, " class>");
+            tea_buf_putlit(T, sb, ">");
             break;
         }
         case TEA_TINSTANCE:
@@ -683,7 +683,7 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
             GCstr* name = instanceV(o)->klass->name;
             tea_buf_putlit(T, sb, "<");
             tea_buf_putmem(T, sb, str_data(name), name->len);
-            tea_buf_putlit(T, sb, ">");
+            tea_buf_putlit(T, sb, " instance>");
             break;
         }
         case TEA_TSTR:
