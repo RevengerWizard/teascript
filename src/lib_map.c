@@ -58,7 +58,7 @@ static void map_get(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
-    tea_opt_any(T, 2);
+    tea_opt_null(T, 2);
     GCmap* map = tea_lib_checkmap(T, 0);
     TValue* key = T->base + 1;
     cTValue* o = tea_map_get(map, key);
@@ -72,7 +72,7 @@ static void map_set(tea_State* T)
 {
     int count = tea_get_top(T);
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
-    tea_opt_any(T, 2);
+    tea_opt_null(T, 2);
     GCmap* map = tea_lib_checkmap(T, 0);
     TValue* key = tea_lib_checkany(T, 1);
     TValue* value = T->base + 2;
@@ -228,7 +228,7 @@ static void map_opadd(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Class map_class[] = {
+static const tea_Methods map_class[] = {
     { "len", "property", map_len, TEA_VARARGS },
     { "keys", "property", map_keys, TEA_VARARGS },
     { "values", "property", map_values, TEA_VARARGS },

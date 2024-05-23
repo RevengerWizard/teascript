@@ -185,7 +185,7 @@ static void range_copy(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Class range_class[] = {
+static const tea_Methods range_class[] = {
     { "start", "property", range_start, TEA_VARARGS },
     { "end", "property", range_end, TEA_VARARGS },
     { "step", "property", range_step, TEA_VARARGS },

@@ -110,7 +110,7 @@ static void buffer_tostring(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Class buffer_class[] = {
+static const tea_Methods buffer_class[] = {
     { "len", "property", buffer_len, TEA_VARARGS },
     { "init", "method", buffer_init, 1 },
     { "skip", "method", buffer_skip, 2 },

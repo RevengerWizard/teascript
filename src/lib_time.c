@@ -215,7 +215,7 @@ static void time_diff(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Module time_module[] = {
+static const tea_Reg time_module[] = {
     { "sleep", time_sleep, 1 },
     { "clock", time_clock, 0 },
     { "format", time_format, TEA_VARARGS },

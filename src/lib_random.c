@@ -130,7 +130,7 @@ static void random_choice(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Module random_module[] = {
+static const tea_Reg random_module[] = {
     { "seed", random_seed, 1 },
     { "random", random_random, 0 },
     { "range", random_range, TEA_VARARGS },
@@ -141,15 +141,8 @@ static const tea_Module random_module[] = {
 
 TEAMOD_API void tea_import_random(tea_State* T)
 {
-    tea_create_module(T, TEA_MODULE_RANDOM, NULL);
+    tea_new_module(T, TEA_MODULE_RANDOM);
     PRNGState* rs = (PRNGState*)tea_new_userdata(T, sizeof(PRNGState));
     prng_seed(rs, (double)time(NULL));
-    const tea_Module* m = random_module;
-    for(; m->name != NULL; m++)
-    {
-        tea_push_value(T, -1);
-        tea_push_cclosure(T, m->fn, m->nargs, 1);
-        tea_set_attr(T, 0, m->name);
-    }
-    T->top--;
+    tea_set_funcs(T, random_module, 1);
 }

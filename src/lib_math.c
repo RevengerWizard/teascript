@@ -306,7 +306,7 @@ static void math_isnan(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Module math_module[] =
+static const tea_Reg math_module[] =
 {
     { "min", math_min, TEA_VARARGS },
     { "max", math_max, TEA_VARARGS },

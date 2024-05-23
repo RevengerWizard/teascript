@@ -402,6 +402,11 @@ TEA_API void tea_concat(tea_State* T)
     incr_top(T);
 }
 
+TEA_API int tea_absindex(tea_State* T, int index)
+{
+    return (index > 0) ? index : ((int)(T->top - T->base + index));
+}
+
 TEA_API void tea_pop(tea_State* T, int n)
 {
     T->top -= n;
@@ -512,14 +517,30 @@ TEA_API void* tea_new_userdata(tea_State* T, size_t size)
     return ud_data(ud);
 }
 
-TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nargs, int nupvalues)
+TEA_API void tea_new_class(tea_State* T, const char* name)
+{
+    GCclass* klass = tea_class_new(T, tea_str_newlen(T, name), NULL);
+    setclassV(T, T->top, klass);
+    incr_top(T);
+}
+
+TEA_API void tea_new_module(tea_State* T, const char* name)
+{
+    GCstr* modname = tea_str_newlen(T, name);
+    GCmodule* mod = tea_module_new(T, modname);
+    mod->path = modname;
+    setmoduleV(T, T->top, mod);
+    incr_top(T);
+}
+
+TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nargs, int nup)
 {
     GCfunc* cf;
-    tea_checkapi_slot(nupvalues);
-    cf = tea_func_newC(T, C_FUNCTION, fn, nargs, nupvalues);
-    T->top -= nupvalues;
-    while(nupvalues--)
-        copyTV(T, &cf->c.upvalues[nupvalues], T->top + nupvalues);
+    tea_checkapi_slot(nup);
+    cf = tea_func_newC(T, C_FUNCTION, fn, nargs, nup);
+    T->top -= nup;
+    while(nup--)
+        copyTV(T, &cf->c.upvalues[nup], T->top + nup);
     setfuncV(T, T->top, cf);
     incr_top(T);
 }
@@ -531,9 +552,9 @@ TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs)
     incr_top(T);
 }
 
-static void set_class(tea_State* T, const tea_Class* k)
+static void set_class(tea_State* T, const tea_Methods* k)
 {
-    for(; k->name != NULL; k++)
+    for(; k->name; k++)
     {
         if(k->fn == NULL)
         {
@@ -561,20 +582,20 @@ static void set_class(tea_State* T, const tea_Class* k)
     }
 }
 
-TEA_API void tea_create_class(tea_State* T, const char* name, const tea_Class* klass)
+TEA_API void tea_create_class(tea_State* T, const char* name, const tea_Methods* klass)
 {
     GCclass* k = tea_class_new(T, tea_str_newlen(T, name), NULL);
     setclassV(T, T->top, k);
     incr_top(T);
-    if(klass != NULL)
+    if(klass)
     {
         set_class(T, klass);
     }
 }
 
-static void set_module(tea_State* T, const tea_Module* m)
+static void set_module(tea_State* T, const tea_Reg* m)
 {
-    for(; m->name != NULL; m++)
+    for(; m->name; m++)
     {
         if(m->fn == NULL)
         {
@@ -588,14 +609,14 @@ static void set_module(tea_State* T, const tea_Module* m)
     }
 }
 
-TEA_API void tea_create_module(tea_State* T, const char* name, const tea_Module* module)
+TEA_API void tea_create_module(tea_State* T, const char* name, const tea_Reg* module)
 {
     GCstr* modname = tea_str_newlen(T, name);
     GCmodule* mod = tea_module_new(T, modname);
     mod->path = modname;
     setmoduleV(T, T->top, mod);
     incr_top(T);
-    if(module != NULL)
+    if(module)
     {
         set_module(T, module);
     }
@@ -675,6 +696,18 @@ TEA_API bool tea_insert_item(tea_State* T, int list, int index)
     return true;
 }
 
+TEA_API bool tea_del_item(tea_State* T, int list, int index)
+{
+    cTValue* o = index2addr_check(T, list);
+    tea_checkapi(tvislist(o), "stack slot #%d is not a list", list);
+    GClist* l = listV(o);
+    if(index < 0 || index > l->count - 1)
+        return false;
+    tea_list_delete(T, l, index);
+    T->top--;
+    return true;
+}
+
 TEA_API bool tea_get_field(tea_State* T, int obj)
 {
     cTValue* o = index2addr_check(T, obj);
@@ -708,6 +741,19 @@ TEA_API void tea_set_field(tea_State* T, int obj)
     T->top -= 2;
 }
 
+TEA_API bool tea_del_field(tea_State* T, int obj)
+{
+    cTValue* o = index2addr_check(T, obj);
+    tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
+    tea_checkapi_slot(2);
+    TValue* key = T->top - 1;
+
+    GCmap* map = mapV(o);
+    bool found = tea_map_delete(T, map, key);
+    T->top--;
+    return found;
+}
+
 TEA_API void tea_set_key(tea_State* T, int obj, const char* key)
 {
     cTValue* object = index2addr_check(T, obj);
@@ -735,6 +781,17 @@ TEA_API bool tea_get_key(tea_State* T, int obj, const char* key)
         incr_top(T);
     }
     return found;
+}
+
+TEA_API bool tea_del_key(tea_State* T, int obj, const char* key)
+{
+    cTValue* object = index2addr_check(T, obj);
+    tea_checkapi(tvismap(object), "stack slot #%d is not a map", obj);
+    tea_checkapi_slot(1);
+    GCmap* map = mapV(object);
+    TValue o;
+    setstrV(T, &o, tea_str_newlen(T, key));
+    return tea_map_delete(T, map, &o);
 }
 
 TEA_API bool tea_get_attr(tea_State* T, int obj, const char* key)
@@ -854,25 +911,44 @@ TEA_API void tea_set_global(tea_State* T, const char* name)
     T->top--;
 }
 
-static void set_globals(tea_State* T, const tea_Reg* reg)
+TEA_API void tea_set_funcs(tea_State* T, const tea_Reg* reg, int nup)
 {
-    for(; reg->name != NULL; reg++)
+    tea_check_stack(T, nup, "too many upvalues");
+    for(; reg->name; reg++)
     {
-        if(reg->fn == NULL)
-        {
-            tea_push_nil(T);
-        }
-        else
-        {
-            tea_push_cfunction(T, reg->fn, reg->nargs);
-        }
-        tea_set_global(T, reg->name);
+        int i;
+        for(i = 0; i < nup; i++)  /* Copy upvalues to the top */
+            tea_push_value(T, -nup);
+        tea_push_cclosure(T, reg->fn, reg->nargs, nup);
+        tea_set_attr(T, -(nup + 2), reg->name);
     }
+    tea_pop(T, nup);    /* Remove upvalues */
 }
 
-TEA_API void tea_set_funcs(tea_State* T, const tea_Reg* reg)
+TEA_API void tea_set_methods(tea_State* T, const tea_Methods* reg, int nup)
 {
-    set_globals(T, reg);
+    tea_check_stack(T, nup, "too many upvalues");
+    for(; reg->name; reg++)
+    {
+        int ct = C_FUNCTION;
+        if(strcmp(reg->type, "method") == 0)
+        {
+            ct = C_METHOD;
+        }
+        else if(strcmp(reg->type, "property") == 0)
+        {
+            ct = C_PROPERTY;
+        }
+
+        GCfunc* cf = tea_func_newC(T, ct, reg->fn, reg->nargs, nup);
+        int nupvals = nup;
+        while(nupvals--)
+            copyTV(T, &cf->c.upvalues[nupvals], T->top + nupvals);
+        setfuncV(T, T->top, cf);
+        incr_top(T);
+        tea_set_attr(T, -(nup + 2), reg->name);
+    }
+    tea_pop(T, nup);    /* Remove upvalues */
 }
 
 TEA_API bool tea_test_stack(tea_State* T, int size)
@@ -981,7 +1057,7 @@ TEA_API const void* tea_check_pointer(tea_State* T, int index)
     return pointerV(o);
 }
 
-TEA_API void tea_opt_any(tea_State* T, int index)
+TEA_API void tea_opt_null(tea_State* T, int index)
 {
     if(tea_is_none(T, index)) 
         tea_push_nil(T);
@@ -1035,6 +1111,16 @@ TEA_API int tea_check_option(tea_State* T, int index, const char* def, const cha
     return 0;
 }
 
+TEA_API void* tea_opt_userdata(tea_State* T, int index, void* def)
+{
+    return tea_is_nonenil(T, index) ? def : tea_check_userdata(T, index);
+}
+
+TEA_API tea_CFunction tea_opt_cfunction(tea_State* T, int index, tea_CFunction def)
+{
+    return tea_is_nonenil(T, index) ? def : tea_check_cfunction(T, index);
+}
+
 /* -- GC and memory management -------------------------------------------------- */
 
 TEA_API int tea_gc(tea_State* T)
@@ -1059,6 +1145,21 @@ TEA_API void tea_set_allocf(tea_State* T, tea_Alloc f, void* ud)
 {
     if(f) T->allocf = f;
     if(ud) T->allocd = ud;
+}
+
+TEA_API void* tea_alloc(tea_State* T, size_t size)
+{
+    return tea_mem_new(T, size);
+}
+
+TEA_API void* tea_realloc(tea_State* T, void* p, size_t size)
+{
+    return tea_mem_realloc(T, p, 0, size);
+}
+
+TEA_API void tea_free(tea_State* T, void* p)
+{
+    tea_mem_free(T, p, 0);
 }
 
 /* -- Calls -------------------------------------------------- */
@@ -1107,7 +1208,7 @@ static void cpcall_f(tea_State* T, void* ud)
     tea_vm_call(T, T->top - 2, 1);
 }
 
-TEA_API int tea_cpcall(tea_State* T, tea_CFunction func, void* ud)
+TEA_API int tea_pccall(tea_State* T, tea_CFunction func, void* ud)
 {
     CPCallCtx ctx;
     ctx.func = func;

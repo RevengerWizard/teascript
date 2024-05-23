@@ -159,7 +159,7 @@ static void init_env(tea_State* T)
     tea_set_attr(T, 0, "env");
 }
 
-static const tea_Module os_module[] = {
+static const tea_Reg os_module[] = {
     { "getenv", os_getenv, TEA_VARARGS },
     { "setenv", os_setenv, TEA_VARARGS },
     { "execute", os_execute, 1 },

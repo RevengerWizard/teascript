@@ -62,7 +62,7 @@ static void set_version(tea_State* T)
     tea_set_attr(T, 0, "version");
 }
 
-static const tea_Module sys_module[] = {
+static const tea_Reg sys_module[] = {
     { "exit", sys_exit, TEA_VARARGS },
     { "argv", NULL },
     { "version", NULL },

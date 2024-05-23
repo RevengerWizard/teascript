@@ -182,19 +182,45 @@ static void file_seek(tea_State* T)
     int count = tea_get_top(T);
     tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
 
-    static const int mode[] = { SEEK_SET, SEEK_CUR, SEEK_END };
-    static const char* const modenames[] = { "set", "cur", "end", NULL };
-    IOFileUD* iof = io_get_file(T);
-    int opt = tea_check_option(T, 2, "cur", modenames);
+    FILE* fp = io_get_file(T)->fp;
+    int opt = tea_lib_checkopt(T, 1, 1, "\3set\3cur\3end");
+    int64_t ofs = 0;
+    cTValue* o;
+    int res;
+    if(opt == 0) opt = SEEK_SET;
+    else if(opt == 1) opt = SEEK_CUR;
+    else if(opt == 2) opt = SEEK_END;
 
-    int offset = tea_check_number(T, 1);
-
-    if(fseek(iof->fp, offset, mode[opt]))
+    o = T->base + 2;
+    if(o < T->top)
     {
-        tea_error(T, "Unable to seek file");
+        if(!tvisnumber(o))
+            tea_err_argt(T, 3, TEA_TYPE_NUMBER);
+        ofs = (int64_t)numberV(o);
     }
 
-    tea_push_nil(T);
+#if TEA_TARGET_POSIX
+    res = fseeko(fp, ofs, opt);
+#elif _MSC_VER >= 1400
+    res = _fseeki64(fp, ofs, opt);
+#elif defined(__MINGW32__)
+    res = fseeko64(fp, ofs, opt);
+#else
+    res = fseek(fp, (long)ofs, opt);
+#endif
+
+    if(res) tea_lib_fileresult(T, NULL);
+
+#if LJ_TARGET_POSIX
+    ofs = ftello(fp);
+#elif _MSC_VER >= 1400
+    ofs = _ftelli64(fp);
+#elif defined(__MINGW32__)
+    ofs = ftello64(fp);
+#else
+    ofs = (int64_t)ftell(fp);
+#endif
+    setint64V(T->top - 1, ofs);
 }
 
 static void file_flush(tea_State* T)
@@ -206,11 +232,16 @@ static void file_flush(tea_State* T)
 
 static void file_setvbuf(tea_State* T)
 {
-    static const int mode[] = { _IONBF, _IOFBF, _IOLBF };
-    static const char* const modenames[] = { "no", "full", "line", NULL };
+    int count = tea_get_top(T);
+    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
+
     IOFileUD* iof = io_get_file(T);
-    int opt = tea_check_option(T, 1, NULL, modenames);
-    setvbuf(iof->fp, NULL, mode[opt], TEA_BUFFER_SIZE);
+    int opt = tea_lib_checkopt(T, 1, -1, "\4full\4line\2no");
+    size_t size = (size_t)tea_lib_optint(T, 2, TEA_BUFFER_SIZE);
+    if(opt == 0) opt = _IOFBF;
+    else if(opt == 1) opt = _IOLBF;
+    else if(opt == 2) opt = _IONBF;
+    setvbuf(iof->fp, NULL, opt, size);
     tea_push_nil(T);
 }
 
@@ -273,7 +304,7 @@ static void io_popen(tea_State* T)
     FILE* fp;
 
 #if TEA_TARGET_POSIX
-    fp = fopen(path, mode);
+    fp = popen(path, mode);
 #else
     fp = _popen(path, mode);
 #endif
@@ -301,13 +332,13 @@ static void io_stdfile(tea_State* T, FILE* fp, const char* name, const char* mod
     tea_set_attr(T, 0, name);
 }
 
-static const tea_Class file_class[] = {
+static const tea_Methods file_class[] = {
     { "write", "method", file_write, TEA_VARARGS },
     { "read", "method", file_read, TEA_VARARGS },
     { "readline", "method", file_readline, 1 },
     { "seek", "method", file_seek, TEA_VARARGS },
     { "flush", "method", file_flush, 1 },
-    { "setvbuf", "method", file_setvbuf, 2 },
+    { "setvbuf", "method", file_setvbuf, TEA_VARARGS },
     { "close", "method", file_close, 1 },
     { "tostring", "method", file_tostring, 1 },
     { "iterate", "method", file_iterate, 2 },
@@ -315,9 +346,9 @@ static const tea_Class file_class[] = {
     { NULL, NULL, NULL }
 };
 
-static const tea_Module io_module[] = {
-    { "open", NULL },
-    { "popen", NULL },
+static const tea_Reg io_module[] = {
+    { "open", io_open, TEA_VARARGS },
+    { "popen", io_popen, TEA_VARARGS },
     { "stdin", NULL },
     { "stdout", NULL },
     { "stderr", NULL },
@@ -326,18 +357,13 @@ static const tea_Module io_module[] = {
 
 TEAMOD_API void tea_import_io(tea_State* T)
 {
-    tea_create_module(T, TEA_MODULE_IO, io_module);
+    tea_new_module(T, TEA_MODULE_IO);
     tea_create_class(T, "File", file_class);
     tea_push_value(T, -1);
-    tea_push_cclosure(T, io_open, TEA_VARARGS, 1);
-    tea_set_attr(T, 0, "open");
-
-    tea_push_value(T, -1);
-    tea_push_cclosure(T, io_popen, TEA_VARARGS, 1);
-    tea_set_attr(T, 0, "popen");
+    tea_set_attr(T, 0, "File");
+    tea_set_funcs(T, io_module, 1);
 
     io_stdfile(T, stdout, "stdout", "w");
     io_stdfile(T, stdin, "stdin", "r");
     io_stdfile(T, stderr, "stderr", "w");
-    tea_set_attr(T, 0, "File");
 }

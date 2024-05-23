@@ -401,7 +401,7 @@ int main(int argc, char** argv)
     }
     smain.argc = argc;
     smain.argv = argv;
-    tea_cpcall(T, pmain, NULL);
+    tea_pccall(T, pmain, NULL);
     tea_close(T);
     return smain.status;
 }

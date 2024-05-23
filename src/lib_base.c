@@ -293,17 +293,17 @@ static void invalid_init(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Class func_class[] = {
+static const tea_Methods func_class[] = {
     { "init", "method", invalid_init, TEA_VARARGS },
     { NULL, NULL }
 };
 
-static const tea_Class number_class[] = {
+static const tea_Methods number_class[] = {
     { "init", "method", number_init, TEA_VARARGS },
     { NULL, NULL }
 };
 
-static const tea_Class bool_class[] = {
+static const tea_Methods bool_class[] = {
     { "init", "method", bool_init, 2 },
     { NULL, NULL }
 };
@@ -332,7 +332,13 @@ static const tea_Reg globals[] = {
 
 static void tea_open_global(tea_State* T)
 {
-    tea_set_funcs(T, globals);
+    const tea_Reg* reg = globals;
+    for(; reg->name; reg++)
+    {
+        tea_push_cfunction(T, reg->fn, reg->nargs);
+        tea_set_global(T, reg->name);
+    }
+
     tea_create_class(T, "Number", number_class);
     T->number_class = classV(T->top - 1);
     tea_set_global(T, "Number");

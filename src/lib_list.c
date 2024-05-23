@@ -38,7 +38,7 @@ static void list_add(tea_State* T)
     {
         tea_list_add(T, list, tv);
     }
-    tea_set_top(T, 1);
+    T->top = T->base + 1;   /* Chain list */
 }
 
 static void list_remove(tea_State* T)
@@ -104,11 +104,11 @@ static void list_delete(tea_State* T)
     GClist* list = tea_lib_checklist(T, 0);
     if(list->count == 0)
     {
-        tea_pop(T, 1);
+        T->top--;
         return;
     }
 
-    int index = tea_check_number(T, 1);
+    int32_t index = tea_lib_checkint(T, 1);
     if(index < 0 || index > list->count - 1)
     {
         tea_error(T, "Index out of bounds");
@@ -128,7 +128,7 @@ static void list_insert(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
     TValue* o = tea_lib_checkany(T, 1);
-    int index = tea_check_number(T, 2);
+    int32_t index = tea_lib_checkint(T, 2);
     if(index < 0 || index > list->count - 1)
     {
         tea_error(T, "Index out of bounds for the list given");
@@ -148,7 +148,7 @@ static void list_extend(tea_State* T)
         tea_get_item(T, 1, i);
         tea_add_item(T, 0);
     }
-    tea_pop(T, 1);
+    T->top--;
 }
 
 static void list_reverse(tea_State* T)
@@ -205,6 +205,8 @@ static void list_fill(tea_State* T)
     }
     T->top = T->base + 1;   /* Chain list */
 }
+
+/* ------------------------------------------------------------------------ */
 
 static void set2(tea_State* T, int i, int j)
 {
@@ -581,7 +583,7 @@ static void list_opadd(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Class list_class[] = {
+static const tea_Methods list_class[] = {
     { "len", "property", list_len, TEA_VARARGS },
     { "init", "method", list_init, 1 },
     { "add", "method", list_add, TEA_VARARGS },

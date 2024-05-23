@@ -488,6 +488,16 @@ define_setV(setmapV, GCmap, TEA_TMAP)
 define_setV(setudataV, GCudata, TEA_TUDATA)
 #undef define_setV
 
+static TEA_AINLINE void setintV(TValue* o, int32_t i)
+{
+    setnumberV(o, (double)i);
+}
+
+static TEA_AINLINE void setint64V(TValue* o, int64_t i)
+{
+    setnumberV(o, (double)i);
+}
+
 /* Copy tagged values */
 static TEA_AINLINE void copyTV(tea_State* T, TValue* o1, cTValue* o2)
 {
