@@ -144,6 +144,17 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #define tea_assertX(c, ...) ((void)0)
 #endif
 
+/* Static assertions */
+#define TEA_ASSERT_NAME2(name, line) name ## line
+#define TEA_ASSERT_NAME(line) TEA_ASSERT_NAME2(tea_assert_, line)
+#ifdef __COUNTER__
+#define TEA_STATIC_ASSERT(cond) \
+    extern void TEA_ASSERT_NAME(__COUNTER__)(int STATIC_ASSERTION_FAILED[(cond) ? 1 : -1])
+#else
+#define TEA_STATIC_ASSERT(cond) \
+    extern void TEA_ASSERT_NAME(__LINE__)(int STATIC_ASSERTION_FAILED[(cond) ? 1 : -1])
+#endif
+
 /* PRNG state. Need this here, details in tea_prng.h */
 typedef struct PRNGState
 {

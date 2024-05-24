@@ -74,7 +74,6 @@ static void string_reverse(tea_State* T)
 static void string_split(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 3, "Expected 0 to 2 arguments, got %d", count);
 
     size_t len;
     char* str = (char*)tea_get_lstring(T, 0, &len);
@@ -274,8 +273,6 @@ static void string_count(tea_State* T)
 static void string_find(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
-
     int index = 1;
     if(count == 3)
     {
@@ -424,14 +421,14 @@ static bool repeat(tea_State* T)
     GCstr* str;
     int n;
 
-    if(tvisstr(T->top - 1) && tvisnumber(T->top - 2))
+    if(tvisstr(T->top - 1) && tvisnum(T->top - 2))
     {
         str = strV(T->top - 1);
-        n = numberV(T->top - 2);
+        n = numV(T->top - 2);
     }
-    else if(tvisnumber(T->top - 1) && tvisstr(T->top - 2))
+    else if(tvisnum(T->top - 1) && tvisstr(T->top - 2))
     {
-        n = numberV(T->top - 1);
+        n = numV(T->top - 1);
         str = strV(T->top - 2);
     }
     else
@@ -484,7 +481,7 @@ static const tea_Methods string_class[] = {
     { "upper", "method", string_upper, 1 },
     { "lower", "method", string_lower, 1 },
     { "reverse", "method", string_reverse, 1 },
-    { "split", "method", string_split, TEA_VARARGS },
+    { "split", "method", string_split, -3 },
     { "contains", "method", string_contains, 2 },
     { "startswith", "method", string_startswith, 2 },
     { "endswith", "method", string_endswith, 2 },
@@ -492,7 +489,7 @@ static const tea_Methods string_class[] = {
     { "rightstrip", "method", string_rightstrip, 1 },
     { "strip", "method", string_strip, 1 },
     { "count", "method", string_count, 2 },
-    { "find", "method", string_find, TEA_VARARGS },
+    { "find", "method", string_find, -3 },
     { "replace", "method", string_replace, 3 },
     { "format", "method", string_format, TEA_VARARGS },
     { "iterate", "method", string_iterate, 2 },

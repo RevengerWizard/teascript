@@ -13,10 +13,10 @@
 #include "tea_list.h"
 #include "tea_lib.h"
 
-static void map_len(tea_State* T)
+static void map_count(tea_State* T)
 {
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
-    tea_push_number(T, tea_len(T, 0));
+    tea_push_number(T, tea_lib_checkmap(T, 0)->count);
 }
 
 static void map_keys(tea_State* T)
@@ -45,7 +45,7 @@ static void map_values(tea_State* T)
     for(int i = 0; i < map->size; i++)
     {
         if(map->entries[i].empty) continue;
-        tea_list_add(T, list, &map->entries[i].value);
+        tea_list_add(T, list, &map->entries[i].val);
     }
 }
 
@@ -56,8 +56,6 @@ static void map_init(tea_State* T)
 
 static void map_get(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
     tea_opt_null(T, 2);
     GCmap* map = tea_lib_checkmap(T, 0);
     TValue* key = T->base + 1;
@@ -70,8 +68,6 @@ static void map_get(tea_State* T)
 
 static void map_set(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
     tea_opt_null(T, 2);
     GCmap* map = tea_lib_checkmap(T, 0);
     TValue* key = tea_lib_checkany(T, 1);
@@ -136,7 +132,7 @@ static void map_foreach(tea_State* T)
         if(map->entries[i].empty) continue;
 
         TValue* key = &map->entries[i].key;
-        TValue* value = &map->entries[i].value;
+        TValue* value = &map->entries[i].val;
 
         tea_push_value(T, 1);
         copyTV(T, T->top++, key);
@@ -210,7 +206,7 @@ static void map_iteratorvalue(tea_State* T)
     tea_new_list(T);
     copyTV(T, T->top++, &entry->key);
     tea_add_item(T, 2);
-    copyTV(T, T->top++, &entry->value);
+    copyTV(T, T->top++, &entry->val);
     tea_add_item(T, 2);
 }
 
@@ -229,12 +225,12 @@ static void map_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods map_class[] = {
-    { "len", "property", map_len, TEA_VARARGS },
+    { "count", "property", map_count, TEA_VARARGS },
     { "keys", "property", map_keys, TEA_VARARGS },
     { "values", "property", map_values, TEA_VARARGS },
     { "init", "method", map_init, 1 },
-    { "get", "method", map_get, TEA_VARARGS },
-    { "set", "method", map_set, TEA_VARARGS },
+    { "get", "method", map_get, -3 },
+    { "set", "method", map_set, -2 },
     { "update", "method", map_update, 2 },
     { "clear", "method", map_clear, 1 },
     { "contains", "method", map_contains, 2 },

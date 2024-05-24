@@ -45,7 +45,6 @@ static void base_print(tea_State* T)
 static void base_input(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count > 1, "Expected 0 or 1 arguments, got %d", count);
     if(count != 0)
     {
         GCstr* str = tea_lib_checkstr(T, 0);
@@ -71,8 +70,6 @@ static void base_input(tea_State* T)
 
 static void base_assert(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 1, "Expected at least 1 argument, got %d", count);
     if(!tea_to_bool(T, 0))
     {
         tea_error(T, "%s", tea_opt_string(T, 1, "assertion failed!"));
@@ -101,7 +98,7 @@ static void base_eval(tea_State* T)
 {
     size_t len;
     const char* s = tea_check_lstring(T, 0, &len);
-    if(tea_load_buffer(T, s, len, "?<interpret>") == TEA_OK)
+    if(tea_load_buffer(T, s, len, "?<eval>") == TEA_OK)
     {
         tea_call(T, 0);
     }
@@ -243,8 +240,6 @@ static void bool_init(tea_State* T)
 
 static void number_init(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count > 3, "Expected at least 2 argument, got %d", count);
     int base = tea_opt_number(T, 2, 10);
     if(base == 10)
     {
@@ -299,7 +294,7 @@ static const tea_Methods func_class[] = {
 };
 
 static const tea_Methods number_class[] = {
-    { "init", "method", number_init, TEA_VARARGS },
+    { "init", "method", number_init, -3 },
     { NULL, NULL }
 };
 
@@ -310,8 +305,8 @@ static const tea_Methods bool_class[] = {
 
 static const tea_Reg globals[] = {
     { "print", base_print, TEA_VARARGS },
-    { "input", base_input, TEA_VARARGS },
-    { "assert", base_assert, TEA_VARARGS },
+    { "input", base_input, -1 },
+    { "assert", base_assert, -2 },
     { "error", base_error, 1 },
     { "typeof", base_typeof, 1 },
     { "gc", base_gc, 0 },

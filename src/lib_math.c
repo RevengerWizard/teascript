@@ -28,8 +28,6 @@
 static void math_min(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 1, "Expected at least 1 argument, got %d", count);
-
     if(count == 1 && tea_is_list(T, 0))
     {
         int len = tea_len(T, 0);
@@ -65,8 +63,6 @@ static void math_min(tea_State* T)
 static void math_max(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 1, "Expected at least 1 argument, got %d", count);
-
     if(count == 1 && tea_is_list(T, 0))
     {
         int len = tea_len(T, 0);

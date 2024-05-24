@@ -52,8 +52,8 @@ static uint32_t map_hash_obj(TValue* value)
             return 1;
         case TEA_TBOOL:
             return 2;
-        case TEA_TNUMBER:
-            return map_hash(numberV(value));
+        case TEA_TNUM:
+            return map_hash(numV(value));
         case TEA_TPOINTER:
             return map_hash((uint64_t)pointerV(value));
         case TEA_TSTR:
@@ -74,7 +74,7 @@ static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
         MapEntry* item = &items[index];
         if(item->empty)
         {
-            if(tvisnil(&item->value))
+            if(tvisnil(&item->val))
             {
                 /* Empty item */
                 return tombstone != NULL ? tombstone : item;
@@ -107,7 +107,7 @@ cTValue* tea_map_get(GCmap* map, TValue* key)
     if(item->empty)
         return NULL;
 
-    return &item->value;
+    return &item->val;
 }
 
 cTValue* tea_map_getstr(tea_State* T, GCmap* map, GCstr* key)
@@ -126,7 +126,7 @@ static void map_resize(tea_State* T, GCmap* map, int size)
     for(int i = 0; i < size; i++)
     {
         setnilV(&entries[i].key);
-        setnilV(&entries[i].value);
+        setnilV(&entries[i].val);
         entries[i].empty = true;
     }
 
@@ -139,7 +139,7 @@ static void map_resize(tea_State* T, GCmap* map, int size)
 
         MapEntry* dest = map_find_entry(entries, size, &item->key);
         dest->key = item->key;
-        dest->value = item->value;
+        dest->val = item->val;
         dest->empty = false;
         map->count++;
     }
@@ -162,13 +162,13 @@ TValue* tea_map_set(tea_State* T, GCmap* map, TValue* key)
     MapEntry* item = map_find_entry(map->entries, map->size, key);
     bool is_new_key = item->empty;
 
-    if(is_new_key && tvisnil(&item->value))
+    if(is_new_key && tvisnil(&item->val))
         map->count++;
 
     copyTV(T, &item->key, key);
     item->empty = false;
 
-    return &item->value;
+    return &item->val;
 }
 
 TValue* tea_map_setstr(tea_State* T, GCmap* map, GCstr* str)
@@ -185,7 +185,7 @@ GCmap* tea_map_copy(tea_State* T, GCmap* map)
     {
         if(map->entries[i].empty) continue;
         TValue* o = tea_map_set(T, m, &map->entries[i].key);
-        copyTV(T, o, &map->entries[i].value);
+        copyTV(T, o, &map->entries[i].val);
     }
     return m;
 }
@@ -202,7 +202,7 @@ bool tea_map_delete(tea_State* T, GCmap* map, TValue* key)
 
     /* Place a tombstone in the entry */
     setnilV(&item->key);
-    setnilV(&item->value);
+    setnilV(&item->val);
     item->empty = true;
 
     map->count--;
@@ -229,7 +229,7 @@ void tea_map_merge(tea_State* T, GCmap* from, GCmap* to)
         if(!item->empty)
         {
             TValue* o = tea_map_set(T, to, &item->key);
-            copyTV(T, o, &item->value);
+            copyTV(T, o, &item->val);
         }
     }
 }

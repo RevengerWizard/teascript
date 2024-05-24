@@ -161,7 +161,7 @@ static Token lex_number(Lexer* lex)
     }
 
     Token token = lex_token(lex, TK_NUMBER);
-    tv.tt = TEA_TNUMBER;
+    tv.tt = TEA_TNUM;
     copyTV(lex->T, &token.value, &tv);
 	return token;
 }

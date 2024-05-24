@@ -105,9 +105,6 @@ static int getfield(tea_State* T, const char* key, int d)
 
 static void time_format(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 0 || count > 2, "Expected 0 or 2 arguments, got %d", count);
-
     const char* s = tea_opt_string(T, 0, "%c");
     time_t t = tea_is_none(T, 1) ? time(NULL) : (time_t)tea_check_number(T, 1);
     struct tm* stm;
@@ -181,8 +178,6 @@ static void time_format(tea_State* T)
 static void time_time(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 0 || count > 1, "Expected 0 or 1 arguments, got %d", count);
-
     time_t t;
     if(count == 0)
     {
@@ -207,8 +202,6 @@ static void time_time(tea_State* T)
 
 static void time_diff(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
     tea_push_number(T, difftime((time_t)(tea_check_number(T, 0)),
                                 (time_t)(tea_opt_number(T, 1, 0))));
 }
@@ -218,9 +211,9 @@ static void time_diff(tea_State* T)
 static const tea_Reg time_module[] = {
     { "sleep", time_sleep, 1 },
     { "clock", time_clock, 0 },
-    { "format", time_format, TEA_VARARGS },
-    { "time", time_time, TEA_VARARGS },
-    { "diff", time_diff, TEA_VARARGS },
+    { "format", time_format, -2 },
+    { "time", time_time, -1 },
+    { "diff", time_diff, -2 },
     { NULL, NULL }
 };
 

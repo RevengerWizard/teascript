@@ -20,6 +20,7 @@
 #include "tea_gc.h"
 #include "tea_tab.h"
 #include "tea_buf.h"
+#include "tea_meta.h"
 #include "tea_lex.h"
 
 /* -- Stack handling -------------------------------------------------- */
@@ -50,23 +51,6 @@ static void stack_init(tea_State* T)
     setnilV(T->top++);
 }
 
-static const char* const opmnames[] = {
-#define MMSTR(_, name) #name,
-    MMDEF(MMSTR)
-#undef MMSTR
-};
-
-/* String interning of special method names for fast indexing */
-static void state_init_mms(tea_State* T)
-{
-    for(int i = 0; i < MM__MAX; i++)
-    {
-        GCstr* s = tea_str_newlen(T, opmnames[i]);
-        fix_string(s);
-        T->opm_name[i] = s;
-    }
-}
-
 /* Resize stack slots and adjust pointers in state */
 static void stack_resize(tea_State* T, int new_size)
 {
@@ -75,7 +59,7 @@ static void stack_resize(tea_State* T, int new_size)
 	T->stack_size = new_size;
     T->stack_max = T->stack + new_size - 1 - TEA_STACK_EXTRA;
     T->top = (T->top - old_stack) + T->stack;
-    for(GCupvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+    for(GCupval* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
     {
         upvalue->location = (upvalue->location - old_stack) + T->stack;
     }
@@ -180,7 +164,7 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     fix_string(T->repl_str);
     T->memerr = tea_str_newlen(T, err2msg(TEA_ERR_MEM));
     fix_string(T->memerr);
-    state_init_mms(T);
+    tea_meta_init(T);
     tea_lex_init(T);
     tea_open_base(T);
     return T;
@@ -201,41 +185,4 @@ TEA_API void tea_close(tea_State* T)
     tea_gc_freeall(T);
     tea_assertT(T->gc.total == 0, "memory leak of %llu bytes", T->gc.total);
     state_free(T);
-}
-
-GCclass* tea_state_getclass(tea_State* T, TValue* value)
-{
-    switch(itype(value))
-    {
-        case TEA_TNUMBER:
-            return T->number_class;
-        case TEA_TBOOL:
-            return T->bool_class;
-        case TEA_TFUNC:
-            return T->func_class;
-        case TEA_TINSTANCE:
-            return instanceV(value)->klass;
-        case TEA_TLIST: 
-            return T->list_class;
-        case TEA_TMAP: 
-            return T->map_class;
-        case TEA_TSTR: 
-            return T->string_class;
-        case TEA_TRANGE: 
-            return T->range_class;
-        default: 
-            return NULL;
-    }
-    return NULL;
-}
-
-bool tea_state_isclass(tea_State* T, GCclass* klass)
-{
-    return (klass == T->number_class ||
-            klass == T->bool_class ||
-            klass == T->func_class ||
-            klass == T->list_class ||
-            klass == T->map_class ||
-            klass == T->string_class ||
-            klass == T->range_class);
 }

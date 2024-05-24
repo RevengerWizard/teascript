@@ -21,7 +21,7 @@ static void buf_grow(tea_State* T, SBuf* sb, size_t size)
 
     char* b = (char*)tea_mem_realloc(T, sb->b, old_size, new_size);
 
-    if(sb->flag == SBUF_FLAG_EXT)
+    if(sbuf_isext(sb))
     {
         SBufExt* sbx = (SBufExt*)sb;
         sbx->r = sbx->r - sb->b + b;  /* Adjust read pointer, too */
@@ -42,7 +42,7 @@ char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size)
 
 char* tea_buf_more2(tea_State* T, SBuf* sb, size_t size)
 {
-    if(sb->flag == SBUF_FLAG_EXT)
+    if(sbuf_isext(sb))
     {
         SBufExt* sbx = (SBufExt*)sb;
         size_t len = sbufx_len(sbx);

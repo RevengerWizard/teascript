@@ -11,6 +11,7 @@
 #include "tea_obj.h"
 #include "tea_buf.h"
 #include "tea_strfmt.h"
+#include "tea_udata.h"
 #include "tea_err.h"
 
 /* -- Helper functions ---------------------------------------------------- */
@@ -21,13 +22,12 @@ static void buffer_free(void* p)
     tea_bufx_free(sbx->T, sbx);
 }
 
+/* Check that first argument is a string buffer */
 static SBufExt* buffer_getp(tea_State* T)
 {
-    tea_check_type(T, 0, TEA_TYPE_INSTANCE);
-    tea_get_attr(T, 0, "BUFFER*");
-    SBufExt* sbx = (SBufExt*)tea_get_userdata(T, -1);
-    T->top--;
-    return sbx;
+    if(!(T->base < T->top && tvisbuf(T->base)))
+        tea_err_argtype(T, 0, "buffer");
+    return bufV(T->base);
 }
 
 /* -- Buffer methods ------------------------------------------------------ */
@@ -41,12 +41,16 @@ static void buffer_len(tea_State* T)
 
 static void buffer_init(tea_State* T)
 {
-    tea_check_instance(T, 0);
-    SBufExt* sbx = (SBufExt*)tea_new_userdata(T, sizeof(SBufExt));
-    tea_set_finalizer(T, buffer_free);
+    tea_check_type(T, 0, TEA_TYPE_CLASS);
+    GCclass* klass = classV(T->base);
+    GCudata* ud = tea_udata_new(T, sizeof(SBufExt));
+    ud->klass = klass;
+    ud->udtype = UDTYPE_BUFFER;
+    ud->fd = buffer_free;
+    setudataV(T, T->top++, ud);
+    SBufExt* sbx = (SBufExt*)ud_data(ud);
     tea_bufx_init(sbx);
     sbx->T = T;
-    tea_set_attr(T, -2, "BUFFER*");
 }
 
 static void buffer_skip(tea_State* T)
@@ -83,9 +87,15 @@ static void buffer_put(tea_State* T)
         {
             tea_buf_putstr(T, (SBuf*)sbx, strV(o));
         }
-        else if(tvisnumber(o))
+        else if(tvisnum(o))
         {
-            tea_strfmt_putfnum(T, (SBuf*)sbx, STRFMT_G14, numberV(o));
+            tea_strfmt_putfnum(T, (SBuf*)sbx, STRFMT_G14, numV(o));
+        }
+        else if(tvisbuf(o))
+        {
+            SBufExt* sbx2 = bufV(o);
+            if(sbx2 == sbx) tea_err_arg(T, (int)(arg), TEA_ERR_BUFFER_SELF);
+            tea_buf_putmem(T, (SBuf*)sbx, sbx2->r, sbufx_len(sbx2));
         }
         else
         {

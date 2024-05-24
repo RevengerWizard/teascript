@@ -18,6 +18,7 @@
 #include "tea_vm.h"
 #include "tea_tab.h"
 #include "tea_lib.h"
+#include "tea_meta.h"
 
 /* -- Format parser ------------------------------------------------------- */
 
@@ -183,9 +184,9 @@ const char* tea_strfmt_wstrnum(tea_State* T, cTValue* o, int* len)
         *len = str->len;
         return str_data(str);
     }
-    else if(tvisnumber(o))
+    else if(tvisnum(o))
     {
-        sb = tea_strfmt_putfnum(T, tea_buf_tmp_(T), STRFMT_G14, numberV(o));
+        sb = tea_strfmt_putfnum(T, tea_buf_tmp_(T), STRFMT_G14, numV(o));
     }
     else
     {
@@ -252,7 +253,7 @@ static SBuf* strfmt_putquotedlen(tea_State* T, SBuf* sb, const char* s, int len)
 static SBuf* strfmt_putfchar(tea_State* T, SBuf* sb, SFormat sf, int32_t c)
 {
     size_t width = STRFMT_WIDTH(sf);
-    char *w = tea_buf_more(T, sb, width > 1 ? width : 1);
+    char* w = tea_buf_more(T, sb, width > 1 ? width : 1);
     if((sf & STRFMT_F_LEFT)) *w++ = (char)c;
     while(width-- > 1) *w++ = ' ';
     if(!(sf & STRFMT_F_LEFT)) *w++ = (char)c;
@@ -426,11 +427,11 @@ int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
                     int len;
                     const char* s;
                     TValue* mo;
-                    if(tvisinstance(o) && retry >= 0 &&
-                    (mo = tea_tab_get(&instanceV(o)->klass->methods, mmname_str(T, MM_TOSTRING))) != NULL)
+                    if(TEA_UNLIKELY(!tvisstr(o) && !tvisbuf(o)) && retry >= 0 &&
+                    (mo = tea_meta_lookup(T, o, MM_TOSTRING)) != NULL)
                     {
                         /* Call tostring method once */
-                        setinstanceV(T, T->top++, instanceV(o));
+                        copyTV(T, T->top++, o);
                         copyTV(T, T->top++, mo);
                         copyTV(T, T->top++, o);
                         tea_vm_call(T, mo, 0);
@@ -451,6 +452,13 @@ int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
                         GCstr* str = strV(o);
                         len = str->len;
                         s = str_data(str);
+                    }
+                    else if(tvisbuf(o))
+                    {
+                        SBufExt* sbx = bufV(o);
+                        if(sbx == (SBufExt*)sb) tea_err_arg(T, arg, TEA_ERR_BUFFER_SELF);
+                        len = sbufx_len(sbx);
+                        s = sbx->r;
                     }
                     else
                     {
@@ -486,7 +494,7 @@ int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
 
 static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth)
 {
-    if(list->count == 0)
+    if(list->len == 0)
     {
         tea_buf_putlit(T, sb, "[]");
         return;
@@ -502,7 +510,7 @@ static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth)
 
     TValue self;
     setlistV(T, &self, list);
-    for(int i = 0; i < list->count; i++)
+    for(int i = 0; i < list->len; i++)
     {
         TValue* o = list_slot(list, i);
 
@@ -515,7 +523,7 @@ static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth)
             tea_strfmt_obj(T, sb, o, depth);
         }
 
-        if(i != list->count - 1)
+        if(i != list->len - 1)
         {
             tea_buf_putlit(T, sb, ", ");
         }
@@ -551,7 +559,7 @@ static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth)
             continue;
         }
         TValue* key = &entry->key;
-        TValue* value = &entry->value;
+        TValue* value = &entry->val;
 
         count++;
 
@@ -625,8 +633,8 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
                 tea_buf_putlit(T, sb, "false");
             break;
         }
-        case TEA_TNUMBER:
-            tea_strfmt_putfnum(T, sb, STRFMT_G14, numberV(o));
+        case TEA_TNUM:
+            tea_strfmt_putfnum(T, sb, STRFMT_G14, numV(o));
             break;
         case TEA_TPOINTER:
             tea_buf_putlit(T, sb, "pointer");
@@ -689,7 +697,7 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
         case TEA_TSTR:
             tea_buf_putstr(T, sb, strV(o));
             break;
-        case TEA_TUPVALUE:
+        case TEA_TUPVAL:
             tea_buf_putlit(T, sb, "<upvalue>");
             break;
         case TEA_TUDATA:

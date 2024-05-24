@@ -23,8 +23,8 @@ void tea_debug_value(TValue* v)
         case TEA_TBOOL:
             boolV(v) ? printf("true") : printf("false");
             break;
-        case TEA_TNUMBER:
-            printf(TEA_NUMBER_FMT, numberV(v));
+        case TEA_TNUM:
+            printf(TEA_NUMBER_FMT, numV(v));
             break;
         case TEA_TCLASS:
             printf("<class %s>", str_data(classV(v)->name));
@@ -75,7 +75,7 @@ void tea_debug_value(TValue* v)
                 printf("%s", str_data(str));
             break;
         }
-        case TEA_TUPVALUE:
+        case TEA_TUPVAL:
             printf("<upvalue>");
             break;
         default:

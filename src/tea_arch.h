@@ -136,8 +136,8 @@
 #define TEA_ENDIAN_LOHI(lo, hi) hi lo
 #else
 #define TEA_ARCH_BYTEORDER "little"
-#define LJ_ENDIAN_SELECT(le, be) le
-#define LJ_ENDIAN_LOHI(lo, hi) lo hi
+#define TEA_ENDIAN_SELECT(le, be) le
+#define TEA_ENDIAN_LOHI(lo, hi) lo hi
 #endif
 
 #endif

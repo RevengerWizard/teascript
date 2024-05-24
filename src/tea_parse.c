@@ -323,9 +323,9 @@ static GCproto* parser_end(Parser* parser)
 
     if(parser->enclosing != NULL)
     {
-        TValue v;
-        setprotoV(parser->lex->T, &v, proto);
-        bcemit_argued(parser->enclosing, BC_CLOSURE, const_make(parser->enclosing, &v));
+        TValue o;
+        setprotoV(parser->lex->T, &o, proto);
+        bcemit_argued(parser->enclosing, BC_CLOSURE, const_make(parser->enclosing, &o));
 
         for(int i = 0; i < proto->upvalue_count; i++)
         {
@@ -744,7 +744,7 @@ static void expr_dot(Parser* parser, bool assign)
 #define SHORT_HAND_INCREMENT(op) \
     bcemit_argued(parser, BC_PUSH_ATTR, name); \
     TValue _v; \
-    setnumberV(&_v, 1); \
+    setnumV(&_v, 1); \
     bcemit_constant(parser, &_v); \
     bcemit_op(parser, op); \
     bcemit_argued(parser, BC_SET_ATTR, name);
@@ -912,8 +912,8 @@ static bool parse_slice(Parser* parser)
         if(lex_check(parser, ']'))
         {
             TValue v1, v2;
-            setnumberV(&v1, INFINITY);
-            setnumberV(&v2, 1);
+            setnumV(&v1, INFINITY);
+            setnumV(&v2, 1);
             bcemit_constant(parser, &v1);
             bcemit_constant(parser, &v2);
         }
@@ -923,7 +923,7 @@ static bool parse_slice(Parser* parser)
             if(lex_match(parser, ':'))
             {
                 TValue v;
-                setnumberV(&v, INFINITY);
+                setnumV(&v, INFINITY);
                 bcemit_constant(parser, &v);
                 expr(parser);
             }
@@ -938,7 +938,7 @@ static bool parse_slice(Parser* parser)
                 else
                 {
                     TValue v;
-                    setnumberV(&v, 1);
+                    setnumV(&v, 1);
                     bcemit_constant(parser, &v);
                 }
             }
@@ -959,7 +959,7 @@ static void expr_subscript(Parser* parser, bool assign)
 #define SHORT_HAND_INCREMENT(op) \
     bcemit_op(parser, BC_PUSH_INDEX); \
     TValue _v; \
-    setnumberV(&_v, 1); \
+    setnumV(&_v, 1); \
     bcemit_constant(parser, &_v); \
     bcemit_op(parser, op); \
     bcemit_op(parser, BC_SET_INDEX);
@@ -1127,7 +1127,7 @@ static void named_variable(Parser* parser, Token name, bool assign)
     check_const(parser, set_op, arg); \
     bcemit_argued(parser, get_op, (uint8_t)arg); \
     TValue _v; \
-    setnumberV(&_v, 1); \
+    setnumV(&_v, 1); \
     bcemit_constant(parser, &_v); \
     bcemit_op(parser, op); \
     bcemit_argued(parser, set_op, (uint8_t)arg);
@@ -1385,7 +1385,7 @@ static void expr_range(Parser* parser, bool assign)
     else
     {
         TValue v;
-        setnumberV(&v, 1);
+        setnumV(&v, 1);
         bcemit_constant(parser, &v);
     }
 
@@ -2766,8 +2766,8 @@ GCproto* tea_parse(Lexer* lexer)
     Parser parser;
     parser_init(lexer, &parser, NULL, PROTO_SCRIPT);
 
-    tea_lex_next(parser.lex);
-    tea_lex_next(parser.lex);
+    tea_lex_next(parser.lex);   /* Read the first token into "next" */
+    tea_lex_next(parser.lex);   /* Copy "next" -> "curr" */
 
     while(!lex_match(&parser, TK_EOF))
     {

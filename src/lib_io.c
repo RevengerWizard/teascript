@@ -48,11 +48,10 @@ static void io_file_free(void* p)
 
 static IOFileUD* io_get_filep(tea_State* T)
 {
-    tea_check_type(T, 0, TEA_TYPE_INSTANCE);
-    tea_get_attr(T, 0, "FILE*");
-    IOFileUD* iof = (IOFileUD*)tea_get_userdata(T, -1);
-    T->top--;
-    return iof;
+    if(!(T->base < T->top && tvisudata(T->base) &&
+        udataV(T->base)->udtype == UDTYPE_IOFILE))
+        tea_err_argtype(T, 0, "FILE*");
+    return (IOFileUD*)ud_data(udataV(T->base));
 }
 
 static IOFileUD* io_get_file(tea_State* T)
@@ -69,13 +68,14 @@ static void io_file_new(tea_State* T, FILE* fp, uint32_t type)
 {
     tea_push_value(T, tea_upvalue_index(0));
     GCclass* klass = classV(T->top - 1);
-    GCinstance* instance = tea_instance_new(T, klass);
-    setinstanceV(T, T->top++, instance);
-    IOFileUD* iof = (IOFileUD*)tea_new_userdata(T, sizeof(IOFileUD));
-    tea_set_finalizer(T, io_file_free);
+    GCudata* ud = tea_udata_new(T, sizeof(IOFileUD));
+    ud->udtype = UDTYPE_IOFILE;
+    ud->klass = klass;
+    ud->fd = io_file_free;
+    setudataV(T, T->top++, ud);
+    IOFileUD* iof = (IOFileUD*)ud_data(ud);
     iof->fp = fp;
     iof->type = type;
-    tea_set_attr(T, -2, "FILE*");
 }
 
 /* -- Read/write helpers -------------------------------------------------- */
@@ -159,8 +159,6 @@ static void file_write(tea_State* T)
 static void file_read(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count > 2, "Expected 0 or 1 arguments, got %d", count);
-
     IOFileUD* iof = io_get_file(T);
 
     if(count == 2)
@@ -179,9 +177,6 @@ static void file_readline(tea_State* T)
 
 static void file_seek(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
-
     FILE* fp = io_get_file(T)->fp;
     int opt = tea_lib_checkopt(T, 1, 1, "\3set\3cur\3end");
     int64_t ofs = 0;
@@ -194,9 +189,9 @@ static void file_seek(tea_State* T)
     o = T->base + 2;
     if(o < T->top)
     {
-        if(!tvisnumber(o))
+        if(!tvisnum(o))
             tea_err_argt(T, 3, TEA_TYPE_NUMBER);
-        ofs = (int64_t)numberV(o);
+        ofs = (int64_t)numV(o);
     }
 
 #if TEA_TARGET_POSIX
@@ -211,7 +206,7 @@ static void file_seek(tea_State* T)
 
     if(res) tea_lib_fileresult(T, NULL);
 
-#if LJ_TARGET_POSIX
+#if TEA_TARGET_POSIX
     ofs = ftello(fp);
 #elif _MSC_VER >= 1400
     ofs = _ftelli64(fp);
@@ -232,9 +227,6 @@ static void file_flush(tea_State* T)
 
 static void file_setvbuf(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 2 || count > 3, "Expected 1 or 2 arguments, got %d", count);
-
     IOFileUD* iof = io_get_file(T);
     int opt = tea_lib_checkopt(T, 1, -1, "\4full\4line\2no");
     size_t size = (size_t)tea_lib_optint(T, 2, TEA_BUFFER_SIZE);
@@ -278,9 +270,6 @@ static void file_iteratorvalue(tea_State* T) {}
 
 static void io_open(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
-
     const char* path = tea_check_string(T, 0);
     const char* mode = tea_opt_string(T, 1, "r");
 
@@ -296,9 +285,6 @@ static void io_open(tea_State* T)
 static void io_popen(tea_State* T)
 {
 #if TEA_TARGET_POSIX || TEA_TARGET_WINDOWS
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
-
     const char* path = tea_check_string(T, 0);
     const char* mode = tea_opt_string(T, 1, "r");
     FILE* fp;
@@ -321,24 +307,25 @@ static void io_popen(tea_State* T)
 
 static void io_stdfile(tea_State* T, FILE* fp, const char* name, const char* mode)
 {
-    GCclass* klass = classV(T->base + 1);
-    GCinstance* instance = tea_instance_new(T, klass);
-    setinstanceV(T, T->top++, instance);
-    IOFileUD* iof = (IOFileUD*)tea_new_userdata(T, sizeof(IOFileUD));
-    tea_set_finalizer(T, io_file_free);
+    GCclass* klass = classV(T->top - 1);
+    GCudata* ud = tea_udata_new(T, sizeof(IOFileUD));
+    ud->udtype = UDTYPE_IOFILE;
+    ud->klass = klass;
+    ud->fd = io_file_free;
+    setudataV(T, T->top++, ud);
+    IOFileUD* iof = (IOFileUD*)ud_data(ud);
     iof->fp = fp;
     iof->type = IOFILE_TYPE_STDF;
-    tea_set_attr(T, -2, "FILE*");
     tea_set_attr(T, 0, name);
 }
 
 static const tea_Methods file_class[] = {
     { "write", "method", file_write, TEA_VARARGS },
-    { "read", "method", file_read, TEA_VARARGS },
+    { "read", "method", file_read, -2 },
     { "readline", "method", file_readline, 1 },
-    { "seek", "method", file_seek, TEA_VARARGS },
+    { "seek", "method", file_seek, -2 },
     { "flush", "method", file_flush, 1 },
-    { "setvbuf", "method", file_setvbuf, TEA_VARARGS },
+    { "setvbuf", "method", file_setvbuf, -2 },
     { "close", "method", file_close, 1 },
     { "tostring", "method", file_tostring, 1 },
     { "iterate", "method", file_iterate, 2 },
@@ -347,8 +334,8 @@ static const tea_Methods file_class[] = {
 };
 
 static const tea_Reg io_module[] = {
-    { "open", io_open, TEA_VARARGS },
-    { "popen", io_popen, TEA_VARARGS },
+    { "open", io_open, -2 },
+    { "popen", io_popen, -2 },
     { "stdin", NULL },
     { "stdout", NULL },
     { "stderr", NULL },
@@ -362,8 +349,10 @@ TEAMOD_API void tea_import_io(tea_State* T)
     tea_push_value(T, -1);
     tea_set_attr(T, 0, "File");
     tea_set_funcs(T, io_module, 1);
+    tea_get_attr(T, 0, "File");
 
     io_stdfile(T, stdout, "stdout", "w");
     io_stdfile(T, stdin, "stdin", "r");
     io_stdfile(T, stderr, "stderr", "w");
+    T->top--;
 }

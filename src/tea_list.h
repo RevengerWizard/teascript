@@ -14,4 +14,6 @@ TEA_FUNC void tea_list_add(tea_State* T, GClist* list, cTValue* o);
 TEA_FUNC void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t index);
 TEA_FUNC void tea_list_delete(tea_State* T, GClist* list, int32_t index);
 
+#define tea_list_clear(l) ((l)->len = 0)
+
 #endif

@@ -309,7 +309,7 @@ static int nd_similar(uint32_t *nd, uint32_t ndhi, uint32_t *ref, size_t hilen, 
         prec -= hilen;
         ref--;
         ndhi = (ndhi - 1) & 0x3f;
-        if (prec >= 9)
+        if(prec >= 9)
         {
             if(TEA_UNLIKELY(nd[ndhi] != *ref))
                 return 0;
@@ -371,7 +371,7 @@ static char* strfmt_wfnum(tea_State* T, SBuf* sb, SFormat sf, double n, char* p)
     else if(STRFMT_FP(sf) == STRFMT_FP(STRFMT_T_FP_A))
     {
         /* %a */
-        const char *hexdig = (sf & STRFMT_F_UPPER) ? "0123456789ABCDEFPX"
+        const char* hexdig = (sf & STRFMT_F_UPPER) ? "0123456789ABCDEFPX"
                                                    : "0123456789abcdefpx";
         int32_t e = (t.u32.hi >> 20) & 0x7ff;
         char prefix = 0, eprefix = '+';
@@ -412,14 +412,14 @@ static char* strfmt_wfnum(tea_State* T, SBuf* sb, SFormat sf, double n, char* p)
             e = -e;
         }
         len = 5 + ndigits_dec((uint32_t)e) + prec + (prefix != 0) + ((prec | (sf & STRFMT_F_ALT)) != 0);
-        if (!p)
+        if(!p)
             p = tea_buf_more(T, sb, width > len ? width : len);
-        if (!(sf & (STRFMT_F_LEFT | STRFMT_F_ZERO)))
+        if(!(sf & (STRFMT_F_LEFT | STRFMT_F_ZERO)))
         {
-            while (width-- > len)
+            while(width-- > len)
                 *p++ = ' ';
         }
-        if (prefix)
+        if(prefix)
             *p++ = prefix;
         *p++ = '0';
         *p++ = hexdig[17]; /* x or X */
@@ -432,14 +432,14 @@ static char* strfmt_wfnum(tea_State* T, SBuf* sb, SFormat sf, double n, char* p)
         if((prec | (sf & STRFMT_F_ALT)))
         {
             /* Emit fractional part */
-            char *q = p + 1 + prec;
+            char* q = p + 1 + prec;
             *p = '.';
-            if (prec < 13)
+            if(prec < 13)
                 t.u64 >>= (52 - prec * 4);
             else
-                while (prec > 13)
+                while(prec > 13)
                     p[prec--] = '0';
-            while (prec)
+            while(prec)
             {
                 p[prec--] = hexdig[t.u64 & 15];
                 t.u64 >>= 4;
@@ -666,39 +666,39 @@ static char* strfmt_wfnum(tea_State* T, SBuf* sb, SFormat sf, double n, char* p)
             }
             *p++ = (sf & STRFMT_F_UPPER) ? 'E' : 'e';
             *p++ = eprefix; /* + or - */
-            if (nde < 10)
+            if(nde < 10)
                 *p++ = '0'; /* Always at least two digits of exponent */
             p = tea_strfmt_wint(p, nde);
         }
         else
         {
             /* %f (or, shortly, %g in %f style) */
-            if (prec < (size_t)(0x3f & -(int32_t)ndlo) * 9)
+            if(prec < (size_t)(0x3f & -(int32_t)ndlo) * 9)
             {
                 /* Precision is sufficiently low as to maybe require rounding */
                 ndhi = nd_add_m10e(nd, ndhi, 5, 0 - prec - 1);
             }
         g_format_like_f:
-            if ((sf & STRFMT_T_FP_E) && !(sf & STRFMT_F_ALT) && prec && width)
+            if((sf & STRFMT_T_FP_E) && !(sf & STRFMT_F_ALT) && prec && width)
             {
                 /* Decrease precision in order to strip trailing zeroes */
-                if (ndlo)
+                if(ndlo)
                 {
                     /* nd has a fractional part; we need to look at its digits */
                     char tail[9];
                     uint32_t maxprec = (64 - ndlo) * 9;
-                    if (prec >= maxprec)
+                    if(prec >= maxprec)
                         prec = maxprec;
                     else
                         ndlo = 64 - (prec + 8) / 9;
                     i = prec - ((63 - ndlo) * 9);
                     strfmt_wuint9(tail, nd[ndlo]);
-                    while (prec && tail[--i] == '0')
+                    while(prec && tail[--i] == '0')
                     {
                         prec--;
-                        if (!i)
+                        if(!i)
                         {
-                            if (ndlo == 63)
+                            if(ndlo == 63)
                             {
                                 prec = 0;
                                 break;
@@ -749,9 +749,9 @@ static char* strfmt_wfnum(tea_State* T, SBuf* sb, SFormat sf, double n, char* p)
                 {
                     /* %g (and not %#g) - strip trailing zeroes */
                     p += (int32_t)prec & ((int32_t)prec >> 31);
-                    while (p[-1] == '0')
+                    while(p[-1] == '0')
                         p--;
-                    if (p[-1] == '.')
+                    if(p[-1] == '.')
                         p--;
                 }
                 else
@@ -786,6 +786,6 @@ SBuf* tea_strfmt_putfnum(tea_State* T, SBuf* sb, SFormat sf, double n)
 GCstr* tea_strfmt_num(tea_State* T, cTValue* o)
 {
     char buf[STRFMT_MAXBUF_NUM];
-    int len = (int)(strfmt_wfnum(T, NULL, STRFMT_G14, numberV(o), buf) - buf);
+    int len = (int)(strfmt_wfnum(T, NULL, STRFMT_G14, numV(o), buf) - buf);
     return tea_str_new(T, buf, len);
 }

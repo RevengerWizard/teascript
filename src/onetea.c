@@ -38,6 +38,7 @@
 #include "tea_obj.c"
 #include "tea_lex.c"
 #include "tea_state.c"
+#include "tea_meta.c"
 #include "tea_tab.c"
 #include "tea_utf.c"
 #include "tea_vm.c"

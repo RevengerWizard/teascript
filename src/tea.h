@@ -33,6 +33,7 @@
 */
 #define TEA_UPVALUES_INDEX (-10000)
 #define TEA_MODULE_INDEX (-10000)
+#define TEA_REGISTRY_INDEX (-10000)
 #define tea_upvalue_index(i) (TEA_UPVALUES_INDEX - (i))
 
 /* Type of numbers in Teascript */
@@ -106,7 +107,7 @@ typedef struct tea_Methods
 #define TEA_MASK_USERDATA   (1 << TEA_TYPE_USERDATA)
 
 /* Option for variadic functions */
-#define TEA_VARARGS (-1)
+#define TEA_VARARGS (-1000)
 
 /*
 ** Basic types
@@ -225,15 +226,15 @@ TEA_API int tea_len(tea_State* T, int index);
 TEA_API void tea_add_item(tea_State* T, int list);
 TEA_API bool tea_get_item(tea_State* T, int list, int index);
 TEA_API bool tea_set_item(tea_State* T, int list, int index);
-TEA_API bool tea_del_item(tea_State* T, int list, int index);
+TEA_API bool tea_delete_item(tea_State* T, int list, int index);
 TEA_API bool tea_insert_item(tea_State* T, int list, int index);
 
 TEA_API bool tea_get_field(tea_State* T, int obj);
 TEA_API void tea_set_field(tea_State* T, int obj);
-TEA_API bool tea_del_field(tea_State* T, int obj);
+TEA_API bool tea_delete_field(tea_State* T, int obj);
 TEA_API bool tea_get_key(tea_State* T, int obj, const char* key);
 TEA_API void tea_set_key(tea_State* T, int obj, const char* key);
-TEA_API bool tea_del_key(tea_State* T, int obj, const char* key);
+TEA_API bool tea_delete_key(tea_State* T, int obj, const char* key);
 
 TEA_API bool tea_get_attr(tea_State* T, int obj, const char* key);
 TEA_API void tea_set_attr(tea_State* T, int obj, const char* key);
@@ -307,8 +308,6 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_open()  tea_new_state(NULL, NULL)
 
 #define tea_push_literal(T, s)  tea_push_lstring(T, "" s, (sizeof(s)/sizeof(char))-1)
-
-#define tea_check_args(T, cond, msg, ...) ((void)((cond) && tea_error(T, (msg), __VA_ARGS__)))
 
 #define tea_check_list(T, index) tea_check_type(T, (index), TEA_TYPE_LIST)
 #define tea_check_function(T, index) tea_check_type(T, (index), TEA_TYPE_FUNCTION)

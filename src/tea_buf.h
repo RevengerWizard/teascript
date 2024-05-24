@@ -37,6 +37,13 @@ typedef struct SBufExt
 
 #define SBUF_FLAG_EXT 1
 
+#define sbuf_flag(sb) ((sb)->flag)
+#define sbuf_isext(sb) (sbuf_flag(sb) == SBUF_FLAG_EXT)
+
+#define tvisbuf(o) \
+    (tvisudata(o) && udataV(o)->udtype == UDTYPE_BUFFER)
+#define bufV(o) ((SBufExt*)ud_data(udataV(o)))
+
 /* Buffer management */
 TEA_FUNC char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size);
 TEA_FUNC char* tea_buf_more2(tea_State* T, SBuf* sb, size_t size);

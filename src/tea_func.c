@@ -61,9 +61,9 @@ int tea_func_getline(GCproto* f, int instruction)
 /* -- Upvalues -------------------------------------------------- */
 
 /* Create an empty and closed upvalue */
-static GCupvalue* func_newuv(tea_State* T, TValue* slot)
+static GCupval* func_newuv(tea_State* T, TValue* slot)
 {
-    GCupvalue* uv = tea_mem_newobj(T, GCupvalue, TEA_TUPVALUE);
+    GCupval* uv = tea_mem_newobj(T, GCupval, TEA_TUPVAL);
     setnilV(&uv->closed);
     uv->location = slot;
     uv->next = NULL;
@@ -71,10 +71,10 @@ static GCupvalue* func_newuv(tea_State* T, TValue* slot)
 }
 
 /* Find existing open upvalue for a stack slot or create a new one */
-GCupvalue* tea_func_finduv(tea_State* T, TValue* local)
+GCupval* tea_func_finduv(tea_State* T, TValue* local)
 {
-    GCupvalue* prev_upvalue = NULL;
-    GCupvalue* upvalue = T->open_upvalues;
+    GCupval* prev_upvalue = NULL;
+    GCupval* upvalue = T->open_upvalues;
     while(upvalue != NULL && upvalue->location > local)
     {
         prev_upvalue = upvalue;
@@ -86,7 +86,7 @@ GCupvalue* tea_func_finduv(tea_State* T, TValue* local)
         return upvalue;
     }
 
-    GCupvalue* created_upvalue = func_newuv(T, local);
+    GCupval* created_upvalue = func_newuv(T, local);
     created_upvalue->next = upvalue;
 
     if(prev_upvalue == NULL)
@@ -106,7 +106,7 @@ void tea_func_closeuv(tea_State* T, TValue* last)
 {
     while(T->open_upvalues != NULL && T->open_upvalues->location >= last)
     {
-        GCupvalue* upvalue = T->open_upvalues;
+        GCupval* upvalue = T->open_upvalues;
         upvalue->closed = *upvalue->location;
         upvalue->location = &upvalue->closed;
         T->open_upvalues = upvalue->next;

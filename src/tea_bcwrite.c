@@ -42,7 +42,7 @@ static char* bcwrite_wuleb128(char* p, uint32_t v)
 static void bcwrite_knum(BCWriteCtx* ctx, TValue* v)
 {
     char* p = tea_buf_more(ctx->T, &ctx->sb, 10);
-    double num = numberV(v);
+    double num = numV(v);
 
     NumberBits x;
     x.n = num;
@@ -76,7 +76,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
         {
             type = BCDUMP_KGC_FUNC;
         }
-        else if(tvisnumber(v))
+        else if(tvisnum(v))
         {
             type = BCDUMP_KGC_NUM;
         }

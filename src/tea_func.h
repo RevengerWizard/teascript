@@ -13,7 +13,7 @@ TEA_FUNC GCproto* tea_func_newproto(tea_State* T, ProtoType type, int max_slots)
 TEA_FUNC int tea_func_getline(GCproto* f, int instruction);
 
 /* Upvalues */
-TEA_FUNC GCupvalue* tea_func_finduv(tea_State* T, TValue* local);
+TEA_FUNC GCupval* tea_func_finduv(tea_State* T, TValue* local);
 TEA_FUNC void tea_func_closeuv(tea_State* T, TValue* last);
 
 /* Functions (closures) */

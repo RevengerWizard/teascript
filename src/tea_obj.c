@@ -42,7 +42,7 @@ GCmodule* tea_module_new(tea_State* T, GCstr* name)
     }
 
     GCmodule* module = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
-    tea_tab_init(&module->values);
+    tea_tab_init(&module->vars);
     module->name = name;
     module->path = NULL;
 
@@ -80,15 +80,15 @@ GCinstance* tea_instance_new(tea_State* T, GCclass* klass)
 {
     GCinstance* instance = tea_mem_newobj(T, GCinstance, TEA_TINSTANCE);
     instance->klass = klass;
-    tea_tab_init(&instance->fields);
+    tea_tab_init(&instance->attrs);
     return instance;
 }
 
-GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* method)
+GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* func)
 {
     GCmethod* bound = tea_mem_newobj(T, GCmethod, TEA_TMETHOD);
     copyTV(T, &bound->receiver, receiver);
-    bound->method = method;
+    bound->func = func;
     return bound;
 }
 
@@ -115,12 +115,12 @@ static bool obj_list_equal(GClist* a, GClist* b)
     if(a == b)
         return true;
 
-    if(a->count != b->count)
+    if(a->len != b->len)
     {
         return false;
     }
 
-    for(int i = 0; i < a->count; i++)
+    for(int i = 0; i < a->len; i++)
     {
         if(!tea_obj_equal(list_slot(a, i), list_slot(b, i)))
         {
@@ -161,7 +161,7 @@ static bool obj_map_equal(GCmap* a, GCmap* b)
             return false;
         }
 
-        if(!tea_obj_equal(&entry->value, value))
+        if(!tea_obj_equal(&entry->val, value))
         {
             return false;
         }
@@ -181,8 +181,8 @@ bool tea_obj_equal(cTValue* a, cTValue* b)
             return true;
         case TEA_TBOOL:
             return boolV(a) == boolV(b);
-        case TEA_TNUMBER:
-            return numberV(a) == numberV(b);
+        case TEA_TNUM:
+            return numV(a) == numV(b);
         case TEA_TPOINTER:
             return pointerV(a) == pointerV(b);
         case TEA_TRANGE:
@@ -207,8 +207,8 @@ bool tea_obj_rawequal(cTValue* a, cTValue* b)
             return true;
         case TEA_TBOOL:
             return boolV(a) == boolV(b);
-        case TEA_TNUMBER:
-            return numberV(a) == numberV(b);
+        case TEA_TNUM:
+            return numV(a) == numV(b);
         case TEA_TPOINTER:
             return pointerV(a) == pointerV(b);
         default:
@@ -217,7 +217,7 @@ bool tea_obj_rawequal(cTValue* a, cTValue* b)
 }
 
 /* Attempt to convert a value into a number */
-double tea_obj_tonumber(TValue* o, bool* x)
+double tea_obj_tonum(TValue* o, bool* x)
 {
     if(x != NULL)
         *x = true;
@@ -225,8 +225,8 @@ double tea_obj_tonumber(TValue* o, bool* x)
     {
         case TEA_TNIL:
             return 0;
-        case TEA_TNUMBER:
-            return numberV(o);
+        case TEA_TNUM:
+            return numV(o);
         case TEA_TBOOL:
             return boolV(o) ? 1 : 0;
         case TEA_TSTR:

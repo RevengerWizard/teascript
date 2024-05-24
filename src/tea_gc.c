@@ -28,18 +28,25 @@ static void gc_blacken(tea_State* T, GCobj* obj)
 {
     switch(obj->gct)
     {
+        case TEA_TUDATA:
+        {
+            GCudata* ud = (GCudata*)obj;
+            tea_gc_markobj(T, (GCobj*)ud->klass);
+            tea_tab_mark(T, &ud->attrs);
+            break;
+        }
         case TEA_TMODULE:
         {
             GCmodule* module = (GCmodule*)obj;
             tea_gc_markobj(T, (GCobj*)module->name);
             tea_gc_markobj(T, (GCobj*)module->path);
-            tea_tab_mark(T, &module->values);
+            tea_tab_mark(T, &module->vars);
             break;
         }
         case TEA_TLIST:
         {
             GClist* list = (GClist*)obj;
-            for(int i = 0; i < list->count; i++)
+            for(int i = 0; i < list->len; i++)
             {
                 tea_gc_markval(T, list_slot(list, i));
             }
@@ -52,7 +59,7 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             {
                 MapEntry* item = &map->entries[i];
                 tea_gc_markval(T, &item->key);
-                tea_gc_markval(T, &item->value);
+                tea_gc_markval(T, &item->val);
             }
             break;
         }
@@ -60,7 +67,7 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         {
             GCmethod* bound = (GCmethod*)obj;
             tea_gc_markval(T, &bound->receiver);
-            tea_gc_markobj(T, (GCobj*)bound->method);
+            tea_gc_markobj(T, (GCobj*)bound->func);
             break;
         }
         case TEA_TCLASS:
@@ -105,12 +112,12 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         {
             GCinstance* instance = (GCinstance*)obj;
             tea_gc_markobj(T, (GCobj*)instance->klass);
-            tea_tab_mark(T, &instance->fields);
+            tea_tab_mark(T, &instance->attrs);
             break;
         }
-        case TEA_TUPVALUE:
+        case TEA_TUPVAL:
         {
-            GCupvalue* uv = (GCupvalue*)obj;
+            GCupval* uv = (GCupval*)obj;
             tea_gc_markval(T, &uv->closed);
             break;
         }
@@ -132,7 +139,7 @@ static void gc_free(tea_State* T, GCobj* obj)
         case TEA_TMODULE:
         {
             GCmodule* module = (GCmodule*)obj;
-            tea_tab_free(T, &module->values);
+            tea_tab_free(T, &module->vars);
             tea_mem_freet(T, GCmodule, obj);
             break;
         }
@@ -180,7 +187,7 @@ static void gc_free(tea_State* T, GCobj* obj)
         case TEA_TINSTANCE:
         {
             GCinstance* instance = (GCinstance*)obj;
-            tea_tab_free(T, &instance->fields);
+            tea_tab_free(T, &instance->attrs);
             tea_mem_freet(T, GCinstance, obj);
             break;
         }
@@ -196,9 +203,9 @@ static void gc_free(tea_State* T, GCobj* obj)
             tea_udata_free(T, ud);
             break;
         }
-        case TEA_TUPVALUE:
+        case TEA_TUPVAL:
         {
-            tea_mem_freet(T, GCupvalue, obj);
+            tea_mem_freet(T, GCupval, obj);
             break;
         }
     }
@@ -217,7 +224,7 @@ static void gc_mark_roots(tea_State* T)
         tea_gc_markobj(T, (GCobj*)ci->func);
     }
 
-    for(GCupvalue* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+    for(GCupval* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
     {
         tea_gc_markobj(T, (GCobj*)upvalue);
     }

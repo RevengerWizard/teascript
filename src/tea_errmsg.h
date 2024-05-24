@@ -15,6 +15,7 @@ ERRDEF(CALL, TEA_QS " is not callable")
 
 ERRDEF(NOARGS, "Expected 0 arguments but got %d")
 ERRDEF(ARGS, "Expected %d arguments, but got %d")
+ERRDEF(OPTARGS, "Expected at most %d arguments, but got %d")
 ERRDEF(NOVAL, "Expected value")
 ERRDEF(BADTYPE, "Expected %s, got %s")
 
@@ -22,6 +23,9 @@ ERRDEF(PATH, "Unable to resolve path " TEA_QS)
 ERRDEF(NOMOD, "Unknown module " TEA_QS)
 ERRDEF(NOPATH, "Could not resolve path " TEA_QS)
 ERRDEF(READPATH, "Could not read " TEA_QS)
+
+/* String buffer errors */
+ERRDEF(BUFFER_SELF, "Cannot put buffer into itself")
 
 /* VM errors */
 ERRDEF(METHOD, "Undefined method " TEA_QS)

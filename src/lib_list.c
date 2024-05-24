@@ -43,7 +43,7 @@ static void list_add(tea_State* T)
 
 static void list_remove(tea_State* T)
 {
-    int len = tea_len(T, 0);
+    uint32_t len = tea_lib_checklist(T, 0)->len;
 
     bool found = false;
     if(len == 0)
@@ -91,7 +91,7 @@ static void list_remove(tea_State* T)
 
     if(found)
     {
-        listV(T->base)->count--;
+        listV(T->base)->len--;
         tea_pop(T, 1);
         return;
     }
@@ -102,14 +102,14 @@ static void list_remove(tea_State* T)
 static void list_delete(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
-    if(list->count == 0)
+    if(list->len == 0)
     {
         T->top--;
         return;
     }
 
     int32_t index = tea_lib_checkint(T, 1);
-    if(index < 0 || index > list->count - 1)
+    if(index < 0 || index > list->len - 1)
     {
         tea_error(T, "Index out of bounds");
     }
@@ -121,7 +121,7 @@ static void list_delete(tea_State* T)
 static void list_clear(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
-    list->count = 0;
+    tea_list_clear(list);
 }
 
 static void list_insert(tea_State* T)
@@ -129,7 +129,7 @@ static void list_insert(tea_State* T)
     GClist* list = tea_lib_checklist(T, 0);
     TValue* o = tea_lib_checkany(T, 1);
     int32_t index = tea_lib_checkint(T, 2);
-    if(index < 0 || index > list->count - 1)
+    if(index < 0 || index > list->len - 1)
     {
         tea_error(T, "Index out of bounds for the list given");
     }
@@ -345,10 +345,8 @@ static void list_index(tea_State* T)
 static void list_join(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 0 or 1 argument, got %d", count);
-
     GClist* list = tea_lib_checklist(T, 0);
-    if(list->count == 0)
+    if(list->len == 0)
     {
         tea_push_literal(T, "");
         return;
@@ -364,12 +362,12 @@ static void list_join(tea_State* T)
     SBuf* sb = tea_buf_tmp_(T);
 
     TValue* o;
-    for(int i = 0; i < list->count; i++)
+    for(int i = 0; i < list->len; i++)
     {
         o = list_slot(list, i);
         tea_strfmt_obj(T, sb, o, 0);
 
-        if(i != list->count - 1)
+        if(i != list->len - 1)
             tea_buf_putmem(T, sb, sep, sep_len);
     }
     setstrV(T, T->top++, tea_buf_str(T, sb));
@@ -567,12 +565,12 @@ static void list_opadd(tea_State* T)
     GClist* list = tea_list_new(T);
     setlistV(T, T->top++, list);
 
-    for(int i = 0; i < l1->count; i++)
+    for(int i = 0; i < l1->len; i++)
     {
         tea_list_add(T, list, list_slot(l1, i));
     }
 
-    for(int i = 0; i < l2->count; i++)
+    for(int i = 0; i < l2->len; i++)
     {
         tea_list_add(T, list, list_slot(l2, i));
     }
@@ -596,9 +594,9 @@ static const tea_Methods list_class[] = {
     { "contains", "method", list_contains, 2 },
     { "count", "method", list_count, 2 },
     { "fill", "method", list_fill, 2 },
-    { "sort", "method", list_sort, TEA_VARARGS },
+    { "sort", "method", list_sort, -2 },
     { "index", "method", list_index, 2 },
-    { "join", "method", list_join, TEA_VARARGS },
+    { "join", "method", list_join, -2 },
     { "copy", "method", list_copy, 1 },
     { "find", "method", list_find, 2 },
     { "flat", "method", list_flat, 1 },

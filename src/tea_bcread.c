@@ -185,7 +185,7 @@ static void bcread_kgc(Lexer* lex, GCproto* pt, size_t count)
         else if(type == BCDUMP_KGC_NUM)
         {
             double num = bcread_knum(lex);
-            setnumberV(proto_kgc(pt, i), num);
+            setnumV(proto_kgc(pt, i), num);
         }
         else
         {

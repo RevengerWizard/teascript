@@ -62,13 +62,12 @@ static void random_random(tea_State* T)
     double d;
     u.u64 = tea_prng_u64d(rs);
     d = u.d - 1.0;
-    setnumberV(T->top++, d);
+    setnumV(T->top++, d);
 }
 
 static void random_range(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
     PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
     U64double u;
     double d;
@@ -79,7 +78,7 @@ static void random_range(tea_State* T)
         double r1 = tea_check_number(T, 0);
         double r2 = tea_check_number(T, 1);
         d = floor(d * (r2 - r1)) + r1;
-        setnumberV(T->top++, d);
+        setnumV(T->top++, d);
         return;
     }
     else if(count == 1)
@@ -87,7 +86,7 @@ static void random_range(tea_State* T)
         double r1, r2;
         tea_check_range(T, 0, &r1, &r2, NULL);
         d = floor(d * (r2 - r1)) + r1;
-        setnumberV(T->top++, d);
+        setnumV(T->top++, d);
         return;
     }
     tea_error(T, "Expected two numbers or a range");
@@ -96,12 +95,12 @@ static void random_range(tea_State* T)
 static void random_shuffle(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
-    if(list->count < 2)
+    if(list->len < 2)
         return;
     PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
     U64double u;
     double d;
-    for(int i = 0; i < list->count; i++)
+    for(int i = 0; i < list->len; i++)
     {
         u.u64 = tea_prng_u64d(rs);
         d = u.d - 1.0;
@@ -124,7 +123,7 @@ static void random_choice(tea_State* T)
     double d;
     u.u64 = tea_prng_u64d(rs);
     d = u.d - 1.0;
-    int32_t index = floor(d * list->count);
+    int32_t index = floor(d * list->len);
     copyTV(T, T->top++, list_slot(list, index));
 }
 
@@ -133,7 +132,7 @@ static void random_choice(tea_State* T)
 static const tea_Reg random_module[] = {
     { "seed", random_seed, 1 },
     { "random", random_random, 0 },
-    { "range", random_range, TEA_VARARGS },
+    { "range", random_range, -2 },
     { "choice", random_choice, 1 },
     { "shuffle", random_shuffle, 1 },
     { NULL, NULL },

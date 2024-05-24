@@ -153,7 +153,7 @@ TEA_API int tea_load_bufferx(tea_State* T, const char* buffer, size_t size, cons
 
 TEA_API int tea_load_buffer(tea_State* T, const char* buffer, size_t size, const char* name)
 {
-    return tea_load_bufferx(T, buffer, (size), name, NULL);
+    return tea_load_bufferx(T, buffer, size, name, NULL);
 }
 
 TEA_API int tea_load_string(tea_State* T, const char* s)

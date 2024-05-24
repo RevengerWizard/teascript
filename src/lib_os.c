@@ -49,8 +49,6 @@ int setenv(const char* name, const char* value, int overwrite)
 static void os_getenv(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 1 || count > 2, "Expected 1 or 2 arguments, got %d", count);
-
     const char* value = getenv(tea_check_string(T, 0));
     if(count == 2)
     {
@@ -76,9 +74,6 @@ static void os_getenv(tea_State* T)
 
 static void os_setenv(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count < 1, "Expected at 1 or 2 arguments, got %d", count);
-
     if(!tea_is_string(T, 0) || (!tea_is_string(T, 1) && !tea_is_nil(T, 1)))
     {
         tea_error(T, "Expected string or nil");
@@ -160,8 +155,8 @@ static void init_env(tea_State* T)
 }
 
 static const tea_Reg os_module[] = {
-    { "getenv", os_getenv, TEA_VARARGS },
-    { "setenv", os_setenv, TEA_VARARGS },
+    { "getenv", os_getenv, -2 },
+    { "setenv", os_setenv, -2 },
     { "execute", os_execute, 1 },
     { "remove", os_remove, 1 },
     { "rename", os_rename, 2 },

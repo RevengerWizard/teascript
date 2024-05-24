@@ -18,9 +18,6 @@
 
 static void sys_exit(tea_State* T)
 {
-    int count = tea_get_top(T);
-    tea_check_args(T, count > 1, "Expected 0 or 1 arguments, got %d", count);
-
     int status;
     if(tea_is_bool(T, 0))
     {
@@ -63,7 +60,7 @@ static void set_version(tea_State* T)
 }
 
 static const tea_Reg sys_module[] = {
-    { "exit", sys_exit, TEA_VARARGS },
+    { "exit", sys_exit, -1 },
     { "argv", NULL },
     { "version", NULL },
     { "byteorder", NULL },

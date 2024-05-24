@@ -132,7 +132,6 @@ static void range_iteratorvalue(tea_State* T) {}
 static void range_init(tea_State* T)
 {
     int count = tea_get_top(T);
-    tea_check_args(T, count < 2 || count > 4, "Expected 1 argument up to 3, got %d", count);
     if(count == 2)
     {
         tea_push_range(T, 0, tea_check_number(T, 1), 1);
@@ -190,7 +189,7 @@ static const tea_Methods range_class[] = {
     { "end", "property", range_end, TEA_VARARGS },
     { "step", "property", range_step, TEA_VARARGS },
     { "len", "property", range_len, TEA_VARARGS },
-    { "init", "method", range_init, TEA_VARARGS },
+    { "init", "method", range_init, -4 },
     { "contains", "method", range_contains, 2 },
     { "reverse", "method", range_reverse, 1 },
     { "copy", "method", range_copy, 1 },

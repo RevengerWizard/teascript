@@ -11,6 +11,6 @@
 TEA_FUNC GCudata* tea_udata_new(tea_State* T, size_t len);
 TEA_FUNC void tea_udata_free(tea_State* T, GCudata* ud);
 
-#define tea_udata_size(len) (sizeof(GCudata) + (len))
+#define tea_udata_size(len) (sizeof(struct GCudata) + (len))
 
 #endif

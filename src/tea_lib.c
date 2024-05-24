@@ -24,17 +24,17 @@ TValue* tea_lib_checkany(tea_State* T, int index)
 tea_Number tea_lib_checknumber(tea_State* T, int index)
 {
     TValue* o = T->base + index;
-    if(!(o < T->top && tvisnumber(o)))
+    if(!(o < T->top && tvisnum(o)))
         tea_err_argt(T, index, TEA_TYPE_NUMBER);
-    return numberV(o);
+    return numV(o);
 }
 
 int32_t tea_lib_checkint(tea_State* T, int index)
 {
     TValue* o = T->base + index;
-    if(!(o < T->top && tvisnumber(o)))
+    if(!(o < T->top && tvisnum(o)))
         tea_err_argt(T, index, TEA_TYPE_NUMBER);
-    return (int32_t)numberV(o);
+    return (int32_t)numV(o);
 }
 
 int32_t tea_lib_optint(tea_State* T, int index, int32_t def)

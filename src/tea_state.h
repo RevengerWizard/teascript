@@ -37,7 +37,4 @@ static TEA_AINLINE void tea_state_checkstack(tea_State* T, int need)
         tea_state_growstack(T, need);
 }
 
-TEA_FUNC GCclass* tea_state_getclass(tea_State* T, TValue* value);
-TEA_FUNC bool tea_state_isclass(tea_State* T, GCclass* klass);
-
 #endif
