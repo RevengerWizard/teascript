@@ -37,10 +37,14 @@ static TValue* index2addr(tea_State* T, int index)
         else
             return o;
     }
-    else if(index > TEA_UPVALUES_INDEX)
+    else if(index > TEA_REGISTRY_INDEX)
     {
         tea_checkapi(index != 0 && -index <= T->top - T->base, "bad stack slot #%d", index);
         return T->top + index;
+    }
+    else if(index == TEA_REGISTRY_INDEX)
+    {
+        return registry(T);
     }
     else
     {
@@ -142,6 +146,16 @@ TEA_API void tea_replace(tea_State* T, int index)
 TEA_API void tea_copy(tea_State* T, int from_index, int to_index)
 {
     copy_slot(T, index2addr(T, from_index), to_index);
+}
+
+TEA_API void tea_swap(tea_State* T, int index1, int index2)
+{
+    TValue tv;
+    TValue* o1 = index2addr_check(T, index1);
+    TValue* o2 = index2addr_check(T, index2);
+    copyTV(T, &tv, o1);
+    copyTV(T, o1, o2);
+    copyTV(T, o2, &tv);
 }
 
 TEA_API void tea_push_value(tea_State* T, int index)

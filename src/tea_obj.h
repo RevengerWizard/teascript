@@ -391,6 +391,7 @@ struct tea_State
     SBuf tmpbuf;    /* Termorary string buffer */
     SBuf strbuf;    /* Termorary string conversion buffer */
     TValue nilval; /* A nil value */
+    TValue registrytv;  /* Anchor for registry */
     GCmodule* last_module;    /* Last cached module */
     GCclass* number_class;
     GCclass* bool_class;
@@ -414,7 +415,8 @@ struct tea_State
     bool repl;
 };
 
-#define niltv(T) (&T->nilval)
+#define niltv(T) (&(T)->nilval)
+#define registry(T) (&(T)->registrytv)
 
 #if defined(TEA_USE_ASSERT) || defined(TEA_USE_APICHECK)
 TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, const char* func, const char* fmt, ...);

@@ -229,6 +229,7 @@ static void gc_mark_roots(tea_State* T)
         tea_gc_markobj(T, (GCobj*)upvalue);
     }
 
+    tea_gc_markval(T, registry(T));
     tea_tab_mark(T, &T->modules);
     tea_tab_mark(T, &T->globals);
 

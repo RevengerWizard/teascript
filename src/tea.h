@@ -31,9 +31,8 @@
 /* 
 ** Pseudo-indeces
 */
-#define TEA_UPVALUES_INDEX (-10000)
-#define TEA_MODULE_INDEX (-10000)
 #define TEA_REGISTRY_INDEX (-10000)
+#define TEA_UPVALUES_INDEX (-11000)
 #define tea_upvalue_index(i) (TEA_UPVALUES_INDEX - (i))
 
 /* Type of numbers in Teascript */
@@ -155,6 +154,7 @@ TEA_API void tea_remove(tea_State* T, int index);
 TEA_API void tea_insert(tea_State* T, int index);
 TEA_API void tea_replace(tea_State* T, int index);
 TEA_API void tea_copy(tea_State* T, int from_index, int to_index);
+TEA_API void tea_swap(tea_State* T, int index1, int index2);
 
 /*
 ** Get functions (stack -> C)

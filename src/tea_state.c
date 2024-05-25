@@ -22,6 +22,7 @@
 #include "tea_buf.h"
 #include "tea_meta.h"
 #include "tea_lex.h"
+#include "tea_map.h"
 
 /* -- Stack handling -------------------------------------------------- */
 
@@ -148,7 +149,6 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->allocd = ud;
     T->gc.next_gc = 1024 * 1024;
     T->panic = panic;
-    setnilV(&T->nilval);
     stack_init(T);
     tea_buf_init(&T->tmpbuf);
     tea_buf_init(&T->strbuf);
@@ -156,6 +156,8 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_tab_init(&T->globals);
     tea_tab_init(&T->constants);
     tea_tab_init(&T->strings);
+    setnilV(&T->nilval);
+    setmapV(T, registry(T), tea_map_new(T));
     T->strempty.obj.gct = TEA_TSTR;
     T->strempty.obj.marked = TEA_GC_FIXED;
     T->init_str = tea_str_newlit(T, "init");
