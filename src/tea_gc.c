@@ -240,6 +240,7 @@ static void gc_mark_roots(tea_State* T)
     tea_gc_markobj(T, (GCobj*)T->map_class);
     tea_gc_markobj(T, (GCobj*)T->string_class);
     tea_gc_markobj(T, (GCobj*)T->range_class);
+    tea_gc_markobj(T, (GCobj*)T->object_class);
 
     if(T->parser != NULL)
     {

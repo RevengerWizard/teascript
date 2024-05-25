@@ -1704,7 +1704,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_CLASS):
             {
-                GCclass* k = tea_class_new(T, READ_STRING(), NULL);
+                GCclass* k = tea_class_new(T, READ_STRING());
                 setclassV(T, T->top++, k);
                 DISPATCH();
             }

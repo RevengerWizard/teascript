@@ -530,7 +530,7 @@ TEA_API void* tea_new_userdata(tea_State* T, size_t size)
 
 TEA_API void tea_new_class(tea_State* T, const char* name)
 {
-    GCclass* klass = tea_class_new(T, tea_str_newlen(T, name), NULL);
+    GCclass* klass = tea_class_new(T, tea_str_newlen(T, name));
     setclassV(T, T->top, klass);
     incr_top(T);
 }
@@ -595,7 +595,7 @@ static void set_class(tea_State* T, const tea_Methods* k)
 
 TEA_API void tea_create_class(tea_State* T, const char* name, const tea_Methods* klass)
 {
-    GCclass* k = tea_class_new(T, tea_str_newlen(T, name), NULL);
+    GCclass* k = tea_class_new(T, tea_str_newlen(T, name));
     setclassV(T, T->top, k);
     incr_top(T);
     if(klass)

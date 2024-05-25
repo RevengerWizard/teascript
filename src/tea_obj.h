@@ -400,6 +400,7 @@ struct tea_State
     GCclass* list_class;
     GCclass* map_class;
     GCclass* range_class;
+    GCclass* object_class;
     GCstr strempty; /* Empty string */
     uint8_t strempty0;  /* Zero terminator for empty string */
     GCstr* init_str;  /* "init" */
@@ -520,7 +521,7 @@ TEA_DATA const char* const tea_obj_typenames[];
 
 TEA_FUNC GCmodule* tea_module_new(tea_State* T, GCstr* name);
 TEA_FUNC GCrange* tea_range_new(tea_State* T, double start, double end, double step);
-TEA_FUNC GCclass* tea_class_new(tea_State* T, GCstr* name, GCclass* superclass);
+TEA_FUNC GCclass* tea_class_new(tea_State* T, GCstr* name);
 TEA_FUNC GCinstance* tea_instance_new(tea_State* T, GCclass* klass);
 TEA_FUNC GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* func);
 

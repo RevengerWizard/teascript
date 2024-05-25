@@ -334,11 +334,17 @@ static void tea_open_global(tea_State* T)
         tea_set_global(T, reg->name);
     }
 
+    T->object_class = tea_class_new(T, tea_str_newlit(T, "Object"));
+    setclassV(T, T->top++, T->object_class);
+    tea_set_global(T, "Object");
+
     tea_create_class(T, "Number", number_class);
     T->number_class = classV(T->top - 1);
+    T->number_class->super = NULL;
     tea_set_global(T, "Number");
     tea_create_class(T, "Bool", bool_class);
     T->bool_class = classV(T->top - 1);
+    T->bool_class->super = NULL;
     tea_set_global(T, "Bool");
     tea_create_class(T, "Function", func_class);
     T->func_class = classV(T->top - 1);

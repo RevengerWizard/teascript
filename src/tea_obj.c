@@ -66,11 +66,11 @@ GCrange* tea_range_new(tea_State* T, double start, double end, double step)
     return range;
 }
 
-GCclass* tea_class_new(tea_State* T, GCstr* name, GCclass* superclass)
+GCclass* tea_class_new(tea_State* T, GCstr* name)
 {
     GCclass* k = tea_mem_newobj(T, GCclass, TEA_TCLASS);
     k->name = name;
-    k->super = superclass;
+    k->super = T->object_class;
     setnilV(&k->init);
     tea_tab_init(&k->methods);
     return k;
