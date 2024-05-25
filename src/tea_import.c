@@ -333,14 +333,12 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         {
             tea_push_cfunction(T, modules[i].fn, 0);
             tea_call(T, 0);
-            TValue* module = T->top - 1;
-            T->last_module = moduleV(module);
+            T->last_module = moduleV(T->top - 1);
             return;
         }
     }
 
     GCstr* dir = tea_str_newlen(T, setprogdir(T));
-    //printf("dir %s + %s\n", str_data(dir), str_data(name));
 
     const char* exts[] = { "tea", "lib", "package" };
     const int n = sizeof(exts) / sizeof(exts[0]);
@@ -365,6 +363,21 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     {
         T->last_module = moduleV(o);
         copyTV(T, T->top++, o);
+        return;
+    }
+
+    if(get_filename_ext(str_data(path), SHARED_EXT))
+    {
+        const char* symname = tea_push_fstring(T, TEA_LL_SYM "%s", str_data(name));
+
+        void* lib = ll_load(T, str_data(path));
+        tea_CFunction fn = ll_sym(T, lib, symname);
+        T->top--;
+
+        tea_push_cfunction(T, fn, 0);
+        tea_call(T, 0);
+
+        T->last_module = moduleV(T->top - 1);
         return;
     }
 
