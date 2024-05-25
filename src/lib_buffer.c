@@ -13,6 +13,8 @@
 #include "tea_strfmt.h"
 #include "tea_udata.h"
 #include "tea_err.h"
+#include "tea_meta.h"
+#include "tea_vm.h"
 
 /* -- Helper functions ---------------------------------------------------- */
 
@@ -83,6 +85,8 @@ static void buffer_put(tea_State* T)
     for(arg = 1; arg < narg; arg++)
     {
         cTValue* o = &T->base[arg];
+        TValue* mo = NULL;
+retry:
         if(tvisstr(o))
         {
             tea_buf_putstr(T, (SBuf*)sbx, strV(o));
@@ -97,9 +101,24 @@ static void buffer_put(tea_State* T)
             if(sbx2 == sbx) tea_err_arg(T, (int)(arg), TEA_ERR_BUFFER_SELF);
             tea_buf_putmem(T, (SBuf*)sbx, sbx2->r, sbufx_len(sbx2));
         }
+        else if(!mo && (mo = tea_meta_lookup(T, o, MM_TOSTRING)) != NULL)
+        {
+            /* Call tostring method inline */
+            copyTV(T, T->top++, o);
+            copyTV(T, T->top++, mo);
+            copyTV(T, T->top++, o);
+            tea_vm_call(T, mo, 0);
+            o = &T->base[arg];  /* Stack may have been reallocated */
+            TValue* tv = --T->top;
+            if(!tvisstr(tv))
+                tea_err_run(T, TEA_ERR_TOSTR);
+            copyTV(T, &T->base[arg], tv);
+            T->top = T->base + narg;
+            goto retry; /* Retry with result */
+        }
         else
         {
-            tea_err_argtype(T, (int)arg, "string or number");
+            tea_err_argtype(T, (int)arg, "string, number or tostring");
         }
     }
     T->top = T->base + 1;   /* Chain buffer */
