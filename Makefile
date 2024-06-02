@@ -145,14 +145,14 @@ uninstall:
 clean depend:
 	$(MAKE) -C src $@
 
-onetea:
+amalg:
 	@echo "==== Building Teascript (amalgamation) ===="
-	$(MAKE) -C src onetea
+	$(MAKE) -C src amalg
 	@echo "==== Successfully built Teascript (amalgamation) ===="
 
 test:
 	@$(TEST) util/test.py
 
-.PHONY: all onetea clean depend test
+.PHONY: all amalg clean depend test
 
 ##############################################################################

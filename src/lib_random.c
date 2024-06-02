@@ -75,8 +75,8 @@ static void random_range(tea_State* T)
     d = u.d - 1.0;
     if(count == 2)
     {
-        double r1 = tea_check_number(T, 0);
-        double r2 = tea_check_number(T, 1);
+        double r1 = tea_lib_checknumber(T, 0);
+        double r2 = tea_lib_checknumber(T, 1);
         d = floor(d * (r2 - r1)) + r1;
         setnumV(T->top++, d);
         return;

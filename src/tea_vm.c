@@ -164,8 +164,7 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             {
                 if(tvisfunc(f) && !iscfunc(funcV(f)))
                 {
-                    GCinstance* instance = tea_instance_new(T, klass);
-                    setinstanceV(T, T->top - arg_count - 1, instance);
+                    setinstanceV(T, T->top - arg_count - 1, tea_instance_new(T, klass));
                 }
                 else
                 {
@@ -179,8 +178,7 @@ bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             }
             else
             {
-                GCinstance* instance = tea_instance_new(T, klass);
-                setinstanceV(T, T->top - arg_count - 1, instance);
+                setinstanceV(T, T->top - arg_count - 1, tea_instance_new(T, klass));
             }
             return false;
         }

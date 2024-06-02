@@ -17,8 +17,12 @@
 #define TEA_FUNC    static
 #define TEA_DATA    /* empty */
 
+#include "tea_assert.c"
 #include "tea_bc.c"
+#include "tea_char.c"
 #include "tea_api.c"
+#include "tea_lib.c"
+#include "tea_prng.c"
 #include "tea_bcread.c"
 #include "tea_bcwrite.c"
 #include "tea_load.c"
@@ -29,13 +33,14 @@
 #include "tea_strfmt.c"
 #include "tea_strfmt_num.c"
 #include "tea_err.c"
-#include "tea_gc.c"
 #include "tea_import.c"
 #include "tea_func.c"
 #include "tea_str.c"
 #include "tea_map.c"
 #include "tea_list.c"
+#include "tea_udata.c"
 #include "tea_obj.c"
+#include "tea_gc.c"
 #include "tea_lex.c"
 #include "tea_state.c"
 #include "tea_meta.c"
@@ -48,6 +53,7 @@
 #include "lib_map.c"
 #include "lib_range.c"
 #include "lib_string.c"
+#include "lib_buffer.c"
 
 #include "lib_io.c"
 #include "lib_os.c"

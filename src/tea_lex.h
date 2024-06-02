@@ -76,8 +76,6 @@ typedef struct Lexer
     bool endmark;   /* Trust bytecode end marker, even if not at EOF */
 } Lexer;
 
-TEA_DATA const char* const lex_tokennames[];
-
 TEA_FUNC bool tea_lex_setup(tea_State* T, Lexer* lex);
 TEA_FUNC const char* tea_lex_token2str(Lexer* lex, LexToken t);
 TEA_FUNC_NORET void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...);

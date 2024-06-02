@@ -20,10 +20,11 @@
 #include "tea_strscan.h"
 
 /* Teascript lexer token names */
-TEA_DATADEF const char* const lex_tokennames[] = {
+static const char* const lex_tokennames[] = {
 #define TKSTR(name, sym) #sym,
     TKDEF(TKSTR)
 #undef TKSTR
+    NULL
 };
 
 /* -- Buffer handling -------------------------------------------------- */
