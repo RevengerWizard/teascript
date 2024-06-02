@@ -21,6 +21,9 @@
 #include <sys/stat.h> 
 #endif
 
+#if TEA_TARGET_WASM
+#endif
+
 #if TEA_TARGET_WINDOWS
 #include <direct.h>
 
