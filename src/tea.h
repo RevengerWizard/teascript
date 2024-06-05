@@ -261,7 +261,7 @@ TEA_API tea_CFunction tea_check_cfunction(tea_State* T, int index);
 TEA_API void* tea_check_userdata(tea_State* T, int index);
 TEA_API int tea_check_option(tea_State* T, int index, const char* def, const char* const options[]);
 
-TEA_API void tea_opt_null(tea_State* T, int index);
+TEA_API void tea_opt_nil(tea_State* T, int index);
 TEA_API bool tea_opt_bool(tea_State* T, int index, bool def);
 TEA_API tea_Number tea_opt_number(tea_State* T, int index, tea_Number def);
 TEA_API tea_Integer tea_opt_integer(tea_State* T, int index, tea_Integer def);

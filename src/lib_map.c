@@ -56,7 +56,7 @@ static void map_init(tea_State* T)
 
 static void map_get(tea_State* T)
 {
-    tea_opt_null(T, 2);
+    tea_opt_nil(T, 2);
     GCmap* map = tea_lib_checkmap(T, 0);
     TValue* key = T->base + 1;
     cTValue* o = tea_map_get(map, key);
@@ -68,7 +68,7 @@ static void map_get(tea_State* T)
 
 static void map_set(tea_State* T)
 {
-    tea_opt_null(T, 2);
+    tea_opt_nil(T, 2);
     GCmap* map = tea_lib_checkmap(T, 0);
     TValue* key = tea_lib_checkany(T, 1);
     TValue* value = T->base + 2;

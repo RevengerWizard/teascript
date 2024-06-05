@@ -1070,7 +1070,7 @@ TEA_API const void* tea_check_pointer(tea_State* T, int index)
     return pointerV(o);
 }
 
-TEA_API void tea_opt_null(tea_State* T, int index)
+TEA_API void tea_opt_nil(tea_State* T, int index)
 {
     if(tea_is_none(T, index)) 
         tea_push_nil(T);
