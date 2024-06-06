@@ -1,8 +1,8 @@
 # Teascript
 
-A simple and easy scripting language for embedded and standalone use.
+Teascript is a simple, multi-paradigm scripting language for embedding and standalone use
 
-You can now try Teascript [inside your browser](https://revengerwizard.github.io/wasm-tea)
+You can try it now [inside your browser](https://revengerwizard.github.io/wasm-tea)
 
 ## Building
 
