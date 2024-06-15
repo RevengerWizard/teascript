@@ -242,6 +242,9 @@ TEA_API void tea_set_attr(tea_State* T, int obj, const char* key);
 TEA_API bool tea_get_global(tea_State* T, const char* name);
 TEA_API void tea_set_global(tea_State* T, const char* name);
 
+TEA_API bool tea_get_var(tea_State* T, const char* name, const char* var);
+TEA_API void tea_set_var(tea_State* T, const char* name, const char* var);
+
 TEA_API void tea_set_funcs(tea_State* T, const tea_Reg* reg, int nup);
 TEA_API void tea_set_methods(tea_State* T, const tea_Methods* reg, int nup);
 

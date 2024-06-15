@@ -917,10 +917,36 @@ TEA_API bool tea_get_global(tea_State* T, const char* name)
 TEA_API void tea_set_global(tea_State* T, const char* name)
 {
     tea_checkapi_slot(1);
-    TValue* value = T->top - 1;
+    TValue* o = T->top - 1;
     GCstr* str = tea_str_newlen(T, name);
-    TValue* o = tea_tab_set(T, &T->globals, str, NULL);
-    copyTV(T, o, value);
+    copyTV(T, tea_tab_set(T, &T->globals, str, NULL), o);
+    T->top--;
+}
+
+TEA_API bool tea_get_var(tea_State* T, const char* name, const char* var)
+{
+    bool found = false;
+    GCstr* s1 = tea_str_newlen(T, name);
+    GCstr* s2 = tea_str_newlen(T, var);
+    GCmodule* module = moduleV(tea_tab_get(&T->modules, s1));
+    TValue* o = tea_tab_get(&module->vars, s2);
+    if(o)
+    {
+        found = true;
+        copyTV(T, T->top, o);
+        incr_top(T);
+    }
+    return found;
+}
+
+TEA_API void tea_set_var(tea_State* T, const char* name, const char* var)
+{
+    tea_checkapi_slot(1);
+    TValue* o = T->top - 1;
+    GCstr* s1 = tea_str_newlen(T, name);
+    GCstr* s2 = tea_str_newlen(T, var);
+    GCmodule* module = moduleV(tea_tab_get(&T->modules, s1));
+    copyTV(T, tea_tab_set(T, &module->vars, s2, NULL), o);
     T->top--;
 }
 
