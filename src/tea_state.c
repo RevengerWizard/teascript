@@ -44,12 +44,11 @@ static void stack_init(tea_State* T)
     T->ci_base = tea_mem_newvec(T, CallInfo, TEA_CI_MIN);
     T->ci_size = TEA_CI_MIN;
     T->ci = T->ci_base;
+    /* Initialize first ci */
+    T->ci->state = CIST_C;
+    T->ci->func = NULL;
     T->base = T->ci->base = T->top;
     T->ci_end = T->ci_base + T->ci_size;
-    /* Initialize first ci */
-    T->ci->func = NULL;
-    T->ci->state = CIST_C;
-    setnilV(T->top++);
 }
 
 /* Resize stack slots and adjust pointers in state */
