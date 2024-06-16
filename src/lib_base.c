@@ -135,7 +135,8 @@ static void base_loadfile(tea_State* T)
     int status = tea_load_filex(T, fname, NULL, mode);
     if(status != TEA_OK)
     {
-        tea_error(T, "Unable to load file");
+        /* Rethrow the error */
+        tea_err_throw(T, status);
     }
 }
 
@@ -143,11 +144,11 @@ static void base_loadstring(tea_State* T)
 {
     size_t len;
     const char* str = tea_check_lstring(T, 0, &len);
-    const char* name = tea_opt_string(T, 1, "b");
-    int status = tea_load_bufferx(T, str, len, name ? name : "?<load>", NULL);
+    int status = tea_load_bufferx(T, str, len, "?<load>", NULL);
     if(status != TEA_OK)
     {
-        tea_error(T, "Unable to load string");
+        /* Rethrow the error */
+        tea_err_throw(T, status);
     }
 }
 
