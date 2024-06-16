@@ -298,7 +298,8 @@ TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* name,
 TEA_API int tea_load_file(tea_State* T, const char* filename, const char* name);
 TEA_API int tea_load_bufferx(tea_State* T, const char* buffer, size_t size, const char* name, const char* mode);
 TEA_API int tea_load_buffer(tea_State* T, const char* buffer, size_t size, const char* name);
-TEA_API int tea_load_string(tea_State* T, const char* s);
+
+TEA_API int tea_eval(tea_State* T, const char* s);
 
 TEA_API int tea_error(tea_State* T, const char* fmt, ...);
 

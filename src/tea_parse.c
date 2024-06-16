@@ -214,7 +214,7 @@ static void bcemit_return(Parser* parser)
         bcemit_op(parser, BC_NIL);
     }
 
-    bcemit_byte(parser, BC_RETURN);
+    bcemit_op(parser, BC_RETURN);
 }
 
 static void bcemit_invoke(Parser* parser, int args, const char* name)
@@ -313,7 +313,6 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
 
 static GCproto* parser_end(Parser* parser)
 {
-    bcemit_return(parser);
     GCproto* proto = parser->proto;
 
 #ifdef TEA_DEBUG_PRINT_CODE
@@ -1248,6 +1247,7 @@ static void expr_name(Parser* parser, bool assign)
         {
             /* Brace so expect a block */
             parse_block(&fn_parser);
+            bcemit_return(&fn_parser);
         }
         else
         {
@@ -1615,6 +1615,7 @@ static void function(Parser* parser, ProtoType type)
 
     lex_consume(&fn_parser, '{');
     parse_block(&fn_parser);
+    bcemit_return(&fn_parser);
     parser_end(&fn_parser);
 }
 
@@ -1635,6 +1636,7 @@ static void parse_arrow(Parser* parser)
     {
         /* Brace so expect a block */
         parse_block(&fn_parser);
+        bcemit_return(&fn_parser);
     }
     else
     {
@@ -2759,7 +2761,7 @@ static void parse_stmt(Parser* parser)
 }
 
 /* Entry point of bytecode parser */
-GCproto* tea_parse(Lexer* lexer)
+GCproto* tea_parse(Lexer* lexer, bool isexpr)
 {
     tea_State* T = lexer->T;
 
@@ -2769,9 +2771,19 @@ GCproto* tea_parse(Lexer* lexer)
     tea_lex_next(parser.lex);   /* Read the first token into "next" */
     tea_lex_next(parser.lex);   /* Copy "next" -> "curr" */
 
-    while(!lex_match(&parser, TK_EOF))
+    if(isexpr)
     {
-        parse_decl(&parser);
+        expr(&parser);
+        bcemit_op(&parser, BC_RETURN);
+        lex_consume(&parser, TK_EOF);
+    }
+    else
+    {
+        while(!lex_match(&parser, TK_EOF))
+        {
+            parse_decl(&parser);
+        }
+        bcemit_return(&parser);
     }
 
     GCproto* proto = parser_end(&parser);

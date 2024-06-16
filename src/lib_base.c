@@ -96,13 +96,17 @@ static void base_gc(tea_State* T)
 
 static void base_eval(tea_State* T)
 {
-    size_t len;
-    const char* s = tea_check_lstring(T, 0, &len);
-    if(tea_load_buffer(T, s, len, "?<eval>") == TEA_OK)
+    const char* s = tea_check_string(T, 0);
+    int status = tea_eval(T, s);
+    if(status == TEA_OK)
     {
         tea_call(T, 0);
     }
-    tea_push_nil(T);
+    else
+    {
+        /* Rethrow the error */
+        tea_err_throw(T, status);
+    }
 }
 
 static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)

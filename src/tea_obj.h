@@ -410,6 +410,7 @@ struct tea_State
     tea_CFunction panic; /* Function to be called in unprotected errors */
     tea_Alloc allocf;  /* Memory allocator */
     void* allocd;   /* Memory allocator data */
+    bool eval;  /* Evaluate expression */
     int argc;
     char** argv;
     int argf;

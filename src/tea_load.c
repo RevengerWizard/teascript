@@ -23,12 +23,13 @@
 static void parser_f(tea_State* T, void* ud)
 {
     Lexer* lex = (Lexer*)ud;
+    bool eval = T->eval;
     bool bc = tea_lex_setup(T, lex);
     if(lex->mode && !strchr(lex->mode, bc ? 'b' : 't'))
     {
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
-    GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex);
+    GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex, eval);
     GCfunc* func = tea_func_newT(T, proto, lex->module);
     setfuncV(T, T->top++, func);
 }
@@ -156,9 +157,10 @@ TEA_API int tea_load_buffer(tea_State* T, const char* buffer, size_t size, const
     return tea_load_bufferx(T, buffer, size, name, NULL);
 }
 
-TEA_API int tea_load_string(tea_State* T, const char* s)
+TEA_API int tea_eval(tea_State* T, const char* s)
 {
-    return tea_load_buffer(T, s, strlen(s), "?<string>");
+    T->eval = true;
+    return tea_load_bufferx(T, s, strlen(s), "?<eval>", "t");
 }
 
 /* -- Dump bytecode -------------------------------------------------- */

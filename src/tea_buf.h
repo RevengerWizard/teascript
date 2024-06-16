@@ -58,6 +58,7 @@ TEA_FUNC GCstr* tea_buf_cat2str(tea_State* T, GCstr* s1, GCstr* s2);
 
 static TEA_AINLINE void tea_buf_init(SBuf* sb)
 {
+    sb->flag = 0;
     sb->w = sb->e = sb->b = NULL;
 }
 

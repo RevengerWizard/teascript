@@ -767,6 +767,7 @@ static Token lex_scan(Lexer* lex)
 bool tea_lex_setup(tea_State* T, Lexer* lex)
 {
     bool header = false;
+    T->eval = false;
     lex->T = T;
     lex->pe = lex->p = NULL;
     lex->next.type = 0; /* Initialize the next token */
