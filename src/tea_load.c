@@ -23,13 +23,12 @@
 static void parser_f(tea_State* T, void* ud)
 {
     Lexer* lex = (Lexer*)ud;
-    bool eval = T->eval;
     bool bc = tea_lex_setup(T, lex);
     if(lex->mode && !strchr(lex->mode, bc ? 'b' : 't'))
     {
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
-    GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex, eval);
+    GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex, lex->eval);
     GCfunc* func = tea_func_newT(T, proto, lex->module);
     setfuncV(T, T->top++, func);
 }
@@ -60,6 +59,7 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     }
 
     Lexer lex;
+    lex.eval = false;
     lex.module = module;
     lex.reader = reader;
     lex.data = data;
@@ -159,8 +159,23 @@ TEA_API int tea_load_buffer(tea_State* T, const char* buffer, size_t size, const
 
 TEA_API int tea_eval(tea_State* T, const char* s)
 {
-    T->eval = true;
-    return tea_load_bufferx(T, s, strlen(s), "?<eval>", "t");
+    StringReaderCtx ctx;
+    ctx.s = s;
+    ctx.size = strlen(s);
+
+    GCmodule* module = tea_module_new(T, tea_str_newlit(T, "?<eval>"));
+    module->path = tea_str_newlit(T, ".");
+
+    Lexer lex;
+    lex.eval = true;
+    lex.module = module;
+    lex.reader = reader_string;
+    lex.data = &ctx;
+    lex.mode = "t";
+    tea_buf_init(&lex.sb);
+    int status = tea_vm_pcall(T, parser_f, &lex, stack_save(T, T->top));
+    tea_buf_free(T, &lex.sb);
+    return status;
 }
 
 /* -- Dump bytecode -------------------------------------------------- */

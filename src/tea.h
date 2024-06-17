@@ -331,5 +331,6 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_is_map(T, n) (tea_get_type(T, (n)) == TEA_TYPE_MAP)
 #define tea_is_function(T, n) (tea_get_type(T, (n)) == TEA_TYPE_FUNCTION)
 #define tea_is_instance(T, n) (tea_get_type(T, (n)) == TEA_TYPE_INSTANCE)
+#define tea_is_userdata(T, n) (tea_get_type(T, (n)) == TEA_TYPE_USERDATA)
 
 #endif

@@ -74,6 +74,7 @@ typedef struct Lexer
     int num_braces; /* Number of string interpolations */
     const char* mode;   /* Load bytecode (b) and/or source text (t) */
     bool endmark;   /* Trust bytecode end marker, even if not at EOF */
+    bool eval;  /* Evaluate expression */
 } Lexer;
 
 TEA_FUNC bool tea_lex_setup(tea_State* T, Lexer* lex);

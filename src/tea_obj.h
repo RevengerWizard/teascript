@@ -410,12 +410,13 @@ struct tea_State
     tea_CFunction panic; /* Function to be called in unprotected errors */
     tea_Alloc allocf;  /* Memory allocator */
     void* allocd;   /* Memory allocator data */
-    bool eval;  /* Evaluate expression */
     int argc;
     char** argv;
     int argf;
     bool repl;
 };
+
+#define curr_func(T) (T->ci->func)
 
 #define niltv(T) (&(T)->nilval)
 #define registry(T) (&(T)->registrytv)
