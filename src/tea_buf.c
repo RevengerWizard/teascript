@@ -9,6 +9,7 @@
 #include "tea_buf.h"
 #include "tea_state.h"
 #include "tea_gc.h"
+#include "tea_err.h"
 
 /* -- Buffer management -------------------------------------------------- */
 
@@ -36,6 +37,8 @@ static void buf_grow(tea_State* T, SBuf* sb, size_t size)
 char* tea_buf_need2(tea_State* T, SBuf* sb, size_t size)
 {
     tea_assertT(size > sbuf_left(sb), "SBuf overflow");
+    if(TEA_UNLIKELY(size > TEA_MAX_BUF))
+        tea_err_mem(T);
     buf_grow(T, sb, size);
     return sb->b;
 }
@@ -46,6 +49,8 @@ char* tea_buf_more2(tea_State* T, SBuf* sb, size_t size)
     {
         SBufExt* sbx = (SBufExt*)sb;
         size_t len = sbufx_len(sbx);
+        if(TEA_UNLIKELY(size > TEA_MAX_BUF || len + size > TEA_MAX_BUF))
+            tea_err_mem(T);
         if(len + size > sbuf_size(sbx))  /* Must grow */
             buf_grow(T, (SBuf*)sbx, len + size);
         if (sbx->r != sbx->b)
@@ -61,6 +66,8 @@ char* tea_buf_more2(tea_State* T, SBuf* sb, size_t size)
     {
         size_t len = sbuf_len(sb);
         tea_assertT(size > sbuf_left(sb), "SBuf overflow");
+        if(TEA_UNLIKELY(size > TEA_MAX_BUF || len + size > TEA_MAX_BUF))
+            tea_err_mem(T);
         buf_grow(T, sb, len + size);
     }
     return sb->w;

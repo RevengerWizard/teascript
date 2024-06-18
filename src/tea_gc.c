@@ -311,10 +311,7 @@ void tea_gc_markobj(tea_State* T, GCobj* obj)
         T->gc.gray_stack = (GCobj**)T->allocf(T->allocd, T->gc.gray_stack, 0, sizeof(GCobj*) * T->gc.gray_size);
 
         if(T->gc.gray_stack == NULL)
-        {
-            puts(str_data(T->memerr));
-            exit(1);
-        }
+            tea_err_mem(T);
     }
 
     T->gc.gray_stack[T->gc.gray_count++] = obj;
@@ -380,10 +377,7 @@ void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, size_t new_s
 
     pointer = T->allocf(T->allocd, pointer, old_size, new_size);
     if(pointer == NULL && new_size > 0)
-    {
-        puts(str_data(T->memerr));
-        exit(1);
-    }
+        tea_err_mem(T);
     tea_assertT((new_size == 0) == (pointer == NULL), "allocf API violation");
     return pointer;
 }

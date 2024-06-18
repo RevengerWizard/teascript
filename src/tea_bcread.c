@@ -66,8 +66,9 @@ static TEA_NOINLINE void bcread_fill(Lexer* lex, size_t len, bool need)
             lex->c = -1;
             break;
         }
-        
-        if(n) 
+        if(size >= TEA_MAX_BUF - n)
+            tea_err_mem(lex->T);
+        if(n)
         {
             /* Append to buffer */
             n += size;

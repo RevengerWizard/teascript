@@ -26,12 +26,6 @@
 
 /* -- Stack handling -------------------------------------------------- */
 
-static void stack_free(tea_State* T)
-{
-    tea_mem_freevec(T, CallInfo, T->ci_base, T->ci_size);   /* Free CallInfo array */
-    tea_mem_freevec(T, TValue, T->stack, T->stack_size);    /* Free stack array */
-}
-
 /* Allocate basic stack for new state */
 static void stack_init(tea_State* T)
 {
@@ -131,9 +125,35 @@ static void* mem_alloc(void* ud, void* ptr, size_t osize, size_t nsize)
 
 /* -- State handling -------------------------------------------------- */
 
-static void state_free(tea_State* T)
+/* Open parts that may cause memory-allocation errors */
+static void cpteaopen(tea_State* T, void* ud)
 {
-    T->allocf(T->allocd, T, sizeof(*T), 0);
+    UNUSED(ud);
+    stack_init(T);
+    setmapV(T, registry(T), tea_map_new(T));
+    T->init_str = tea_str_newlit(T, "init");
+    fix_string(T->init_str);
+    T->repl_str = tea_str_newlit(T, "_");
+    fix_string(T->repl_str);
+    T->memerr = tea_str_newlen(T, err2msg(TEA_ERR_MEM));
+    fix_string(T->memerr);
+    tea_meta_init(T);
+    tea_lex_init(T);
+}
+
+static void state_close(tea_State* T)
+{
+    tea_buf_free(T, &T->tmpbuf);
+    tea_buf_free(T, &T->strbuf);
+    tea_tab_free(T, &T->modules);
+    tea_tab_free(T, &T->globals);
+    tea_tab_free(T, &T->constants);
+    tea_tab_free(T, &T->strings);
+    tea_mem_freevec(T, CallInfo, T->ci_base, T->ci_size);   /* Free CallInfo array */
+    tea_mem_freevec(T, TValue, T->stack, T->stack_size);    /* Free stack array */
+    tea_gc_freeall(T);
+    tea_assertT(T->gc.total == 0, "memory leak of %llu bytes", T->gc.total);
+    T->allocf(T->allocd, T, sizeof(*T), 0); /* Free the state */
 }
 
 TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
@@ -148,7 +168,8 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->allocd = ud;
     T->gc.next_gc = 1024 * 1024;
     T->panic = panic;
-    stack_init(T);
+    T->strempty.obj.gct = TEA_TSTR;
+    T->strempty.obj.marked = TEA_GC_FIXED;
     tea_buf_init(&T->tmpbuf);
     tea_buf_init(&T->strbuf);
     tea_tab_init(&T->modules);
@@ -156,34 +177,18 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_tab_init(&T->constants);
     tea_tab_init(&T->strings);
     setnilV(&T->nilval);
-    setmapV(T, registry(T), tea_map_new(T));
-    T->strempty.obj.gct = TEA_TSTR;
-    T->strempty.obj.marked = TEA_GC_FIXED;
-    T->init_str = tea_str_newlit(T, "init");
-    fix_string(T->init_str);
-    T->repl_str = tea_str_newlit(T, "_");
-    fix_string(T->repl_str);
-    T->memerr = tea_str_newlen(T, err2msg(TEA_ERR_MEM));
-    fix_string(T->memerr);
-    tea_meta_init(T);
-    tea_lex_init(T);
+    if(tea_err_protected(T, cpteaopen, NULL) != TEA_OK)
+    {
+        /* Memory allocation error: free partial state */
+        state_close(T);
+        return NULL;
+    }
     tea_open_base(T);
     return T;
 }
 
 TEA_API void tea_close(tea_State* T)
 {
-    if(T->repl)
-        tea_tab_free(T, &T->constants);
-
-    tea_buf_free(T, &T->tmpbuf);
-    tea_buf_free(T, &T->strbuf);
-    tea_tab_free(T, &T->modules);
-    tea_tab_free(T, &T->globals);
-    tea_tab_free(T, &T->constants);
-    tea_tab_free(T, &T->strings);
-    stack_free(T);
-    tea_gc_freeall(T);
-    tea_assertT(T->gc.total == 0, "memory leak of %llu bytes", T->gc.total);
-    state_free(T);
+    if(T->repl) tea_tab_free(T, &T->constants);
+    state_close(T);
 }
