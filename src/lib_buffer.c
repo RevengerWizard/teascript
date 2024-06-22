@@ -15,6 +15,7 @@
 #include "tea_err.h"
 #include "tea_meta.h"
 #include "tea_vm.h"
+#include "tea_lib.h"
 
 /* -- Helper functions ---------------------------------------------------- */
 
@@ -44,6 +45,11 @@ static void buffer_len(tea_State* T)
 static void buffer_init(tea_State* T)
 {
     tea_check_type(T, 0, TEA_TYPE_CLASS);
+    size_t size = 0;
+    if(tea_get_top(T) == 2)
+    {
+        size = (size_t)tea_lib_checkintrange(T, 1, 0, TEA_MAX_BUF);
+    }
     GCclass* klass = classV(T->base);
     GCudata* ud = tea_udata_new(T, sizeof(SBufExt));
     ud->klass = klass;
@@ -53,6 +59,7 @@ static void buffer_init(tea_State* T)
     SBufExt* sbx = (SBufExt*)ud_data(ud);
     tea_bufx_init(sbx);
     sbx->T = T;
+    if(size > 0) tea_buf_need2(T, (SBuf*)sbx, size);
 }
 
 static void buffer_skip(tea_State* T)
@@ -141,7 +148,7 @@ static void buffer_tostring(tea_State* T)
 
 static const tea_Methods buffer_class[] = {
     { "len", "property", buffer_len, TEA_VARARGS },
-    { "init", "method", buffer_init, 1 },
+    { "init", "method", buffer_init, -2 },
     { "skip", "method", buffer_skip, 2 },
     { "reset", "method", buffer_reset, 1 },
     { "put", "method", buffer_put, TEA_VARARGS },

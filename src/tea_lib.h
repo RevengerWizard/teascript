@@ -17,7 +17,8 @@ TEA_FUNC GCstr* tea_lib_optstr(tea_State* T, int index);
 TEA_FUNC GClist* tea_lib_checklist(tea_State* T, int index);
 TEA_FUNC GCmap* tea_lib_checkmap(tea_State* T, int index);
 TEA_FUNC GCrange* tea_lib_checkrange(tea_State* T, int index);
-TEA_FUNC int tea_lib_checkopt(tea_State* T, int narg, int def, const char* lst);
+TEA_FUNC int tea_lib_checkopt(tea_State* T, int index, int def, const char* lst);
+TEA_FUNC int32_t tea_lib_checkintrange(tea_State* T, int index, int32_t a, int32_t b);
 
 TEA_FUNC void tea_lib_fileresult(tea_State* T, const char* fname);
 

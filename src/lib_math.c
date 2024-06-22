@@ -247,6 +247,11 @@ static void math_exp(tea_State* T)
     tea_push_number(T, exp(tea_lib_checknumber(T, 0)));
 }
 
+static void math_trunc(tea_State* T)
+{
+    tea_push_number(T, trunc(tea_lib_checknumber(T, 0)));
+}
+
 static void math_frexp(tea_State* T)
 {
     int e;
@@ -268,6 +273,11 @@ static void math_log(tea_State* T)
     tea_push_number(T, log(tea_lib_checknumber(T, 0)));
 }
 
+static void math_log1p(tea_State* T)
+{
+    tea_push_number(T, log1p(tea_lib_checknumber(T, 0)));
+}
+
 static void math_log2(tea_State* T)
 {
     tea_push_number(T, log2(tea_lib_checknumber(T, 0)));
@@ -275,7 +285,7 @@ static void math_log2(tea_State* T)
 
 static void math_log10(tea_State* T)
 {
-    tea_push_number(T, log(tea_lib_checknumber(T, 0)));
+    tea_push_number(T, log10(tea_lib_checknumber(T, 0)));
 }
 
 static void math_classify(tea_State* T)
@@ -330,9 +340,11 @@ static const tea_Reg math_module[] =
     { "deg", math_deg, 1 },
     { "rad", math_rad, 1 },
     { "exp", math_exp, 1 },
+    { "trunc", math_trunc, 1 },
     { "frexp", math_frexp, 1 },
     { "ldexp", math_ldexp, 2 },
     { "log", math_log, 1 },
+    { "log1p", math_log1p, 1 },
     { "log2", math_log2, 1 },
     { "log10", math_log10, 1 },
     { "classify", math_classify, 1 },

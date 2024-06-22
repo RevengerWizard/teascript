@@ -100,6 +100,27 @@ int tea_lib_checkopt(tea_State* T, int index, int def, const char* lst)
     return def;
 }
 
+int32_t tea_lib_checkintrange(tea_State* T, int index, int32_t a, int32_t b)
+{
+    TValue* o = T->base + index;
+    if(o < T->top)
+    {
+        if(tvisnum(o))
+        {
+            int32_t i = (int32_t)numV(o);
+            if(i >= a && i <= b) return i;
+        }
+        else
+        {
+            goto badtype;
+        }
+        tea_err_arg(T, index, TEA_ERR_INTRANGE);
+    }
+badtype:
+    tea_err_argt(T, index, TEA_TYPE_NUMBER);
+    return 0;
+}
+
 void tea_lib_fileresult(tea_State* T, const char* fname)
 {
     int en = errno; /* Teascript API calls may change this value */
