@@ -1,12 +1,12 @@
 class Foo 
 {
-    init() 
+    new() 
     {
-        print("init")
+        print("new")
         return;
         print("nope")
     }
 }
 
-var foo = Foo() // expect: init
+var foo = Foo() // expect: new
 print(foo) // expect: <Foo instance>

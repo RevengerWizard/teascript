@@ -583,7 +583,7 @@ static void list_opadd(tea_State* T)
 
 static const tea_Methods list_class[] = {
     { "len", "property", list_len, TEA_VARARGS },
-    { "init", "method", list_init, 1 },
+    { "new", "method", list_init, 1 },
     { "add", "method", list_add, TEA_VARARGS },
     { "remove", "method", list_remove, 2 },
     { "delete", "method", list_delete, 2 },

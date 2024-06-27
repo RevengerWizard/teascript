@@ -1287,7 +1287,7 @@ static void expr_super(Parser* parser, bool assign)
     /* super() -> super.init() */
     if(lex_match(parser, '('))
     {
-        Token token = lex_synthetic(parser, "init");
+        Token token = lex_synthetic(parser, "new");
 
         uint8_t name = identifier_constant(parser, &token);
         named_variable(parser, lex_synthetic(parser, "this"), false);

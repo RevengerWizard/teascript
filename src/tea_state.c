@@ -131,7 +131,7 @@ static void cpteaopen(tea_State* T, void* ud)
     UNUSED(ud);
     stack_init(T);
     setmapV(T, registry(T), tea_map_new(T));
-    T->init_str = tea_str_newlit(T, "init");
+    T->init_str = tea_str_newlit(T, "new");
     fix_string(T->init_str);
     T->repl_str = tea_str_newlit(T, "_");
     fix_string(T->repl_str);

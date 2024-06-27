@@ -1,20 +1,20 @@
 class Base 
 {
-    init(a, b)
+    new(a, b)
     {
-        print("Base.init(" + a + ", " + b + ")")
+        print("Base.new(" + a + ", " + b + ")")
     }
 }
 
 class Derived : Base 
 {
-    init()
+    new()
     {
-        print("Derived.init()")
+        print("Derived.new()")
         super("a", "b")
     }
 }
 
 Derived()
-// expect: Derived.init()
-// expect: Base.init(a, b)
+// expect: Derived.new()
+// expect: Base.new(a, b)

@@ -1,15 +1,15 @@
 class Foo 
 {
-    init(arg) 
+    new(arg) 
     {
-        print("Foo.init(" + arg + ")")
-        this.field = "init"
+        print("Foo.new(" + arg + ")")
+        this.field = "new"
     }
 }
 
-function init() 
+function new() 
 {
-    print("not init")
+    print("not new")
 }
 
-init() // expect: not init
+new() // expect: not new

@@ -477,7 +477,7 @@ static void string_opmultiply(tea_State* T)
 
 static const tea_Methods string_class[] = {
     { "len", "property", string_len, TEA_VARARGS },
-    { "init", "method", string_init, 2 },
+    { "new", "method", string_init, 2 },
     { "upper", "method", string_upper, 1 },
     { "lower", "method", string_lower, 1 },
     { "reverse", "method", string_reverse, 1 },

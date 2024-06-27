@@ -403,7 +403,7 @@ struct tea_State
     GCclass* object_class;
     GCstr strempty; /* Empty string */
     uint8_t strempty0;  /* Zero terminator for empty string */
-    GCstr* init_str;  /* "init" */
+    GCstr* init_str;  /* "new" */
     GCstr* repl_str; /* "_" */
     GCstr* memerr;  /* String message for out-of-memory situation */
     GCstr* opm_name[MM__MAX];   /* Array with special method names  */

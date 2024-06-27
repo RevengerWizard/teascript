@@ -228,7 +228,7 @@ static const tea_Methods map_class[] = {
     { "count", "property", map_count, TEA_VARARGS },
     { "keys", "property", map_keys, TEA_VARARGS },
     { "values", "property", map_values, TEA_VARARGS },
-    { "init", "method", map_init, 1 },
+    { "new", "method", map_init, 1 },
     { "get", "method", map_get, -3 },
     { "set", "method", map_set, -2 },
     { "update", "method", map_update, 2 },

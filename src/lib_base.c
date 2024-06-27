@@ -294,17 +294,17 @@ static void invalid_init(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods func_class[] = {
-    { "init", "method", invalid_init, TEA_VARARGS },
+    { "new", "method", invalid_init, TEA_VARARGS },
     { NULL, NULL }
 };
 
 static const tea_Methods number_class[] = {
-    { "init", "method", number_init, -3 },
+    { "new", "method", number_init, -3 },
     { NULL, NULL }
 };
 
 static const tea_Methods bool_class[] = {
-    { "init", "method", bool_init, 2 },
+    { "new", "method", bool_init, 2 },
     { NULL, NULL }
 };
 

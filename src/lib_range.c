@@ -189,7 +189,7 @@ static const tea_Methods range_class[] = {
     { "end", "property", range_end, TEA_VARARGS },
     { "step", "property", range_step, TEA_VARARGS },
     { "len", "property", range_len, TEA_VARARGS },
-    { "init", "method", range_init, -4 },
+    { "new", "method", range_init, -4 },
     { "contains", "method", range_contains, 2 },
     { "reverse", "method", range_reverse, 1 },
     { "copy", "method", range_copy, 1 },
