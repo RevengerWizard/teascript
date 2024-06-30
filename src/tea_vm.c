@@ -605,7 +605,6 @@ static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool as
         default:
             break;
     }
-
     tea_err_run(T, TEA_ERR_SUBSCR, tea_typename(obj));
 }
 
@@ -1046,30 +1045,6 @@ static void vm_execute(tea_State* T)
                 copyTV(T, base + slot, T->top - 1);
                 DISPATCH();
             }
-            CASE_CODE(BC_GET_GLOBAL):
-            {
-                GCstr* name = READ_STRING();
-                TValue* o = tea_tab_get(&T->globals, name);
-                if(!o)
-                {
-                    RUNTIME_ERROR(TEA_ERR_VAR, str_data(name));
-                }
-                copyTV(T, T->top++, o);
-                DISPATCH();
-            }
-            CASE_CODE(BC_SET_GLOBAL):
-            {
-                bool b;
-                GCstr* name = READ_STRING();
-                TValue* o = tea_tab_set(T, &T->globals, name, &b);
-                if(b)
-                {
-                    tea_tab_delete(&T->globals, name);
-                    RUNTIME_ERROR(TEA_ERR_VAR, str_data(name));
-                }
-                copyTV(T, o, T->top - 1);
-                DISPATCH();
-            }
             CASE_CODE(BC_GET_MODULE):
             {
                 GCstr* name = READ_STRING();
@@ -1129,13 +1104,6 @@ static void vm_execute(tea_State* T)
                 {
                     copyTV(T, T->top++, values + i - 1);
                 }
-                DISPATCH();
-            }
-            CASE_CODE(BC_DEFINE_GLOBAL):
-            {
-                GCstr* name = READ_STRING();
-                copyTV(T, tea_tab_set(T, &T->globals, name, NULL), T->top - 1);
-                T->top--;
                 DISPATCH();
             }
             CASE_CODE(BC_DEFINE_MODULE):

@@ -22,12 +22,9 @@
     _(PRINT, -1) \
     _(GET_LOCAL, 1) \
     _(SET_LOCAL, 0) \
-    _(GET_GLOBAL, 1) \
-    _(SET_GLOBAL, 0) \
     _(GET_MODULE, 1) \
     _(SET_MODULE, 0) \
     _(DEFINE_OPTIONAL, 0) \
-    _(DEFINE_GLOBAL, 0) \
     _(DEFINE_MODULE, 0) \
     _(GET_UPVALUE, 1) \
     _(SET_UPVALUE, 0) \

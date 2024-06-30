@@ -536,15 +536,7 @@ static void define_variable(Parser* parser, uint8_t global, bool constant)
         setnilV(o);
     }
 
-    TValue* value = tea_tab_get(&parser->lex->T->globals, string);
-    if(value)
-    {
-        bcemit_argued(parser, BC_DEFINE_GLOBAL, global);
-    }
-    else
-    {
-        bcemit_argued(parser, BC_DEFINE_MODULE, global);
-    }
+    bcemit_argued(parser, BC_DEFINE_MODULE, global);
 }
 
 static uint8_t parse_arg_list(Parser* parser)
@@ -1097,7 +1089,6 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
             }
             break;
         }
-        case BC_SET_GLOBAL:
         case BC_SET_MODULE:
         {
             GCstr* string = strV(proto_kgc(parser->proto, arg));
@@ -1146,18 +1137,8 @@ static void named_variable(Parser* parser, Token name, bool assign)
     else
     {
         arg = identifier_constant(parser, &name);
-        GCstr* string = strV(&name.value);
-        TValue* value = tea_tab_get(&parser->lex->T->globals, string);
-        if(value)
-        {
-            get_op = BC_GET_GLOBAL;
-            set_op = BC_SET_GLOBAL;
-        }
-        else
-        {
-            get_op = BC_GET_MODULE;
-            set_op = BC_SET_MODULE;
-        }
+        get_op = BC_GET_MODULE;
+        set_op = BC_SET_MODULE;
     }
 
     if(assign && lex_match(parser, '='))
@@ -2045,11 +2026,8 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_CONSTANT:
         case BC_GET_LOCAL:
         case BC_SET_LOCAL:
-        case BC_GET_GLOBAL:
-        case BC_SET_GLOBAL:
         case BC_GET_MODULE:
         case BC_SET_MODULE:
-        case BC_DEFINE_GLOBAL:
         case BC_DEFINE_MODULE:
         case BC_GET_UPVALUE:
         case BC_SET_UPVALUE:
@@ -2656,16 +2634,7 @@ finish:
         else
         {
             arg = identifier_constant(parser, &token);
-            GCstr* string = strV(&token.value);
-            TValue* value = tea_tab_get(&parser->lex->T->globals, string);
-            if(value)
-            {
-                set_op = BC_SET_GLOBAL;
-            }
-            else
-            {
-                set_op = BC_SET_MODULE;
-            }
+            set_op = BC_SET_MODULE;
         }
         check_const(parser, set_op, arg);
         bcemit_argued(parser, set_op, (uint8_t)arg);

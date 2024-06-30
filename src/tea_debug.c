@@ -184,12 +184,9 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
     {
         case BC_CONSTANT:
         case BC_PUSH_ATTR:
-        case BC_GET_GLOBAL:
-        case BC_SET_GLOBAL:
         case BC_GET_MODULE:
         case BC_SET_MODULE:
         case BC_DEFINE_OPTIONAL:
-        case BC_DEFINE_GLOBAL:
         case BC_DEFINE_MODULE:
         case BC_GET_ATTR:
         case BC_SET_ATTR:
