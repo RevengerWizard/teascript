@@ -17,6 +17,7 @@ TEA_FUNC GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* str, uint32_t index);
 TEA_FUNC GCstr* tea_utf_from_codepoint(tea_State* T, int value);
 TEA_FUNC GCstr* tea_utf_from_range(tea_State* T, GCstr* str, int start, uint32_t count, int step);
 TEA_FUNC GCstr* tea_utf_reverse(tea_State* T, GCstr* str);
+TEA_FUNC GCstr* tea_utf_slice(tea_State* T, GCstr* str, GCrange* range);
 
 TEA_FUNC int tea_utf_char_offset(char* str, int index);
 

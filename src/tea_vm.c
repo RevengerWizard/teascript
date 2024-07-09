@@ -323,162 +323,6 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
     tea_err_run(T, TEA_ERR_ITER, tea_typename(obj));
 }
 
-static void vm_splice(tea_State* T, TValue* obj, GCrange* range, TValue* item)
-{
-    switch(itype(obj))
-    {
-        case TEA_TLIST:
-        {
-            GClist* list = listV(obj);
-
-            int32_t start = range->start;
-            int32_t end;
-            int32_t step = range->step;
-
-            if(isinf(range->end))
-            {
-                end = list->len;
-            } 
-            else
-            {
-                end = range->end;
-                if(end > list->len)
-                {
-                    end = list->len;
-                } 
-                else if(end < 0)
-                {
-                    end = list->len + end;
-                }
-            }
-
-            /* Handle negative indexing */
-            if(start < 0)
-            {
-                start = list->len + start;
-                if(start < 0) start = 0;
-            }
-            if(end < 0) end = list->len + end;
-
-            if(step <= 0) step = 1;
-
-            /* Insert into list the item values based on the range */
-
-            T->top -= 3;
-            copyTV(T, T->top++, obj);
-            return;
-        }
-        default:
-            break;
-    }
-    tea_err_run(T, TEA_ERR_SLICE, tea_typename(obj));
-}
-
-static void vm_slice(tea_State* T, TValue* obj, GCrange* range, bool assign)
-{
-    switch(itype(obj))
-    {
-        case TEA_TLIST:
-        {
-            GClist* new_list = tea_list_new(T);
-            setlistV(T, T->top++, new_list);
-            GClist* list = listV(obj);
-
-            int32_t start = range->start;
-            int32_t end;
-            int32_t step = range->step;
-
-            if(isinf(range->end))
-            {
-                end = list->len;
-            }
-            else
-            {
-                end = range->end;
-                if(end > list->len)
-                {
-                    end = list->len;
-                }
-                else if(end < 0)
-                {
-                    end = list->len + end;
-                }
-            }
-
-            if(step > 0)
-            {
-                for(int i = start; i < end; i += step)
-                {
-                    tea_list_add(T, new_list, list_slot(list, i));
-                }
-            }
-            else if(step < 0)
-            {
-                for(int i = end + step; i >= start; i += step)
-                {
-                    tea_list_add(T, new_list, list_slot(list, i));
-                }
-            }
-
-            if(assign)
-            {
-                T->top -= 2;
-            }
-
-            T->top--;   /* Pop the pushed list */
-            setlistV(T, T->top++, new_list);
-            return;
-        }
-        case TEA_TSTR:
-        {
-            GCstr* str = strV(obj);
-            int len = tea_utf_len(str);
-
-            int32_t start = range->start;
-            int32_t end;
-
-            if(isinf(range->end))
-            {
-                end = str->len;
-            }
-            else
-            {
-                end = range->end;
-                if(end > len)
-                {
-                    end = len;
-                }
-                else if(end < 0)
-                {
-                    end = len + end;
-                }
-            }
-
-            if(assign)
-            {
-                T->top -= 2;
-            }
-
-            /* Ensure the start index is below the end index */
-            if(start > end)
-            {
-                setstrV(T, T->top++, &T->strempty);
-            }
-            else
-            {
-                start = tea_utf_char_offset(str_datawr(str), start);
-                end = tea_utf_char_offset(str_datawr(str), end);
-                GCstr* s = tea_utf_from_range(T, str, start, end - start, 1);
-                setstrV(T, T->top++, s);
-            }
-            return;
-        }
-        default:
-            break;
-    }
-    tea_err_run(T, TEA_ERR_SLICE, tea_typename(obj));
-}
-
 static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool assign)
 {
     switch(itype(obj))
@@ -533,9 +377,20 @@ static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool as
         }
         case TEA_TLIST:
         {
-            if(!tvisnum(index_value))
+            if(!tvisnum(index_value) && !tvisrange(index_value))
             {
                 tea_err_run(T, TEA_ERR_NUMLIST);
+            }
+
+            if(tvisrange(index_value))
+            {
+                GClist* l = tea_list_slice(T, listV(obj), rangeV(index_value));
+                if(assign)
+                {
+                    T->top -= 2;
+                }
+                setlistV(T, T->top++, l);
+                return;
             }
 
             GClist* list = listV(obj);
@@ -575,9 +430,20 @@ static void vm_get_index(tea_State* T, TValue* index_value, TValue* obj, bool as
         }
         case TEA_TSTR:
         {
-            if(!tvisnum(index_value))
+            if(!tvisnum(index_value) && !tvisrange(index_value))
             {
                 tea_err_run(T, TEA_ERR_NUMSTR, tea_typename(index_value));
+            }
+
+            if(tvisrange(index_value))
+            {
+                GCstr* s = tea_utf_slice(T, strV(obj), rangeV(index_value));
+                if(assign)
+                {
+                    T->top -= 2;
+                }
+                setstrV(T, T->top++, s);
+                return;
             }
 
             GCstr* str = strV(obj);
@@ -1269,10 +1135,7 @@ static void vm_execute(tea_State* T)
                 TValue* index = T->top - 1;
                 bool assign = instruction == BC_GET_INDEX;
                 STORE_FRAME;
-                if(!tvisrange(index))
-                    vm_get_index(T, index, obj, assign);
-                else
-                    vm_slice(T, obj, rangeV(index), assign);
+                vm_get_index(T, index, obj, assign);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1282,10 +1145,7 @@ static void vm_execute(tea_State* T)
                 TValue* index = T->top - 2;
                 TValue* item = T->top - 1;
                 STORE_FRAME;
-                if(!tvisrange(index))
-                    vm_set_index(T, item, index, obj);
-                else
-                    vm_splice(T, obj, rangeV(index), item);
+                vm_set_index(T, item, index, obj);
                 READ_FRAME();
                 DISPATCH();
             }

@@ -3,6 +3,8 @@
 ** UTF-8 functions
 */
 
+#include <math.h>
+
 #define tea_utf_c
 #define TEA_CORE
 
@@ -206,7 +208,7 @@ GCstr* tea_utf_from_range(tea_State* T, GCstr* str, int start, uint32_t count, i
     return tea_str_new(T, bytes, len);
 }
 
-TEA_FUNC GCstr* tea_utf_reverse(tea_State* T, GCstr* str)
+GCstr* tea_utf_reverse(tea_State* T, GCstr* str)
 {
     size_t len = str->len;
     char* rev = tea_buf_tmp(T, len);
@@ -239,6 +241,42 @@ TEA_FUNC GCstr* tea_utf_reverse(tea_State* T, GCstr* str)
         }
     }
     return tea_str_new(T, rev, len);
+}
+
+GCstr* tea_utf_slice(tea_State* T, GCstr* str, GCrange* range)
+{
+    int32_t len = tea_utf_len(str);
+    int32_t start = range->start;
+    int32_t end;
+
+    if(isinf(range->end))
+    {
+        end = str->len;
+    }
+    else
+    {
+        end = range->end;
+        if(end > len)
+        {
+            end = len;
+        }
+        else if(end < 0)
+        {
+            end = len + end;
+        }
+    }
+
+    /* Ensure the start index is below the end index */
+    if(start > end)
+    {
+        return &T->strempty;
+    }
+    else
+    {
+        start = tea_utf_char_offset(str_datawr(str), start);
+        end = tea_utf_char_offset(str_datawr(str), end);
+        return tea_utf_from_range(T, str, start, end - start, 1);
+    }
 }
 
 #define is_utf(c) (((c) & 0xc0) != 0x80)

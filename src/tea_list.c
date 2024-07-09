@@ -3,6 +3,8 @@
 ** List handling
 */
 
+#include <math.h>
+
 #define tea_list_c
 #define TEA_CORE
 
@@ -60,4 +62,49 @@ void tea_list_delete(tea_State* T, GClist* list, int32_t index)
         copyTV(T, list_slot(list, i), list_slot(list, i + 1));
     }
     list->len--;
+}
+
+GClist* tea_list_slice(tea_State* T, GClist* list, GCrange* range)
+{
+    GClist* new_list = tea_list_new(T);
+    setlistV(T, T->top++, new_list);
+
+    int32_t start = range->start;
+    int32_t end;
+    int32_t step = range->step;
+
+    if(isinf(range->end))
+    {
+        end = list->len;
+    }
+    else
+    {
+        end = range->end;
+        if(end > list->len)
+        {
+            end = list->len;
+        }
+        else if(end < 0)
+        {
+            end = list->len + end;
+        }
+    }
+
+    if(step > 0)
+    {
+        for(int i = start; i < end; i += step)
+        {
+            tea_list_add(T, new_list, list_slot(list, i));
+        }
+    }
+    else if(step < 0)
+    {
+        for(int i = end + step; i >= start; i += step)
+        {
+            tea_list_add(T, new_list, list_slot(list, i));
+        }
+    }
+
+    T->top--;   /* Pop the pushed list */
+    return new_list;
 }
