@@ -390,6 +390,7 @@ struct tea_State
     Table strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
     SBuf strbuf;    /* Termorary string conversion buffer */
+    TValue tmptv;   /* Temporary TValue */
     TValue nilval; /* A nil value */
     TValue registrytv;  /* Anchor for registry */
     GCmodule* last_module;    /* Last cached module */

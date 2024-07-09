@@ -26,6 +26,9 @@ void tea_debug_value(TValue* v)
         case TEA_TNUM:
             printf(TEA_NUMBER_FMT, numV(v));
             break;
+        case TEA_TPOINTER:
+            printf("pointer");
+            break;
         case TEA_TCLASS:
             printf("<class %s>", str_data(classV(v)->name));
             break;
@@ -77,6 +80,9 @@ void tea_debug_value(TValue* v)
         }
         case TEA_TUPVAL:
             printf("<upvalue>");
+            break;
+        case TEA_TUDATA:
+            printf("<userdata>");
             break;
         default:
             printf("<unknown>");
