@@ -624,7 +624,7 @@ static void vm_arith_unary(tea_State* T, MMS mm, TValue* o)
     TValue* mo = tea_meta_lookup(T, o, mm);
     if(!mo)
     {
-        tea_err_run(T, TEA_ERR_UNOP, mmname_str(T, mm), tea_typename(o));
+        tea_err_run(T, TEA_ERR_UNOP, str_data(mmname_str(T, mm)), tea_typename(o));
     }
 
     TValue tv;
@@ -646,7 +646,7 @@ static void vm_arith(tea_State* T, MMS mm, TValue* a, TValue* b)
     }
     if(!mo)
     {
-        tea_err_run(T, TEA_ERR_BIOP, mmname_str(T, mm), tea_typename(a), tea_typename(b));
+        tea_err_run(T, TEA_ERR_BIOP, str_data(mmname_str(T, mm)), tea_typename(a), tea_typename(b));
     }
 
     TValue tv1, tv2;
