@@ -610,15 +610,6 @@ static cTValue* vm_set_attr(tea_State* T, GCstr* name, TValue* obj, TValue* item
     tea_err_run(T, TEA_ERR_SETATTR, tea_typename(obj));
 }
 
-static void vm_define_method(tea_State* T, GCstr* name)
-{
-    TValue* mo = T->top - 1;
-    GCclass* klass = classV(T->top - 2);
-    copyTV(T, tea_tab_set(T, &klass->methods, name, NULL), mo);
-    if(name == T->init_str) copyTV(T, &klass->init, mo);
-    T->top--;
-}
-
 static void vm_arith_unary(tea_State* T, MMS mm, TValue* o)
 {
     TValue* mo = tea_meta_lookup(T, o, mm);
@@ -1533,18 +1524,21 @@ static void vm_execute(tea_State* T)
                 T->top--;
                 DISPATCH();
             }
-            CASE_CODE(BC_METHOD):
-            {
-                vm_define_method(T, READ_STRING());
-                DISPATCH();
-            }
             CASE_CODE(BC_EXTENSION_METHOD):
             {
                 if(!tvisclass(T->top - 2))
                 {
                     RUNTIME_ERROR(TEA_ERR_EXTMETHOD, tea_typename(T->top - 2));
                 }
-                vm_define_method(T, READ_STRING());
+                /* Fallback */
+            }
+            CASE_CODE(BC_METHOD):
+            {
+                GCstr* name = READ_STRING();
+                TValue* mo = T->top - 1;
+                GCclass* klass = classV(T->top - 2);
+                copyTV(T, tea_tab_set(T, &klass->methods, name, NULL), mo);
+                if(name == T->init_str) copyTV(T, &klass->init, mo);
                 T->top--;
                 DISPATCH();
             }

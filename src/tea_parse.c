@@ -1822,6 +1822,7 @@ static void parse_function_assign(Parser* parser)
         parser->klass = parser->klass->enclosing;
 
         bcemit_argued(parser, BC_EXTENSION_METHOD, constant);
+        bcemit_op(parser, BC_POP);
         return;
     }
 }
