@@ -10,6 +10,11 @@
 #include "tea_str.h"
 #include "tea_gc.h"
 #include "tea_meta.h"
+#include "tea_err.h"
+#include "tea_map.h"
+#include "tea_list.h"
+#include "tea_vm.h"
+#include "tea_utf.h"
 
 /* String interning of special method names for fast indexing */
 void tea_meta_init(tea_State* T)
@@ -82,4 +87,304 @@ bool tea_meta_isclass(tea_State* T, GCclass* klass)
             klass == T->map_class ||
             klass == T->string_class ||
             klass == T->range_class);
+}
+
+cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
+{
+    switch(itype(obj))
+    {
+        case TEA_TUDATA:
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(obj);
+            cTValue* o = tea_tab_get(&instance->attrs, name);
+            if(o)
+            {
+                return o;
+            }
+
+            o = tea_tab_get(&instance->klass->methods, name);
+            if(o)
+            {
+                GCmethod* bound = tea_method_new(T, T->top - 1, funcV(o));
+                setmethodV(T, &T->tmptv, bound);
+                return &T->tmptv;
+            }
+
+            tea_err_run(T, TEA_ERR_METHOD, str_data(name));
+        }
+        case TEA_TMODULE:
+        {
+            GCmodule* module = moduleV(obj);
+            cTValue* o = tea_tab_get(&module->vars, name);
+            if(o)
+            {
+                return o;
+            }
+            tea_err_run(T, TEA_ERR_MODATTR, str_data(module->name), str_data(name));
+        }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(obj);
+            cTValue* o = tea_map_getstr(T, map, name);
+            if(o)
+            {
+                return o;
+            }
+            else
+            {
+                goto retry;
+            }
+            tea_err_run(T, TEA_ERR_MAPATTR, str_data(name));
+        }
+        default:
+retry:
+        {
+            GCclass* klass = tea_meta_getclass(T, obj);
+            if(klass)
+            {
+                TValue* o = tea_tab_get(&klass->methods, name);
+                if(o)
+                {
+                    if((tvisfunc(o) && iscfunc(funcV(o))) && 
+                        funcV(o)->c.type == C_PROPERTY)
+                    {
+                        copyTV(T, T->top++, obj);
+                        tea_vm_call(T, o, 0);
+                        return --T->top;
+                    }
+                    else
+                    {
+                        GCmethod* bound = tea_method_new(T, T->top - 1, funcV(o));
+                        setmethodV(T, &T->tmptv, bound);
+                        return &T->tmptv;
+                    }
+                }
+            }
+            break;
+        }
+    }
+    tea_err_run(T, TEA_ERR_NOATTR, tea_typename(obj), str_data(name));
+}
+
+cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
+{
+    switch(itype(obj))
+    {
+        case TEA_TUDATA:
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(obj);
+            copyTV(T, tea_tab_set(T, &instance->attrs, name, NULL), item);
+            return item;
+        }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(obj);
+            copyTV(T, tea_map_setstr(T, map, name), item);
+            return item;
+        }
+        case TEA_TMODULE:
+        {
+            GCmodule* module = moduleV(obj);
+            copyTV(T, tea_tab_set(T, &module->vars, name, NULL), item);
+            return item;
+        }
+        default:
+        {
+            GCclass* klass = tea_meta_getclass(T, obj);
+            if(klass)
+            {
+                TValue* o = tea_tab_get(&klass->methods, name);
+                if(o)
+                {
+                    if((tvisfunc(o) && iscfunc(funcV(o))) && 
+                        funcV(o)->c.type == C_PROPERTY)
+                    {
+                        copyTV(T, T->top++, obj);
+                        copyTV(T, T->top++, item);
+                        tea_vm_call(T, o, 1);
+                        return --T->top;
+                    }
+                }
+            }
+            break;
+        }
+    }
+    tea_err_run(T, TEA_ERR_SETATTR, tea_typename(obj));
+}
+
+cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
+{
+    switch(itype(obj))
+    {
+        case TEA_TUDATA:
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(obj);
+            TValue* mo = tea_meta_lookup(T, obj, MM_INDEX);
+            if(mo)
+            {
+                copyTV(T, T->top++, obj);
+                copyTV(T, T->top++, index_value);
+                setnilV(T->top++);
+                tea_vm_call(T, mo, 2);
+                return --T->top;
+            }
+            tea_err_run(T, TEA_ERR_INSTSUBSCR, instance->klass->name);
+        }
+        case TEA_TRANGE:
+        {
+            if(!tvisnum(index_value))
+            {
+                tea_err_run(T, TEA_ERR_NUMRANGE);
+            }
+
+            GCrange* range = rangeV(obj);
+            double index = numV(index_value);
+
+            /* Calculate the length of the range */
+            double len = (range->end - range->start) / range->step;
+
+            /* Allow negative indexes */
+            if(index < 0)
+            {
+                index = len + index;
+            }
+
+            if(index >= 0 && index < len)
+            {
+                setnumV(&T->tmptv, range->start + index * range->step);
+                return &T->tmptv;
+            }
+            tea_err_run(T, TEA_ERR_IDXRANGE);
+        }
+        case TEA_TLIST:
+        {
+            if(!tvisnum(index_value) && !tvisrange(index_value))
+            {
+                tea_err_run(T, TEA_ERR_NUMLIST);
+            }
+
+            if(tvisrange(index_value))
+            {
+                GClist* l = tea_list_slice(T, listV(obj), rangeV(index_value));
+                setlistV(T, &T->tmptv, l);
+                return &T->tmptv;
+            }
+
+            GClist* list = listV(obj);
+            int32_t index = numV(index_value);
+
+            /* Allow negative indexes */
+            if(index < 0)
+            {
+                index = list->len + index;
+            }
+
+            if(index >= 0 && index < list->len)
+            {
+                return list_slot(list, index);
+            }
+            tea_err_run(T, TEA_ERR_IDXLIST);
+        }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(obj);
+            cTValue* o = tea_map_get(map, index_value);
+            if(o)
+            {
+                return o;
+            }
+            tea_err_run(T, TEA_ERR_MAPKEY);
+        }
+        case TEA_TSTR:
+        {
+            if(!tvisnum(index_value) && !tvisrange(index_value))
+            {
+                tea_err_run(T, TEA_ERR_NUMSTR, tea_typename(index_value));
+            }
+
+            if(tvisrange(index_value))
+            {
+                GCstr* s = tea_utf_slice(T, strV(obj), rangeV(index_value));
+                setstrV(T, &T->tmptv, s);
+                return &T->tmptv;
+            }
+
+            GCstr* str = strV(obj);
+            int32_t index = numV(index_value);
+            int32_t ulen = tea_utf_len(str);
+
+            /* Allow negative indexes */
+            if(index < 0)
+            {
+                index = ulen + index;
+            }
+
+            if(index >= 0 && index < ulen)
+            {
+                GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str_datawr(str), index));
+                setstrV(T, &T->tmptv, c);
+                return &T->tmptv;
+            }
+            tea_err_run(T, TEA_ERR_IDXSTR);
+        }
+        default:
+            break;
+    }
+    tea_err_run(T, TEA_ERR_SUBSCR, tea_typename(obj));
+}
+
+cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValue* item_value)
+{
+    switch(itype(obj))
+    {
+        case TEA_TUDATA:
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(obj);
+            TValue* mo = tea_meta_lookup(T, obj, MM_INDEX);
+            if(mo)
+            {             
+                copyTV(T, T->top++, obj);
+                copyTV(T, T->top++, index_value);
+                copyTV(T, T->top++, item_value);
+                tea_vm_call(T, mo, 2);
+                return --T->top;
+            }
+            tea_err_run(T, TEA_ERR_SETSUBSCR, instance->klass->name);
+        }
+        case TEA_TLIST:
+        {
+            if(!tvisnum(index_value))
+            {
+                tea_err_run(T, TEA_ERR_NUMLIST);
+            }
+
+            GClist* list = listV(obj);
+            int32_t index = numV(index_value);
+
+            if(index < 0)
+            {
+                index = list->len + index;
+            }
+
+            if(index >= 0 && index < list->len)
+            {
+                copyTV(T, list_slot(list, index), item_value);
+                return item_value;
+            }
+            tea_err_run(T, TEA_ERR_IDXLIST);
+        }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(obj);
+            copyTV(T, tea_map_set(T, map, index_value), item_value);
+            return item_value;
+        }
+        default:
+            break;
+    }
+    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_typename(obj));
 }

@@ -215,17 +215,14 @@ static void base_hasattr(tea_State* T)
 {
     tea_check_any(T, 0);
     const char* attr = tea_check_string(T, 1);
-    bool found = tea_get_attr(T, 0, attr);
-    tea_push_bool(T, found);
+    tea_get_attr(T, 0, attr);
 }
 
 static void base_getattr(tea_State* T)
 {
     tea_check_any(T, 0);
     const char* attr = tea_check_string(T, 1);
-    bool found = tea_get_attr(T, 0, attr);
-    if(!found)
-        tea_error(T, TEA_QS " has no attribute " TEA_QS, tea_typename(T->base), attr);
+    tea_get_attr(T, 0, attr);
 }
 
 static void base_setattr(tea_State* T)

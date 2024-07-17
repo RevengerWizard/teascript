@@ -563,6 +563,21 @@ TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs)
     incr_top(T);
 }
 
+static void set_method(tea_State* T, int obj, const char* name)
+{
+    TValue* object = index2addr(T, obj);
+    tea_checkapi_slot(1);
+    TValue* item = T->top - 1;
+    GCstr* str = tea_str_newlen(T, name);
+    GCclass* k = classV(object);
+    copyTV(T, tea_tab_set(T, &k->methods, str, NULL), item);
+    T->top--;
+    if(str == T->init_str)
+    {
+        copyTV(T, &k->init, item);
+    }
+}
+
 static void set_class(tea_State* T, const tea_Methods* k)
 {
     for(; k->name; k++)
@@ -589,7 +604,7 @@ static void set_class(tea_State* T, const tea_Methods* k)
                 setfuncV(T, T->top++, cf);
             }
         }
-        tea_set_attr(T, -2, k->name);
+        set_method(T, -2, k->name);
     }
 }
 
@@ -805,99 +820,44 @@ TEA_API bool tea_delete_key(tea_State* T, int obj, const char* key)
     return tea_map_delete(T, map, &o);
 }
 
-TEA_API bool tea_get_attr(tea_State* T, int obj, const char* key)
+TEA_API void tea_get_attr(tea_State* T, int obj, const char* key)
 {
-    cTValue* object = index2addr_check(T, obj);
-    bool found = false;
+    TValue* object = index2addr_check(T, obj);
     GCstr* str = tea_str_newlen(T, key);
-    cTValue* o;
-
-    switch(itype(object))
-    {
-        case TEA_TMODULE:
-        {
-            GCmodule* module = moduleV(object);
-            o = tea_tab_get(&module->vars, str);
-            if(o)
-            {
-                found = true;
-                copyTV(T, T->top, o);
-                incr_top(T);
-            }
-            break;
-        }
-        case TEA_TMAP:
-        {
-            GCmap* map = mapV(object);
-            o = tea_map_getstr(T, map, str);
-            if(o)
-            {
-                found = true;
-                copyTV(T, T->top, o);
-                incr_top(T);
-            }
-            break;
-        }
-        case TEA_TUDATA:
-        case TEA_TINSTANCE:
-        {
-            GCinstance* instance = instanceV(object);
-            o = tea_tab_get(&instance->attrs, str);
-            if(o)
-            {
-                found = true;
-                copyTV(T, T->top, o);
-                incr_top(T);
-            }
-        }
-        default:
-            break;
-    }
-    return found;
+    cTValue* o = tea_meta_getattr(T, str, object);
+    copyTV(T, T->top, o);
+    incr_top(T);
 }
 
 TEA_API void tea_set_attr(tea_State* T, int obj, const char* key)
 {
-    cTValue* object = index2addr(T, obj);
+    TValue* object = index2addr(T, obj);
     tea_checkapi_slot(1);
     TValue* item = T->top - 1;
     GCstr* str = tea_str_newlen(T, key);
-
-    switch(itype(object))
-    {
-        case TEA_TMODULE:
-        {
-            GCmodule* module = moduleV(object);
-            copyTV(T, tea_tab_set(T, &module->vars, str, NULL), item);
-            break;
-        }
-        case TEA_TMAP:
-        {
-            GCmap* map = mapV(object);
-            copyTV(T, tea_map_setstr(T, map, str), item);
-            break;
-        }
-        case TEA_TCLASS:
-        {
-            GCclass* klass = classV(object);
-            copyTV(T, tea_tab_set(T, &klass->methods, str, NULL), item);
-            if(str == T->init_str)
-            {
-                copyTV(T, &klass->init, item);
-            }
-            break;
-        }
-        case TEA_TUDATA:
-        case TEA_TINSTANCE:
-        {
-            GCinstance* instance = instanceV(object);
-            copyTV(T, tea_tab_set(T, &instance->attrs, str, NULL), item);
-            break;
-        }
-        default:
-            break;
-    }
+    tea_meta_setattr(T, str, object, item);
     T->top--;
+}
+
+TEA_API void tea_get_index(tea_State* T, int obj)
+{
+    TValue* o = index2addr_check(T, obj);
+    tea_checkapi_slot(1);
+    TValue* key = T->top - 1;
+    cTValue* v = tea_meta_getindex(T, o, key);
+    T->top--;
+    copyTV(T, T->top, v);
+    incr_top(T);
+}
+
+TEA_API void tea_set_index(tea_State* T, int obj)
+{
+    TValue* o = index2addr_check(T, obj);
+    tea_checkapi_slot(2);
+    TValue* item = T->top - 1;
+    TValue* key = T->top - 2;
+    tea_meta_setindex(T, o, key, item);
+    T->top -= 2;
 }
 
 TEA_API bool tea_get_global(tea_State* T, const char* name)
@@ -985,7 +945,7 @@ TEA_API void tea_set_methods(tea_State* T, const tea_Methods* reg, int nup)
             copyTV(T, &cf->c.upvalues[nupvals], T->top + nupvals);
         setfuncV(T, T->top, cf);
         incr_top(T);
-        tea_set_attr(T, -(nup + 2), reg->name);
+        set_method(T, -(nup + 2), reg->name);
     }
     tea_pop(T, nup);    /* Remove upvalues */
 }

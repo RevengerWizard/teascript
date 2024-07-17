@@ -236,8 +236,10 @@ TEA_API bool tea_get_key(tea_State* T, int obj, const char* key);
 TEA_API void tea_set_key(tea_State* T, int obj, const char* key);
 TEA_API bool tea_delete_key(tea_State* T, int obj, const char* key);
 
-TEA_API bool tea_get_attr(tea_State* T, int obj, const char* key);
+TEA_API void tea_get_attr(tea_State* T, int obj, const char* key);
 TEA_API void tea_set_attr(tea_State* T, int obj, const char* key);
+TEA_API void tea_get_index(tea_State* T, int obj);
+TEA_API void tea_set_index(tea_State* T, int obj);
 
 TEA_API bool tea_get_global(tea_State* T, const char* name);
 TEA_API void tea_set_global(tea_State* T, const char* name);
