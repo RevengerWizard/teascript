@@ -27,12 +27,12 @@ void tea_tab_free(tea_State* T, Table* tab)
 
 static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
 {
-    uint32_t index = key->hash & (size - 1);
+    uint32_t idx = key->hash & (size - 1);
     TableEntry* tombstone = NULL;
 
     while(true)
     {
-        TableEntry* entry = &entries[index];
+        TableEntry* entry = &entries[idx];
         if(entry->key == NULL)
         {
             if(tvisnil(&entry->val))
@@ -53,7 +53,7 @@ static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
             return entry;
         }
 
-        index = (index + 1) & (size - 1);
+        idx = (idx + 1) & (size - 1);
     }
 }
 
@@ -154,10 +154,10 @@ GCstr* tea_tab_findstr(Table* tab, const char* chars, int len, StrHash hash)
     if(tab->count == 0)
         return NULL;
 
-    uint32_t index = hash & (tab->size - 1);
+    uint32_t idx = hash & (tab->size - 1);
     while(true)
     {
-        TableEntry* entry = &tab->entries[index];
+        TableEntry* entry = &tab->entries[idx];
         if(entry->key == NULL)
         {
             /* Stop if we find an empty non-tombstone entry */
@@ -170,7 +170,7 @@ GCstr* tea_tab_findstr(Table* tab, const char* chars, int len, StrHash hash)
             return entry->key;
         }
 
-        index = (index + 1) & (tab->size - 1);
+        idx = (idx + 1) & (tab->size - 1);
     }
 }
 

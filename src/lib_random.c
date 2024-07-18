@@ -123,8 +123,8 @@ static void random_choice(tea_State* T)
     double d;
     u.u64 = tea_prng_u64d(rs);
     d = u.d - 1.0;
-    int32_t index = floor(d * list->len);
-    copyTV(T, T->top++, list_slot(list, index));
+    int32_t idx = floor(d * list->len);
+    copyTV(T, T->top++, list_slot(list, idx));
 }
 
 /* ------------------------------------------------------------------------ */

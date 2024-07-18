@@ -601,14 +601,7 @@ static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth)
 
 static void strfmt_func(tea_State* T, SBuf* sb, GCproto* proto)
 {
-    if(proto->type > PROTO_FUNCTION)
-    {
-        tea_buf_putmem(T, sb, str_data(proto->name), proto->name->len);
-    }
-    else
-    {
-        tea_buf_putlit(T, sb, "<function>");
-    }
+    tea_buf_putlit(T, sb, "<function>");
 }
 
 /* Conversion of object to string */

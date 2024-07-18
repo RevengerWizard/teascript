@@ -12,15 +12,14 @@
 
 /* -- Prototypes -------------------------------------------------- */
 
-GCproto* tea_func_newproto(tea_State* T, ProtoType type, int max_slots)
+GCproto* tea_func_newproto(tea_State* T, int max_slots)
 {
     GCproto* pt = tea_mem_newobj(T, GCproto, TEA_TPROTO);
-    pt->arity = 0;
-    pt->arity_optional = 0;
+    pt->numparams = 0;
+    pt->numopts = 0;
     pt->variadic = 0;
     pt->upvalue_count = 0;
     pt->max_slots = max_slots;
-    pt->type = type;
     pt->name = NULL;
     pt->bc_count = 0;
     pt->bc_size = 0;
@@ -43,11 +42,11 @@ int tea_func_getline(GCproto* f, int instruction)
     {
         int mid = (start + end) / 2;
         LineStart* line = &f->lines[mid];
-        if(instruction < line->offset)
+        if(instruction < line->ofs)
         {
             end = mid - 1;
         }
-        else if(mid == f->line_count - 1 || instruction < f->lines[mid + 1].offset)
+        else if(mid == f->line_count - 1 || instruction < f->lines[mid + 1].ofs)
         {
             return line->line;
         }

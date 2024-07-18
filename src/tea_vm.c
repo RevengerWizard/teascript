@@ -27,30 +27,30 @@
 #include "tea_strfmt.h"
 #include "tea_meta.h"
 
-static bool vm_callT(tea_State* T, GCfunc* f, int arg_count)
+static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
 {
     GCfuncT* func = &f->t;
-    if(arg_count < func->proto->arity)
+    if(nargs < func->proto->numparams)
     {
-        if((arg_count + func->proto->variadic) == func->proto->arity)
+        if((nargs + func->proto->variadic) == func->proto->numparams)
         {
             /* Add missing variadic param ([]) */
             GClist* list = tea_list_new(T);
             setlistV(T, T->top++, list);
-            arg_count++;
+            nargs++;
         }
         else
         {
-            tea_err_run(T, TEA_ERR_ARGS, func->proto->arity, arg_count);
+            tea_err_run(T, TEA_ERR_ARGS, func->proto->numparams, nargs);
         }
     }
-    else if(arg_count > func->proto->arity + func->proto->arity_optional)
+    else if(nargs > func->proto->numparams + func->proto->numopts)
     {
         if(func->proto->variadic)
         {
-            int arity = func->proto->arity + func->proto->arity_optional;
+            int xargs = func->proto->numparams + func->proto->numopts;
             /* +1 for the variadic param itself */
-            int varargs = arg_count - arity + 1;
+            int varargs = nargs - xargs + 1;
             GClist* list = tea_list_new(T);
             setlistV(T, T->top++, list);
             for(int i = varargs; i > 0; i--)
@@ -60,11 +60,11 @@ static bool vm_callT(tea_State* T, GCfunc* f, int arg_count)
             /* +1 for the list pushed earlier on the stack */
             T->top -= varargs + 1;
             setlistV(T, T->top++, list);
-            arg_count = arity;
+            nargs = xargs;
         }
         else
         {
-            tea_err_run(T, TEA_ERR_ARGS, func->proto->arity + func->proto->arity_optional, arg_count);
+            tea_err_run(T, TEA_ERR_ARGS, func->proto->numparams + func->proto->numopts, nargs);
         }
     }
     else if(func->proto->variadic)
@@ -84,7 +84,7 @@ static bool vm_callT(tea_State* T, GCfunc* f, int arg_count)
     ci->func = f;
     ci->ip = func->proto->bc;
     ci->state = CIST_TEA;
-    ci->base = T->top - arg_count - 1;
+    ci->base = T->top - nargs - 1;
 
     return true;
 }
@@ -94,19 +94,19 @@ static bool vm_callT(tea_State* T, GCfunc* f, int arg_count)
     iscfunc((T)->ci->func) && \
     (T)->ci->func->c.type == C_FUNCTION)
 
-static bool vm_callC(tea_State* T, GCfunc* f, int arg_count)
+static bool vm_callC(tea_State* T, GCfunc* f, int nargs)
 {
     GCfuncC* cfunc = &f->c;
     int extra = cfunc->type > C_FUNCTION;
     if(cfunc->nargs != TEA_VARARGS)
     {
-        if((cfunc->nargs >= 0) && ((arg_count + extra) != cfunc->nargs))
+        if((cfunc->nargs >= 0) && ((nargs + extra) != cfunc->nargs))
         {
-            tea_err_run(T, TEA_ERR_ARGS, cfunc->nargs, arg_count + extra);
+            tea_err_run(T, TEA_ERR_ARGS, cfunc->nargs, nargs + extra);
         }
-        else if((cfunc->nargs < 0) && ((arg_count + extra) > (-cfunc->nargs)))
+        else if((cfunc->nargs < 0) && ((nargs + extra) > (-cfunc->nargs)))
         {
-            tea_err_run(T, TEA_ERR_OPTARGS, -cfunc->nargs, arg_count + extra);
+            tea_err_run(T, TEA_ERR_OPTARGS, -cfunc->nargs, nargs + extra);
         }
     }
 
@@ -117,12 +117,12 @@ static bool vm_callC(tea_State* T, GCfunc* f, int arg_count)
     ci->func = f;
     ci->ip = NULL;
     ci->state = CIST_C;
-    ci->base = T->top - arg_count - 1;
+    ci->base = T->top - nargs - 1;
 
     if(extra)
-        T->base = T->top - arg_count - 1;
+        T->base = T->top - nargs - 1;
     else 
-        T->base = T->top - arg_count;
+        T->base = T->top - nargs;
 
     cfunc->fn(T);   /* Do the actual call */
     
@@ -138,23 +138,23 @@ static bool vm_callC(tea_State* T, GCfunc* f, int arg_count)
     return false;
 }
 
-static bool vm_call(tea_State* T, GCfunc* func, int arg_count)
+static bool vm_call(tea_State* T, GCfunc* func, int nargs)
 {
     if(isteafunc(func))
-        return vm_callT(T, func, arg_count);
+        return vm_callT(T, func, nargs);
     else
-        return vm_callC(T, func, arg_count);
+        return vm_callC(T, func, nargs);
 }
 
-static bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
+static bool vm_precall(tea_State* T, TValue* callee, int nargs)
 {
     switch(itype(callee))
     {
         case TEA_TMETHOD:
         {
             GCmethod* bound = methodV(callee);
-            copyTV(T, T->top - arg_count - 1, &bound->receiver);
-            return vm_call(T, bound->func, arg_count);
+            copyTV(T, T->top - nargs - 1, &bound->receiver);
+            return vm_call(T, bound->func, nargs);
         }
         case TEA_TCLASS:
         {
@@ -164,21 +164,21 @@ static bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             {
                 if(tvisfunc(f) && !iscfunc(funcV(f)))
                 {
-                    setinstanceV(T, T->top - arg_count - 1, tea_instance_new(T, klass));
+                    setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
                 }
                 else
                 {
-                    setclassV(T, T->top - arg_count - 1, klass);
+                    setclassV(T, T->top - nargs - 1, klass);
                 }
-                return vm_precall(T, f, arg_count);
+                return vm_precall(T, f, nargs);
             }
-            else if(arg_count != 0)
+            else if(nargs != 0)
             {
-                tea_err_run(T, TEA_ERR_NOARGS, arg_count);
+                tea_err_run(T, TEA_ERR_NOARGS, nargs);
             }
             else
             {
-                setinstanceV(T, T->top - arg_count - 1, tea_instance_new(T, klass));
+                setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
             }
             return false;
         }
@@ -190,7 +190,7 @@ static bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
             copyTV(T, callee, mo);   /* Fallback */
         }
         case TEA_TFUNC:
-            return vm_call(T, funcV(callee), arg_count);
+            return vm_call(T, funcV(callee), nargs);
         default:
             break; /* Non-callable object type */
     }
@@ -198,17 +198,17 @@ static bool vm_precall(tea_State* T, TValue* callee, uint8_t arg_count)
     return false;
 }
 
-static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int arg_count)
+static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int nargs)
 {
     TValue* mo = tea_tab_get(&klass->methods, name);
     if(!mo)
     {
         tea_err_run(T, TEA_ERR_METHOD, str_data(name));
     }
-    return vm_call(T, funcV(mo), arg_count);
+    return vm_call(T, funcV(mo), nargs);
 }
 
-static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count)
+static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
 {
     switch(itype(receiver))
     {
@@ -218,7 +218,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count
             TValue* o = tea_tab_get(&module->vars, name);
             if(o)
             {
-                return vm_precall(T, o, arg_count);
+                return vm_precall(T, o, nargs);
             }
             tea_err_run(T, TEA_ERR_MODVAR, str_data(name), str_data(module->name));
         }
@@ -229,10 +229,10 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count
             TValue* o = tea_tab_get(&instance->attrs, name);
             if(o)
             {
-                copyTV(T, T->top - arg_count - 1, o);
-                return vm_precall(T, o, arg_count);
+                copyTV(T, T->top - nargs - 1, o);
+                return vm_precall(T, o, nargs);
             }
-            return vm_invoke_from_class(T, instance->klass, name, arg_count);
+            return vm_invoke_from_class(T, instance->klass, name, nargs);
         }
         default:
         {
@@ -242,7 +242,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int arg_count
                 TValue* o = tea_tab_get(&type->methods, name);
                 if(o)
                 {
-                    return vm_precall(T, o, arg_count);
+                    return vm_precall(T, o, nargs);
                 }
             }
             tea_err_run(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
@@ -570,9 +570,9 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_DEFINE_OPTIONAL):
             {
-                uint8_t arity = READ_BYTE();
-                uint8_t arity_optional = READ_BYTE();
-                int arg_count = T->top - base - arity_optional - 1;
+                uint8_t nargs = READ_BYTE();
+                uint8_t nopts = READ_BYTE();
+                int xargs = T->top - base - nopts - 1;
 
                 /*
                 ** Temp array while we shuffle the stack
@@ -580,23 +580,23 @@ static void vm_execute(tea_State* T)
                 ** we can define this with a constant limit
                 */
                 TValue values[255];
-                int index;
+                int idx;
 
-                for(index = 0; index < arity_optional + arg_count; index++)
+                for(idx = 0; idx < nopts + xargs; idx++)
                 {
                     TValue* v = --T->top;
-                    copyTV(T, values + index, v);
+                    copyTV(T, values + idx, v);
                 }
 
-                --index;
+                --idx;
 
-                for(int i = 0; i < arg_count; i++)
+                for(int i = 0; i < xargs; i++)
                 {
-                    copyTV(T, T->top++, values + index - i);
+                    copyTV(T, T->top++, values + idx - i);
                 }
 
                 /* Calculate how many "default" values are required */
-                int remaining = arity + arity_optional - arg_count;
+                int remaining = nargs + nopts - xargs;
 
                 /* Push any "default" values back onto the stack */
                 for(int i = remaining; i > 0; i--)
@@ -782,9 +782,9 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_GET_INDEX):
             {
                 TValue* obj = T->top - 2;
-                TValue* index = T->top - 1;
+                TValue* idx = T->top - 1;
                 STORE_FRAME;
-                cTValue* o = tea_meta_getindex(T, obj, index);
+                cTValue* o = tea_meta_getindex(T, obj, idx);
                 T->top -= 2;
                 copyTV(T, T->top++, o);
                 READ_FRAME();
@@ -793,9 +793,9 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_PUSH_INDEX):
             {
                 TValue* obj = T->top - 2;
-                TValue* index = T->top - 1;
+                TValue* idx = T->top - 1;
                 STORE_FRAME;
-                cTValue* o = tea_meta_getindex(T, obj, index);
+                cTValue* o = tea_meta_getindex(T, obj, idx);
                 copyTV(T, T->top++, o);
                 READ_FRAME();
                 DISPATCH();
@@ -803,10 +803,10 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_SET_INDEX):
             {
                 TValue* obj = T->top - 3;
-                TValue* index = T->top - 2;
+                TValue* idx = T->top - 2;
                 TValue* item = T->top - 1;
                 STORE_FRAME;
-                cTValue* o = tea_meta_setindex(T, obj, index, item);
+                cTValue* o = tea_meta_setindex(T, obj, idx, item);
                 T->top -= 3;
                 copyTV(T, T->top++, o);
                 READ_FRAME();
@@ -1026,11 +1026,11 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_COMPARE_JUMP):
             {
-                uint16_t offset = READ_SHORT();
-                TValue* a = --T->top;
-                if(!tea_obj_equal(T->top - 1, a))
+                uint16_t ofs = READ_SHORT();
+                TValue* o = --T->top;
+                if(!tea_obj_equal(T->top - 1, o))
                 {
-                    ip += offset;
+                    ip += ofs;
                 }
                 else
                 {
@@ -1040,39 +1040,39 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_JUMP):
             {
-                uint16_t offset = READ_SHORT();
-                ip += offset;
+                uint16_t ofs = READ_SHORT();
+                ip += ofs;
                 DISPATCH();
             }
             CASE_CODE(BC_JUMP_IF_FALSE):
             {
-                uint16_t offset = READ_SHORT();
+                uint16_t ofs = READ_SHORT();
                 if(tea_obj_isfalse(T->top - 1))
                 {
-                    ip += offset;
+                    ip += ofs;
                 }
                 DISPATCH();
             }
             CASE_CODE(BC_JUMP_IF_NIL):
             {
-                uint16_t offset = READ_SHORT();
+                uint16_t ofs = READ_SHORT();
                 if(tvisnil(T->top - 1))
                 {
-                    ip += offset;
+                    ip += ofs;
                 }
                 DISPATCH();
             }
             CASE_CODE(BC_LOOP):
             {
-                uint16_t offset = READ_SHORT();
-                ip -= offset;
+                uint16_t ofs = READ_SHORT();
+                ip -= ofs;
                 DISPATCH();
             }
             CASE_CODE(BC_CALL):
             {
-                uint8_t arg_count = READ_BYTE();
+                uint8_t nargs = READ_BYTE();
                 STORE_FRAME;
-                if(vm_precall(T, T->top - 1 - arg_count, arg_count))
+                if(vm_precall(T, T->top - 1 - nargs, nargs))
                 {
                     (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
                 }
@@ -1082,9 +1082,9 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_INVOKE):
             {
                 GCstr* method = READ_STRING();
-                uint8_t arg_count = READ_BYTE();
+                uint8_t nargs = READ_BYTE();
                 STORE_FRAME;
-                if(vm_invoke(T, T->top - 1 - arg_count, method, arg_count))
+                if(vm_invoke(T, T->top - 1 - nargs, method, nargs))
                 {
                     (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
                 }
@@ -1094,10 +1094,10 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_SUPER):
             {
                 GCstr* method = READ_STRING();
-                uint8_t arg_count = READ_BYTE();
+                uint8_t nargs = READ_BYTE();
                 GCclass* superclass = classV(--T->top);
                 STORE_FRAME;
-                if(vm_invoke_from_class(T, superclass, method, arg_count))
+                if(vm_invoke_from_class(T, superclass, method, nargs))
                 {
                     (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
                 }
@@ -1112,14 +1112,14 @@ static void vm_execute(tea_State* T)
                 for(int i = 0; i < func->t.upvalue_count; i++)
                 {
                     uint8_t is_local = READ_BYTE();
-                    uint8_t index = READ_BYTE();
+                    uint8_t idx = READ_BYTE();
                     if(is_local)
                     {
-                        func->t.upvalues[i] = tea_func_finduv(T, base + index);
+                        func->t.upvalues[i] = tea_func_finduv(T, base + idx);
                     }
                     else
                     {
-                        func->t.upvalues[i] = T->ci->func->t.upvalues[index];
+                        func->t.upvalues[i] = T->ci->func->t.upvalues[idx];
                     }
                 }
                 DISPATCH();
@@ -1326,14 +1326,14 @@ int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
     return status;
 }
 
-void tea_vm_call(tea_State* T, TValue* func, int arg_count)
+void tea_vm_call(tea_State* T, TValue* func, int nargs)
 {
     if(++T->nccalls >= TEA_MAX_CCALLS)
     {
         tea_err_run(T, TEA_ERR_STKOV);
     }
 
-    if(vm_precall(T, func, arg_count))
+    if(vm_precall(T, func, nargs))
     {
         vm_execute(T);
     }

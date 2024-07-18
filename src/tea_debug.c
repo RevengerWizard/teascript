@@ -93,58 +93,58 @@ void tea_debug_value(TValue* v)
 void tea_debug_chunk(tea_State* T, GCproto* f, const char* name)
 {
     printf("== " TEA_QS " ==\n", name);
-    for(int offset = 0; offset < f->bc_count;)
+    for(int ofs = 0; ofs < f->bc_count;)
     {
-        offset = tea_debug_instruction(T, f, offset);
+        ofs = tea_debug_instruction(T, f, ofs);
     }
 }
 
-static int debug_constant(GCproto* pt, int offset)
+static int debug_constant(GCproto* pt, int ofs)
 {
-    uint8_t constant = pt->bc[offset + 1];
-    printf("%4d '", constant);
-    tea_debug_value(proto_kgc(pt, constant));
+    uint8_t k = pt->bc[ofs + 1];
+    printf("%4d '", k);
+    tea_debug_value(proto_kgc(pt, k));
     printf("'\n");
-    return offset + 2;
+    return ofs + 2;
 }
 
-static int debug_invoke(GCproto* pt, int offset)
+static int debug_invoke(GCproto* pt, int ofs)
 {
-    uint8_t constant = pt->bc[offset + 1];
-    uint8_t arg_count = pt->bc[offset + 2];
-    printf("   (%d args) %4d '", arg_count, constant);
-    tea_debug_value(proto_kgc(pt, constant));
+    uint8_t k = pt->bc[ofs + 1];
+    uint8_t nargs = pt->bc[ofs + 2];
+    printf("   (%d args) %4d '", nargs, k);
+    tea_debug_value(proto_kgc(pt, k));
     printf("'\n");
-    return offset + 3;
+    return ofs + 3;
 }
 
-static int debug_simple(int offset)
+static int debug_simple(int ofs)
 {
     putchar('\n');
-    return offset + 1;
+    return ofs + 1;
 }
 
-static int debug_byte(GCproto* f, int offset)
+static int debug_byte(GCproto* f, int ofs)
 {
-    uint8_t slot = f->bc[offset + 1];
+    uint8_t slot = f->bc[ofs + 1];
     printf("%4d\n", slot);
-    return offset + 2;
+    return ofs + 2;
 }
 
-static int debug_iter(GCproto* f, int offset)
+static int debug_iter(GCproto* f, int ofs)
 {
-    uint8_t seq = f->bc[offset + 1];
-    uint8_t iter = f->bc[offset + 2];
+    uint8_t seq = f->bc[ofs + 1];
+    uint8_t iter = f->bc[ofs + 2];
     printf("%4d     %4d\n", seq, iter);
-    return offset + 3;
+    return ofs + 3;
 }
 
-static int debug_jump(int sign, GCproto* f, int offset)
+static int debug_jump(int sign, GCproto* f, int ofs)
 {
-    uint16_t jump = (uint16_t)(f->bc[offset + 1] << 8);
-    jump |= f->bc[offset + 2];
-    printf("%4d -> %d\n", offset, offset + 3 + sign * jump);
-    return offset + 3;
+    uint16_t jump = (uint16_t)(f->bc[ofs + 1] << 8);
+    jump |= f->bc[ofs + 2];
+    printf("%4d -> %d\n", ofs, ofs + 3 + sign * jump);
+    return ofs + 3;
 }
 
 void tea_debug_stack(tea_State* T)
@@ -163,11 +163,11 @@ void tea_debug_stack(tea_State* T)
     printf("\n");
 }
 
-int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
+int tea_debug_instruction(tea_State* T, GCproto* f, int ofs)
 {
-    printf("%04d ", offset);
-    int line = tea_func_getline(f, offset);
-    if(offset > 0 && line == tea_func_getline(f, offset - 1))
+    printf("%04d ", ofs);
+    int line = tea_func_getline(f, ofs);
+    if(ofs > 0 && line == tea_func_getline(f, ofs - 1))
     {
         printf("   | ");
     }
@@ -176,7 +176,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         printf("%4d ", line);
     }
 
-    uint8_t instruction = f->bc[offset];
+    uint8_t instruction = f->bc[ofs];
     if(instruction < BC_END)
     {
         printf("%-16s ", tea_bcnames[instruction]);
@@ -203,10 +203,10 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_IMPORT_STRING:
         case BC_IMPORT_NAME:
         case BC_IMPORT_VARIABLE:
-            return debug_constant(f, offset);
+            return debug_constant(f, ofs);
         case BC_FOR_ITER:
         case BC_GET_ITER:
-            return debug_iter(f, offset);
+            return debug_iter(f, ofs);
         case BC_NIL:
         case BC_TRUE:
         case BC_FALSE:
@@ -248,7 +248,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_IMPORT_ALIAS:
         case BC_IMPORT_END:
         case BC_END:
-            return debug_simple(offset);
+            return debug_simple(ofs);
         case BC_GET_LOCAL:
         case BC_SET_LOCAL:
         case BC_GET_UPVALUE:
@@ -257,36 +257,36 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int offset)
         case BC_UNPACK:
         case BC_UNPACK_REST:
         case BC_CALL:
-            return debug_byte(f, offset);
+            return debug_byte(f, ofs);
         case BC_COMPARE_JUMP:
         case BC_JUMP:
         case BC_JUMP_IF_FALSE:
         case BC_JUMP_IF_NIL:
-            return debug_jump(1, f, offset);
+            return debug_jump(1, f, ofs);
         case BC_LOOP:
-            return debug_jump(-1, f, offset);
+            return debug_jump(-1, f, ofs);
         case BC_INVOKE:
         case BC_SUPER:
-            return debug_invoke(f, offset);
+            return debug_invoke(f, ofs);
         case BC_CLOSURE:
         {
-            offset++;
-            uint8_t constant = f->bc[offset++];
-            printf("%4d ", constant);
-            tea_debug_value(proto_kgc(f, constant));
+            ofs++;
+            uint8_t k = f->bc[ofs++];
+            printf("%4d ", k);
+            tea_debug_value(proto_kgc(f, k));
             printf("\n");
 
-            GCproto* proto = protoV(proto_kgc(f, constant));
+            GCproto* proto = protoV(proto_kgc(f, k));
             for(int j = 0; j < proto->upvalue_count; j++)
             {
-                int is_local = f->bc[offset++];
-                int index = f->bc[offset++];
-                printf("%04d    |                     %s %d\n", offset - 2, is_local ? "local" : "upvalue", index);
+                int is_local = f->bc[ofs++];
+                int idx = f->bc[ofs++];
+                printf("%04d    |                     %s %d\n", ofs - 2, is_local ? "local" : "upvalue", idx);
             }
 
-            return offset;
+            return ofs;
         }
         default:
-            return offset + 1;
+            return ofs + 1;
     }
 }

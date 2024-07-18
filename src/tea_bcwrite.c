@@ -131,12 +131,11 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     p = tea_buf_wmem(p, str_data(pt->name), len);
 
     /* Write prototype header */
-    *p++ = pt->arity;
-    *p++ = pt->arity_optional;
+    *p++ = pt->numparams;
+    *p++ = pt->numopts;
     *p++ = pt->variadic;
     *p++ = pt->max_slots;
     *p++ = pt->upvalue_count;
-    *p++ = pt->type;
     p = bcwrite_wuleb128(p, pt->bc_count);
     p = bcwrite_wuleb128(p, pt->k_count);
 

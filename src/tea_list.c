@@ -41,23 +41,23 @@ void tea_list_add(tea_State* T, GClist* list, cTValue* o)
     list->len++;
 }
 
-void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t index)
+void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t idx)
 {
     if(list->size < list->len + 1)
     {
         list->items = tea_mem_growvec(T, TValue, list->items, list->size, INT_MAX);
     }
     list->len++;
-    for(int i = list->len - 1; i > index; i--)
+    for(int i = list->len - 1; i > idx; i--)
     {
         list->items[i] = list->items[i - 1];
     }
-    copyTV(T, list_slot(list, index), o);
+    copyTV(T, list_slot(list, idx), o);
 }
 
-void tea_list_delete(tea_State* T, GClist* list, int32_t index)
+void tea_list_delete(tea_State* T, GClist* list, int32_t idx)
 {
-    for(int i = index; i < list->len - 1; i++)
+    for(int i = idx; i < list->len - 1; i++)
     {
         copyTV(T, list_slot(list, i), list_slot(list, i + 1));
     }

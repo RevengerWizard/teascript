@@ -66,12 +66,12 @@ static uint32_t map_hash_obj(TValue* value)
 static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
 {
     uint32_t hash = map_hash_obj(key);
-    uint32_t index = hash & (size - 1);
+    uint32_t idx = hash & (size - 1);
     MapEntry* tombstone = NULL;
 
     while(true)
     {
-        MapEntry* item = &items[index];
+        MapEntry* item = &items[idx];
         if(item->empty)
         {
             if(tvisnil(&item->val))
@@ -92,7 +92,7 @@ static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
             return item;
         }
 
-        index = (index + 1) & (size - 1);
+        idx = (idx + 1) & (size - 1);
     }
 }
 

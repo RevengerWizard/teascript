@@ -211,7 +211,7 @@ static void bcread_bytecode(Lexer* lex, GCproto* pt, size_t count)
 static GCproto* bcread_proto(Lexer* lex)
 {
     GCproto* pt;
-    uint8_t arity, arity_optional, variadic, max_slots, upvalue_count, type;
+    uint8_t numparams, numopts, variadic, max_slots, upvalue_count;
     int count, k_count;
 
     /* Read prototype name */
@@ -219,21 +219,20 @@ static GCproto* bcread_proto(Lexer* lex)
     const char* name = (const char*)bcread_mem(lex, len);
 
     /* Read prototype header */
-    arity = bcread_byte(lex);
-    arity_optional = bcread_byte(lex);
+    numparams = bcread_byte(lex);
+    numopts = bcread_byte(lex);
     variadic = bcread_byte(lex);
     max_slots = bcread_byte(lex);
     upvalue_count = bcread_byte(lex);
-    type = bcread_byte(lex);
 
     count = bcread_uleb128(lex);
     k_count = bcread_uleb128(lex);
 
     /* Allocate prototype and initialize its fields */
-    pt = tea_func_newproto(lex->T, type, max_slots);
+    pt = tea_func_newproto(lex->T, max_slots);
     pt->name = tea_str_new(lex->T, name, len);
-    pt->arity = arity;
-    pt->arity_optional = arity_optional;
+    pt->numparams = numparams;
+    pt->numopts = numopts;
     pt->variadic = variadic;
     pt->upvalue_count = upvalue_count;
     pt->bc_count = count;

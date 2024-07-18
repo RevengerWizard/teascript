@@ -108,13 +108,13 @@ static void list_delete(tea_State* T)
         return;
     }
 
-    int32_t index = tea_lib_checkint(T, 1);
-    if(index < 0 || index > list->len - 1)
+    int32_t idx = tea_lib_checkint(T, 1);
+    if(idx < 0 || idx > list->len - 1)
     {
         tea_error(T, "Index out of bounds");
     }
 
-    tea_list_delete(T, list, index);
+    tea_list_delete(T, list, idx);
     T->top = T->base + 1;   /* Chain list */
 }
 
@@ -128,12 +128,12 @@ static void list_insert(tea_State* T)
 {
     GClist* list = tea_lib_checklist(T, 0);
     TValue* o = tea_lib_checkany(T, 1);
-    int32_t index = tea_lib_checkint(T, 2);
-    if(index < 0 || index > list->len - 1)
+    int32_t idx = tea_lib_checkint(T, 2);
+    if(idx < 0 || idx > list->len - 1)
     {
         tea_error(T, "Index out of bounds for the list given");
     }
-    tea_list_insert(T, list, o, index);
+    tea_list_insert(T, list, o, idx);
     T->top = T->base + 1;   /* Chain list */
 }
 
@@ -539,22 +539,22 @@ static void list_iterate(tea_State* T)
         return;
     }
 
-    int index = tea_get_number(T, 1);
+    int idx = tea_get_number(T, 1);
     /* Stop if we're out of bounds */
-    if(index < 0 || index >= len - 1)
+    if(idx < 0 || idx >= len - 1)
     {
         tea_push_nil(T);
         return;
     }
 
     /* Otherwise, move to the next index */
-    tea_push_number(T, index + 1);
+    tea_push_number(T, idx + 1);
 }
 
 static void list_iteratorvalue(tea_State* T)
 {
-    int index = tea_check_number(T, 1);
-    tea_get_item(T, 0, index);
+    int idx = tea_check_number(T, 1);
+    tea_get_item(T, 0, idx);
 }
 
 static void list_opadd(tea_State* T)

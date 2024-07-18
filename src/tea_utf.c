@@ -158,18 +158,18 @@ int tea_utf_encode(int value, uint8_t* bytes)
 
 /* -- UTF-8 transformations -------------------------------------------------- */
 
-GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* str, uint32_t index)
+GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* str, uint32_t idx)
 {
-    if(index >= str->len)
+    if(idx >= str->len)
     {
         return NULL;
     }
 
-    int code_point = tea_utf_decode((uint8_t*)str_data(str) + index, str->len - index);
+    int code_point = tea_utf_decode((uint8_t*)str_data(str) + idx, str->len - idx);
     if(code_point == -1)
     {
         char bytes[2];
-        bytes[0] = str_data(str)[index];
+        bytes[0] = str_data(str)[idx];
         bytes[1] = '\0';
         return tea_str_new(T, bytes, 1);
     }
@@ -198,8 +198,8 @@ GCstr* tea_utf_from_range(tea_State* T, GCstr* str, int start, uint32_t count, i
     uint8_t* to = (uint8_t*)bytes;
     for(uint32_t i = 0; i < count; i++)
     {
-        uint32_t index = start + i * step;
-        int code_point = tea_utf_decode(from + index, str->len - index);
+        uint32_t idx = start + i * step;
+        int code_point = tea_utf_decode(from + idx, str->len - idx);
         if(code_point != -1)
         {
             to += tea_utf_encode(code_point, to);
@@ -281,15 +281,15 @@ GCstr* tea_utf_slice(tea_State* T, GCstr* str, GCrange* range)
 
 #define is_utf(c) (((c) & 0xc0) != 0x80)
 
-int tea_utf_char_offset(char* str, int index)
+int tea_utf_char_offset(char* str, int idx)
 {
-    int offset = 0;
-    while(index > 0 && str[offset])
+    int ofs = 0;
+    while(idx > 0 && str[ofs])
     {
-        (void)(is_utf(str[++offset]) || is_utf(str[++offset]) || is_utf(str[++offset]) || ++offset);
-        index--;
+        (void)(is_utf(str[++ofs]) || is_utf(str[++ofs]) || is_utf(str[++ofs]) || ++ofs);
+        idx--;
     }
-    return offset;
+    return ofs;
 }
 
 #undef is_utf

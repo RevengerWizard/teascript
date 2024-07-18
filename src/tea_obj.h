@@ -142,27 +142,17 @@ typedef struct
 
 /* -- Prototype object -------------------------------------------------- */
 
-typedef enum
-{
-    PROTO_FUNCTION,
-    PROTO_ANONYMOUS,
-    PROTO_INIT,
-    PROTO_METHOD,
-    PROTO_OPERATOR,
-    PROTO_SCRIPT
-} ProtoType;
-
 typedef struct
 {
-    uint32_t offset; /* Bytecode instruction */
+    uint32_t ofs; /* Bytecode instruction offset */
     uint32_t line;   /* Line number for this bytecode */
 } LineStart;
 
 typedef struct
 {
     GCobj obj;
-    uint8_t arity;  /* Number of arguments */
-    uint8_t arity_optional; /* Number of optional arguments */
+    uint8_t numparams;  /* Number of parameters */
+    uint8_t numopts; /* Number of optional parameters */
     uint8_t variadic;   /* Function has variadic argument */
     uint32_t upvalue_count;  /* Number of upvalues */
     uint8_t max_slots;  /* Max stack size used by the function */

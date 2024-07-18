@@ -113,20 +113,20 @@ static void string_split(tea_State* T)
 
     if(sep_len == 0)
     {
-        int index = 0;
-        for(; index < len && list_len < max_split; index++)
+        int idx = 0;
+        for(; idx < len && list_len < max_split; idx++)
         {
             list_len++;
-            *(temp) = str[index];
+            *(temp) = str[idx];
             *(temp + 1) = '\0';
 
             tea_push_string(T, temp);
             tea_add_item(T, count);
         }
 
-        if(index != len && list_len >= max_split)
+        if(idx != len && list_len >= max_split)
         {
-            temp = str + index;
+            temp = str + idx;
         }
         else
         {
@@ -273,10 +273,10 @@ static void string_count(tea_State* T)
 static void string_find(tea_State* T)
 {
     int count = tea_get_top(T);
-    int index = 1;
+    int idx = 1;
     if(count == 3)
     {
-        index = tea_check_number(T, 2);
+        idx = tea_check_number(T, 2);
     }
 
     size_t len;
@@ -284,7 +284,7 @@ static void string_find(tea_State* T)
     const char* substr = tea_check_lstring(T, 1, &len);
 
     int pos = 0;
-    for(int i = 0; i < index; i++)
+    for(int i = 0; i < idx; i++)
     {
         char* result = strstr(str, substr);
         if(!result)
@@ -379,8 +379,8 @@ static void string_iterate(tea_State* T)
         return;
 	}
 
-    int index = tea_check_number(T, 1);
-	if(index < 0)
+    int idx = tea_check_number(T, 1);
+	if(idx < 0)
     {
         tea_push_nil(T);
         return;
@@ -388,22 +388,22 @@ static void string_iterate(tea_State* T)
 
 	do
     {
-		index++;
-		if(index >= len)
+		idx++;
+		if(idx >= len)
         {
             tea_push_nil(T);
             return;
         }
 	}
-    while((str[index] & 0xc0) == 0x80);
+    while((str[idx] & 0xc0) == 0x80);
 
-	tea_push_number(T, index);
+	tea_push_number(T, idx);
 }
 
 static void string_iteratorvalue(tea_State* T)
 {
-	int index = tea_check_number(T, 1);
-    GCstr* s = tea_utf_codepoint_at(T, strV(T->base), index);
+	int idx = tea_check_number(T, 1);
+    GCstr* s = tea_utf_codepoint_at(T, strV(T->base), idx);
     setstrV(T, T->top++, s);
 }
 

@@ -153,7 +153,7 @@ static void map_iterate(tea_State* T)
     }
 
     /* If we're starting the iteration, start at the first used entry */
-    int index = 0;
+    int idx = 0;
 
     /* Otherwise, start one past the last entry we stopped at */
     if(!tea_is_nil(T, 1))
@@ -163,29 +163,29 @@ static void map_iterate(tea_State* T)
             tea_error(T, "Expected a number to iterate");
         }
 
-        index = (uint32_t)tea_get_number(T, 1);
-        if(index < 0)
+        idx = (uint32_t)tea_get_number(T, 1);
+        if(idx < 0)
         {
             tea_push_nil(T);
             return;
         }
 
-        if(index >= map->size)
+        if(idx >= map->size)
         {
             tea_push_nil(T);
             return;
         }
 
         /* Advance the iterator */
-        index++;
+        idx++;
     }
 
     /* Find a used entry, if any */
-    for(; index < map->size; index++)
+    for(; idx < map->size; idx++)
     {
-        if(!map->entries[index].empty)
+        if(!map->entries[idx].empty)
         {
-            tea_push_number(T, index);
+            tea_push_number(T, idx);
             return;
         }
     }
@@ -197,8 +197,8 @@ static void map_iterate(tea_State* T)
 static void map_iteratorvalue(tea_State* T)
 {
     GCmap* map = tea_lib_checkmap(T, 0);
-    int index = tea_check_number(T, 1);
-    MapEntry* entry = &map->entries[index];
+    int idx = tea_check_number(T, 1);
+    MapEntry* entry = &map->entries[idx];
     if(entry->empty)
     {
         tea_error(T, "Invalid map iterator");

@@ -241,20 +241,20 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
             }
 
             GCrange* range = rangeV(obj);
-            double index = numV(index_value);
+            double idx = numV(index_value);
 
             /* Calculate the length of the range */
             double len = (range->end - range->start) / range->step;
 
             /* Allow negative indexes */
-            if(index < 0)
+            if(idx < 0)
             {
-                index = len + index;
+                idx = len + idx;
             }
 
-            if(index >= 0 && index < len)
+            if(idx >= 0 && idx < len)
             {
-                setnumV(&T->tmptv, range->start + index * range->step);
+                setnumV(&T->tmptv, range->start + idx * range->step);
                 return &T->tmptv;
             }
             tea_err_run(T, TEA_ERR_IDXRANGE);
@@ -274,17 +274,17 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
             }
 
             GClist* list = listV(obj);
-            int32_t index = numV(index_value);
+            int32_t idx = numV(index_value);
 
             /* Allow negative indexes */
-            if(index < 0)
+            if(idx < 0)
             {
-                index = list->len + index;
+                idx = list->len + idx;
             }
 
-            if(index >= 0 && index < list->len)
+            if(idx >= 0 && idx < list->len)
             {
-                return list_slot(list, index);
+                return list_slot(list, idx);
             }
             tea_err_run(T, TEA_ERR_IDXLIST);
         }
@@ -313,18 +313,18 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
             }
 
             GCstr* str = strV(obj);
-            int32_t index = numV(index_value);
+            int32_t idx = numV(index_value);
             int32_t ulen = tea_utf_len(str);
 
             /* Allow negative indexes */
-            if(index < 0)
+            if(idx < 0)
             {
-                index = ulen + index;
+                idx = ulen + idx;
             }
 
-            if(index >= 0 && index < ulen)
+            if(idx >= 0 && idx < ulen)
             {
-                GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str_datawr(str), index));
+                GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str_datawr(str), idx));
                 setstrV(T, &T->tmptv, c);
                 return &T->tmptv;
             }
@@ -363,16 +363,16 @@ cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValu
             }
 
             GClist* list = listV(obj);
-            int32_t index = numV(index_value);
+            int32_t idx = numV(index_value);
 
-            if(index < 0)
+            if(idx < 0)
             {
-                index = list->len + index;
+                idx = list->len + idx;
             }
 
-            if(index >= 0 && index < list->len)
+            if(idx >= 0 && idx < list->len)
             {
-                copyTV(T, list_slot(list, index), item_value);
+                copyTV(T, list_slot(list, idx), item_value);
                 return item_value;
             }
             tea_err_run(T, TEA_ERR_IDXLIST);

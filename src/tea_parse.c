@@ -133,7 +133,7 @@ static void bcemit_byte(Parser* parser, uint8_t byte)
     }
 
     LineStart* line_start = &f->lines[f->line_count++];
-    line_start->offset = f->bc_count - 1;
+    line_start->ofs = f->bc_count - 1;
     line_start->line = line;
 }
 
@@ -187,12 +187,12 @@ static void bcemit_loop(Parser* parser, int loop_start)
 {
     bcemit_op(parser, BC_LOOP);
 
-    int offset = parser->proto->bc_count - loop_start + 2;
-    if(offset > UINT16_MAX)
+    int ofs = parser->proto->bc_count - loop_start + 2;
+    if(ofs > UINT16_MAX)
         error(parser, TEA_ERR_XLOOP);
 
-    bcemit_byte(parser, (offset >> 8) & 0xff);
-    bcemit_byte(parser, offset & 0xff);
+    bcemit_byte(parser, (ofs >> 8) & 0xff);
+    bcemit_byte(parser, ofs & 0xff);
 }
 
 static int bcemit_jump(Parser* parser, uint8_t instruction)
@@ -231,18 +231,18 @@ static void bcemit_constant(Parser* parser, TValue* value)
     bcemit_argued(parser, BC_CONSTANT, const_make(parser, value));
 }
 
-static void bcpatch_jump(Parser* parser, int offset)
+static void bcpatch_jump(Parser* parser, int ofs)
 {
     /* -2 to adjust for the bytecode for the jump offset itself */
-    int jump = parser->proto->bc_count - offset - 2;
+    int jump = parser->proto->bc_count - ofs - 2;
 
     if(jump > UINT16_MAX)
     {
         error(parser, TEA_ERR_XJUMP);
     }
 
-    parser->proto->bc[offset] = (jump >> 8) & 0xff;
-    parser->proto->bc[offset + 1] = jump & 0xff;
+    parser->proto->bc[ofs] = (jump >> 8) & 0xff;
+    parser->proto->bc[ofs + 1] = jump & 0xff;
 }
 
 static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType type)
@@ -265,7 +265,7 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
 
     lexer->T->parser = parser;
 
-    parser->proto = tea_func_newproto(lexer->T, type, parser->slot_count);
+    parser->proto = tea_func_newproto(lexer->T, parser->slot_count);
 
     switch(type)
     {
@@ -541,23 +541,23 @@ static void define_variable(Parser* parser, uint8_t global, bool constant)
 
 static uint8_t parse_arg_list(Parser* parser)
 {
-    uint8_t arg_count = 0;
+    uint8_t nargs = 0;
     if(!lex_check(parser, ')'))
     {
         do
         {
             expr(parser);
-            if(arg_count == 255)
+            if(nargs == 255)
             {
                 error(parser, TEA_ERR_XARGS);
             }
-            arg_count++;
+            nargs++;
         }
         while(lex_match(parser, ','));
     }
     lex_consume(parser, ')');
 
-    return arg_count;
+    return nargs;
 }
 
 /* -- Expressions --------------------------------------------------------- */
@@ -720,8 +720,8 @@ static void expr_ternary(Parser* parser, bool assign)
 
 static void expr_call(Parser* parser, bool assign)
 {
-    uint8_t arg_count = parse_arg_list(parser);
-    bcemit_argued(parser, BC_CALL, arg_count);
+    uint8_t nargs = parse_arg_list(parser);
+    bcemit_argued(parser, BC_CALL, nargs);
 }
 
 static void expr_dot(Parser* parser, bool assign)
@@ -745,9 +745,9 @@ static void expr_dot(Parser* parser, bool assign)
 
     if(lex_match(parser, '('))
     {
-        uint8_t arg_count = parse_arg_list(parser);
+        uint8_t nargs = parse_arg_list(parser);
         bcemit_argued(parser, BC_INVOKE, name);
-        bcemit_byte(parser, arg_count);
+        bcemit_byte(parser, nargs);
         return;
     }
 
@@ -1219,7 +1219,7 @@ static void expr_name(Parser* parser, bool assign)
         Parser fn_parser;
 
         parser_init(parser->lex, &fn_parser, parser, PROTO_ANONYMOUS);
-        fn_parser.proto->arity = 1;
+        fn_parser.proto->numparams = 1;
 
         uint8_t constant = parse_variable_at(&fn_parser, name);
         define_variable(&fn_parser, constant, false);
@@ -1272,10 +1272,10 @@ static void expr_super(Parser* parser, bool assign)
 
         uint8_t name = identifier_constant(parser, &token);
         named_variable(parser, lex_synthetic(parser, "this"), false);
-        uint8_t arg_count = parse_arg_list(parser);
+        uint8_t nargs = parse_arg_list(parser);
         named_variable(parser, lex_synthetic(parser, "super"), false);
         bcemit_argued(parser, BC_SUPER, name);
-        bcemit_byte(parser, arg_count);
+        bcemit_byte(parser, nargs);
         return;
     }
 
@@ -1289,10 +1289,10 @@ static void expr_super(Parser* parser, bool assign)
     if(lex_match(parser, '('))
     {
         /* super.name() */
-        uint8_t arg_count = parse_arg_list(parser);
+        uint8_t nargs = parse_arg_list(parser);
         named_variable(parser, lex_synthetic(parser, "super"), false);
         bcemit_argued(parser, BC_SUPER, name);
-        bcemit_byte(parser, arg_count);
+        bcemit_byte(parser, nargs);
     }
     else
     {
@@ -1552,13 +1552,13 @@ static void begin_function(Parser* parser, Parser* fn_parser)
                 {
                     error(fn_parser, TEA_ERR_XSPREADOPT);
                 }
-                fn_parser->proto->arity_optional++;
+                fn_parser->proto->numopts++;
                 optional = true;
                 expr(fn_parser);
             }
             else
             {
-                fn_parser->proto->arity++;
+                fn_parser->proto->numparams++;
 
                 if(optional)
                 {
@@ -1566,7 +1566,7 @@ static void begin_function(Parser* parser, Parser* fn_parser)
                 }
             }
 
-            if(fn_parser->proto->arity + fn_parser->proto->arity_optional > 255)
+            if(fn_parser->proto->numparams + fn_parser->proto->numopts > 255)
             {
                 error(fn_parser, TEA_ERR_XARGS);
             }
@@ -1576,10 +1576,10 @@ static void begin_function(Parser* parser, Parser* fn_parser)
         }
         while(lex_match(fn_parser, ','));
 
-        if(fn_parser->proto->arity_optional > 0)
+        if(fn_parser->proto->numopts > 0)
         {
             bcemit_op(fn_parser, BC_DEFINE_OPTIONAL);
-            bcemit_bytes(fn_parser, fn_parser->proto->arity, fn_parser->proto->arity_optional);
+            bcemit_bytes(fn_parser, fn_parser->proto->numparams, fn_parser->proto->numopts);
         }
     }
 

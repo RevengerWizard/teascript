@@ -64,6 +64,16 @@ typedef struct Loop
     int scope_depth;
 } Loop;
 
+typedef enum
+{
+    PROTO_FUNCTION,
+    PROTO_ANONYMOUS,
+    PROTO_INIT,
+    PROTO_METHOD,
+    PROTO_OPERATOR,
+    PROTO_SCRIPT
+} ProtoType;
+
 typedef struct Parser
 {
     Lexer* lex; /* Lexer state */
