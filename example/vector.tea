@@ -45,23 +45,14 @@ class Vector
         return a.x == b.x and a.y == b.y
     }
 
-    [] (index, value)
+    [] (index)
     {
-        index %= 2
+        return (index % 2) == 0 ? this.x : this.y
+    }
 
-        if(value != nil)
-        {
-            if(index == 0)
-            {
-                this.x = value
-            }
-            else
-            {
-                this.y = value
-            }
-        }
-
-        return index == 0 ? this.x : this.y
+    []= (index, value)
+    {   
+        return index == 0 ? this.x = value : this.y = value
     }
 
     tostring()

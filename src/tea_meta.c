@@ -222,13 +222,12 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
         case TEA_TINSTANCE:
         {
             GCinstance* instance = instanceV(obj);
-            TValue* mo = tea_meta_lookup(T, obj, MM_INDEX);
+            TValue* mo = tea_meta_lookup(T, obj, MM_GETINDEX);
             if(mo)
             {
                 copyTV(T, T->top++, obj);
                 copyTV(T, T->top++, index_value);
-                setnilV(T->top++);
-                tea_vm_call(T, mo, 2);
+                tea_vm_call(T, mo, 1);
                 return --T->top;
             }
             tea_err_run(T, TEA_ERR_INSTSUBSCR, instance->klass->name);
@@ -344,7 +343,7 @@ cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValu
         case TEA_TINSTANCE:
         {
             GCinstance* instance = instanceV(obj);
-            TValue* mo = tea_meta_lookup(T, obj, MM_INDEX);
+            TValue* mo = tea_meta_lookup(T, obj, MM_SETINDEX);
             if(mo)
             {             
                 copyTV(T, T->top++, obj);

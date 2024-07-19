@@ -1651,7 +1651,7 @@ static void expr_grouping(Parser* parser, bool assign)
     lex_consume(parser, ')');
 }
 
-static const int operators[] = {
+static const LexToken ops[] = {
     '+', '-', '*', '/', '%',
     TK_STAR_STAR,        /* ** */
     '&', '|', '~', '^',
@@ -1671,9 +1671,9 @@ static const int operators[] = {
 static void parse_operator(Parser* parser)
 {
     int i = 0;
-    while(operators[i] != TK_EOF)
+    while(ops[i] != TK_EOF)
     {
-        if(lex_match(parser, operators[i]))
+        if(lex_match(parser, ops[i]))
         {
             break;
         }
@@ -1692,7 +1692,10 @@ static void parse_operator(Parser* parser)
     {
         parser->klass->is_static = false;
         lex_consume(parser, ']');
-        name = mmname_str(parser->lex->T, MM_INDEX);
+        if(lex_match(parser, '='))
+            name = mmname_str(parser->lex->T, MM_SETINDEX);
+        else
+            name = mmname_str(parser->lex->T, MM_GETINDEX);
     }
     else
     {

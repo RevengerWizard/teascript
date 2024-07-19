@@ -330,8 +330,8 @@ typedef struct
     _(MOD, %) _(POW, **) _(BAND, &) _(BOR, |) _(BNOT, ~) \
     _(BXOR, ^) _(LSHIFT, <<) _(RSHIFT, >>) \
     _(LT, <) _(LE, <=) _(GT, >) _(GE, >=) _(EQ, ==) \
-    _(INDEX, []) _(TOSTRING, tostring) \
-    _(CALL, call) \
+    _(GETINDEX, []) _(SETINDEX, []=) \
+    _(TOSTRING, tostring) _(CALL, call) \
     _(ITER, iterate) _(NEXT, iteratorvalue) \
     _(CONTAINS, contains) _(GC, gc)
 
