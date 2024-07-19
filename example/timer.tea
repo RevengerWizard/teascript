@@ -1,0 +1,35 @@
+class Timer
+{
+    new(time)
+    {
+        this.total = time
+        this.left = 0
+    }
+
+    start()
+    {
+        this.left = this.total
+    }
+
+    step(delta)
+    {
+        this.left -= delta
+    }
+
+    isover()
+    {
+        return this.left < 0
+    }
+}
+
+const timer = Timer(15)
+timer.start()
+
+while
+{
+    print(timer.left)
+    timer.step(1)
+
+    if(timer.isover())
+        break
+}
