@@ -358,9 +358,9 @@ void tea_gc_freeall(tea_State* T)
 /* -- Allocator -------------------------------------------------- */
 
 /* Call pluggable memory allocator to allocate or resize a fragment */
-void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, size_t new_size)
+void* tea_mem_realloc(tea_State* T, void* p, size_t old_size, size_t new_size)
 {
-    tea_assertT((old_size == 0) == (pointer == NULL), "realloc API violation");
+    tea_assertT((old_size == 0) == (p == NULL), "realloc API violation");
     T->gc.total += new_size - old_size;
 
     if(new_size > old_size)
@@ -375,11 +375,11 @@ void* tea_mem_realloc(tea_State* T, void* pointer, size_t old_size, size_t new_s
         }
     }
 
-    pointer = T->allocf(T->allocd, pointer, old_size, new_size);
-    if(pointer == NULL && new_size > 0)
+    p = T->allocf(T->allocd, p, old_size, new_size);
+    if(p == NULL && new_size > 0)
         tea_err_mem(T);
-    tea_assertT((new_size == 0) == (pointer == NULL), "allocf API violation");
-    return pointer;
+    tea_assertT((new_size == 0) == (p == NULL), "allocf API violation");
+    return p;
 }
 
 /* Allocate new GC object and link it to the objects root */
@@ -394,14 +394,14 @@ GCobj* tea_mem_newgco(tea_State* T, size_t size, uint8_t type)
 }
 
 /* Resize growable vector */
-void* tea_mem_grow(tea_State* T, void* pointer, uint32_t* size, size_t size_elem, int limit)
+void* tea_mem_grow(tea_State* T, void* p, uint32_t* size, size_t size_elem, int limit)
 {
     size_t new_size = (*size) << 1;
     if(new_size < TEA_MIN_VECSIZE)
         new_size = TEA_MIN_VECSIZE;
     if(new_size > limit)
         new_size = limit;
-    pointer = tea_mem_realloc(T, pointer, (*size) * size_elem, new_size * size_elem);
+    p = tea_mem_realloc(T, p, (*size) * size_elem, new_size * size_elem);
     *size = new_size;
-    return pointer;
+    return p;
 }

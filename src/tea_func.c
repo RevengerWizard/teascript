@@ -72,32 +72,31 @@ static GCupval* func_newuv(tea_State* T, TValue* slot)
 /* Find existing open upvalue for a stack slot or create a new one */
 GCupval* tea_func_finduv(tea_State* T, TValue* local)
 {
-    GCupval* prev_upvalue = NULL;
-    GCupval* upvalue = T->open_upvalues;
-    while(upvalue != NULL && upvalue->location > local)
+    GCupval* prev_uv = NULL;
+    GCupval* uv = T->open_upvalues;
+    while(uv != NULL && uv->location > local)
     {
-        prev_upvalue = upvalue;
-        upvalue = upvalue->next;
+        prev_uv = uv;
+        uv = uv->next;
     }
 
-    if(upvalue != NULL && upvalue->location == local)
+    if(uv != NULL && uv->location == local)
     {
-        return upvalue;
+        return uv;
     }
 
-    GCupval* created_upvalue = func_newuv(T, local);
-    created_upvalue->next = upvalue;
+    GCupval* new_uv = func_newuv(T, local);
+    new_uv->next = uv;
 
-    if(prev_upvalue == NULL)
+    if(prev_uv == NULL)
     {
-        T->open_upvalues = created_upvalue;
+        T->open_upvalues = new_uv;
     }
     else
     {
-        prev_upvalue->next = created_upvalue;
+        prev_uv->next = new_uv;
     }
-
-    return created_upvalue;
+    return new_uv;
 }
 
 /* Close all open upvalues pointing to some stack level or above */
@@ -105,10 +104,10 @@ void tea_func_closeuv(tea_State* T, TValue* last)
 {
     while(T->open_upvalues != NULL && T->open_upvalues->location >= last)
     {
-        GCupval* upvalue = T->open_upvalues;
-        upvalue->closed = *upvalue->location;
-        upvalue->location = &upvalue->closed;
-        T->open_upvalues = upvalue->next;
+        GCupval* uv = T->open_upvalues;
+        uv->closed = *uv->location;
+        uv->location = &uv->closed;
+        T->open_upvalues = uv->next;
     }
 }
 
