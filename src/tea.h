@@ -304,6 +304,9 @@ TEA_API int tea_load_buffer(tea_State* T, const char* buffer, size_t size, const
 TEA_API int tea_eval(tea_State* T, const char* s);
 
 TEA_API int tea_error(tea_State* T, const char* fmt, ...);
+TEA_API int tea_arglimit_error(tea_State* T, int narg, const char* msg);
+TEA_API int tea_arg_error(tea_State* T, int narg, const char* msg);
+TEA_API int tea_type_error(tea_State* T, int narg, const char* xname);
 
 TEA_API void tea_concat(tea_State* T);
 
@@ -313,6 +316,8 @@ TEA_API void tea_concat(tea_State* T);
 
 #define tea_open()  tea_new_state(NULL, NULL)
 
+#define tea_arg_check(T, cond, narg, extramsg) \
+    ((void)((cond) || tea_arg_error(L, (narg), (extramsg))))
 #define tea_push_literal(T, s)  tea_push_lstring(T, "" s, (sizeof(s)/sizeof(char))-1)
 
 #define tea_check_list(T, index) tea_check_type(T, (index), TEA_TYPE_LIST)

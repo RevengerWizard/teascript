@@ -18,6 +18,7 @@ ERRDEF(ARGS, "Expected %d arguments, but got %d")
 ERRDEF(OPTARGS, "Expected at most %d arguments, but got %d")
 ERRDEF(NOVAL, "Expected value")
 ERRDEF(BADTYPE, "Expected %s, got %s")
+ERRDEF(BADARG, "Bad argument %d, %s")
 ERRDEF(INTRANGE, "Number out of range")
 
 ERRDEF(PATH, "Unable to resolve path " TEA_QS)

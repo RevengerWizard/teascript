@@ -119,6 +119,17 @@ TEA_NOINLINE void tea_err_lex(tea_State* T, const char* src, const char* tok, in
     tea_err_throw(T, TEA_ERROR_SYNTAX);
 }
 
+/* Argument error message */
+TEA_NORET TEA_NOINLINE static void err_argmsg(tea_State* T, int narg, const char* msg)
+{
+    if(narg < 0 && narg > TEA_REGISTRY_INDEX)
+        narg = (int)(T->top - T->base) + narg;
+    msg = tea_strfmt_pushf(T, err2msg(TEA_ERR_BADARG), narg, msg);
+    fputs(msg, stderr);
+    fputc('\n', stderr);
+    err_run(T);
+}
+
 /* Argument error */
 TEA_NOINLINE void tea_err_arg(tea_State* T, int narg, ErrMsg em)
 {
@@ -164,5 +175,25 @@ TEA_API int tea_error(tea_State* T, const char* fmt, ...)
     fputs(msg, stderr);
     fputc('\n', stderr);
     err_run(T);
+    return 0;   /* Unreachable */
+}
+
+TEA_API int tea_arglimit_error(tea_State* T, int narg, const char* msg)
+{
+    int limit = (int)(T->top - T->base);
+    if(narg > limit)
+        tea_err_run(T, TEA_ERR_ARGS, limit, narg);
+    return 0;   /* Unreachable */
+}
+
+TEA_API int tea_arg_error(tea_State* T, int narg, const char* msg)
+{
+    err_argmsg(T, narg, msg);
+    return 0;   /* Unreachable */
+}
+
+TEA_API int tea_type_error(tea_State* T, int narg, const char* xname)
+{
+    tea_err_argtype(T, narg, xname);
     return 0;   /* Unreachable */
 }
