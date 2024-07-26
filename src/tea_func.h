@@ -17,7 +17,7 @@ TEA_FUNC GCupval* tea_func_finduv(tea_State* T, TValue* local);
 TEA_FUNC void tea_func_closeuv(tea_State* T, TValue* last);
 
 /* Functions (closures) */
-TEA_FUNC GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs, int nupvalues);
+TEA_FUNC GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nupvalues, int nargs, int nopts);
 TEA_FUNC GCfunc* tea_func_newT(tea_State* T, GCproto* proto, GCmodule* module);
 TEA_FUNC void tea_func_free(tea_State* T, GCfunc* fn);
 

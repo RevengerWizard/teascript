@@ -331,7 +331,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     {
         if(strncmp(modules[i].name, str_data(name), name->len) == 0)
         {
-            tea_push_cfunction(T, modules[i].fn, 0);
+            tea_push_cfunction(T, modules[i].fn, 0, 0);
             tea_call(T, 0);
             T->last_module = moduleV(T->top - 1);
             return;
@@ -374,7 +374,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         tea_CFunction fn = ll_sym(T, lib, symname);
         T->top--;
 
-        tea_push_cfunction(T, fn, 0);
+        tea_push_cfunction(T, fn, 0, 0);
         tea_call(T, 0);
 
         T->last_module = moduleV(T->top - 1);

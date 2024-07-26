@@ -296,7 +296,7 @@ static void io_popen(tea_State* T)
 #endif
     if(fp == NULL)
     {
-        tea_error(T, "Unable to open " TEA_QS, path);
+        tea_err_run(T, TEA_ERR_OPEN, path);
     }
 
     io_file_new(T, fp, IOFILE_TYPE_PIPE);
@@ -320,16 +320,16 @@ static void io_stdfile(tea_State* T, FILE* fp, const char* name, const char* mod
 }
 
 static const tea_Methods file_class[] = {
-    { "write", "method", file_write, TEA_VARARGS },
-    { "read", "method", file_read, -2 },
-    { "readline", "method", file_readline, 1 },
-    { "seek", "method", file_seek, -2 },
-    { "flush", "method", file_flush, 1 },
-    { "setvbuf", "method", file_setvbuf, -2 },
-    { "close", "method", file_close, 1 },
-    { "tostring", "method", file_tostring, 1 },
-    { "iterate", "method", file_iterate, 2 },
-    { "iteratorvalue", "method", file_iteratorvalue, 2 },
+    { "write", "method", file_write, TEA_VARG, 0 },
+    { "read", "method", file_read, 1, 1 },
+    { "readline", "method", file_readline, 1, 0 },
+    { "seek", "method", file_seek, 1, 0 },
+    { "flush", "method", file_flush, 1, 0 },
+    { "setvbuf", "method", file_setvbuf, 1, 1 },
+    { "close", "method", file_close, 1, 0 },
+    { "tostring", "method", file_tostring, 1, 0 },
+    { "iterate", "method", file_iterate, 2, 0 },
+    { "iteratorvalue", "method", file_iteratorvalue, 2, 0 },
     { NULL, NULL, NULL }
 };
 

@@ -72,7 +72,7 @@ static void base_assert(tea_State* T)
 {
     if(!tea_to_bool(T, 0))
     {
-        tea_error(T, "%s", tea_opt_string(T, 1, "assertion failed!"));
+        tea_err_run(T, TEA_ERR_ASSERT);
     }
     tea_push_value(T, 0);
 }
@@ -123,7 +123,7 @@ static void base_dump(tea_State* T)
     SBuf* sb = tea_buf_tmp_(T);
     if(!isteafunc(fn) || tea_bcwrite(T, fn->t.proto, writer_buf, sb))
     {
-        tea_error(T, "Unable to dump given function");
+        tea_err_run(T, TEA_ERR_DUMP);
     }
     setstrV(T, T->top++, tea_buf_str(T, sb));
 }
@@ -291,39 +291,39 @@ static void invalid_init(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods func_class[] = {
-    { "new", "method", invalid_init, TEA_VARARGS },
+    { "new", "method", invalid_init, TEA_VARG },
     { NULL, NULL }
 };
 
 static const tea_Methods number_class[] = {
-    { "new", "method", number_init, -3 },
+    { "new", "method", number_init, 2, 1 },
     { NULL, NULL }
 };
 
 static const tea_Methods bool_class[] = {
-    { "new", "method", bool_init, 2 },
+    { "new", "method", bool_init, 2, 0 },
     { NULL, NULL }
 };
 
 static const tea_Reg globals[] = {
-    { "print", base_print, TEA_VARARGS },
-    { "input", base_input, -1 },
-    { "assert", base_assert, -2 },
-    { "error", base_error, 1 },
-    { "typeof", base_typeof, 1 },
-    { "gc", base_gc, 0 },
-    { "eval", base_eval, 1 },
-    { "dump", base_dump, 1 },
-    { "loadfile", base_loadfile, 1 },
-    { "loadstring", base_loadstring, 1 },
-    { "char", base_char, 1 },
-    { "ord", base_ord, 1 },
-    { "hex", base_hex, 1 },
-    { "bin", base_bin, 1 },
-    { "rawequal", base_rawequal, 2 },
-    { "hasattr", base_hasattr, 2 },
-    { "getattr", base_getattr, 2 },
-    { "setattr", base_setattr, 3 },
+    { "print", base_print, TEA_VARG, 0 },
+    { "input", base_input, 0, 1 },
+    { "assert", base_assert, 1, 1 },
+    { "error", base_error, 1, 0 },
+    { "typeof", base_typeof, 1, 0 },
+    { "gc", base_gc, 0, 0 },
+    { "eval", base_eval, 1, 0 },
+    { "dump", base_dump, 1, 0 },
+    { "loadfile", base_loadfile, 1, 0 },
+    { "loadstring", base_loadstring, 1, 0 },
+    { "char", base_char, 1, 0 },
+    { "ord", base_ord, 1, 0 },
+    { "hex", base_hex, 1, 0 },
+    { "bin", base_bin, 1, 0 },
+    { "rawequal", base_rawequal, 2, 0 },
+    { "hasattr", base_hasattr, 2, 0 },
+    { "getattr", base_getattr, 2, 0 },
+    { "setattr", base_setattr, 3, 0 },
     { NULL, NULL }
 };
 
@@ -332,7 +332,7 @@ static void tea_open_global(tea_State* T)
     const tea_Reg* reg = globals;
     for(; reg->name; reg++)
     {
-        tea_push_cfunction(T, reg->fn, reg->nargs);
+        tea_push_cfunction(T, reg->fn, reg->nargs, reg->nopts);
         tea_set_global(T, reg->name);
     }
 
@@ -360,7 +360,7 @@ void tea_open_base(tea_State* T)
 
     for(int i = 0; funcs[i] != NULL; i++)
     {
-        tea_push_cfunction(T, funcs[i], 0);
+        tea_push_cfunction(T, funcs[i], 0, 0);
         tea_call(T, 0);
         tea_pop(T, 1);
     }

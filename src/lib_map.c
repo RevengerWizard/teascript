@@ -225,21 +225,21 @@ static void map_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods map_class[] = {
-    { "count", "property", map_count, TEA_VARARGS },
-    { "keys", "property", map_keys, TEA_VARARGS },
-    { "values", "property", map_values, TEA_VARARGS },
-    { "new", "method", map_init, 1 },
-    { "get", "method", map_get, -3 },
-    { "set", "method", map_set, -2 },
-    { "update", "method", map_update, 2 },
-    { "clear", "method", map_clear, 1 },
-    { "contains", "method", map_contains, 2 },
-    { "delete", "method", map_delete, 2 },
-    { "copy", "method", map_copy, 1 },
-    { "foreach", "method", map_foreach, 2 },
-    { "iterate", "method", map_iterate, 2 },
-    { "iteratorvalue", "method", map_iteratorvalue, 2 },
-    { "+", "static", map_opadd, 2 },
+    { "count", "property", map_count, TEA_VARG, 0 },
+    { "keys", "property", map_keys, TEA_VARG, 0 },
+    { "values", "property", map_values, TEA_VARG, 0 },
+    { "new", "method", map_init, 1, 0 },
+    { "get", "method", map_get, 2, 1 },
+    { "set", "method", map_set, 1, 1 },
+    { "update", "method", map_update, 2, 0 },
+    { "clear", "method", map_clear, 1, 0 },
+    { "contains", "method", map_contains, 2, 0 },
+    { "delete", "method", map_delete, 2, 0 },
+    { "copy", "method", map_copy, 1, 0 },
+    { "foreach", "method", map_foreach, 2, 0 },
+    { "iterate", "method", map_iterate, 2, 0 },
+    { "iteratorvalue", "method", map_iteratorvalue, 2, 0 },
+    { "+", "static", map_opadd, 2, 0 },
     { NULL, NULL, NULL }
 };
 

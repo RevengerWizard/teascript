@@ -147,13 +147,13 @@ static void buffer_tostring(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods buffer_class[] = {
-    { "len", "property", buffer_len, TEA_VARARGS },
-    { "new", "method", buffer_init, -2 },
-    { "skip", "method", buffer_skip, 2 },
-    { "reset", "method", buffer_reset, 1 },
-    { "put", "method", buffer_put, TEA_VARARGS },
-    { "format", "method", buffer_format, TEA_VARARGS },
-    { "tostring", "method", buffer_tostring, 1 },
+    { "len", "property", buffer_len, TEA_VARG, 0 },
+    { "new", "method", buffer_init, 1, 1 },
+    { "skip", "method", buffer_skip, 2, 0 },
+    { "reset", "method", buffer_reset, 1, 0 },
+    { "put", "method", buffer_put, TEA_VARG, 0 },
+    { "format", "method", buffer_format, TEA_VARG, 0 },
+    { "tostring", "method", buffer_tostring, 1, 0 },
     { NULL, NULL, NULL }
 };
 

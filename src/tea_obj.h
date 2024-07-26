@@ -200,7 +200,8 @@ typedef struct
     GCfuncHeader;
     uint8_t type;
     tea_CFunction fn;   /* C function to be called */
-    int nargs;  /* Number of arguments or -1 */
+    int nargs;  /* Number of arguments */
+    int nopts; /* Number of optional arguments */
     TValue upvalues[1];   /* Array of upvalues (TValue) */
 } GCfuncC;
 

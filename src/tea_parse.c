@@ -1568,7 +1568,7 @@ static void begin_function(Parser* parser, Parser* fn_parser)
 
             if(fn_parser->proto->numparams + fn_parser->proto->numopts > 255)
             {
-                error(fn_parser, TEA_ERR_XARGS);
+                error(fn_parser, TEA_ERR_XMAXARGS);
             }
 
             uint8_t constant = parse_variable_at(fn_parser, name);

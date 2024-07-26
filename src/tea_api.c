@@ -544,11 +544,11 @@ TEA_API void tea_new_module(tea_State* T, const char* name)
     incr_top(T);
 }
 
-TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nargs, int nup)
+TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nup, int nargs, int nopts)
 {
     GCfunc* cf;
     tea_checkapi_slot(nup);
-    cf = tea_func_newC(T, C_FUNCTION, fn, nargs, nup);
+    cf = tea_func_newC(T, C_FUNCTION, fn, nup, nargs, nopts);
     T->top -= nup;
     while(nup--)
         copyTV(T, &cf->c.upvalues[nup], T->top + nup);
@@ -556,9 +556,9 @@ TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nargs, int nu
     incr_top(T);
 }
 
-TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs)
+TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs, int nopts)
 {
-    GCfunc* cf = tea_func_newC(T, C_FUNCTION, fn, nargs, 0);
+    GCfunc* cf = tea_func_newC(T, C_FUNCTION, fn, 0, nargs, nopts);
     setfuncV(T, T->top, cf);
     incr_top(T);
 }
@@ -590,17 +590,17 @@ static void set_class(tea_State* T, const tea_Methods* k)
         {
             if(strcmp(k->type, "method") == 0)
             {
-                GCfunc* cf = tea_func_newC(T, C_METHOD, k->fn, k->nargs, 0);
+                GCfunc* cf = tea_func_newC(T, C_METHOD, k->fn, 0, k->nargs, k->nopts);
                 setfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "property") == 0)
             {
-                GCfunc* cf = tea_func_newC(T, C_PROPERTY, k->fn, k->nargs, 0);
+                GCfunc* cf = tea_func_newC(T, C_PROPERTY, k->fn, 0, k->nargs, k->nopts);
                 setfuncV(T, T->top++, cf);
             }
             else if(strcmp(k->type, "static") == 0)
             {
-                GCfunc* cf = tea_func_newC(T, C_FUNCTION, k->fn, k->nargs, 0);
+                GCfunc* cf = tea_func_newC(T, C_FUNCTION, k->fn, 0, k->nargs, k->nopts);
                 setfuncV(T, T->top++, cf);
             }
         }
@@ -629,7 +629,7 @@ static void set_module(tea_State* T, const tea_Reg* m)
         }
         else
         {
-            tea_push_cfunction(T, m->fn, m->nargs);
+            tea_push_cfunction(T, m->fn, m->nargs, m->nopts);
         }
         tea_set_attr(T, -2, m->name);
     }
@@ -918,7 +918,7 @@ TEA_API void tea_set_funcs(tea_State* T, const tea_Reg* reg, int nup)
         int i;
         for(i = 0; i < nup; i++)  /* Copy upvalues to the top */
             tea_push_value(T, -nup);
-        tea_push_cclosure(T, reg->fn, reg->nargs, nup);
+        tea_push_cclosure(T, reg->fn, nup, reg->nargs, reg->nopts);
         tea_set_attr(T, -(nup + 2), reg->name);
     }
     tea_pop(T, nup);    /* Remove upvalues */
@@ -939,7 +939,7 @@ TEA_API void tea_set_methods(tea_State* T, const tea_Methods* reg, int nup)
             ct = C_PROPERTY;
         }
 
-        GCfunc* cf = tea_func_newC(T, ct, reg->fn, reg->nargs, nup);
+        GCfunc* cf = tea_func_newC(T, ct, reg->fn, nup, reg->nargs, reg->nopts);
         int nupvals = nup;
         while(nupvals--)
             copyTV(T, &cf->c.upvalues[nupvals], T->top + nupvals);
@@ -1201,7 +1201,7 @@ typedef struct CPCallCtx
 static void cpcall_f(tea_State* T, void* ud)
 {
     CPCallCtx* ctx = (CPCallCtx*)ud;
-    GCfunc* fn = tea_func_newC(T, C_FUNCTION, ctx->func, 1, 0);
+    GCfunc* fn = tea_func_newC(T, C_FUNCTION, ctx->func, 0, 1, 0);
     setfuncV(T, T->top++, fn);
     setpointerV(T->top++, ctx->ud);
     tea_vm_call(T, T->top - 2, 1);

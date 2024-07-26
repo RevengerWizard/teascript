@@ -60,7 +60,7 @@ static void set_version(tea_State* T)
 }
 
 static const tea_Reg sys_module[] = {
-    { "exit", sys_exit, -1 },
+    { "exit", sys_exit, 0, 1 },
     { "argv", NULL },
     { "version", NULL },
     { "byteorder", NULL },

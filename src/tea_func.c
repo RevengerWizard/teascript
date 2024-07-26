@@ -113,7 +113,7 @@ void tea_func_closeuv(tea_State* T, TValue* last)
 
 /* -- Functions (closures) -------------------------------------------------- */
 
-GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs, int nupvalues)
+GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nupvalues, int nargs, int nopts)
 {
     GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeCfunc(nupvalues), TEA_TFUNC);
     func->c.ffid = FF_C;
@@ -122,6 +122,7 @@ GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nargs,
     func->c.type = type;
     func->c.fn = fn;
     func->c.nargs = nargs;
+    func->c.nopts = nopts;
     return func;
 }
 

@@ -248,11 +248,11 @@ static void string_rightstrip(tea_State* T)
 
 static void string_strip(tea_State* T)
 {
-    tea_push_cfunction(T, string_leftstrip, 1);
+    tea_push_cfunction(T, string_leftstrip, 1, 0);
     tea_push_value(T, 0);
     tea_call(T, 1);
 
-    tea_push_cfunction(T, string_rightstrip, 1);
+    tea_push_cfunction(T, string_rightstrip, 1, 0);
     tea_push_value(T, 1);
     tea_call(T, 1);
 }
@@ -476,26 +476,26 @@ static void string_opmultiply(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods string_class[] = {
-    { "len", "property", string_len, TEA_VARARGS },
-    { "new", "method", string_init, 2 },
-    { "upper", "method", string_upper, 1 },
-    { "lower", "method", string_lower, 1 },
-    { "reverse", "method", string_reverse, 1 },
-    { "split", "method", string_split, -3 },
-    { "contains", "method", string_contains, 2 },
-    { "startswith", "method", string_startswith, 2 },
-    { "endswith", "method", string_endswith, 2 },
-    { "leftstrip", "method", string_leftstrip, 1 },
-    { "rightstrip", "method", string_rightstrip, 1 },
-    { "strip", "method", string_strip, 1 },
-    { "count", "method", string_count, 2 },
-    { "find", "method", string_find, -3 },
-    { "replace", "method", string_replace, 3 },
-    { "format", "method", string_format, TEA_VARARGS },
-    { "iterate", "method", string_iterate, 2 },
-    { "iteratorvalue", "method", string_iteratorvalue, 2 },
-    { "+", "static", string_opadd, 2 },
-    { "*", "static", string_opmultiply, 2 },
+    { "len", "property", string_len, TEA_VARG, 0 },
+    { "new", "method", string_init, 2, 0 },
+    { "upper", "method", string_upper, 1, 0 },
+    { "lower", "method", string_lower, 1, 0 },
+    { "reverse", "method", string_reverse, 1, 0 },
+    { "split", "method", string_split, 1, 2 },
+    { "contains", "method", string_contains, 2, 0 },
+    { "startswith", "method", string_startswith, 2, 0 },
+    { "endswith", "method", string_endswith, 2, 0 },
+    { "leftstrip", "method", string_leftstrip, 1, 0 },
+    { "rightstrip", "method", string_rightstrip, 1, 0 },
+    { "strip", "method", string_strip, 1, 0 },
+    { "count", "method", string_count, 2, 0 },
+    { "find", "method", string_find, 2, 1 },
+    { "replace", "method", string_replace, 3, 0 },
+    { "format", "method", string_format, TEA_VARG, 0 },
+    { "iterate", "method", string_iterate, 2, 0 },
+    { "iteratorvalue", "method", string_iteratorvalue, 2, 0 },
+    { "+", "static", string_opadd, 2, 0 },
+    { "*", "static", string_opmultiply, 2, 0 },
     { NULL, NULL, NULL }
 };
 

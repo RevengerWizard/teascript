@@ -15,7 +15,6 @@ ERRDEF(CALL, TEA_QS " is not callable")
 
 ERRDEF(NOARGS, "Expected 0 arguments but got %d")
 ERRDEF(ARGS, "Expected %d arguments, but got %d")
-ERRDEF(OPTARGS, "Expected at most %d arguments, but got %d")
 ERRDEF(NOVAL, "Expected value")
 ERRDEF(BADTYPE, "Expected %s, got %s")
 ERRDEF(BADARG, "Bad argument %d, %s")

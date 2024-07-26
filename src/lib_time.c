@@ -209,11 +209,11 @@ static void time_diff(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Reg time_module[] = {
-    { "sleep", time_sleep, 1 },
-    { "clock", time_clock, 0 },
-    { "format", time_format, -2 },
-    { "time", time_time, -1 },
-    { "diff", time_diff, -2 },
+    { "sleep", time_sleep, 1, 0 },
+    { "clock", time_clock, 0, 0 },
+    { "format", time_format, 0, 2 },
+    { "time", time_time, 0, 1 },
+    { "diff", time_diff, 1, 1 },
     { NULL, NULL }
 };
 

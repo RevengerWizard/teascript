@@ -155,12 +155,12 @@ static void init_env(tea_State* T)
 }
 
 static const tea_Reg os_module[] = {
-    { "getenv", os_getenv, -2 },
-    { "setenv", os_setenv, -2 },
-    { "execute", os_execute, 1 },
-    { "remove", os_remove, 1 },
-    { "rename", os_rename, 2 },
-    { "mkdir", os_mkdir, 1 },
+    { "getenv", os_getenv, 1, 1 },
+    { "setenv", os_setenv, 1, 1 },
+    { "execute", os_execute, 1, 0 },
+    { "remove", os_remove, 1, 0 },
+    { "rename", os_rename, 2, 0 },
+    { "mkdir", os_mkdir, 1, 0 },
     { "name", NULL },
     { "arch", NULL },
     { "env", NULL },

@@ -130,11 +130,11 @@ static void random_choice(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Reg random_module[] = {
-    { "seed", random_seed, 1 },
-    { "random", random_random, 0 },
-    { "range", random_range, -2 },
-    { "choice", random_choice, 1 },
-    { "shuffle", random_shuffle, 1 },
+    { "seed", random_seed, 1, 0 },
+    { "random", random_random, 0, 0 },
+    { "range", random_range, 1, 1 },
+    { "choice", random_choice, 1, 0 },
+    { "shuffle", random_shuffle, 1, 0 },
     { NULL, NULL },
 };
 

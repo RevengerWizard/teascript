@@ -77,6 +77,7 @@ typedef struct tea_Reg
     const char* name;
     tea_CFunction fn;
     int nargs;
+    int nopts;
 } tea_Reg;
 
 typedef struct tea_Methods
@@ -85,6 +86,7 @@ typedef struct tea_Methods
     const char* type;
     tea_CFunction fn;
     int nargs;
+    int nopts;
 } tea_Methods;
 
 /*
@@ -106,7 +108,7 @@ typedef struct tea_Methods
 #define TEA_MASK_USERDATA   (1 << TEA_TYPE_USERDATA)
 
 /* Option for variadic functions */
-#define TEA_VARARGS (-1000)
+#define TEA_VARG (-255)
 
 /*
 ** Basic types
@@ -209,8 +211,8 @@ TEA_API const char* tea_push_string(tea_State* T, const char* s);
 TEA_API const char* tea_push_fstring(tea_State* T, const char* fmt, ...);
 TEA_API const char* tea_push_vfstring(tea_State* T, const char* fmt, va_list args);
 TEA_API void tea_push_range(tea_State* T, tea_Number start, tea_Number end, tea_Number step);
-TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nargs, int nupvalues);
-TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs);
+TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nupvalues, int nargs, int nopts);
+TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs, int nopts);
 
 TEA_API void tea_new_list(tea_State* T);
 TEA_API void tea_new_map(tea_State* T);

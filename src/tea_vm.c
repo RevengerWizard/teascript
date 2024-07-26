@@ -27,12 +27,11 @@
 #include "tea_strfmt.h"
 #include "tea_meta.h"
 
-static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
+static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int variadic)
 {
-    GCfuncT* func = &f->t;
-    if(nargs < func->proto->numparams)
+    if(TEA_UNLIKELY(nargs < numparams))
     {
-        if((nargs + func->proto->variadic) == func->proto->numparams)
+        if((nargs + variadic) == numparams)
         {
             /* Add missing variadic param ([]) */
             GClist* list = tea_list_new(T);
@@ -41,14 +40,14 @@ static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
         }
         else
         {
-            tea_err_run(T, TEA_ERR_ARGS, func->proto->numparams, nargs);
+            tea_err_run(T, TEA_ERR_ARGS, numparams, nargs);
         }
     }
-    else if(nargs > func->proto->numparams + func->proto->numopts)
+    else if(TEA_UNLIKELY(nargs > numparams + numops))
     {
-        if(func->proto->variadic)
+        if(variadic)
         {
-            int xargs = func->proto->numparams + func->proto->numopts;
+            int xargs = numparams + numops;
             /* +1 for the variadic param itself */
             int varargs = nargs - xargs + 1;
             GClist* list = tea_list_new(T);
@@ -64,10 +63,10 @@ static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
         }
         else
         {
-            tea_err_run(T, TEA_ERR_ARGS, func->proto->numparams + func->proto->numopts, nargs);
+            tea_err_run(T, TEA_ERR_ARGS, numparams + numops, nargs);
         }
     }
-    else if(func->proto->variadic)
+    else if(variadic)
     {
         /* Last argument is the variadic arg */
         GClist* list = tea_list_new(T);
@@ -76,6 +75,13 @@ static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
         T->top -= 2;
         setlistV(T, T->top++, list);
     }
+    return nargs;
+}
+
+static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
+{
+    GCfuncT* func = &f->t;
+    nargs = vm_argcheck(T, nargs, func->proto->numparams, func->proto->numopts, func->proto->variadic);
     
     tea_state_growci(T);
     tea_state_checkstack(T, func->proto->max_slots);
@@ -98,16 +104,9 @@ static bool vm_callC(tea_State* T, GCfunc* f, int nargs)
 {
     GCfuncC* cfunc = &f->c;
     int extra = cfunc->type > C_FUNCTION;
-    if(cfunc->nargs != TEA_VARARGS)
+    if(cfunc->nargs != TEA_VARG)
     {
-        if((cfunc->nargs >= 0) && ((nargs + extra) != cfunc->nargs))
-        {
-            tea_err_run(T, TEA_ERR_ARGS, cfunc->nargs, nargs + extra);
-        }
-        else if((cfunc->nargs < 0) && ((nargs + extra) > (-cfunc->nargs)))
-        {
-            tea_err_run(T, TEA_ERR_OPTARGS, -cfunc->nargs, nargs + extra);
-        }
+        vm_argcheck(T, nargs, cfunc->nargs - extra, cfunc->nopts, 0);
     }
 
     tea_state_growci(T);

@@ -185,16 +185,16 @@ static void range_copy(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods range_class[] = {
-    { "start", "property", range_start, TEA_VARARGS },
-    { "end", "property", range_end, TEA_VARARGS },
-    { "step", "property", range_step, TEA_VARARGS },
-    { "len", "property", range_len, TEA_VARARGS },
-    { "new", "method", range_init, -4 },
-    { "contains", "method", range_contains, 2 },
-    { "reverse", "method", range_reverse, 1 },
-    { "copy", "method", range_copy, 1 },
-    { "iterate", "method", range_iterate, 2 },
-    { "iteratorvalue", "method", range_iteratorvalue, 2 },
+    { "start", "property", range_start, TEA_VARG, 0 },
+    { "end", "property", range_end, TEA_VARG, 0 },
+    { "step", "property", range_step, TEA_VARG, 0 },
+    { "len", "property", range_len, TEA_VARG, 0 },
+    { "new", "method", range_init, 2, 2 },
+    { "contains", "method", range_contains, 2, 0 },
+    { "reverse", "method", range_reverse, 1, 0 },
+    { "copy", "method", range_copy, 1, 0 },
+    { "iterate", "method", range_iterate, 2, 0 },
+    { "iteratorvalue", "method", range_iteratorvalue, 2, 0 },
     { NULL, NULL, NULL }
 };
 
