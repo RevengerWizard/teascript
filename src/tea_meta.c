@@ -89,6 +89,41 @@ bool tea_meta_isclass(tea_State* T, GCclass* klass)
             klass == T->range_class);
 }
 
+bool tea_meta_hasattr(tea_State* T, GCstr* name, TValue* obj)
+{
+    switch(itype(obj))
+    {
+        case TEA_TUDATA:
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(obj);
+            cTValue* o = tea_tab_get(&instance->attrs, name);
+            if(o) return true;
+
+            o = tea_tab_get(&instance->klass->methods, name);
+            if(o) return true;
+            break;
+        }
+        case TEA_TMODULE:
+        {
+            GCmodule* module = moduleV(obj);
+            cTValue* o = tea_tab_get(&module->vars, name);
+            if(o) return true;
+            break;
+        }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(obj);
+            cTValue* o = tea_map_getstr(T, map, name);
+            if(o) return true;
+            break;
+        }
+        default:
+            break;
+    }
+    return false;
+}
+
 cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
 {
     switch(itype(obj))

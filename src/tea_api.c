@@ -820,6 +820,13 @@ TEA_API bool tea_delete_key(tea_State* T, int obj, const char* key)
     return tea_map_delete(T, map, &o);
 }
 
+TEA_API bool tea_has_attr(tea_State* T, int obj, const char* key)
+{
+    TValue* object = index2addr_check(T, obj);
+    GCstr* str = tea_str_newlen(T, key);
+    return tea_meta_hasattr(T, str, object);
+}
+
 TEA_API void tea_get_attr(tea_State* T, int obj, const char* key)
 {
     TValue* object = index2addr_check(T, obj);

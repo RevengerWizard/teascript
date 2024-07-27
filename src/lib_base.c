@@ -218,7 +218,7 @@ static void base_hasattr(tea_State* T)
 {
     tea_check_any(T, 0);
     const char* attr = tea_check_string(T, 1);
-    tea_get_attr(T, 0, attr);
+    tea_push_bool(T, tea_has_attr(T, 0, attr));
 }
 
 static void base_getattr(tea_State* T)
