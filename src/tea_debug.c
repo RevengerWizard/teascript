@@ -192,7 +192,6 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int ofs)
         case BC_PUSH_ATTR:
         case BC_GET_MODULE:
         case BC_SET_MODULE:
-        case BC_DEFINE_OPTIONAL:
         case BC_DEFINE_MODULE:
         case BC_GET_ATTR:
         case BC_SET_ATTR:
@@ -204,6 +203,7 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int ofs)
         case BC_IMPORT_NAME:
         case BC_IMPORT_VARIABLE:
             return debug_constant(f, ofs);
+        case BC_DEFINE_OPTIONAL:
         case BC_FOR_ITER:
         case BC_GET_ITER:
             return debug_iter(f, ofs);
