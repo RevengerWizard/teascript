@@ -211,6 +211,16 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
 {
     switch(itype(receiver))
     {
+        case TEA_TCLASS:
+        {
+            GCclass* type = classV(receiver);
+            TValue* o = tea_tab_get(&type->methods, name);
+            if(tvisfunc(o) && iscfunc(funcV(o)) && funcV(o)->c.type == C_FUNCTION)
+            {
+                return vm_precall(T, o, nargs);
+            }
+            tea_err_run(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
+        }
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(receiver);
@@ -583,15 +593,15 @@ static void vm_execute(tea_State* T)
 
                 for(idx = 0; idx < nopts + xargs; idx++)
                 {
-                    TValue* v = --T->top;
-                    copyTV(T, values + idx, v);
+                    TValue* o = --T->top;
+                    copyTV(T, values + idx, o);
                 }
 
                 --idx;
 
                 for(int i = 0; i < xargs; i++)
                 {
-                    copyTV(T, T->top++, values + idx - i);
+                    copyTV(T, T->top++, values + (idx - i));
                 }
 
                 /* Calculate how many "default" values are required */
@@ -600,7 +610,7 @@ static void vm_execute(tea_State* T)
                 /* Push any "default" values back onto the stack */
                 for(int i = remaining; i > 0; i--)
                 {
-                    copyTV(T, T->top++, values + i - 1);
+                    copyTV(T, T->top++, values + (i - 1));
                 }
                 DISPATCH();
             }
