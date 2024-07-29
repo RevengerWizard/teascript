@@ -93,7 +93,7 @@ typedef struct tea_Methods
 ** Basic type masks
 */
 #define TEA_MASK_NONE       (1 << TEA_TYPE_NONE)
-#define TEA_MASK_NIL       (1 << TEA_TYPE_NIL)
+#define TEA_MASK_NIL        (1 << TEA_TYPE_NIL)
 #define TEA_MASK_BOOL       (1 << TEA_TYPE_BOOL)
 #define TEA_MASK_NUMBER     (1 << TEA_TYPE_NUMBER)
 #define TEA_MASK_POINTER    (1 << TEA_TYPE_POINTER)
@@ -217,6 +217,7 @@ TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs, int n
 TEA_API void tea_new_list(tea_State* T);
 TEA_API void tea_new_map(tea_State* T);
 TEA_API void* tea_new_userdata(tea_State* T, size_t size);
+TEA_API void* tea_new_udata(tea_State* T, size_t size, const char* name);
 TEA_API void tea_new_class(tea_State* T, const char* name);
 TEA_API void tea_new_module(tea_State* T, const char* name);
 
@@ -268,6 +269,8 @@ TEA_API const char* tea_check_lstring(tea_State* T, int index, size_t* len);
 TEA_API const char* tea_check_string(tea_State* T, int index);
 TEA_API tea_CFunction tea_check_cfunction(tea_State* T, int index);
 TEA_API void* tea_check_userdata(tea_State* T, int index);
+TEA_API void* tea_test_udata(tea_State* T, int idx, const char* name);
+TEA_API void* tea_check_udata(tea_State* T, int idx, const char* name);
 TEA_API int tea_check_option(tea_State* T, int index, const char* def, const char* const options[]);
 
 TEA_API void tea_opt_nil(tea_State* T, int index);
@@ -330,7 +333,7 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_check_instance(T, index) tea_check_type(T, (index), TEA_TYPE_INSTANCE)
 
 #define tea_is_mask(T, n, m) (tea_get_mask(T, (n)) & (m))
-#define tea_is_nonenil(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NONE)
+#define tea_is_nonenil(T, n) (tea_get_type(T, (n)) <= TEA_TYPE_NIL)
 #define tea_is_none(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NONE)
 #define tea_is_nil(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NIL)
 #define tea_is_bool(T, n) (tea_get_type(T, (n)) == TEA_TYPE_BOOL)

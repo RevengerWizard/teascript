@@ -528,6 +528,16 @@ TEA_API void* tea_new_userdata(tea_State* T, size_t size)
     return ud_data(ud);
 }
 
+TEA_API void* tea_new_udata(tea_State* T, size_t size, const char* name)
+{
+    GCclass* klass = classV(tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name)));
+    GCudata* ud = tea_udata_new(T, size);
+    ud->klass = klass;
+    setudataV(T, T->top, ud);
+    incr_top(T);
+    return ud_data(ud);
+}
+
 TEA_API void tea_new_class(tea_State* T, const char* name)
 {
     GCclass* klass = tea_class_new(T, tea_str_newlen(T, name));
@@ -1053,6 +1063,26 @@ TEA_API void* tea_check_userdata(tea_State* T, int idx)
     if(!tvisudata(o))
         tea_err_argt(T, idx, TEA_TYPE_USERDATA);
     return ud_data(udataV(o));
+}
+
+TEA_API void* tea_test_udata(tea_State* T, int idx, const char* name)
+{
+    cTValue* o = index2addr(T, idx);
+    if(tvisudata(o))
+    {
+        GCudata* ud = udataV(o);
+        cTValue* tv = tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name));
+        if(tv && tvisclass(tv) && classV(tv) == ud->klass)
+            return ud_data(ud);
+    }
+    return NULL;
+}
+
+TEA_API void* tea_check_udata(tea_State* T, int idx, const char* name)
+{
+    void* p = tea_test_udata(T, idx, name);
+    if(!p) tea_err_argtype(T, idx, name);
+    return p;
 }
 
 TEA_API const void* tea_check_pointer(tea_State* T, int idx)
