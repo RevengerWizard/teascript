@@ -71,7 +71,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
         /* Last argument is the variadic arg */
         GClist* list = tea_list_new(T);
         setlistV(T, T->top++, list);
-        tea_list_add(T, list, T->top - 1);
+        tea_list_add(T, list, T->top - 2);
         T->top -= 2;
         setlistV(T, T->top++, list);
     }
