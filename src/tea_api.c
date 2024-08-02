@@ -677,6 +677,10 @@ TEA_API int tea_len(tea_State* T, int idx)
         {
             return mapV(o)->count;
         }
+        case TEA_TUDATA:
+        {
+            return udataV(o)->len;
+        }
         default:
             break;
     }
