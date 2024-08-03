@@ -328,8 +328,10 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_push_literal(T, s)  tea_push_lstring(T, "" s, (sizeof(s)/sizeof(char))-1)
 
 #define tea_check_list(T, index) tea_check_type(T, (index), TEA_TYPE_LIST)
-#define tea_check_function(T, index) tea_check_type(T, (index), TEA_TYPE_FUNCTION)
 #define tea_check_map(T, index) tea_check_type(T, (index), TEA_TYPE_MAP)
+#define tea_check_function(T, index) tea_check_type(T, (index), TEA_TYPE_FUNCTION)
+#define tea_check_module(T, index) tea_check_type(T, (index), TEA_TYPE_MODULE)
+#define tea_check_class(T, index) tea_check_type(T, (index), TEA_TYPE_CLASS)
 #define tea_check_instance(T, index) tea_check_type(T, (index), TEA_TYPE_INSTANCE)
 
 #define tea_is_mask(T, n, m) (tea_get_mask(T, (n)) & (m))
@@ -344,6 +346,8 @@ TEA_API void tea_concat(tea_State* T);
 #define tea_is_list(T, n) (tea_get_type(T, (n)) == TEA_TYPE_LIST)
 #define tea_is_map(T, n) (tea_get_type(T, (n)) == TEA_TYPE_MAP)
 #define tea_is_function(T, n) (tea_get_type(T, (n)) == TEA_TYPE_FUNCTION)
+#define tea_is_module(T, n) (tea_get_type(T, (n)) == TEA_TYPE_MODULE)
+#define tea_is_class(T, n) (tea_get_type(T, (n)) == TEA_TYPE_CLASS)
 #define tea_is_instance(T, n) (tea_get_type(T, (n)) == TEA_TYPE_INSTANCE)
 #define tea_is_userdata(T, n) (tea_get_type(T, (n)) == TEA_TYPE_USERDATA)
 
