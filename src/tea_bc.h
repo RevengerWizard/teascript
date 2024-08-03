@@ -19,7 +19,6 @@
     _(TRUE, 1) \
     _(FALSE, 1) \
     _(POP, -1) \
-    _(PRINT, -1) \
     _(GET_LOCAL, 1) \
     _(SET_LOCAL, 0) \
     _(GET_MODULE, 1) \

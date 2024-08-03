@@ -405,7 +405,6 @@ struct tea_State
     int argc;
     char** argv;
     int argf;
-    bool repl;
 };
 
 #define curr_func(T) (T->ci->func)

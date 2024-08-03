@@ -137,7 +137,6 @@ enum
 TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud);
 TEA_API void tea_close(tea_State* T);
 TEA_API void tea_set_argv(tea_State* T, int argc, char** argv, int argf);
-TEA_API void tea_set_repl(tea_State* T, bool b);
 
 TEA_API tea_CFunction tea_atpanic(tea_State* T, tea_CFunction panicf);
 

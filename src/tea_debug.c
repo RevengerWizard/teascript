@@ -211,7 +211,6 @@ int tea_debug_instruction(tea_State* T, GCproto* f, int ofs)
         case BC_TRUE:
         case BC_FALSE:
         case BC_POP:
-        case BC_PRINT:
         case BC_RANGE:
         case BC_LIST:
         case BC_MAP:

@@ -189,6 +189,6 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
 
 TEA_API void tea_close(tea_State* T)
 {
-    if(T->repl) tea_tab_free(T, &T->constants);
+    tea_tab_free(T, &T->constants);
     state_close(T);
 }

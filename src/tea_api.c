@@ -82,11 +82,6 @@ static TValue* index2addr_stack(tea_State* T, int idx)
     }
 }
 
-TEA_API void tea_set_repl(tea_State* T, bool b)
-{
-    T->repl = b;
-}
-
 TEA_API void tea_set_argv(tea_State* T, int argc, char** argv, int argf)
 {
     T->argc = argc;

@@ -523,24 +523,6 @@ static void vm_execute(tea_State* T)
                 T->top--;
                 DISPATCH();
             }
-            CASE_CODE(BC_PRINT):
-            {
-                TValue* o = T->top - 1;
-                if(!tvisnil(o))
-                {
-                    copyTV(T, tea_tab_set(T, &T->globals, T->repl_str, NULL), o);
-                    if(tea_get_global(T, "print"))
-                    {
-                        copyTV(T, T->top++, o);
-                        STORE_FRAME;
-                        tea_vm_call(T, T->top - 2, 1);
-                        READ_FRAME();
-                        T->top--;
-                    }
-                }
-                T->top--;
-                DISPATCH();
-            }
             CASE_CODE(BC_GET_LOCAL):
             {
                 uint8_t slot = READ_BYTE();

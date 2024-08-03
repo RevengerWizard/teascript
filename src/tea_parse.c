@@ -1970,14 +1970,7 @@ finish:
 static void parse_expr_stmt(Parser* parser)
 {
     expr(parser);
-    if(parser->lex->T->repl && parser->type == PROTO_SCRIPT)
-    {
-        bcemit_op(parser, BC_PRINT);
-    }
-    else
-    {
-        bcemit_op(parser, BC_POP);
-    }
+    bcemit_op(parser, BC_POP);
 }
 
 /* Get the number of bytes for the arguments of bytecode instructions */
@@ -1994,7 +1987,6 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_PUSH_INDEX:
         case BC_INHERIT:
         case BC_POP:
-        case BC_PRINT:
         case BC_IS:
         case BC_IN:
         case BC_EQUAL:
@@ -2760,11 +2752,6 @@ GCproto* tea_parse(Lexer* lexer, bool isexpr)
     }
 
     GCproto* proto = parser_end(&parser);
-
-    if(!T->repl)
-    {
-        tea_tab_free(T, &T->constants);
-    }
 
     return proto;
 }

@@ -145,7 +145,6 @@ static bool multiline(const char* line)
 static void repl(tea_State* T)
 {
     globalT = T;
-    tea_set_repl(T, true);
 
     t_initreadline(T);
     const char* line;
