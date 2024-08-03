@@ -2728,8 +2728,6 @@ static void parse_stmt(Parser* parser)
 /* Entry point of bytecode parser */
 GCproto* tea_parse(Lexer* lexer, bool isexpr)
 {
-    tea_State* T = lexer->T;
-
     Parser parser;
     parser_init(lexer, &parser, NULL, PROTO_SCRIPT);
 
