@@ -16,7 +16,7 @@ GCudata* tea_udata_new(tea_State* T, size_t len)
     ud->udtype = UDTYPE_USERDATA;
     ud->len = len;
     ud->fd = NULL;
-    ud->klass = NULL;
+    ud->klass = T->object_class;
     tea_tab_init(&ud->attrs);
     return ud;
 }
