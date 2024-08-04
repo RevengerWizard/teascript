@@ -43,7 +43,6 @@ GCmodule* tea_module_new(tea_State* T, GCstr* name)
 
     GCmodule* module = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
     tea_tab_init(&module->vars);
-    tea_tab_merge(T, &T->globals, &module->vars);
     module->name = name;
     module->path = NULL;
 
