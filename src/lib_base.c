@@ -75,7 +75,7 @@ static void base_assert(tea_State* T)
         if(tvisstr(T->base + 1))
             tea_error(T, tea_check_string(T, 1));
         else
-            tea_err_run(T, TEA_ERR_ASSERT);
+            tea_err_msg(T, TEA_ERR_ASSERT);
     }
     tea_push_value(T, 0);
 }
@@ -126,7 +126,7 @@ static void base_dump(tea_State* T)
     SBuf* sb = tea_buf_tmp_(T);
     if(!isteafunc(fn) || tea_bcwrite(T, fn->t.proto, writer_buf, sb))
     {
-        tea_err_run(T, TEA_ERR_DUMP);
+        tea_err_msg(T, TEA_ERR_DUMP);
     }
     setstrV(T, T->top++, tea_buf_str(T, sb));
 }

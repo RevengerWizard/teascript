@@ -223,7 +223,7 @@ GCstr* tea_imp_getdir(tea_State* T, char* source)
     char res[PATH_MAX];
     if(!tea_imp_resolvepath(".", source, res))
     {
-        tea_err_run(T, TEA_ERR_PATH, source);
+        tea_err_callerv(T, TEA_ERR_PATH, source);
     }
     return tea_imp_dirname(T, res, strlen(res));
 }
@@ -288,7 +288,7 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
     GCstr* path = resolve_filename(T, str_datawr(dir), str_datawr(path_name));
     if(path == NULL)
     {
-        tea_err_run(T, TEA_ERR_NOPATH, str_data(path_name));
+        tea_err_callerv(T, TEA_ERR_NOPATH, str_data(path_name));
     }
 
     TValue* o = tea_tab_get(&T->modules, path);
@@ -306,12 +306,11 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
     int status = tea_load_file(T, str_data(path), NULL);
     if(status == TEA_ERROR_FILE)
     {
-        tea_err_run(T, TEA_ERR_NOPATH, str_data(path_name));
+        tea_err_callerv(T, TEA_ERR_NOPATH, str_data(path_name));
     }
     if(status != TEA_OK)
     {
         /* Rethrow the syntax error */
-        tea_pop(T, 1);
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     tea_call(T, 0);
@@ -355,7 +354,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
 
     if(path == NULL)
     {
-        tea_err_run(T, TEA_ERR_NOPATH, str_data(name));
+        tea_err_callerv(T, TEA_ERR_NOPATH, str_data(name));
     }
 
     o = tea_tab_get(&T->modules, path);
@@ -388,12 +387,11 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     int status = tea_load_file(T, str_data(path), NULL);
     if(status == TEA_ERROR_FILE)
     {
-        tea_err_run(T, TEA_ERR_NOPATH, str_data(name));
+        tea_err_callerv(T, TEA_ERR_NOPATH, str_data(name));
     }
     if(status != TEA_OK)
     {
         /* Rethrow the syntax error */
-        tea_pop(T, 1);
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     tea_call(T, 0);

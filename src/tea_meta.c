@@ -146,7 +146,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
                 return &T->tmptv;
             }
 
-            tea_err_run(T, TEA_ERR_METHOD, str_data(name));
+            tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
         }
         case TEA_TMODULE:
         {
@@ -156,7 +156,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
             {
                 return o;
             }
-            tea_err_run(T, TEA_ERR_MODATTR, str_data(module->name), str_data(name));
+            tea_err_callerv(T, TEA_ERR_MODATTR, str_data(module->name), str_data(name));
         }
         case TEA_TMAP:
         {
@@ -170,7 +170,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
             {
                 goto retry;
             }
-            tea_err_run(T, TEA_ERR_MAPATTR, str_data(name));
+            tea_err_callerv(T, TEA_ERR_MAPATTR, str_data(name));
         }
         default:
 retry:
@@ -199,7 +199,7 @@ retry:
             break;
         }
     }
-    tea_err_run(T, TEA_ERR_NOATTR, tea_typename(obj), str_data(name));
+    tea_err_callerv(T, TEA_ERR_NOATTR, tea_typename(obj), str_data(name));
 }
 
 cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
@@ -246,7 +246,7 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
             break;
         }
     }
-    tea_err_run(T, TEA_ERR_SETATTR, tea_typename(obj));
+    tea_err_callerv(T, TEA_ERR_SETATTR, tea_typename(obj));
 }
 
 cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
@@ -265,13 +265,13 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
                 tea_vm_call(T, mo, 1);
                 return --T->top;
             }
-            tea_err_run(T, TEA_ERR_INSTSUBSCR, instance->klass->name);
+            tea_err_callerv(T, TEA_ERR_INSTSUBSCR, instance->klass->name);
         }
         case TEA_TRANGE:
         {
             if(!tvisnum(index_value))
             {
-                tea_err_run(T, TEA_ERR_NUMRANGE);
+                tea_err_msg(T, TEA_ERR_NUMRANGE);
             }
 
             GCrange* range = rangeV(obj);
@@ -291,13 +291,13 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
                 setnumV(&T->tmptv, range->start + idx * range->step);
                 return &T->tmptv;
             }
-            tea_err_run(T, TEA_ERR_IDXRANGE);
+            tea_err_msg(T, TEA_ERR_IDXRANGE);
         }
         case TEA_TLIST:
         {
             if(!tvisnum(index_value) && !tvisrange(index_value))
             {
-                tea_err_run(T, TEA_ERR_NUMLIST);
+                tea_err_msg(T, TEA_ERR_NUMLIST);
             }
 
             if(tvisrange(index_value))
@@ -320,7 +320,7 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
             {
                 return list_slot(list, idx);
             }
-            tea_err_run(T, TEA_ERR_IDXLIST);
+            tea_err_msg(T, TEA_ERR_IDXLIST);
         }
         case TEA_TMAP:
         {
@@ -330,13 +330,13 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
             {
                 return o;
             }
-            tea_err_run(T, TEA_ERR_MAPKEY);
+            tea_err_msg(T, TEA_ERR_MAPKEY);
         }
         case TEA_TSTR:
         {
             if(!tvisnum(index_value) && !tvisrange(index_value))
             {
-                tea_err_run(T, TEA_ERR_NUMSTR, tea_typename(index_value));
+                tea_err_callerv(T, TEA_ERR_NUMSTR, tea_typename(index_value));
             }
 
             if(tvisrange(index_value))
@@ -362,12 +362,12 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
                 setstrV(T, &T->tmptv, c);
                 return &T->tmptv;
             }
-            tea_err_run(T, TEA_ERR_IDXSTR);
+            tea_err_msg(T, TEA_ERR_IDXSTR);
         }
         default:
             break;
     }
-    tea_err_run(T, TEA_ERR_SUBSCR, tea_typename(obj));
+    tea_err_callerv(T, TEA_ERR_SUBSCR, tea_typename(obj));
 }
 
 cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValue* item_value)
@@ -387,13 +387,13 @@ cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValu
                 tea_vm_call(T, mo, 2);
                 return --T->top;
             }
-            tea_err_run(T, TEA_ERR_SETSUBSCR, instance->klass->name);
+            tea_err_callerv(T, TEA_ERR_SETSUBSCR, instance->klass->name);
         }
         case TEA_TLIST:
         {
             if(!tvisnum(index_value))
             {
-                tea_err_run(T, TEA_ERR_NUMLIST);
+                tea_err_msg(T, TEA_ERR_NUMLIST);
             }
 
             GClist* list = listV(obj);
@@ -409,7 +409,7 @@ cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValu
                 copyTV(T, list_slot(list, idx), item_value);
                 return item_value;
             }
-            tea_err_run(T, TEA_ERR_IDXLIST);
+            tea_err_msg(T, TEA_ERR_IDXLIST);
         }
         case TEA_TMAP:
         {
@@ -420,5 +420,5 @@ cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValu
         default:
             break;
     }
-    tea_err_run(T, TEA_ERR_SETSUBSCR, tea_typename(obj));
+    tea_err_callerv(T, TEA_ERR_SETSUBSCR, tea_typename(obj));
 }

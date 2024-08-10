@@ -118,7 +118,7 @@ retry:
             o = &T->base[arg];  /* Stack may have been reallocated */
             TValue* tv = --T->top;
             if(!tvisstr(tv))
-                tea_err_run(T, TEA_ERR_TOSTR);
+                tea_err_msg(T, TEA_ERR_TOSTR);
             copyTV(T, &T->base[arg], tv);
             T->top = T->base + narg;
             goto retry; /* Retry with result */

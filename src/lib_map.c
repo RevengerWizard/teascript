@@ -212,6 +212,9 @@ static void map_iteratorvalue(tea_State* T)
 
 static void map_opadd(tea_State* T)
 {
+    if(!tvismap(T->base) || !tvismap(T->base + 1))
+        tea_err_bioptype(T, T->base, T->base + 1, MM_PLUS);
+
     GCmap* m1 = tea_lib_checkmap(T, 0);
     GCmap* m2 = tea_lib_checkmap(T, 1);
     GCmap* map = tea_map_new(T);

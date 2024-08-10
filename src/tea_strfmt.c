@@ -404,13 +404,13 @@ int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
         }
         else if(sf == STRFMT_ERR)
         {
-            tea_err_run(T, TEA_ERR_STRFMT, str_data(tea_str_new(T, fs.str, fs.len)));
+            tea_err_callerv(T, TEA_ERR_STRFMT, str_data(tea_str_new(T, fs.str, fs.len)));
         }
         else
         {
             TValue* o = &T->base[++arg];
             if(arg >= narg)
-                tea_err_run(T, TEA_ERR_NOVAL);
+                tea_err_arg(T, narg, TEA_ERR_NOVAL);
             switch(STRFMT_TYPE(sf))
             {
                 case STRFMT_INT:
@@ -438,7 +438,7 @@ int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
                         o = &T->base[arg];  /* Stack may have been reallocated */
                         TValue* tv = --T->top;
                         if(!tvisstr(tv))
-                            tea_err_run(T, TEA_ERR_TOSTR);
+                            tea_err_msg(T, TEA_ERR_TOSTR);
                         copyTV(T, o, tv); /* Replace inline for retry */
                         if(retry < 2)
                         {

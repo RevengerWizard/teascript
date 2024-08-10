@@ -409,6 +409,9 @@ static void string_iteratorvalue(tea_State* T)
 
 static void string_opadd(tea_State* T)
 {
+    if(!tvisstr(T->base) || !tvisstr(T->base + 1))
+        tea_err_bioptype(T, T->base, T->base + 1, MM_PLUS);
+
     GCstr* s1 = tea_lib_checkstr(T, 0);
     GCstr* s2 = tea_lib_checkstr(T, 1);
     GCstr* str = tea_buf_cat2str(T, s1, s2);
@@ -469,7 +472,7 @@ static void string_opmultiply(tea_State* T)
 {
     if(!repeat(T))
     {
-        tea_error(T, "string multiply error");
+        tea_err_bioptype(T, T->base, T->base + 1, MM_MULT);
     }
 }
 

@@ -558,7 +558,10 @@ static void list_iteratorvalue(tea_State* T)
 }
 
 static void list_opadd(tea_State* T)
-{    
+{
+    if(!tvislist(T->base) || !tvislist(T->base + 1))
+        tea_err_bioptype(T, T->base, T->base + 1, MM_PLUS);
+    
     GClist* l1 = tea_lib_checklist(T, 0);
     GClist* l2 = tea_lib_checklist(T, 1);
 
@@ -574,9 +577,6 @@ static void list_opadd(tea_State* T)
     {
         tea_list_add(T, list, list_slot(l2, i));
     }
-
-    tea_pop(T, 3);
-    setlistV(T, T->top++, list);
 }
 
 /* ------------------------------------------------------------------------ */

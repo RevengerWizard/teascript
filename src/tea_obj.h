@@ -396,8 +396,6 @@ struct tea_State
     GCstr strempty; /* Empty string */
     uint8_t strempty0;  /* Zero terminator for empty string */
     GCstr* init_str;  /* "new" */
-    GCstr* repl_str; /* "_" */
-    GCstr* memerr;  /* String message for out-of-memory situation */
     GCstr* opm_name[MM__MAX];   /* Array with special method names  */
     tea_CFunction panic; /* Function to be called in unprotected errors */
     tea_Alloc allocf;  /* Memory allocator */

@@ -10,6 +10,7 @@
 
 #include "tea_def.h"
 #include "tea_bcdump.h"
+#include "tea_strfmt.h"
 #include "tea_err.h"
 #include "tea_func.h"
 #include "tea_vm.h"
@@ -17,10 +18,11 @@
 /* -- Input buffer handling -------------------------------------------------- */
 
 /* Throw reader error */
-static TEA_NOINLINE void bcread_error(Lexer* lex, const char* msg)
+static TEA_NOINLINE void bcread_error(Lexer* lex, ErrMsg em)
 {
     tea_State* T = lex->T;
-    fputs(msg, stderr);
+    const char* name = str_data(lex->module->name);
+    tea_strfmt_pushf(T, "%s: %s", name, err2msg(em));
     tea_err_throw(T, TEA_ERROR_SYNTAX);
 }
 
@@ -29,7 +31,7 @@ static TEA_NOINLINE void bcread_fill(Lexer* lex, size_t len, bool need)
 {
     tea_assertLS(len != 0, "empty refill");
     if(len > TEA_MAX_BUF || lex->c < 0)
-        bcread_error(lex, "Malformed bytecode");
+        bcread_error(lex, TEA_ERR_BCBAD);
     do
     {
         const char* buf;
@@ -62,7 +64,7 @@ static TEA_NOINLINE void bcread_fill(Lexer* lex, size_t len, bool need)
         if(buf == NULL || size == 0)
         {
             if(need) 
-                bcread_error(lex, "Malformed bytecode");
+                bcread_error(lex, TEA_ERR_BCBAD);
             lex->c = -1;
             break;
         }
@@ -266,7 +268,7 @@ GCproto* tea_bcread(Lexer* lex)
     tea_buf_reset(&lex->sb);
     /* Check for a valid bytecode dump header */
     if(!bcread_header(lex))
-        bcread_error(lex, "Invalid bytecode header");
+        bcread_error(lex, TEA_ERR_BCFMT);
 
     /* Process all functions in the bytecode dump */
     while(true)
@@ -291,7 +293,7 @@ GCproto* tea_bcread(Lexer* lex)
         pt = bcread_proto(lex);
         if(lex->p != startp + len)
         {
-            bcread_error(lex, "Malformed bytecode");
+            bcread_error(lex, TEA_ERR_BCBAD);
         }
         setprotoV(T, T->top, pt);
         T->top++;

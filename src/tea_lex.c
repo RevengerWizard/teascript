@@ -799,6 +799,13 @@ bool tea_lex_setup(tea_State* T, Lexer* lex)
     {
         if(header)
         {
+            /*
+            ** Loading bytecode with an extra header is disabled for security
+            ** reasons. This may circumvent the usual check for bytecode vs.
+            ** Teascript code by looking at the first char. Since this is a potential
+            ** security violation no attempt is made to echo the chunkname either.
+            */
+            setstrV(T, T->top++, tea_err_str(T, TEA_ERR_BCBAD));
             tea_err_throw(T, TEA_ERROR_SYNTAX);
         }
         return true;

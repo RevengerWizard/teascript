@@ -27,6 +27,7 @@ static void parser_f(tea_State* T, void* ud)
     bool bc = tea_lex_setup(T, lex);
     if(lex->mode && !strchr(lex->mode, bc ? 'b' : 't'))
     {
+        setstrV(T, T->top++, tea_err_str(T, TEA_ERR_XMODE));
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex, lex->eval);
@@ -79,7 +80,7 @@ TEA_API int tea_load(tea_State* T, tea_Reader reader, void* data, const char* na
 
 typedef struct FileReaderCtx
 {
-    FILE* f;
+    FILE* fp;
     char buf[TEA_BUFFER_SIZE];
 } FileReaderCtx;
 
@@ -87,9 +88,9 @@ static const char* reader_file(tea_State* T, void* ud, size_t* size)
 {
     FileReaderCtx* ctx = (FileReaderCtx*)ud;
     UNUSED(T);
-    if(feof(ctx->f))
+    if(feof(ctx->fp))
         return NULL;
-    *size = fread(ctx->buf, 1, sizeof(ctx->buf), ctx->f);
+    *size = fread(ctx->buf, 1, sizeof(ctx->buf), ctx->fp);
     return (*size > 0) ? ctx->buf : NULL;
 }
 
@@ -99,27 +100,31 @@ TEA_API int tea_load_filex(tea_State* T, const char* filename, const char* name,
     int status;
     if(filename)
     {
-        ctx.f = fopen(filename, "rb");
-        if(ctx.f == NULL)
+        ctx.fp = fopen(filename, "rb");
+        if(ctx.fp == NULL)
+        {
+            tea_push_fstring(T, "Cannot open %s: %s", filename, strerror(errno));
             return TEA_ERROR_FILE;
+        }
         if(!name)
             name = filename;
     }
     else
     {
-        ctx.f = stdin;
+        ctx.fp = stdin;
         name = "=<stdin>";
     }
     status = tea_loadx(T, reader_file, &ctx, name, mode);
-    if(ferror(ctx.f))
+    if(ferror(ctx.fp))
     {
+        tea_push_fstring(T, "Cannot read %s: %s", name, strerror(errno));
         if(filename)
-            fclose(ctx.f);
+            fclose(ctx.fp);
         return TEA_ERROR_FILE;
     }
     if(filename)
     {
-        fclose(ctx.f);
+        fclose(ctx.fp);
     }
     return status;
 }

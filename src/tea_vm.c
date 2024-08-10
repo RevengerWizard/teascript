@@ -40,7 +40,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
         }
         else
         {
-            tea_err_run(T, TEA_ERR_ARGS, numparams, nargs);
+            tea_err_callerv(T, TEA_ERR_ARGS, numparams, nargs);
         }
     }
     else if(TEA_UNLIKELY(nargs > numparams + numops))
@@ -63,7 +63,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
         }
         else
         {
-            tea_err_run(T, TEA_ERR_ARGS, numparams + numops, nargs);
+            tea_err_callerv(T, TEA_ERR_ARGS, numparams + numops, nargs);
         }
     }
     else if(variadic)
@@ -173,7 +173,7 @@ static bool vm_precall(tea_State* T, TValue* callee, int nargs)
             }
             else if(nargs != 0)
             {
-                tea_err_run(T, TEA_ERR_NOARGS, nargs);
+                tea_err_callerv(T, TEA_ERR_ARGS, 0, nargs);
             }
             else
             {
@@ -193,7 +193,7 @@ static bool vm_precall(tea_State* T, TValue* callee, int nargs)
         default:
             break; /* Non-callable object type */
     }
-    tea_err_run(T, TEA_ERR_CALL, tea_typename(callee));
+    tea_err_callerv(T, TEA_ERR_CALL, tea_typename(callee));
     return false;
 }
 
@@ -202,7 +202,7 @@ static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int 
     TValue* mo = tea_tab_get(&klass->methods, name);
     if(!mo)
     {
-        tea_err_run(T, TEA_ERR_METHOD, str_data(name));
+        tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
     }
     return vm_call(T, funcV(mo), nargs);
 }
@@ -219,7 +219,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
             {
                 return vm_precall(T, o, nargs);
             }
-            tea_err_run(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
+            tea_err_callerv(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
         }
         case TEA_TMODULE:
         {
@@ -229,7 +229,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
             {
                 return vm_precall(T, o, nargs);
             }
-            tea_err_run(T, TEA_ERR_MODVAR, str_data(name), str_data(module->name));
+            tea_err_callerv(T, TEA_ERR_MODVAR, str_data(name), str_data(module->name));
         }
         case TEA_TUDATA:
         case TEA_TINSTANCE:
@@ -254,7 +254,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
                     return vm_precall(T, o, nargs);
                 }
             }
-            tea_err_run(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
+            tea_err_callerv(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
         }
     }
     return false;
@@ -316,16 +316,13 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
         default:
             break;
     }
-    tea_err_run(T, TEA_ERR_ITER, tea_typename(obj));
+    tea_err_callerv(T, TEA_ERR_ITER, tea_typename(obj));
 }
 
 static void vm_arith_unary(tea_State* T, MMS mm, TValue* o)
 {
     TValue* mo = tea_meta_lookup(T, o, mm);
-    if(!mo)
-    {
-        tea_err_run(T, TEA_ERR_UNOP, str_data(mmname_str(T, mm)), tea_typename(o));
-    }
+    if(!mo) tea_err_unoptype(T, o, mm);
 
     TValue tv;
     copyTV(T, &tv, o);
@@ -339,15 +336,9 @@ static void vm_arith_unary(tea_State* T, MMS mm, TValue* o)
 
 static void vm_arith(tea_State* T, MMS mm, TValue* a, TValue* b)
 {
-    TValue* mo = tea_meta_lookup(T, a, mm);    /* try first operand */
-    if(!mo)
-    {
-        mo = tea_meta_lookup(T, b, mm); /* try second operand */
-    }
-    if(!mo)
-    {
-        tea_err_run(T, TEA_ERR_BIOP, str_data(mmname_str(T, mm)), tea_typename(a), tea_typename(b));
-    }
+    TValue* mo = tea_meta_lookup(T, a, mm); /* Try first operand */
+    if(!mo) mo = tea_meta_lookup(T, b, mm); /* Try second operand */
+    if(!mo) tea_err_bioptype(T, a, b, mm);  /* Bad types */
 
     TValue tv1, tv2;
     copyTV(T, &tv1, a);
@@ -362,15 +353,9 @@ static void vm_arith(tea_State* T, MMS mm, TValue* a, TValue* b)
 
 static bool vm_arith_comp(tea_State* T, MMS mm, TValue* a, TValue* b)
 {
-    TValue* mo = tea_meta_lookup(T, a, mm);    /* try first operand */
-    if(!mo)
-    {
-        mo = tea_meta_lookup(T, b, mm); /* try second operand */
-    }
-    if(!mo)
-    {
-        return false;
-    }
+    TValue* mo = tea_meta_lookup(T, a, mm); /* Try first operand */
+    if(!mo) mo = tea_meta_lookup(T, b, mm); /* Try second operand */
+    if(!mo) return false;
 
     TValue tv1, tv2;
     copyTV(T, &tv1, a);
@@ -415,7 +400,7 @@ static void vm_execute(tea_State* T)
     do \
     { \
         STORE_FRAME; \
-        tea_err_run(T, __VA_ARGS__); \
+        tea_err_callerv(T, __VA_ARGS__); \
         READ_FRAME(); \
         DISPATCH(); \
     } \
@@ -1288,40 +1273,11 @@ static void vm_execute(tea_State* T)
 #undef RUNTIME_ERROR
 #undef iscci
 
-int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
-{
-    int oldnccalls = T->nccalls;
-    ptrdiff_t old_ci = ci_save(T, T->ci);
-    int status = tea_err_protected(T, func, u);
-    if(status != TEA_OK)    /* An error occurred? */
-    {
-        TValue* old = stack_restore(T, old_top);
-        T->open_upvalues = NULL;
-        T->top = old;
-        setnilV(T->top++);
-        T->nccalls = oldnccalls;
-        T->ci = ci_restore(T, old_ci);
-        T->base = T->ci->base;
-
-        /* Correct the stack */
-        T->stack_max = T->stack + T->stack_size - 1;
-        if(T->ci_size > TEA_MAX_CALLS)
-        {
-            int inuse = T->ci - T->ci_base;
-            if(inuse + 1 < TEA_MAX_CALLS)
-            {
-                tea_state_reallocci(T, TEA_MAX_CALLS);
-            }
-        }
-    }
-    return status;
-}
-
 void tea_vm_call(tea_State* T, TValue* func, int nargs)
 {
     if(++T->nccalls >= TEA_MAX_CCALLS)
     {
-        tea_err_run(T, TEA_ERR_STKOV);
+        tea_err_stkov(T);
     }
 
     if(vm_precall(T, func, nargs))

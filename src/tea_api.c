@@ -316,7 +316,7 @@ static GCstr* obj_tostring(tea_State* T, cTValue* o)
             tea_vm_call(T, mo, 0);
             TValue* o = T->top - 1;
             if(!tvisstr(o))
-                tea_err_run(T, TEA_ERR_TOSTR);
+                tea_err_msg(T, TEA_ERR_TOSTR);
             return strV(o);
         }
     }
@@ -397,15 +397,27 @@ TEA_API bool tea_rawequal(tea_State* T, int index1, int index2)
     return tea_obj_rawequal(o1, o2);
 }
 
-TEA_API void tea_concat(tea_State* T)
+TEA_API void tea_concat(tea_State* T, int n)
 {
-    tea_checkapi_slot(2);
-    GCstr* s1 = strV(T->top - 2);
-    GCstr* s2 = strV(T->top - 1);
-    GCstr* str = tea_buf_cat2str(T, s1, s2);
-    T->top -= 2;
-    setstrV(T, T->top, str);
-    incr_top(T);
+    if(n >= 2)
+    {
+        GCstr* str = strV(T->top - n);
+        for(int i = 1; i < n; i++)
+        {
+            GCstr* s = strV(T->top - n + i);
+            str = tea_buf_cat2str(T, str, s);
+        }
+        T->top -= n;
+        setstrV(T, T->top, str);
+        incr_top(T);
+    }
+    else if(n == 0)
+    {
+        /* Push empty string */
+        setstrV(T, T->top, &T->strempty);
+        incr_top(T);
+    }
+    /* else n == 1: nothing to do */
 }
 
 TEA_API int tea_absindex(tea_State* T, int idx)
@@ -1228,25 +1240,13 @@ TEA_API int tea_pcall(tea_State* T, int n)
     return tea_vm_pcall(T, call_f, &ctx, stack_save(T, ctx.func));
 }
 
-typedef struct CPCallCtx
-{
-    tea_CFunction func;
-    void* ud;
-} CPCallCtx;
-
-static void cpcall_f(tea_State* T, void* ud)
-{
-    CPCallCtx* ctx = (CPCallCtx*)ud;
-    GCfunc* fn = tea_func_newC(T, C_FUNCTION, ctx->func, 0, 1, 0);
-    setfuncV(T, T->top++, fn);
-    setpointerV(T->top++, ctx->ud);
-    tea_vm_call(T, T->top - 2, 1);
-}
-
 TEA_API int tea_pccall(tea_State* T, tea_CFunction func, void* ud)
 {
-    CPCallCtx ctx;
-    ctx.func = func;
-    ctx.ud = ud;
-    return tea_vm_pcall(T, cpcall_f, &ctx, stack_save(T, T->top));
+    CallCtx ctx;
+    GCfunc* fn = tea_func_newC(T, C_FUNCTION, func, 0, 1, 0);
+    setfuncV(T, T->top++, fn);
+    setpointerV(T->top++, ud);
+    ctx.func = T->top - 2;
+    ctx.nargs = 1;
+    return tea_vm_pcall(T, call_f, &ctx, stack_save(T, ctx.func));
 }

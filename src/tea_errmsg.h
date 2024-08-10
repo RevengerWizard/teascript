@@ -5,37 +5,33 @@
 
 /* This file may be included multiple times with different ERRDEF macros */
 
+/* Basic error handling */
 ERRDEF(MEM, "Not enough memory")
 
+/* Allocations */
 ERRDEF(STROV, "String length overflow")
-
-ERRDEF(TOSTR,  TEA_QL("tostring") " must return a string")
 ERRDEF(STKOV, "Stack overflow")
-ERRDEF(CALL, TEA_QS " is not callable")
 
-ERRDEF(NOARGS, "Expected 0 arguments but got %d")
+/* Arguments errors */
 ERRDEF(ARGS, "Expected %d arguments, but got %d")
 ERRDEF(NOVAL, "Expected value")
 ERRDEF(BADTYPE, "Expected %s, got %s")
 ERRDEF(BADARG, "Bad argument %d, %s")
 ERRDEF(INTRANGE, "Number out of range")
 
+/* Path errors */
 ERRDEF(PATH, "Unable to resolve path " TEA_QS)
-ERRDEF(NOMOD, "Unknown module " TEA_QS)
 ERRDEF(NOPATH, "Could not resolve path " TEA_QS)
-ERRDEF(READPATH, "Could not read " TEA_QS)
 
 /* String buffer errors */
 ERRDEF(BUFFER_SELF, "Cannot put buffer into itself")
 
 /* VM errors */
+ERRDEF(TOSTR,  TEA_QL("tostring") " must return a string")
+ERRDEF(CALL, TEA_QS " is not callable")
 ERRDEF(METHOD, "Undefined method " TEA_QS)
-ERRDEF(OBJMETHOD, "Only objects have methods, " TEA_QS " given")
 ERRDEF(MODVAR, "Undefined variable " TEA_QS " in " TEA_QS " module")
-ERRDEF(NOSTATIC, TEA_QS " is not static. Only static methods can be invoked directly from a class")
 ERRDEF(NOMETHOD, TEA_QS " has no method " TEA_QS)
-ERRDEF(NUMSLICE, "Slice index must be a number")
-ERRDEF(SLICE, TEA_QS " is not sliceable")
 ERRDEF(SUBSCR, TEA_QS " is not subscriptable")
 ERRDEF(INSTSUBSCR, TEA_QS " instance is not subscriptable")
 ERRDEF(NUMRANGE, "Range index must be a number")
@@ -46,9 +42,6 @@ ERRDEF(MAPKEY, "Key does not exist within map")
 ERRDEF(NUMSTR, "String index must be a number, got " TEA_QS)
 ERRDEF(IDXSTR, "String index out of bounds")
 ERRDEF(SETSUBSCR, TEA_QS " does not support item assignment")
-ERRDEF(OBJATTR, "Only objects have properties")
-ERRDEF(INSTATTR, TEA_QS " instance has no property: " TEA_QS)
-ERRDEF(CLSATTR, TEA_QS " class has no property: " TEA_QS)
 ERRDEF(MODATTR, TEA_QS " module has no property: " TEA_QS)
 ERRDEF(MAPATTR, "Map has no property: " TEA_QS)
 ERRDEF(NOATTR, TEA_QS " has no property " TEA_QS)
@@ -68,17 +61,20 @@ ERRDEF(SELF, "A class can't inherit from itself")
 ERRDEF(EXTMETHOD, "Cannot assign extension method to " TEA_QS)
 ERRDEF(VARMOD, TEA_QS " variable can't be found in module " TEA_QS)
 
+/* Standard library function errors */
 ERRDEF(ASSERT, "Assertion failed")
 ERRDEF(OPEN, "Unable to open file " TEA_QS)
 ERRDEF(DUMP, "Unable to dump given function")
 ERRDEF(STRFMT, "Invalid option " TEA_QS " to " TEA_QL("format"))
 
+/* Bytecode reader errors */
+ERRDEF(BCFMT, "Cannot load incompatible bytecode")
+ERRDEF(BCBAD, "Cannot load malformed bytecode")
+
 /* Lexer/parser errors */
+ERRDEF(XMODE, "Attempt to load code with wrong mode")
+ERRDEF(XNEAR, "%s near " TEA_QS)
 ERRDEF(XNUMBER, "Malformed number")
-ERRDEF(XUND, "Cannot have consecutive " TEA_QL("_") " in number literal")
-ERRDEF(XLUND, "Cannot have leading " TEA_QL("_") " in number literal")
-ERRDEF(XHEX, "Invalid hex number")
-ERRDEF(XSCI, "Unterminated scientific notation")
 ERRDEF(XSFMT, "String interpolation too deep")
 ERRDEF(XSTR, "Unterminated string")
 ERRDEF(XHESC, "Incomplete hex escape sequence")

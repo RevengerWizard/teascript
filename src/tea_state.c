@@ -81,7 +81,7 @@ void tea_state_growci(tea_State* T)
     }
     if(T->ci_size > TEA_MAX_CALLS)
     {
-        tea_err_run(T, TEA_ERR_STKOV);
+        tea_err_stkov(T);
     }
 }
 
@@ -133,10 +133,7 @@ static void cpteaopen(tea_State* T, void* ud)
     setmapV(T, registry(T), tea_map_new(T));
     T->init_str = tea_str_newlit(T, "new");
     fix_string(T->init_str);
-    T->repl_str = tea_str_newlit(T, "_");
-    fix_string(T->repl_str);
-    T->memerr = tea_str_newlen(T, err2msg(TEA_ERR_MEM));
-    fix_string(T->memerr);
+    fix_string(tea_err_str(T, TEA_ERR_MEM));
     tea_meta_init(T);
     tea_lex_init(T);
 }

@@ -296,7 +296,7 @@ static void io_popen(tea_State* T)
 #endif
     if(fp == NULL)
     {
-        tea_err_run(T, TEA_ERR_OPEN, path);
+        tea_err_callerv(T, TEA_ERR_OPEN, path);
     }
 
     io_file_new(T, fp, IOFILE_TYPE_PIPE);

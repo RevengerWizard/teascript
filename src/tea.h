@@ -314,7 +314,7 @@ TEA_API int tea_arglimit_error(tea_State* T, int narg, const char* msg);
 TEA_API int tea_arg_error(tea_State* T, int narg, const char* msg);
 TEA_API int tea_type_error(tea_State* T, int narg, const char* xname);
 
-TEA_API void tea_concat(tea_State* T);
+TEA_API void tea_concat(tea_State* T, int n);
 
 /*
 ** Some useful macros

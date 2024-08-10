@@ -10,6 +10,8 @@
 
 #include "tea_def.h"
 #include "tea_err.h"
+#include "tea_buf.h"
+#include "tea_str.h"
 #include "tea_vm.h"
 #include "tea_func.h"
 #include "tea_strfmt.h"
@@ -39,7 +41,8 @@ TEA_NOINLINE void tea_err_throw(tea_State* T, int code)
     }
     else
     {
-        T->panic(T);
+        if(T->panic)
+            T->panic(T);
         exit(EXIT_FAILURE);
     }
 }
@@ -60,8 +63,65 @@ int tea_err_protected(tea_State* T, tea_CPFunction f, void* ud)
 
 /* -- Error handling ------------------------------------------------------ */
 
-TEA_NORET TEA_NOINLINE static void err_run(tea_State* T)
+/* Protected call */
+int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
 {
+    int oldnccalls = T->nccalls;
+    ptrdiff_t old_ci = ci_save(T, T->ci);
+    ptrdiff_t old_base = stack_save(T, T->base);
+    int status = tea_err_protected(T, func, u);
+    if(status != TEA_OK)    /* An error occurred? */
+    {
+        TValue* old = stack_restore(T, old_top);
+        tea_func_closeuv(T, old);   /* Close eventual pending closures */
+        copyTV(T, old, T->top - 1);
+        T->top = old + 1;
+        T->nccalls = oldnccalls;
+        T->ci = ci_restore(T, old_ci);
+        T->base = stack_restore(T, old_base);
+        /* Correct the stack */
+        T->stack_max = T->stack + T->stack_size - 1;
+        if(T->ci_size > TEA_MAX_CALLS)
+        {
+            int inuse = T->ci - T->ci_base;
+            if(inuse + 1 < TEA_MAX_CALLS)
+            {
+                tea_state_reallocci(T, TEA_MAX_CALLS);
+            }
+        }
+    }
+    return status;
+}
+
+/* Return string object for error message */
+TEA_NOINLINE GCstr* tea_err_str(tea_State* T, ErrMsg em)
+{
+    return tea_str_newlen(T, err2msg(em));
+}
+
+/* Stack overflow error */
+void tea_err_stkov(tea_State* T)
+{
+    setstrV(T, T->top++, tea_err_str(T, TEA_ERR_STKOV));
+    tea_err_run(T);
+}
+
+/* Out-of-memory error */
+TEA_NOINLINE void tea_err_mem(tea_State* T)
+{
+    setstrV(T, T->top++, tea_err_str(T, TEA_ERR_MEM));
+    tea_err_throw(T, TEA_ERROR_MEMORY);
+}
+
+/* Runtime error */
+TEA_NOINLINE void tea_err_run(tea_State* T)
+{
+    SBuf* sb = &T->strbuf;
+    tea_buf_reset(sb);
+    GCstr* msg = strV(T->top - 1);
+    tea_buf_putmem(T, sb, str_data(msg), msg->len);
+    tea_buf_putlit(T, sb, "\n");
+    /* Stack trace */
     for(CallInfo* ci = T->ci; ci > T->ci_base; ci--)
     {
         /* Skip stack trace for C functions */
@@ -69,54 +129,83 @@ TEA_NORET TEA_NOINLINE static void err_run(tea_State* T)
 
         GCproto* proto = ci->func->t.proto;
         size_t instruction = ci->ip - proto->bc - 1;
-        fprintf(stderr, "[line %d] in ", tea_func_getline(proto, instruction));
-        fprintf(stderr, "%s\n", str_data(proto->name));
+        tea_strfmt_pushf(T, "[line %d] in %s\n", 
+            tea_func_getline(proto, instruction), str_data(proto->name));
+        msg = strV(T->top - 1);
+        tea_buf_putmem(T, sb, str_data(msg), msg->len);
+        T->top--;
     }
-
+    sb->w--;
+    setstrV(T, T->top, tea_buf_str(T, sb));
+    incr_top(T);
     tea_err_throw(T, TEA_ERROR_RUNTIME);
 }
 
-/* Out-of-memory error */
-TEA_NOINLINE void tea_err_mem(tea_State* T)
-{
-    tea_err_throw(T, TEA_ERROR_MEMORY);
-}
-
-/* Runtime error */
-TEA_NOINLINE void tea_err_run(tea_State* T, ErrMsg em, ...)
+TEA_NORET TEA_NOINLINE static void err_msgv(tea_State* T, ErrMsg em, ...)
 {
     va_list argp;
     va_start(argp, em);
-    vfprintf(stderr, err2msg(em), argp);
+    tea_strfmt_pushvf(T, err2msg(em), argp);
     va_end(argp);
-    fputc('\n', stderr);
-    err_run(T);
+    tea_err_run(T);
 }
 
 /* Non-vararg variant for better calling conventions */
 TEA_NOINLINE void tea_err_msg(tea_State* T, ErrMsg em)
 {
-    tea_err_run(T, em);
+    err_msgv(T, em);
 }
 
 /* Lexer error */
 TEA_NOINLINE void tea_err_lex(tea_State* T, const char* src, const char* tok, int line, ErrMsg em, va_list argp)
 {
-    fprintf(stderr, "File %s, [line %d] Error", src, line);
-
-    if(tok != NULL)
-    {
-        fprintf(stderr, " at " TEA_QS ": ", tok);
-    }
-    else
-    {
-        fputs(": ", stderr);
-    }
-
-    vfprintf(stderr, err2msg(em), argp);
-    fputc('\n', stderr);
-
+    const char* msg;
+    msg = tea_strfmt_pushvf(T, err2msg(em), argp);
+    msg = tea_strfmt_pushf(T, "File %s, [line %d]: %s", src, line, msg);
+    if(tok)
+        tea_strfmt_pushf(T, err2msg(TEA_ERR_XNEAR), msg, tok);
     tea_err_throw(T, TEA_ERROR_SYNTAX);
+}
+
+/* Typecheck error for binary operands */
+TEA_NOINLINE void tea_err_bioptype(tea_State* T, cTValue* o1, cTValue* o2, MMS mm)
+{
+    const char* opname = str_data(mmname_str(T, mm));
+    const char* t1 = tea_typename(o1);
+    const char* t2 = tea_typename(o2);
+    err_msgv(T, TEA_ERR_BIOP, opname, t1, t2);
+}
+
+/* Typecheck error for unary operands */
+TEA_NOINLINE void tea_err_unoptype(tea_State* T, cTValue* o, MMS mm)
+{
+    const char* opname = str_data(mmname_str(T, mm));
+    const char* tname = tea_typename(o);
+    err_msgv(T, TEA_ERR_UNOP, opname, tname);
+}
+
+/* Error in context of caller */
+TEA_NOINLINE void tea_err_callermsg(tea_State* T, const char* msg)
+{
+    tea_strfmt_pushf(T, msg);
+    tea_err_run(T);
+}
+
+/* Formatted error in context of caller */
+TEA_NOINLINE void tea_err_callerv(tea_State* T, ErrMsg em, ...)
+{
+    const char* msg;
+    va_list argp;
+    va_start(argp, em);
+    msg = tea_strfmt_pushvf(T, err2msg(em), argp);
+    va_end(argp);
+    tea_err_callermsg(T, msg);
+}
+
+/* Error in context of caller */
+TEA_NOINLINE void tea_err_caller(tea_State* T, ErrMsg em)
+{
+    tea_err_callermsg(T, err2msg(em));
 }
 
 /* Argument error message */
@@ -124,29 +213,24 @@ TEA_NORET TEA_NOINLINE static void err_argmsg(tea_State* T, int narg, const char
 {
     if(narg < 0 && narg > TEA_REGISTRY_INDEX)
         narg = (int)(T->top - T->base) + narg;
-    msg = tea_strfmt_pushf(T, err2msg(TEA_ERR_BADARG), narg, msg);
-    fputs(msg, stderr);
-    fputc('\n', stderr);
-    err_run(T);
+    msg = tea_strfmt_pushf(T, err2msg(TEA_ERR_BADARG), narg + 1, msg);
+    tea_err_callermsg(T, msg);
 }
 
 /* Argument error */
 TEA_NOINLINE void tea_err_arg(tea_State* T, int narg, ErrMsg em)
 {
-    fputs(err2msg(em), stderr);
-    fputc('\n', stderr);
-    err_run(T);
+    err_argmsg(T, narg, err2msg(em));
 }
 
 /* Typecheck error for arguments */
 TEA_NOINLINE void tea_err_argtype(tea_State* T, int narg, const char* xname)
 {
-    const char* tname;
+    const char* tname, *msg;
     TValue* o = narg < 0 ? T->top + narg : T->base + narg;
     tname = o < T->top ? tea_typename(o) : "no value";
-    fprintf(stderr, err2msg(TEA_ERR_BADTYPE), xname, tname);
-    fputc('\n', stderr);
-    err_run(T);
+    msg = tea_strfmt_pushf(T, err2msg(TEA_ERR_BADTYPE), xname, tname);
+    err_argmsg(T, narg, msg);
 }
 
 /* Typecheck error for arguments */
@@ -171,10 +255,7 @@ TEA_API int tea_error(tea_State* T, const char* fmt, ...)
     va_start(argp, fmt);
     msg = tea_strfmt_pushvf(T, fmt, argp);
     va_end(argp);
-    
-    fputs(msg, stderr);
-    fputc('\n', stderr);
-    err_run(T);
+    tea_err_callermsg(T, msg);
     return 0;   /* Unreachable */
 }
 
@@ -182,7 +263,7 @@ TEA_API int tea_arglimit_error(tea_State* T, int narg, const char* msg)
 {
     int limit = (int)(T->top - T->base);
     if(narg > limit)
-        tea_err_run(T, TEA_ERR_ARGS, limit, narg);
+        err_msgv(T, TEA_ERR_ARGS, limit, narg);
     return 0;   /* Unreachable */
 }
 

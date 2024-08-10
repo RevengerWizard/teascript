@@ -37,19 +37,10 @@
 static tea_State* globalT = NULL;
 static char* empty_argv[2] = { NULL, NULL };
 
-void tsignal(int id)
+void taction(int id)
 {
     signal(id, SIG_DFL);
     tea_error(globalT, "Interrupted");
-}
-
-static void clear()
-{
-#if TEA_TARGET_POSIX
-    system("clear");
-#elif TEA_TARGET_WINDOWS
-    system("cls");
-#endif
 }
 
 static void print_usage()
@@ -74,23 +65,53 @@ static void print_version()
 
 static void t_message(const char* msg)
 {
-    fputs("tea: ", stderr);
     fputs(msg, stderr);
     fputc('\n', stderr);
     fflush(stderr);
 }
 
-static int interpret(tea_State* T, const char* s)
+static int report(tea_State* T, int status)
 {
-    if(tea_load_buffer(T, s, strlen(s), "=<stdin>") != TEA_OK)
+    if(status && !tea_is_none(T, -1))
     {
-        return TEA_ERROR_SYNTAX;
+        const char* msg = tea_to_string(T, -1);
+        t_message(msg);
+        tea_pop(T, 2);  /* error + tostring result */
     }
+    switch(status)
+    {
+        case TEA_ERROR_SYNTAX:
+            return 65;
+        case TEA_ERROR_RUNTIME:
+            return 70;
+        case TEA_ERROR_FILE:
+            return 75;
+        default:
+            return EXIT_SUCCESS;
+    }
+}
+
+static int docall(tea_State* T, int narg)
+{
     int status;
-    signal(SIGINT, tsignal);
+    signal(SIGINT, taction);
     status = tea_pcall(T, 0);
     signal(SIGINT, SIG_DFL);
+    /* Force a complete garbage collection in case of errors */
+    if(status != TEA_OK) tea_gc(T);
     return status;
+}
+
+static int dofile(tea_State* T, const char* name)
+{
+    int status = tea_load_file(T, name, NULL) || docall(T, 0);
+    return report(T, status);
+}
+
+static int dostring(tea_State* T, const char* s, const char* name)
+{
+    int status = tea_load_buffer(T, s, strlen(s), name) || docall(T, 0);
+    return report(T, status);
 }
 
 #if defined(TEA_USE_READLINE)
@@ -114,133 +135,90 @@ static const char* get_prompt(bool firstline)
     return firstline ? TEA_PROMPT1 : TEA_PROMPT2;
 }
 
-static bool multiline(const char* line)
+static bool incomplete(tea_State* T, int status)
 {
-    int level = 0;
-
-    for(int i = 0; line[i]; i++)
+    if(status == TEA_ERROR_SYNTAX)
     {
-        if(line[i] == '\0')
+        size_t lmsg;
+        const char* msg = tea_to_lstring(T, -1, &lmsg);
+        const char* tp = msg + lmsg - (sizeof(TEA_QL("<eof>")) - 1);
+        if(strstr(msg, TEA_QL("<eof>")) == tp)
         {
-            break;
+            tea_pop(T, 2);
+            return true;
         }
-        else if (line[i] == '{')
-        {
-            level++;
-        }
-        else if (line[i] == '}')
-        {
-            level--;
-        }
-
-        if(level < 0)
-        {
-            return true; /* Closed brace before opening, end line now */
-        }
+        tea_pop(T, 1);
     }
-
-    return level == 0;
+    return false;  /* Else... */
 }
 
-static void repl(tea_State* T)
+static bool pushline(tea_State* T, bool firstline)
 {
-    globalT = T;
+    char buffer[TEA_MAX_INPUT];
+    char* b = buffer;
+    size_t len;
+line:
+    const char* prompt = get_prompt(firstline);
+    if(!t_readline(T, b, prompt))
+        return false;   /* No input */
+    len = strlen(b);
+    if(len > 0 && b[len - 1] == '\n')   /* Line ends with newline? */
+        b[len - 1] = '\0';    /* Remove it */
+    if(strcmp(b, "exit") == 0)
+        return false;
+    if(strcmp(b, "clear") == 0)
+    {
+#if TEA_TARGET_POSIX
+        system("clear");
+#elif TEA_TARGET_WINDOWS
+        system("cls");
+#endif
+        goto line;
+    }
+    tea_push_string(T, b);
+    t_freeline(T, b);
+    return true;
+}
 
-    t_initreadline(T);
+static int loadline(tea_State* T)
+{
+    int status;
     const char* line;
-
+    size_t len;
+    tea_set_top(T, 0);
+    if(!pushline(T, true))
+        return -1;  /* No input */
+    /* Repeat until gets a complete line */
     while(true)
     {
-        line:
-        tea_push_literal(T, "");
-
-        const char* prompt = get_prompt(true);
-
-        char buffer[TEA_MAX_INPUT];
-        char* b = buffer;
-        while(t_readline(T, b, prompt))
-        {
-            tea_push_string(T, b);
-            tea_concat(T);
-            line = tea_get_string(T, -1);
-
-            t_saveline(T, line);
-
-            if(!multiline(line))
-            {
-                prompt = get_prompt(false);
-                continue;
-            }
-
-            if(strlen(b) != TEA_MAX_INPUT - 1 || b[TEA_MAX_INPUT - 2] == '\n')
-            {
-                t_freeline(T, b);
-                break;
-            }
-        }
-
-        line = tea_get_string(T, -1);
-
-        if(line[0] == '\0')
-        {
-            break;
-        }
-
-        if(strcmp(line, "exit\n") == 0)
-        {
-            break;
-        }
-
-        if(strcmp(line, "clear\n") == 0)
-        {
-            clear();
-            tea_pop(T, 1);
-            goto line;
-        }
-
-        interpret(T, line);
-        tea_pop(T, 2);  /* Result of interpret + input string */
+        line = tea_get_lstring(T, -1, &len);
+        status = tea_load_buffer(T, line, len, "=<stdin>");
+        if(!incomplete(T, status))
+            break;  /* Cannot try to add lines? */
+        if(!pushline(T, false))
+            return -1;  /* No more input? */
+        tea_push_literal(T, "\n");  /* Add new line... */
+        tea_insert(T, -2);  /* ...between the two lines */
+        tea_concat(T, 3);   /* Join them */
     }
-
-    tea_set_top(T, 0);
-    putchar('\n');
-}
-
-static int report_status(int status, const char* path)
-{
-    switch(status)
-    {
-        case TEA_ERROR_SYNTAX:
-            return 65;
-        case TEA_ERROR_RUNTIME:
-            return 70;
-        case TEA_ERROR_FILE:
-        {
-            fputs("tea: ", stderr);
-            fprintf(stderr, "Cannot open '%s': No such file or directory", path);
-            fputc('\n', stderr);
-            fflush(stderr);
-            return 75;
-        }
-        default:
-            break;
-    }
+    t_saveline(T, line);
+    tea_remove(T, 0);   /* Remove line */
     return status;
 }
 
-static int do_file(tea_State* T, const char* name)
+static void dotty(tea_State* T)
 {
-    int status = tea_load_file(T, name, NULL);
-    if(status != TEA_OK)
+    t_initreadline(T);
+    int status;
+    while((status = loadline(T)) != -1)
     {
-        tea_pop(T, 1);
-        return report_status(status, (char*)name);
+        if(status == TEA_OK)
+            status = docall(T, 0);
+        report(T, status);
     }
-
-    status = tea_pcall(T, 0);
-    tea_pop(T, 1);
-
-    return report_status(status, (char*)name);
+    tea_set_top(T, 0);  /* Clear stack */
+    fputs("\n", stdout);
+    fflush(stdout);
 }
 
 static int handle_script(tea_State* T, char** argx, const char* name)
@@ -249,27 +227,21 @@ static int handle_script(tea_State* T, char** argx, const char* name)
     const char* path = argx[0];
     if(strcmp(path, "-") == 0 && strcmp(argx[-1], "--") != 0)
         path = NULL; /* stdin */
-    
+
     status = tea_load_file(T, path, name);
-
-    if(status != TEA_OK)
+    if(status == TEA_OK)
     {
-        tea_pop(T, 1);
-        return report_status(status, path);
+        status = docall(T, 0);
     }
-
-    status = tea_pcall(T, 0);
-    tea_pop(T, 1);
-
-    return report_status(status, path);
+    return report(T, status);
 }
 
 /* Check that argument has no extra characters at the end */
-#define notail(x)   { if ((x)[2] != '\0') return -1; }
+#define notail(x)   { if((x)[2] != '\0') return -1; }
 
-#define FLAG_I 1
-#define FLAG_V 2
-#define FLAG_E 4
+#define FLAG_INTERACTIVE 1
+#define FLAG_VERSION 2
+#define FLAG_EXEC 4
 
 static int collect_args(char** argv, int* flags)
 {
@@ -287,13 +259,13 @@ static int collect_args(char** argv, int* flags)
                 return i;
             case 'i':
                 notail(argv[i]);
-                *flags |= FLAG_I;
+                *flags |= FLAG_INTERACTIVE;
             case 'v':
                 notail(argv[i])
-                *flags |= FLAG_V;
+                *flags |= FLAG_VERSION;
                 break;
             case 'e':
-                *flags |= FLAG_E;
+                *flags |= FLAG_EXEC;
                 if (argv[i][2] == '\0')
                 {
                     i++;
@@ -322,11 +294,10 @@ static int run_args(tea_State* T, char** argv, int n)
                 const char* code = argv[i] + 2;
                 if(*code == '\0')
                     code = argv[++i];
-
-                int status = interpret(T, code);
-                tea_pop(T, 1);
-
-                return report_status(status, NULL);
+                int status = dostring(T, code, "=<stdin>");
+                if(status)
+                    return status;
+                break;
             }
         }
     }
@@ -345,6 +316,7 @@ static void pmain(tea_State* T)
     struct Smain* s = &smain;
     char** argv = s->argv;
     int argc = s->argc;
+    globalT = T;
     
     int flags = 0;
     int script = collect_args(argv, &flags);
@@ -356,7 +328,7 @@ static void pmain(tea_State* T)
 
     tea_set_argv(T, argc, argv, script);
 
-    if(flags & FLAG_V)
+    if(flags & FLAG_VERSION)
         print_version();
 
     s->status = run_args(T, argv, script);
@@ -365,31 +337,33 @@ static void pmain(tea_State* T)
     
     if(argc > script)
     {
-        s->status = handle_script(T, argv + script, (flags & FLAG_I) ? "=<stdin>" : NULL);
+        const char* name = (flags & FLAG_INTERACTIVE) ? "=<stdin>" : NULL;
+        s->status = handle_script(T, argv + script, name);
         if(s->status != TEA_OK)
             return;
     }
 
-    if((flags & FLAG_I))
+    if((flags & FLAG_INTERACTIVE))
     {
-        repl(T);
+        dotty(T);
     }
-    else if(argc == script && !(flags & (FLAG_E | FLAG_V)))
+    else if(argc == script && !(flags & (FLAG_EXEC | FLAG_VERSION)))
     {
         if(stdin_is_tty())
         {
             print_version();
-            repl(T);
+            dotty(T);
         }
         else
         {
-            do_file(T, NULL); /* Executes stdin as a file */
+            dofile(T, NULL); /* Executes stdin as a file */
         }
     }
 }
 
 int main(int argc, char** argv)
 {
+    int status;
     tea_State* T;
     if(!argv[0]) argv = empty_argv;
     T = tea_open();
@@ -400,7 +374,8 @@ int main(int argc, char** argv)
     }
     smain.argc = argc;
     smain.argv = argv;
-    tea_pccall(T, pmain, NULL);
+    status = tea_pccall(T, pmain, NULL);
+    report(T, status);
     tea_close(T);
     return smain.status;
 }

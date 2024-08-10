@@ -27,7 +27,7 @@ EXPECT_ERROR_PATTERN = re.compile(r'// expect error(?! line)')
 EXPECT_ERROR_LINE_PATTERN = re.compile(r'// expect error line (\d+)')
 EXPECT_RUNTIME_ERROR_PATTERN = re.compile(r'// expect (handled )?runtime error: (.+)')
 
-ERROR_PATTERN = re.compile(r'File .*, \[line (\d+)\] Error.*')
+ERROR_PATTERN = re.compile(r'File .*, \[line (\d+)\]: .*')
 STACK_TRACE_PATTERN = re.compile(r'\[line (\d+)\]')
 
 STDIN_PATTERN = re.compile(r'// stdin: (.*)')
