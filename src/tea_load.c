@@ -3,6 +3,8 @@
 ** Load and dump code from strings and files
 */
 
+#include <errno.h>
+
 #define tea_load_c
 #define TEA_CORE
 
