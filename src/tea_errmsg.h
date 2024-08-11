@@ -7,6 +7,7 @@
 
 /* Basic error handling */
 ERRDEF(MEM, "Not enough memory")
+ERRDEF(ERRERR, "Error in error handling")
 
 /* Allocations */
 ERRDEF(STROV, "String length overflow")

@@ -325,6 +325,11 @@ typedef struct
 #define CIST_CALLING  (1 << 2)  /* Call a Teascript function */
 #define CIST_TEA   (1 << 3) /* Call is running a Teascript function */
 
+#define iscci(T) \
+    (((T)->ci->func != NULL) && \
+    iscfunc((T)->ci->func) && \
+    (T)->ci->func->c.type == C_FUNCTION)
+
 /* Special methods */
 #define MMDEF(_) \
     _(PLUS, +) _(MINUS, -) _(MULT, *) _(DIV, /) \

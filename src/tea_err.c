@@ -31,6 +31,8 @@ TEA_DATADEF const char* tea_err_allmsg =
 #include "tea_errmsg.h"
 ;
 
+/* -- Error handling ------------------------------------------------------ */
+
 /* Throw error */
 TEA_NOINLINE void tea_err_throw(tea_State* T, int code)
 {
@@ -42,7 +44,16 @@ TEA_NOINLINE void tea_err_throw(tea_State* T, int code)
     else
     {
         if(T->panic)
+        {
+            T->ci = T->ci_base;
+            T->base = T->ci->base;
+            tea_func_closeuv(T, T->base);
+            copyTV(T, T->base, T->top - 1);
+            T->top = T->base + 1;
+            tea_state_relimitstack(T);
+            T->error_jump = NULL;
             T->panic(T);
+        }
         exit(EXIT_FAILURE);
     }
 }
@@ -61,8 +72,6 @@ int tea_err_protected(tea_State* T, tea_CPFunction f, void* ud)
     return tj.status;
 }
 
-/* -- Error handling ------------------------------------------------------ */
-
 /* Protected call */
 int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
 {
@@ -79,19 +88,12 @@ int tea_vm_pcall(tea_State* T, tea_CPFunction func, void* u, ptrdiff_t old_top)
         T->nccalls = oldnccalls;
         T->ci = ci_restore(T, old_ci);
         T->base = stack_restore(T, old_base);
-        /* Correct the stack */
-        T->stack_max = T->stack + T->stack_size - 1;
-        if(T->ci_size > TEA_MAX_CALLS)
-        {
-            int inuse = T->ci - T->ci_base;
-            if(inuse + 1 < TEA_MAX_CALLS)
-            {
-                tea_state_reallocci(T, TEA_MAX_CALLS);
-            }
-        }
+        tea_state_relimitstack(T);
     }
     return status;
 }
+
+/* -- Error types ------------------------------------------------------ */
 
 /* Return string object for error message */
 TEA_NOINLINE GCstr* tea_err_str(tea_State* T, ErrMsg em)
@@ -246,6 +248,11 @@ TEA_API tea_CFunction tea_atpanic(tea_State* T, tea_CFunction panicf)
     tea_CFunction old = T->panic;
     T->panic = panicf;
     return old;
+}
+
+TEA_API void tea_throw(tea_State* T)
+{
+    tea_err_run(T);
 }
 
 TEA_API int tea_error(tea_State* T, const char* fmt, ...)

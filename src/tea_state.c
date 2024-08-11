@@ -73,7 +73,7 @@ void tea_state_reallocci(tea_State* T, int new_size)
     T->ci_end = T->ci_base + T->ci_size;
 }
 
-void tea_state_growci(tea_State* T)
+CallInfo* tea_state_growci(tea_State* T)
 {
     if(T->ci + 1 == T->ci_end)
     {
@@ -82,6 +82,21 @@ void tea_state_growci(tea_State* T)
     if(T->ci_size > TEA_MAX_CALLS)
     {
         tea_err_stkov(T);
+    }
+    return ++T->ci;
+}
+
+/* Relimit stack after error, in case the limit was overdrawn */
+void tea_state_relimitstack(tea_State* T)
+{
+    T->stack_max = T->stack + T->stack_size - 1;
+    if(T->ci_size > TEA_MAX_CALLS)
+    {
+        int inuse = T->ci - T->ci_base;
+        if(inuse + 1 < TEA_MAX_CALLS)
+        {
+            tea_state_reallocci(T, TEA_MAX_CALLS);
+        }
     }
 }
 
@@ -103,9 +118,12 @@ void tea_state_growstack1(tea_State* T)
 
 static void panic(tea_State* T)
 {
-    fputs("PANIC: unprotected error in call to Teascript API", stderr);
-    fputc('\n', stderr);
+    const char* s = tea_to_string(T, -1);
+    fputs("PANIC: unprotected error in call to Teascript API (", stderr);
+    fputs(s ? s : "?", stderr);
+    fputc(')', stderr); fputc('\n', stderr);
     fflush(stderr);
+    tea_pop(T, 1);
 }
 
 static void* mem_alloc(void* ud, void* ptr, size_t osize, size_t nsize)

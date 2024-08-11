@@ -82,8 +82,8 @@ static void base_assert(tea_State* T)
 
 static void base_error(tea_State* T)
 {
-    tea_error(T, "%s", tea_check_string(T, 0));
-    tea_push_nil(T);
+    tea_check_any(T, 0);
+    tea_throw(T);
 }
 
 static void base_typeof(tea_State* T)

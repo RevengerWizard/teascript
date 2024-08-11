@@ -82,23 +82,14 @@ static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
 {
     GCfuncT* func = &f->t;
     nargs = vm_argcheck(T, nargs, func->proto->numparams, func->proto->numopts, func->proto->variadic);
-    
-    tea_state_growci(T);
     tea_state_checkstack(T, func->proto->max_slots);
-
-    CallInfo* ci = ++T->ci; /* Enter new function */
+    CallInfo* ci = tea_state_growci(T); /* Enter new function */
     ci->func = f;
     ci->ip = func->proto->bc;
     ci->state = CIST_TEA;
     ci->base = T->top - nargs - 1;
-
     return true;
 }
-
-#define iscci(T) \
-    (((T)->ci->func != NULL) && \
-    iscfunc((T)->ci->func) && \
-    (T)->ci->func->c.type == C_FUNCTION)
 
 static bool vm_callC(tea_State* T, GCfunc* f, int nargs)
 {
@@ -108,11 +99,8 @@ static bool vm_callC(tea_State* T, GCfunc* f, int nargs)
     {
         vm_argcheck(T, nargs, cfunc->nargs - extra, cfunc->nopts, 0);
     }
-
-    tea_state_growci(T);
     tea_state_checkstack(T, TEA_STACK_START);
-
-    CallInfo* ci = ++T->ci; /* Enter new function */
+    CallInfo* ci = tea_state_growci(T); /* Enter new function */
     ci->func = f;
     ci->ip = NULL;
     ci->state = CIST_C;
@@ -367,17 +355,6 @@ static bool vm_arith_comp(tea_State* T, MMS mm, TValue* a, TValue* b)
     copyTV(T, T->top++, &tv2);
     tea_vm_call(T, mo, 2);
     return true;
-}
-
-static bool vm_iterator_call(tea_State* T, MMS mm, TValue* o)
-{
-    TValue* mo = tea_meta_lookup(T, o, mm);
-    if(mo)
-    {
-        tea_vm_call(T, mo, 1);
-        return true;
-    }
-    return false;
 }
 
 static void vm_execute(tea_State* T)
@@ -856,10 +833,9 @@ static void vm_execute(tea_State* T)
                 copyTV(T, T->top++, &v2);
 
                 STORE_FRAME;
-                if(!vm_iterator_call(T, MM_CONTAINS, &v1))
-                {
-                    RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(&v1));
-                }
+                TValue* mo = tea_meta_lookup(T, &v1, MM_CONTAINS);
+                if(!mo) RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(&v1));
+                tea_vm_call(T, mo, 1);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1139,10 +1115,9 @@ static void vm_execute(tea_State* T)
 
                 /* iterate */
                 STORE_FRAME;
-                if(!vm_iterator_call(T, MM_ITER, seq))
-                {
-                    RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
-                }
+                TValue* mo = tea_meta_lookup(T, seq, MM_ITER);
+                if(!mo) RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
+                tea_vm_call(T, mo, 1);
                 READ_FRAME();
                 copyTV(T, iter, T->top - 1);
                 DISPATCH();
@@ -1160,10 +1135,9 @@ static void vm_execute(tea_State* T)
 
                 /* iteratorvalue */
                 STORE_FRAME;
-                if(!vm_iterator_call(T, MM_NEXT, seq))
-                {
-                    RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
-                }
+                TValue* mo = tea_meta_lookup(T, seq, MM_NEXT);
+                if(!mo) RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
+                tea_vm_call(T, mo, 1);
                 READ_FRAME();
                 DISPATCH();
             }
@@ -1271,7 +1245,6 @@ static void vm_execute(tea_State* T)
 #undef BINARY_OP
 #undef BINARY_OP_FUNCTION
 #undef RUNTIME_ERROR
-#undef iscci
 
 void tea_vm_call(tea_State* T, TValue* func, int nargs)
 {

@@ -24,11 +24,14 @@
 
 #define ci_save(T, p)        ((char*)(p) - (char*)T->ci_base)
 #define ci_restore(T, n)     ((CallInfo*)((char*)T->ci_base + (n)))
+#define incr_ci(T) \
+    ((T->ci == T->ci_end) ? tea_state_growci(T) : (++T->ci))
 
+TEA_FUNC void tea_state_relimitstack(tea_State* T);
 TEA_FUNC void tea_state_growstack(tea_State* T, int needed);
 TEA_FUNC void tea_state_growstack1(tea_State* T);
 TEA_FUNC void tea_state_reallocci(tea_State* T, int new_size);
-TEA_FUNC void tea_state_growci(tea_State* T);
+TEA_FUNC CallInfo* tea_state_growci(tea_State* T);
 
 static TEA_AINLINE void tea_state_checkstack(tea_State* T, int need)
 {

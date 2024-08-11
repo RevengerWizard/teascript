@@ -37,7 +37,7 @@
 static tea_State* globalT = NULL;
 static char* empty_argv[2] = { NULL, NULL };
 
-void taction(int id)
+static void taction(int id)
 {
     signal(id, SIG_DFL);
     tea_error(globalT, "Interrupted");

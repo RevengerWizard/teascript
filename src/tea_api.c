@@ -320,7 +320,6 @@ static GCstr* obj_tostring(tea_State* T, cTValue* o)
             return strV(o);
         }
     }
-
     SBuf* sb = &T->strbuf;
     tea_buf_reset(sb);
     tea_strfmt_obj(T, sb, o, 0);
