@@ -189,7 +189,7 @@ TEA_NOINLINE void tea_err_unoptype(tea_State* T, cTValue* o, MMS mm)
 /* Error in context of caller */
 TEA_NOINLINE void tea_err_callermsg(tea_State* T, const char* msg)
 {
-    tea_strfmt_pushf(T, msg);
+    tea_strfmt_pushf(T, "%s", msg);
     tea_err_run(T);
 }
 
