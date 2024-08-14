@@ -57,6 +57,14 @@ int tea_func_getline(GCproto* f, int instruction)
     }
 }
 
+void TEA_FASTCALL tea_func_freeproto(tea_State* T, GCproto* pt)
+{
+    tea_mem_freevec(T, BCIns, pt->bc, pt->bc_size);
+    tea_mem_freevec(T, LineStart, pt->lines, pt->line_size);
+    tea_mem_freevec(T, TValue, pt->k, pt->k_size);
+    tea_mem_freet(T, pt);
+}
+
 /* -- Upvalues -------------------------------------------------- */
 
 /* Create an empty and closed upvalue */
@@ -111,6 +119,11 @@ void tea_func_closeuv(tea_State* T, TValue* last)
     }
 }
 
+void TEA_FASTCALL tea_func_freeuv(tea_State* T, GCupval* uv)
+{
+    tea_mem_freet(T, uv);
+}
+
 /* -- Functions (closures) -------------------------------------------------- */
 
 GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nupvalues, int nargs, int nopts)
@@ -141,7 +154,7 @@ GCfunc* tea_func_newT(tea_State* T, GCproto* proto, GCmodule* module)
     return func;
 }
 
-void tea_func_free(tea_State* T, GCfunc* fn)
+void TEA_FASTCALL tea_func_free(tea_State* T, GCfunc* fn)
 {
     size_t size = isteafunc(fn) ? sizeTfunc(fn->t.upvalue_count) :
                 sizeCfunc(fn->c.upvalue_count);

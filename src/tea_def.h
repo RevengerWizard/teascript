@@ -62,6 +62,15 @@
 #endif
 #endif
 
+/* 
+** Note: it's only beneficial to use fastcall on x86 and then only for up to
+** two non-FP args. The amalgamated compile covers all TEA_FUNC cases. Only
+** indirect calls and related tail-called C functions are marked as fastcall.
+*/
+#if defined(__i386__)
+#define TEA_FASTCALL __attribute__((fastcall))
+#endif
+
 #define TEA_LIKELY(x)   __builtin_expect(!!(x), 1)
 #define TEA_UNLIKELY(x) __builtin_expect(!!(x), 0)
 
@@ -82,6 +91,9 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #define TEA_INLINE __inline
 #define TEA_AINLINE __forceinline
 #define TEA_NOINLINE __declspec(noinline)
+#if defined(_M_IX86)
+#define TEA_FASTCALL __fastcall
+#endif
 
 unsigned char _BitScanForward(unsigned long*, unsigned long);
 unsigned char _BitScanReverse(unsigned long*, unsigned long);
@@ -102,6 +114,7 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #error "missing defines for your compiler"
 #endif
 
+/* Optional defines */
 #ifndef TEA_FASTCALL
 #define TEA_FASTCALL
 #endif

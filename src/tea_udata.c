@@ -21,7 +21,7 @@ GCudata* tea_udata_new(tea_State* T, size_t len)
     return ud;
 }
 
-void tea_udata_free(tea_State* T, GCudata* ud)
+void TEA_FASTCALL tea_udata_free(tea_State* T, GCudata* ud)
 {
     if(ud->fd) ud->fd(ud_data(ud));
     tea_tab_free(T, &ud->attrs);

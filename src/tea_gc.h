@@ -31,7 +31,7 @@ static TEA_AINLINE void tea_mem_free(tea_State* T, void* p, size_t old_size)
     T->allocf(T->allocd, p, old_size, 0);
 }
 
-#define tea_mem_freet(T, type, p) tea_mem_free(T, p, sizeof(type))
+#define tea_mem_freet(T, p) tea_mem_free(T, (p), sizeof(*(p)))
 
 #define tea_mem_newobj(T, type, object_type) (type*)tea_mem_newgco(T, sizeof(type), object_type)
 

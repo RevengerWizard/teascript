@@ -20,6 +20,12 @@ GClist* tea_list_new(tea_State* T)
     return list;
 }
 
+void TEA_FASTCALL tea_list_free(tea_State* T, GClist* list)
+{
+    tea_mem_freevec(T, TValue, list->items, list->size);
+    tea_mem_freet(T, list);
+}
+
 GClist* tea_list_copy(tea_State* T, GClist* list)
 {
     GClist* l = tea_list_new(T);

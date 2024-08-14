@@ -521,6 +521,12 @@ TEA_FUNC GCclass* tea_class_new(tea_State* T, GCstr* name);
 TEA_FUNC GCinstance* tea_instance_new(tea_State* T, GCclass* klass);
 TEA_FUNC GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* func);
 
+TEA_FUNC void TEA_FASTCALL tea_module_free(tea_State* T, GCmodule* module);
+TEA_FUNC void TEA_FASTCALL tea_range_free(tea_State* T, GCrange* range);
+TEA_FUNC void TEA_FASTCALL tea_class_free(tea_State* T, GCclass* klass);
+TEA_FUNC void TEA_FASTCALL tea_instance_free(tea_State* T, GCinstance* instance);
+TEA_FUNC void TEA_FASTCALL tea_method_free(tea_State* T, GCmethod* method);
+
 /* -- Object and value handling --------------------------------------- */
 
 TEA_FUNC const void* tea_obj_pointer(cTValue* v);

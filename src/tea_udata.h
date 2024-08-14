@@ -9,7 +9,7 @@
 #include "tea_obj.h"
 
 TEA_FUNC GCudata* tea_udata_new(tea_State* T, size_t len);
-TEA_FUNC void tea_udata_free(tea_State* T, GCudata* ud);
+TEA_FUNC void TEA_FASTCALL tea_udata_free(tea_State* T, GCudata* ud);
 
 #define tea_udata_size(len) (sizeof(struct GCudata) + (len))
 

@@ -18,6 +18,12 @@ GCmap* tea_map_new(tea_State* T)
     return map;
 }
 
+void TEA_FASTCALL tea_map_free(tea_State* T, GCmap* map)
+{
+    tea_mem_freevec(T, MapEntry, map->entries, map->size);
+    tea_mem_freet(T, map);
+}
+
 void tea_map_clear(tea_State* T, GCmap* map)
 {
     tea_mem_freevec(T, MapEntry, map->entries, map->size);

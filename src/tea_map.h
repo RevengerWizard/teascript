@@ -9,6 +9,7 @@
 #include "tea_obj.h"
 
 TEA_FUNC GCmap* tea_map_new(tea_State* T);
+TEA_FUNC void TEA_FASTCALL tea_map_free(tea_State* T, GCmap* map);
 TEA_FUNC void tea_map_clear(tea_State* T, GCmap* map);
 TEA_FUNC TValue* tea_map_set(tea_State* T, GCmap* map, TValue* key);
 TEA_FUNC TValue* tea_map_setstr(tea_State* T, GCmap* map, GCstr* str);

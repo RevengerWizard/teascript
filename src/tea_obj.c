@@ -92,6 +92,34 @@ GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* func)
     return bound;
 }
 
+void TEA_FASTCALL tea_module_free(tea_State* T, GCmodule* module)
+{
+    tea_tab_free(T, &module->vars);
+    tea_mem_freet(T, module);
+}
+
+void TEA_FASTCALL tea_range_free(tea_State* T, GCrange* range)
+{
+    tea_mem_freet(T, range);
+}
+
+void TEA_FASTCALL tea_class_free(tea_State* T, GCclass* klass)
+{
+    tea_tab_free(T, &klass->methods);
+    tea_mem_freet(T, klass);
+}
+
+void TEA_FASTCALL tea_instance_free(tea_State* T, GCinstance* instance)
+{
+    tea_tab_free(T, &instance->attrs);
+    tea_mem_freet(T, instance);
+}
+
+void TEA_FASTCALL tea_method_free(tea_State* T, GCmethod* method)
+{
+    tea_mem_freet(T, method);
+}
+
 /* Return pointer to object or its object data */
 const void* tea_obj_pointer(cTValue* o)
 {
@@ -116,9 +144,7 @@ static bool obj_list_equal(GClist* a, GClist* b)
         return true;
 
     if(a->len != b->len)
-    {
         return false;
-    }
 
     for(int i = 0; i < a->len; i++)
     {
@@ -137,14 +163,10 @@ static bool obj_map_equal(GCmap* a, GCmap* b)
         return true;
 
     if(a->count != b->count)
-    {
         return false;
-    }
 
     if(a->count == 0)
-    {
         return true;
-    }
 
     for(int i = 0; i < a->size; i++)
     {

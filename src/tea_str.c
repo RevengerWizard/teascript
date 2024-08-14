@@ -63,7 +63,7 @@ GCstr* tea_str_new(tea_State* T, const char* chars, size_t len)
     }
 }
 
-void tea_str_free(tea_State* T, GCstr* str)
+void TEA_FASTCALL tea_str_free(tea_State* T, GCstr* str)
 {
     tea_mem_free(T, str, tea_str_size(str->len));
 }

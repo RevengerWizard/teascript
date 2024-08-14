@@ -14,6 +14,8 @@
 #include "tea_tab.h"
 #include "tea_func.h"
 #include "tea_udata.h"
+#include "tea_list.h"
+#include "tea_map.h"
 
 #ifdef TEA_DEBUG_LOG_GC
 #include <stdio.h>
@@ -127,88 +129,28 @@ static void gc_blacken(tea_State* T, GCobj* obj)
     }
 }
 
+/* Type of GC free functions */
+typedef void (TEA_FASTCALL *GCFreeFunc)(tea_State* T, GCobj* o);
+
+/* GC free functions */
+static const GCFreeFunc gc_freefunc[] = {
+    (GCFreeFunc)tea_str_free,
+    (GCFreeFunc)tea_range_free,
+    (GCFreeFunc)tea_func_free,
+    (GCFreeFunc)tea_module_free,
+    (GCFreeFunc)tea_class_free,
+    (GCFreeFunc)tea_instance_free,
+    (GCFreeFunc)tea_list_free,
+    (GCFreeFunc)tea_map_free,
+    (GCFreeFunc)tea_udata_free,
+    (GCFreeFunc)tea_func_freeproto,
+    (GCFreeFunc)tea_func_freeuv,
+    (GCFreeFunc)tea_method_free
+};
+
 static void gc_free(tea_State* T, GCobj* obj)
 {
-    switch(obj->gct)
-    {
-        case TEA_TRANGE:
-        {
-            tea_mem_freet(T, GCrange, obj);
-            break;
-        }
-        case TEA_TMODULE:
-        {
-            GCmodule* module = (GCmodule*)obj;
-            tea_tab_free(T, &module->vars);
-            tea_mem_freet(T, GCmodule, obj);
-            break;
-        }
-        case TEA_TLIST:
-        {
-            GClist* list = (GClist*)obj;
-            tea_mem_freevec(T, TValue, list->items, list->size);
-            tea_mem_freet(T, GClist, obj);
-            break;
-        }
-        case TEA_TMAP:
-        {
-            GCmap* map = (GCmap*)obj;
-            tea_mem_freevec(T, MapEntry, map->entries, map->size);
-            tea_mem_freet(T, GCmap, obj);
-            break;
-        }
-        case TEA_TMETHOD:
-        {
-            tea_mem_freet(T, GCmethod, obj);
-            break;
-        }
-        case TEA_TCLASS:
-        {
-            GCclass* klass = (GCclass*)obj;
-            tea_tab_free(T, &klass->methods);
-            tea_mem_freet(T, GCclass, obj);
-            break;
-        }
-        case TEA_TFUNC:
-        {
-            GCfunc* func = (GCfunc*)obj;
-            tea_func_free(T, func);
-            break;
-        }
-        case TEA_TPROTO:
-        {
-            GCproto* proto = (GCproto*)obj;
-            tea_mem_freevec(T, BCIns, proto->bc, proto->bc_size);
-            tea_mem_freevec(T, LineStart, proto->lines, proto->line_size);
-            tea_mem_freevec(T, TValue, proto->k, proto->k_size);
-            tea_mem_freet(T, GCproto, obj);
-            break;
-        }
-        case TEA_TINSTANCE:
-        {
-            GCinstance* instance = (GCinstance*)obj;
-            tea_tab_free(T, &instance->attrs);
-            tea_mem_freet(T, GCinstance, obj);
-            break;
-        }
-        case TEA_TSTR:
-        {
-            GCstr* str = (GCstr*)obj;
-            tea_str_free(T, str);
-            break;
-        }
-        case TEA_TUDATA:
-        {
-            GCudata* ud = (GCudata*)obj;
-            tea_udata_free(T, ud);
-            break;
-        }
-        case TEA_TUPVAL:
-        {
-            tea_mem_freet(T, GCupval, obj);
-            break;
-        }
-    }
+    gc_freefunc[obj->gct - TEA_TSTR](T, obj);
 }
 
 /* Mark GC roots */
