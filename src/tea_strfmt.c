@@ -464,7 +464,8 @@ int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
                     {
                         SBuf* strbuf = &T->strbuf;
                         tea_buf_reset(strbuf);
-                        tea_strfmt_obj(T, strbuf, o, 0);
+                        ToStringState st; st.top = 0;
+                        tea_strfmt_obj(T, strbuf, o, 0, &st);
                         GCstr* str = tea_buf_str(T, strbuf);
                         len = str->len;
                         s = str_data(str);
@@ -492,7 +493,7 @@ int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry)
 
 /* -- Conversions to strings ---------------------------------------------- */
 
-static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth)
+static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth, ToStringState* st)
 {
     if(list->len == 0)
     {
@@ -500,28 +501,13 @@ static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth)
         return;
     }
 
-    if(depth > TEA_MAX_TOSTR)
-    {
-        tea_buf_putlit(T, sb, "[...]");
-        return;
-    }
-    
     tea_buf_putlit(T, sb, "[");
 
-    TValue self;
-    setlistV(T, &self, list);
     for(int i = 0; i < list->len; i++)
     {
         TValue* o = list_slot(list, i);
 
-        if(tea_obj_rawequal(o, &self))
-        {
-            tea_buf_putlit(T, sb, "[...]");
-        }
-        else
-        {
-            tea_strfmt_obj(T, sb, o, depth);
-        }
+        tea_strfmt_obj(T, sb, o, depth, st);
 
         if(i != list->len - 1)
         {
@@ -531,17 +517,11 @@ static void strfmt_list(tea_State* T, SBuf* sb, GClist* list, int depth)
     tea_buf_putlit(T, sb, "]");
 }
 
-static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth)
+static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth, ToStringState* st)
 {
     if(map->count == 0)
     {
         tea_buf_putlit(T, sb, "{}");
-        return;
-    }
-    
-    if(depth > TEA_MAX_TOSTR)
-    {
-        tea_buf_putlit(T, sb, "{...}");
         return;
     }
 
@@ -549,8 +529,6 @@ static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth)
 
     tea_buf_putlit(T, sb, "{");
 
-    TValue self;
-    setmapV(T, &self, map);
     for(int i = 0; i < map->size; i++)
     {
         MapEntry* entry = &map->entries[i];
@@ -561,37 +539,21 @@ static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth)
         TValue* key = &entry->key;
         TValue* value = &entry->val;
 
-        count++;
-
-        if(tea_obj_rawequal(key, &self))
+        if(!tvisstr(key))
         {
-            tea_buf_putlit(T, sb, "{...}");
+            tea_buf_putlit(T, sb, "[");
+            tea_strfmt_obj(T, sb, key, depth, st);
+            tea_buf_putlit(T, sb, "] = ");
         }
         else
         {
-            if(!tvisstr(key))
-            {
-                tea_buf_putlit(T, sb, "[");
-                tea_strfmt_obj(T, sb, key, depth);
-                tea_buf_putlit(T, sb, "] = ");
-            }
-            else
-            {
-                tea_strfmt_obj(T, sb, key, depth);
-                tea_buf_putlit(T, sb, " = ");
-            }
+            tea_buf_putstr(T, sb, strV(key));
+            tea_buf_putlit(T, sb, " = ");
         }
 
-        if(tea_obj_rawequal(value, &self))
-        {
-            tea_buf_putlit(T, sb, "{...}");
-        }
-        else
-        {
-            tea_strfmt_obj(T, sb, value, depth);
-        }
+        tea_strfmt_obj(T, sb, value, depth, st);
 
-        if(count != map->count)
+        if(++count != map->count)
         {
             tea_buf_putlit(T, sb, ", ");
         }
@@ -599,18 +561,28 @@ static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth)
     tea_buf_putlit(T, sb, "}");
 }
 
-static void strfmt_func(tea_State* T, SBuf* sb, GCproto* proto)
-{
-    tea_buf_putlit(T, sb, "<function>");
-}
-
 /* Conversion of object to string */
-void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
+void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth, ToStringState* st)
 {
-    if(depth > TEA_MAX_TOSTR)
+    if(depth >= TEA_MAX_TOSTR)
     {
-        tea_buf_putlit(T, sb, "...");
+end:
+        if(itype(o) == TEA_TLIST)
+            tea_buf_putlit(T, sb, "[...]");
+        else if(itype(o) == TEA_TMAP)
+            tea_buf_putlit(T, sb, "{...}");
+        else
+            tea_buf_putlit(T, sb, "...");
         return;
+    }
+    for(int i = 0; i < st->top; i++)
+    {
+        if(tea_obj_rawequal(st->tvs[i], o))
+            goto end;
+    }
+    if(st->top < TEA_MAX_SDEPTH)
+    {
+        st->tvs[st->top++] = o;
     }
     depth++;
     switch(itype(o))
@@ -636,22 +608,16 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
             tea_buf_putlit(T, sb, "<method>");
             break;
         case TEA_TPROTO:
-            strfmt_func(T, sb, protoV(o));
+            tea_buf_putlit(T, sb, "<proto>");
             break;
         case TEA_TFUNC:
-        {
-            GCfunc* func = funcV(o);
-            if(iscfunc(func))
-                tea_buf_putlit(T, sb, "<function>");
-            else
-                strfmt_func(T, sb, func->t.proto);
+            tea_buf_putlit(T, sb, "<function>");
             break;
-        }
         case TEA_TLIST:
-            strfmt_list(T, sb, listV(o), depth);
+            strfmt_list(T, sb, listV(o), depth, st);
             break;
         case TEA_TMAP:
-            strfmt_map(T, sb, mapV(o), depth);
+            strfmt_map(T, sb, mapV(o), depth, st);
             break;
         case TEA_TRANGE:
         {
@@ -700,6 +666,8 @@ void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth)
             tea_assertT(T, "unknown type");
             break;
     }
+    if(st->top > 0)
+        st->top--;
 }
 
 /* -- Internal string formatting ------------------------------------------ */

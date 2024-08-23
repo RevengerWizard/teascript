@@ -19,6 +19,13 @@ typedef struct FormatState
     size_t len; /* Size of literal string */
 } FormatState;
 
+/* tostring context state */
+typedef struct ToStringState
+{
+    cTValue* tvs[TEA_MAX_SDEPTH];
+    int top;
+} ToStringState;
+
 /* Format types (max. 16) */
 typedef enum FormatType
 {
@@ -92,7 +99,7 @@ TEA_FUNC int tea_strfmt_putarg(tea_State* T, SBuf* sb, int arg, int retry);
 
 /* Conversions to strings */
 TEA_FUNC GCstr* tea_strfmt_num(tea_State* T, cTValue* o);
-TEA_FUNC void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth);
+TEA_FUNC void tea_strfmt_obj(tea_State* T, SBuf* sb, cTValue* o, int depth, ToStringState* st);
 
 /* Internal string formatting */
 TEA_FUNC const char* tea_strfmt_pushvf(tea_State* T, const char* fmt, va_list argp);

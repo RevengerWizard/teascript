@@ -360,12 +360,13 @@ static void list_join(tea_State* T)
     }
 
     SBuf* sb = tea_buf_tmp_(T);
+    ToStringState st; st.top = 0;
 
     TValue* o;
     for(int i = 0; i < list->len; i++)
     {
         o = list_slot(list, i);
-        tea_strfmt_obj(T, sb, o, 0);
+        tea_strfmt_obj(T, sb, o, 0, &st);
 
         if(i != list->len - 1)
             tea_buf_putmem(T, sb, sep, sep_len);

@@ -36,6 +36,7 @@
 #define TEA_MIN_VECSIZE 8   /* Min. size for growable vectors */
 
 #define TEA_MAX_TOSTR 8    /* Max. string depth conversion */
+#define TEA_MAX_SDEPTH (TEA_MAX_TOSTR * 2)  /* Max. string stack conversion */
 
 #define TEA_MAX_UPVAL 256  /* Max. # of upvalues */
 #define TEA_MAX_LOCAL 256  /* Max. # of local variables */

@@ -322,7 +322,8 @@ static GCstr* obj_tostring(tea_State* T, cTValue* o)
     }
     SBuf* sb = &T->strbuf;
     tea_buf_reset(sb);
-    tea_strfmt_obj(T, sb, o, 0);
+    ToStringState st; st.top = 0;
+    tea_strfmt_obj(T, sb, o, 0, &st);
     return tea_buf_str(T, sb);
 }
 
