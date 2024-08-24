@@ -18,6 +18,7 @@
 #include "tea_str.h"
 #include "tea_utf.h"
 #include "tea_strscan.h"
+#include "tea_strfmt.h"
 
 /* Teascript lexer token names */
 static const char* const lex_tokennames[] = {
@@ -824,13 +825,10 @@ const char* tea_lex_token2str(Lexer* lex, LexToken t)
 {
     if(t > TK_OFS)
         return lex_tokennames[t - TK_OFS - 1];
+    else if(!tea_char_iscntrl(t))
+        return tea_strfmt_pushf(lex->T, "%c", t);
     else
-    {
-        static char s[2];
-        s[0] = (char)t;
-        s[1] = '\0';
-        return s;
-    }
+        return tea_strfmt_pushf(lex->T, "char(%d)", t);
 }
 
 /* Lexer error */
