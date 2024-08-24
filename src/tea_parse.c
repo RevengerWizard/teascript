@@ -1047,6 +1047,32 @@ static void expr_literal(Parser* parser, bool assign)
     bcemit_constant(parser, &parser->lex->prev.value);
 }
 
+static void expr_str(Parser* parser, bool assign)
+{
+    tea_State* T = parser->lex->T;
+    TValue tv;
+    copyTV(T, &tv, &parser->lex->prev.value);
+    if((parser->lex->curr.type == '+') &&
+        (parser->lex->next.type == TK_STRING))
+    {
+        SBuf* sb = tea_buf_tmp_(T);
+        tea_buf_putstr(T, sb, strV(&tv));
+
+        while((parser->lex->curr.type == '+') && (parser->lex->next.type == TK_STRING)) 
+        {
+            TValue* o = &parser->lex->next.value;
+            GCstr* s2 = strV(o);
+            tea_buf_putstr(T, sb, s2);
+            tea_lex_next(parser->lex);
+            tea_lex_next(parser->lex);
+        }
+
+        GCstr* str = tea_buf_str(T, sb);
+        setstrV(T, &tv, str);
+    }
+    bcemit_constant(parser, &tv);
+}
+
 static void expr_interpolation(Parser* parser, bool assign)
 {
     bcemit_op(parser, BC_LIST);
@@ -1432,8 +1458,9 @@ static ParseRule expr_rule(int type)
         case TK_NAME:
             return PREFIX(expr_name);
         case TK_NUMBER:
-        case TK_STRING:
             return PREFIX(expr_literal);
+        case TK_STRING:
+            return PREFIX(expr_str);
         case TK_INTERPOLATION:
             return PREFIX(expr_interpolation);
         case TK_AND:

@@ -71,7 +71,7 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     lex.mode = mode;
     tea_buf_init(&lex.sb);
     int status = tea_vm_pcall(T, parser_f, &lex, stack_save(T, T->top));
-    tea_buf_free(T, &lex.sb);
+    tea_lex_cleanup(T, &lex);
     return status;
 }
 
@@ -184,7 +184,7 @@ TEA_API int tea_eval(tea_State* T, const char* s)
     lex.mode = "t";
     tea_buf_init(&lex.sb);
     int status = tea_vm_pcall(T, parser_f, &lex, stack_save(T, T->top));
-    tea_buf_free(T, &lex.sb);
+    tea_lex_cleanup(T, &lex);
     return status;
 }
 

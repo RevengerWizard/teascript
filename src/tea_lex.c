@@ -813,6 +813,12 @@ bool tea_lex_setup(tea_State* T, Lexer* lex)
     return false;
 }
 
+/* Cleanup lexer state */
+void tea_lex_cleanup(tea_State* T, Lexer* lex)
+{
+    tea_buf_free(T, &lex->sb);
+}
+
 /* Convert token to string */
 const char* tea_lex_token2str(Lexer* lex, LexToken t)
 {
