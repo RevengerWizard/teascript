@@ -334,8 +334,8 @@ static const tea_Methods file_class[] = {
 };
 
 static const tea_Reg io_module[] = {
-    { "open", io_open, -2 },
-    { "popen", io_popen, -2 },
+    { "open", io_open, 1, 1 },
+    { "popen", io_popen, 1, 1 },
     { "stdin", NULL },
     { "stdout", NULL },
     { "stderr", NULL },
