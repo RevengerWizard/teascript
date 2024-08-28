@@ -338,7 +338,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     GCstr* dir = tea_str_newlen(T, exe);
     T->top--;
 
-    const char* exts[] = { "tea", "lib", "package" };
+    const char* exts[] = { "script", "lib", "package" };
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     GCstr* path;
