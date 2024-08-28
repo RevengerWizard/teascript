@@ -633,7 +633,7 @@ end:
         {
             GCmodule* module = moduleV(o);
             tea_buf_putlit(T, sb, "<");
-            tea_buf_putmem(T, sb, str_data(module->name), module->name->len);
+            tea_buf_putstr(T, sb, module->name);
             tea_buf_putlit(T, sb, " module>");
             break;
         }
@@ -641,7 +641,7 @@ end:
         {
             GCclass* klass = classV(o);
             tea_buf_putlit(T, sb, "<");
-            tea_buf_putmem(T, sb, str_data(klass->name), klass->name->len);
+            tea_buf_putstr(T, sb, klass->name);
             tea_buf_putlit(T, sb, ">");
             break;
         }
@@ -649,7 +649,7 @@ end:
         {
             GCstr* name = instanceV(o)->klass->name;
             tea_buf_putlit(T, sb, "<");
-            tea_buf_putmem(T, sb, str_data(name), name->len);
+            tea_buf_putstr(T, sb, name);
             tea_buf_putlit(T, sb, " instance>");
             break;
         }

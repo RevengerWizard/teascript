@@ -13,6 +13,7 @@
 #include "tea_buf.h"
 #include "tea_str.h"
 #include "tea_vm.h"
+#include "tea_debug.h"
 #include "tea_func.h"
 #include "tea_strfmt.h"
 
@@ -132,7 +133,7 @@ TEA_NOINLINE void tea_err_run(tea_State* T)
         GCproto* proto = ci->func->t.proto;
         size_t instruction = ci->ip - proto->bc - 1;
         tea_strfmt_pushf(T, "[line %d] in %s\n", 
-            tea_func_getline(proto, instruction), str_data(proto->name));
+            tea_debug_line(proto, instruction), str_data(proto->name));
         msg = strV(T->top - 1);
         tea_buf_putmem(T, sb, str_data(msg), msg->len);
         T->top--;

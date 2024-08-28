@@ -33,30 +33,6 @@ GCproto* tea_func_newproto(tea_State* T, int max_slots)
     return pt;
 }
 
-int tea_func_getline(GCproto* f, int instruction)
-{
-    int start = 0;
-    int end = f->line_count - 1;
-
-    while(true)
-    {
-        int mid = (start + end) / 2;
-        LineStart* line = &f->lines[mid];
-        if(instruction < line->ofs)
-        {
-            end = mid - 1;
-        }
-        else if(mid == f->line_count - 1 || instruction < f->lines[mid + 1].ofs)
-        {
-            return line->line;
-        }
-        else
-        {
-            start = mid + 1;
-        }
-    }
-}
-
 void TEA_FASTCALL tea_func_freeproto(tea_State* T, GCproto* pt)
 {
     tea_mem_freevec(T, BCIns, pt->bc, pt->bc_size);

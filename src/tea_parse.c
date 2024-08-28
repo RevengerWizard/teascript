@@ -22,10 +22,6 @@
 #include "tea_bc.h"
 #include "tea_tab.h"
 
-#ifdef TEA_DEBUG_PRINT_CODE
-#include "tea_debug.h"
-#endif
-
 /* -- Error handling --------------------------------------------- */
 
 TEA_NORET TEA_NOINLINE static void error(Parser* parser, ErrMsg em)
@@ -314,12 +310,6 @@ static void parser_init(Lexer* lexer, Parser* parser, Parser* parent, ProtoType 
 static GCproto* parser_end(Parser* parser)
 {
     GCproto* proto = parser->proto;
-
-#ifdef TEA_DEBUG_PRINT_CODE
-    tea_State* T = parser->lex->T;
-    tea_debug_chunk(T, proto, str_data(proto->name));
-#endif
-
     if(parser->enclosing != NULL)
     {
         TValue o;
@@ -2465,20 +2455,22 @@ static void parse_import(Parser* parser)
     else
     {
         lex_consume(parser, TK_NAME);
-        uint8_t import_name = identifier_constant(parser, &parser->lex->prev);
-        declare_variable(parser, &parser->lex->prev);
+        Token name = parser->lex->prev;
+        uint8_t import_name = identifier_constant(parser, &name);
+        bcemit_argued(parser, BC_IMPORT_NAME, import_name);
+        bcemit_op(parser, BC_POP);
 
         if(lex_match(parser, TK_AS))
         {
             uint8_t import_alias = parse_variable(parser);
-
-            bcemit_argued(parser, BC_IMPORT_NAME, import_name);
+            bcemit_op(parser, BC_IMPORT_ALIAS);
             define_variable(parser, import_alias, false);
         }
         else
         {
-            bcemit_argued(parser, BC_IMPORT_NAME, import_name);
-            define_variable(parser, import_name, false);
+            uint8_t constant = parse_variable_at(parser, name);
+            bcemit_op(parser, BC_IMPORT_ALIAS);
+            define_variable(parser, constant, false);
         }
 
         bcemit_op(parser, BC_IMPORT_END);
