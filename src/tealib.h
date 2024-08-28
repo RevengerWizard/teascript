@@ -26,6 +26,9 @@ TEAMOD_API void tea_import_io(tea_State* T);
 #define TEA_MODULE_RANDOM "random"
 TEAMOD_API void tea_import_random(tea_State* T);
 
+#define TEA_MODULE_DEBUG "debug"
+TEAMOD_API void tea_import_debug(tea_State* T);
+
 #define TEA_CLASS_LIST "List"
 TEAMOD_API void tea_open_list(tea_State* T);
 

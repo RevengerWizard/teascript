@@ -19,6 +19,7 @@ TEA_FUNC GCmap* tea_lib_checkmap(tea_State* T, int idx);
 TEA_FUNC GCrange* tea_lib_checkrange(tea_State* T, int idx);
 TEA_FUNC int tea_lib_checkopt(tea_State* T, int idx, int def, const char* lst);
 TEA_FUNC int32_t tea_lib_checkintrange(tea_State* T, int idx, int32_t a, int32_t b);
+TEA_FUNC GCproto* tea_lib_checkTproto(tea_State* T, int idx, bool notea);
 
 TEA_FUNC void tea_lib_fileresult(tea_State* T, const char* fname);
 

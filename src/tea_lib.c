@@ -121,6 +121,25 @@ badtype:
     return 0;
 }
 
+GCproto* tea_lib_checkTproto(tea_State* T, int idx, bool notea)
+{
+    TValue* o = T->base + idx;
+    if(T->top > o)
+    {
+        if(tvisproto(o))
+            return protoV(o);
+        else if(tvisfunc(o))
+        {
+            if(isteafunc(funcV(o)))
+                return funcproto(o);
+            else if(notea)
+                return NULL;
+        }
+    }
+    tea_err_argt(T, idx, TEA_TYPE_FUNCTION);
+    return NULL; /* Unreachable */
+}
+
 void tea_lib_fileresult(tea_State* T, const char* fname)
 {
     int en = errno; /* Teascript API calls may change this value */

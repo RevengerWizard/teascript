@@ -21,6 +21,7 @@
 #include "tea_strfmt.h"
 #include "tea_udata.h"
 #include "tea_meta.h"
+#include "tea_import.h"
 
 /* -- Common helper functions --------------------------------------------- */
 
@@ -1166,6 +1167,12 @@ TEA_API void* tea_opt_userdata(tea_State* T, int idx, void* def)
 TEA_API tea_CFunction tea_opt_cfunction(tea_State* T, int idx, tea_CFunction def)
 {
     return tea_is_nonenil(T, idx) ? def : tea_check_cfunction(T, idx);
+}
+
+TEA_API void tea_import(tea_State* T, const char* name)
+{
+    GCstr* s = tea_str_newlen(T, name);
+    tea_imp_logical(T, s);
 }
 
 /* -- GC and memory management -------------------------------------------------- */

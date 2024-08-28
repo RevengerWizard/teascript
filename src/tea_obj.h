@@ -170,6 +170,7 @@ typedef struct
 } GCproto;
 
 #define proto_kgc(pt, i) (&((pt)->k[(i)]))
+#define proto_bc(pt, i) ((pt)->bc[(i)])
 
 /* -- Upvalue object -------------------------------------------------- */
 
@@ -221,7 +222,8 @@ typedef union
 #define FF_TEA  0
 #define FF_C  1
 #define isteafunc(fn)   ((fn)->c.ffid == FF_TEA)
-#define iscfunc(fn)   ((fn)->c.ffid == FF_C)
+#define iscfunc(fn)     ((fn)->c.ffid == FF_C)
+#define funcproto(fn)   (funcV(fn)->t.proto)
 #define sizeCfunc(n)    (sizeof(GCfuncC) - sizeof(TValue) + sizeof(TValue) * (n))
 #define sizeTfunc(n)    (sizeof(GCfuncT) - sizeof(GCupval*) + sizeof(GCupval*) * (n))
 

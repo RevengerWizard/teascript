@@ -156,6 +156,7 @@ static const tea_Reg modules[] = {
     { TEA_MODULE_SYS, tea_import_sys },
     { TEA_MODULE_IO, tea_import_io },
     { TEA_MODULE_RANDOM, tea_import_random },
+    { TEA_MODULE_DEBUG, tea_import_debug },
     { NULL, NULL }
 };
 
@@ -304,10 +305,6 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
     T->last_module = module;
 
     int status = tea_load_file(T, str_data(path), NULL);
-    if(status == TEA_ERROR_FILE)
-    {
-        tea_err_callerv(T, TEA_ERR_NOPATH, str_data(path_name));
-    }
     if(status != TEA_OK)
     {
         /* Rethrow the syntax error */
@@ -337,7 +334,9 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         }
     }
 
-    GCstr* dir = tea_str_newlen(T, setprogdir(T));
+    const char* exe = setprogdir(T);
+    GCstr* dir = tea_str_newlen(T, exe);
+    T->top--;
 
     const char* exts[] = { "tea", "lib", "package" };
     const int n = sizeof(exts) / sizeof(exts[0]);
@@ -384,17 +383,14 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     module->path = tea_imp_dirname(T, str_datawr(path), path->len);
     T->last_module = module;
 
-    int status = tea_load_file(T, str_data(path), NULL);
-    if(status == TEA_ERROR_FILE)
-    {
-        tea_err_callerv(T, TEA_ERR_NOPATH, str_data(name));
-    }
+    int status = tea_load_file(T, str_data(path), str_data(path));
     if(status != TEA_OK)
     {
         /* Rethrow the syntax error */
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     tea_call(T, 0);
+    T->top--;
 
-    setmoduleV(T, T->top++, T->last_module);
+    setmoduleV(T, T->top++, module);
 }

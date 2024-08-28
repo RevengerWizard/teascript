@@ -309,6 +309,8 @@ TEA_API int tea_load_buffer(tea_State* T, const char* buffer, size_t size, const
 
 TEA_API int tea_eval(tea_State* T, const char* s);
 
+TEA_API void tea_import(tea_State* T, const char* name);
+
 TEA_API void tea_throw(tea_State* T);
 TEA_API int tea_error(tea_State* T, const char* fmt, ...);
 TEA_API int tea_arglimit_error(tea_State* T, int narg, const char* msg);

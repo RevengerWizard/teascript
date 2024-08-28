@@ -45,15 +45,15 @@ static void taction(int id)
 
 static void print_usage()
 {
-    fputs("tea: ", stderr);
     fputs(
         "usage: tea [options] [script [args]]\n"
         "Available options are:\n"
-        "  -e code    execute string 'code'\n"
-        "  -i         enter interactive mode after executing 'script'\n"
-        "  -v         show version information\n"
-        "  --         stop handling options\n"
-        "  -          stop handling options and execute stdin\n",
+        "  -e code    Execute string 'code'\n"
+        "  -b ...     Save or list bytecode\n"
+        "  -i         Enter interactive mode after executing 'script'\n"
+        "  -v         Show version information\n"
+        "  --         Stop handling options\n"
+        "  -          Stop handling options and execute stdin\n",
         stderr);
     fflush(stderr);
 }
@@ -236,6 +236,25 @@ static int handle_script(tea_State* T, char** argx, const char* name)
     return report(T, status);
 }
 
+/* Save or list bytecode */
+static int dobytecode(tea_State* T, char** argv)
+{
+    int narg = 0;
+    tea_import(T, "bcsave");
+    tea_get_attr(T, -1, "docmd");
+    tea_remove(T, -2);
+    if(argv[0][2])
+    {
+        narg++;
+        argv[0][1] = '-';
+        tea_push_string(T, argv[0] + 1);
+    }
+    for(argv++; *argv != NULL; narg++, argv++)
+        tea_push_string(T, *argv);
+    report(T, tea_pcall(T, narg));
+    return -1;
+}
+
 /* Check that argument has no extra characters at the end */
 #define notail(x)   { if((x)[2] != '\0') return -1; }
 
@@ -273,6 +292,10 @@ static int collect_args(char** argv, int* flags)
                         return -1;
                 }
                 break;
+            case 'b':
+                if(*flags) return -1;
+                *flags |= FLAG_EXEC;
+                return i + 1;
             default:
                 return -1;
         }
@@ -299,6 +322,10 @@ static int run_args(tea_State* T, char** argv, int n)
                     return status;
                 break;
             }
+            case 'b':
+                return dobytecode(T, argv + i);
+            default:
+                break;
         }
     }
     return 0;
@@ -377,5 +404,5 @@ int main(int argc, char** argv)
     status = tea_pccall(T, pmain, NULL);
     report(T, status);
     tea_close(T);
-    return smain.status;
+    return (status || smain.status > 0) ? smain.status : EXIT_SUCCESS;
 }
