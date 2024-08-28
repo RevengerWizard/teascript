@@ -1,0 +1,206 @@
+/*
+** Teascript module to save/list bytecode
+**
+** This module saves or lists the bytecode for an input file
+** It's run by the -b command line option
+**
+*/
+
+import io, sys
+
+function usage()
+{
+    io.stderr.write(
+    "Save Teascript bytecode: tea -b[options] input output\n" +
+    "  -l        Only list bytecode\n" +
+    "  -t type   Set output file type (default: auto-detect from output name)\n" +
+    "  -e chunk  Use chunk string as input\n" +
+    "  --        Stop handling options\n" +
+    "  -         Use stdin as input and/or stdout as output\n" +
+    "\n" +
+    "File types: c cpp cc h tbc raw (default)\n"
+    )
+    sys.exit(1)
+}
+
+function readfile(ctx, input)
+{
+    if(ctx.string)
+    {
+        return loadstring(input)
+    }
+    else
+    {
+        if(input == '-') input = nil
+        return loadfile(input)
+    }
+}
+
+function savefile(name, mode)
+{
+    if(name == '-') return io.stdout
+    return io.open(name, mode)
+}
+
+// --------------------------------------------------------------------------
+
+const map_type = {
+    raw = 'raw', tbc = 'raw', c = 'c', cc = 'c', cpp = 'c', h = 'h'
+}
+
+function detecttype(str)
+{
+    var ext
+    const dot = str.lower().find('.')
+    if(dot != -1) ext = str[dot + 1:].lower()
+    else ext = '' 
+    return map_type.get(ext, 'raw')
+}
+
+function detectmodname(str)
+{
+    str = str.split('/')[-1].split('.')[0]
+    return str
+}
+
+// --------------------------------------------------------------------------
+
+function bcsave_tail(fp, s)
+{
+    fp.write(s)
+}
+
+function bcsave_raw(output, s)
+{
+    const fp = savefile(output, 'wb')
+    bcsave_tail(fp, s)
+}
+
+function bcsave_c(ctx, output, s)
+{
+    const fp = savefile(output, 'w')
+
+    if(ctx.type == 'c')
+    {
+        fp.write(
+'#ifdef __cplusplus\n' +
+'extern "C"\n' +
+'#endif\n' +
+'#ifdef _WIN32\n' +
+'__declspec(dllexport)\n' +
+'#endif\n' +
+'const unsigned char ${ctx.modname}[] = {\n'
+)
+    }
+    else
+    {
+        fp.write(
+'#define ${ctx.modname}_SIZE ${s.bytelen}\n' +
+'static const unsigned char ${ctx.modname}[] = {\n'
+)
+    }
+
+    const t = []
+    var n, m = 0, 0
+    for(const i in 0..s.bytelen)
+    {
+        var b = String(s.byte(i))
+        m += b.bytelen + 1
+        if(m > 78)
+        {
+            fp.write(t[0:n].join(',') + ",\n")
+            n = 0
+            m = b.bytelen + 1
+        }
+        n += 1
+        if(t.len <= n - 1)
+            t.add(b)
+        else
+            t[n - 1] = b
+    }
+
+    bcsave_tail(fp, t[0:n].join(',') + "\n};\n")
+}
+
+// --------------------------------------------------------------------------
+
+function bclist(ctx, input, output)
+{
+    const f = readfile(ctx, input)
+    from bc import bcdump
+    bcdump(f, savefile(output, 'w'))
+}
+
+function bcsave(ctx, input, output)
+{
+    const f = readfile(ctx, input)
+    const s = dump(f)
+    var t = ctx.type
+    if(not t)
+    {
+        t = detecttype(output)
+        ctx.type = t
+    }
+    if(t == 'raw')
+    {
+        bcsave_raw(output, s)
+    }
+    else
+    {
+        if(not ctx.modname) ctx.modname = detectmodname(input)
+        bcsave_c(ctx, output, s)
+    }
+}
+
+function docmd(...arg)
+{
+    var n = 0
+    var list = false
+    const ctx = {
+        type = false, modname = false, string = false
+    }
+    while(n < arg.len)
+    {
+        const a = arg[n]
+        if(a is String and a.startswith('-') and a != '-')
+        {
+            arg.delete(n)
+            if(a == '--') break
+            for(const m in 1..a.len)
+            {
+                const opt = a[m]
+                if(opt == 'l') list = true
+                else
+                {
+                    if(n >= arg.len or m != a.len - 1) usage()
+                    if(opt == 'e')
+                    {
+                        if(n != 0) usage()
+                        ctx.string = true
+                    }
+                    else if(opt == 't')
+                    {
+                        ctx.type = map_type[arg[n]]
+                        arg.delete(n)
+                    }
+                    else
+                        usage()
+                }
+            }
+        }
+        else
+        {
+            n++
+        }
+    }
+    if(list)
+    {
+        if(arg.len == 0 or arg.len > 2) usage()
+        bclist(ctx, arg[0], arg.len > 1 ? arg[1] : '-')
+    }
+    else
+    {
+        if(arg.len != 2) usage()
+        bcsave(ctx, arg[0], arg[1])
+    }
+}

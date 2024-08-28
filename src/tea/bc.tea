@@ -1,0 +1,163 @@
+/*
+** Teascript bytecode listing module
+**
+** This module lists the bytecode of a Teascript function
+**
+*/
+
+from debug import funcinfo, funck, funcbc, funcline
+from vmdef import bcnames
+
+function bctarget_jump(func, ofs, out, sign)
+{
+    var jump = funcbc(func, ofs + 1) << 8
+    jump |= funcbc(func, ofs + 2)
+    out.write("%4d -> %d\n".format(ofs, ofs + 3 + sign * jump))
+    return ofs + 3
+}
+
+function bctarget(func, ofs, out)
+{
+    out.write("%04d ".format(ofs))
+    const line = funcline(func, ofs)
+    if(ofs > 0 and line == funcline(func, ofs - 1))
+    {
+        out.write("   | ")
+    }
+    else
+    {
+        out.write("%4d ".format(line))
+    }
+
+    const pc = funcbc(func, ofs)
+    if(pc < bcnames.len)
+    {
+        out.write("%-16s ".format(bcnames[pc]))
+    }
+    else
+    {
+        out.write("Unknown opcode %d\n".format(pc))
+    }
+    
+    switch(bcnames[pc])
+    {
+        case "CONSTANT", "PUSH_ATTR",
+        "GET_MODULE", "SET_MODULE", "DEFINE_MODULE",
+        "GET_ATTR", "SET_ATTR",
+        "GET_SUPER",
+        "CLASS",
+        "METHOD",
+        "EXTENSION_METHOD",
+        "IMPORT_STRING",
+        "IMPORT_NAME",
+        "IMPORT_VARIABLE":
+        {
+            const k = funcbc(func, ofs + 1)
+            out.write("%4d '".format(k))
+            out.write(String(funck(func, k)))
+            out.write("'\n")
+            return ofs + 2
+        }
+        case "DEFINE_OPTIONAL",
+        "FOR_ITER", "GET_ITER":
+        {
+            const seq = funcbc(func, ofs + 1)
+            const iter = funcbc(func, ofs + 2)
+            out.write("%4d     %4d\n".format(seq, iter))
+            return ofs + 3
+        }
+        case "NIL", "TRUE", "FALSE",
+        "POP", "RANGE",
+        "LIST", "MAP",
+        "GET_INDEX", "SET_INDEX", "PUSH_INDEX",
+        "LIST_EXTEND", "LIST_ITEM",
+        "MAP_FIELD",
+        "EQUAL", "IS", "IN",
+        "GREATER", "GREATER_EQUAL",
+        "LESS", "LESS_EQUAL",
+        "ADD", "SUBTRACT",
+        "MULTIPLY", "DIVIDE",
+        "MOD", "POW",
+        "BAND", "BOR", "BNOT", "BXOR",
+        "LSHIFT", "RSHIFT",
+        "NOT", "NEGATE",
+        "CLOSE_UPVALUE", "RETURN",
+        "INHERIT",
+        "IMPORT_ALIAS",
+        "IMPORT_END",
+        "END":
+        {
+            out.write('\n')
+            return ofs + 1
+        }
+        case "GET_LOCAL", "SET_LOCAL",
+        "GET_UPVALUE", "SET_UPVALUE",
+        "MULTI_CASE", "UNPACK", "UNPACK_REST",
+        "CALL":
+        {
+            const slot = funcbc(func, ofs + 1)
+            out.write("%4d\n".format(slot))
+            return ofs + 2
+        }
+        case "COMPARE_JUMP", "JUMP",
+        "JUMP_IF_FALSE", "JUMP_IF_NIL":
+        {
+            return bctarget_jump(func, ofs, out, 1)
+        }
+        case "LOOP":
+        {
+            return bctarget_jump(func, ofs, out, -1)
+        }
+        case "INVOKE", "SUPER":
+        {
+            const k = funcbc(func, ofs + 1)
+            const nargs = funcbc(func, ofs + 2)
+            out.write("   (%d args) %4d '".format(nargs, k))
+            out.write(String(funck(func, k)))
+            out.write("'\n")
+            return ofs + 3;
+        }
+        case "CLOSURE":
+        {
+            ofs++
+            const k = funcbc(func, ofs) ofs++
+            out.write("%4d ".format(k))
+            out.write(String(funck(func, k)))
+            out.write('\n')
+
+            const proto = funcinfo(funck(func, k))
+            const upvalues = proto.upvalues
+            for(var j = 0; j < upvalues; j++)
+            {
+                const is_local = funcbc(func, ofs) ofs++
+                const idx = funcbc(func, ofs) ofs++
+                out.write("%04d    |                     %s %d\n".format(ofs - 2, is_local ? "local" : "upvalue", idx))
+            }
+
+            return ofs
+        }
+        default:
+        {
+            return ofs + 1
+        }
+    }
+}
+
+function bcdump(func, out)
+{
+    const fi = funcinfo(func)
+    for(var i = 0; i < fi.kconsts; i++)
+    {
+        const k = funck(fi.proto, i)
+        if(typeof(k) == 'proto')
+        {
+            bcdump(k, out)
+        }
+    }
+    out.write("== '%s' ==\n".format(fi.name))
+    var ofs = 0
+    while(ofs < fi.bytecodes)
+    {
+        ofs = bctarget(fi.proto, ofs, out)
+    }
+}
