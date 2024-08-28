@@ -12,3 +12,4 @@
 *.bc
 .vscode
 tea.tea
+src/tea
