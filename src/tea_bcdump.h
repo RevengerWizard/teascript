@@ -30,6 +30,6 @@
 /* -- Bytecode reader/writer ---------------------------------------------- */
 
 TEA_FUNC int tea_bcwrite(tea_State* T, GCproto* proto, tea_Writer writer, void* data);
-TEA_FUNC GCproto* tea_bcread(Lexer* lex);
+TEA_FUNC GCproto* tea_bcread(LexState* ls);
 
 #endif

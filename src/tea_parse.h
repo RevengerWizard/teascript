@@ -76,7 +76,7 @@ typedef enum
 
 typedef struct Parser
 {
-    Lexer* lex; /* Lexer state */
+    LexState* ls; /* Lexer state */
     struct Parser* enclosing;   /* Enclosing parser */
     ClassParser* klass; /* Current class parser */
     Loop* loop; /* Current loop context */
@@ -99,7 +99,7 @@ typedef struct
     Precedence prec;
 } ParseRule;
 
-TEA_FUNC GCproto* tea_parse(Lexer* lexer, bool isexpr);
+TEA_FUNC GCproto* tea_parse(LexState* ls, bool isexpr);
 TEA_FUNC void tea_parse_mark(tea_State* T, Parser* parser);
 
 #endif

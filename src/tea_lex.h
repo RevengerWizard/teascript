@@ -55,7 +55,7 @@ typedef struct
 } Token;
 
 /* Teascript lexer state */
-typedef struct Lexer
+typedef struct LexState
 {
     tea_State* T;    /* Teascript state */
     SBuf sb;  /* String buffer for tokens */
@@ -69,23 +69,23 @@ typedef struct Lexer
     Token curr;   /* Current used token */
     Token next; /* Lookahead token */
     int line;   /* Line counter */
-    LexChar string;    /* Whether string is ' or " */
+    LexChar sc;    /* Whether string is ' or " */
     int braces[4];  /* Tracked string interpolations */
     int num_braces; /* Number of string interpolations */
     const char* mode;   /* Load bytecode (b) and/or source text (t) */
     bool endmark;   /* Trust bytecode end marker, even if not at EOF */
     bool eval;  /* Evaluate expression */
-} Lexer;
+} LexState;
 
-TEA_FUNC bool tea_lex_setup(tea_State* T, Lexer* lex);
-TEA_FUNC void tea_lex_cleanup(tea_State* T, Lexer* lex);
-TEA_FUNC const char* tea_lex_token2str(Lexer* lex, LexToken t);
-TEA_FUNC_NORET void tea_lex_error(Lexer* lex, Token* token, ErrMsg em, ...);
-TEA_FUNC void tea_lex_next(Lexer* lex);
+TEA_FUNC bool tea_lex_setup(tea_State* T, LexState* ls);
+TEA_FUNC void tea_lex_cleanup(tea_State* T, LexState* ls);
+TEA_FUNC const char* tea_lex_token2str(LexState* ls, LexToken t);
+TEA_FUNC_NORET void tea_lex_error(LexState* ls, Token* token, ErrMsg em, ...);
+TEA_FUNC void tea_lex_next(LexState* ls);
 TEA_FUNC void tea_lex_init(tea_State* T);
 
 #ifdef TEA_USE_ASSERT
-#define tea_assertLS(c, ...) (tea_assertT_(lex->T, (c), __VA_ARGS__))
+#define tea_assertLS(c, ...) (tea_assertT_(ls->T, (c), __VA_ARGS__))
 #else
 #define tea_assertLS(c, ...) ((void)0)
 #endif

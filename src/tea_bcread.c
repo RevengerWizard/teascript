@@ -18,126 +18,126 @@
 /* -- Input buffer handling -------------------------------------------------- */
 
 /* Throw reader error */
-static TEA_NOINLINE void bcread_error(Lexer* lex, ErrMsg em)
+static TEA_NOINLINE void bcread_error(LexState* ls, ErrMsg em)
 {
-    tea_State* T = lex->T;
-    const char* name = str_data(lex->module->name);
+    tea_State* T = ls->T;
+    const char* name = str_data(ls->module->name);
     tea_strfmt_pushf(T, "%s: %s", name, err2msg(em));
     tea_err_throw(T, TEA_ERROR_SYNTAX);
 }
 
 /* Refill buffer */
-static TEA_NOINLINE void bcread_fill(Lexer* lex, size_t len, bool need)
+static TEA_NOINLINE void bcread_fill(LexState* ls, size_t len, bool need)
 {
     tea_assertLS(len != 0, "empty refill");
-    if(len > TEA_MAX_BUF || lex->c < 0)
-        bcread_error(lex, TEA_ERR_BCBAD);
+    if(len > TEA_MAX_BUF || ls->c < 0)
+        bcread_error(ls, TEA_ERR_BCBAD);
     do
     {
         const char* buf;
         size_t size;
-        char* p = lex->sb.b;
-        size_t n = (size_t)(lex->pe - lex->p);
+        char* p = ls->sb.b;
+        size_t n = (size_t)(ls->pe - ls->p);
 
         /* Copy remainder to buffer */
         if(n) 
         {
             /* Move down in buffer */
-            if(sbuf_len(&lex->sb))
+            if(sbuf_len(&ls->sb))
             {
-                tea_assertLS(lex->pe == lex->sb.w, "bad buffer pointer");
-                if(lex->p != p) 
-                    memmove(p, lex->p, n);
+                tea_assertLS(ls->pe == ls->sb.w, "bad buffer pointer");
+                if(ls->p != p) 
+                    memmove(p, ls->p, n);
             }
             else 
             {
                 /* Copy from buffer provided by reader */
-                p = tea_buf_need(lex->T, &lex->sb, len);
-                memcpy(p, lex->p, n);
+                p = tea_buf_need(ls->T, &ls->sb, len);
+                memcpy(p, ls->p, n);
             }
-            lex->p = p;
-            lex->pe = p + n;
+            ls->p = p;
+            ls->pe = p + n;
         }
 
-        lex->sb.w = p + n;
-        buf = lex->reader(lex->T, lex->data, &size);  /* Get more data from reader */
+        ls->sb.w = p + n;
+        buf = ls->reader(ls->T, ls->data, &size);  /* Get more data from reader */
         if(buf == NULL || size == 0)
         {
             if(need) 
-                bcread_error(lex, TEA_ERR_BCBAD);
-            lex->c = -1;
+                bcread_error(ls, TEA_ERR_BCBAD);
+            ls->c = -1;
             break;
         }
         if(size >= TEA_MAX_BUF - n)
-            tea_err_mem(lex->T);
+            tea_err_mem(ls->T);
         if(n)
         {
             /* Append to buffer */
             n += size;
-            p = tea_buf_need(lex->T, &lex->sb, n < len ? len : n);
-            memcpy(lex->sb.w, buf, size);
-            lex->sb.w = p + n;
-            lex->p = p;
-            lex->pe = p + n;
+            p = tea_buf_need(ls->T, &ls->sb, n < len ? len : n);
+            memcpy(ls->sb.w, buf, size);
+            ls->sb.w = p + n;
+            ls->p = p;
+            ls->pe = p + n;
         } 
         else 
         {
             /* Return buffer provided by reader */
-            lex->p = buf;
-            lex->pe = buf + size;
+            ls->p = buf;
+            ls->pe = buf + size;
         }
     } 
-    while((size_t)(lex->pe - lex->p) < len);
+    while((size_t)(ls->pe - ls->p) < len);
 }
 
 /* Need a certain number of bytes */
-static TEA_AINLINE void bcread_need(Lexer* lex, size_t len)
+static TEA_AINLINE void bcread_need(LexState* ls, size_t len)
 {
-    if(TEA_UNLIKELY((size_t)(lex->pe - lex->p) < len))
-        bcread_fill(lex, len, true);
+    if(TEA_UNLIKELY((size_t)(ls->pe - ls->p) < len))
+        bcread_fill(ls, len, true);
 }
 
 /* Want to read up to a certain number of bytes, but may need less */
-static TEA_AINLINE void bcread_want(Lexer* lex, size_t len)
+static TEA_AINLINE void bcread_want(LexState* ls, size_t len)
 {
-    if(TEA_UNLIKELY((size_t)(lex->pe - lex->p) < len))
-        bcread_fill(lex, len, false);
+    if(TEA_UNLIKELY((size_t)(ls->pe - ls->p) < len))
+        bcread_fill(ls, len, false);
 }
 
 /* Return memory block from buffer */
-static TEA_AINLINE uint8_t* bcread_mem(Lexer* lex, size_t len)
+static TEA_AINLINE uint8_t* bcread_mem(LexState* ls, size_t len)
 {
-    uint8_t* p = (uint8_t*)lex->p;
-    lex->p += len;
-    tea_assertLS(lex->p <= lex->pe, "buffer read overflow");
+    uint8_t* p = (uint8_t*)ls->p;
+    ls->p += len;
+    tea_assertLS(ls->p <= ls->pe, "buffer read overflow");
     return p;
 }
 
 /* Copy memory block from buffer */
-static void bcread_block(Lexer* lex, void* q, size_t len)
+static void bcread_block(LexState* ls, void* q, size_t len)
 {
-    memcpy(q, bcread_mem(lex, len), len);
+    memcpy(q, bcread_mem(ls, len), len);
 }
 
 /* Read byte from buffer */
-static TEA_AINLINE uint32_t bcread_byte(Lexer* lex)
+static TEA_AINLINE uint32_t bcread_byte(LexState* ls)
 {
-    tea_assertLS(lex->p < lex->pe, "buffer read overflow");
-    return (uint32_t)(uint8_t)*lex->p++;
+    tea_assertLS(ls->p < ls->pe, "buffer read overflow");
+    return (uint32_t)(uint8_t)*ls->p++;
 }
 
 /* Read ULEB128 from buffer */
-static TEA_AINLINE uint32_t bcread_uleb128(Lexer* lex)
+static TEA_AINLINE uint32_t bcread_uleb128(LexState* ls)
 {
-    uint32_t v = tea_buf_ruleb128(&lex->p);
-    tea_assertLS(lex->p <= lex->pe, "buffer read overflow");
+    uint32_t v = tea_buf_ruleb128(&ls->p);
+    tea_assertLS(ls->p <= ls->pe, "buffer read overflow");
     return v;
 }
 
 /* Read top 32 bits of 33 bit ULEB128 value from buffer */
-static uint32_t bcread_uleb128_33(Lexer* lex)
+static uint32_t bcread_uleb128_33(LexState* ls)
 {
-    const uint8_t* p = (const uint8_t*)lex->p;
+    const uint8_t* p = (const uint8_t*)ls->p;
     uint32_t v = (*p++ >> 1);
     if(v >= 0x40)
     {
@@ -149,90 +149,90 @@ static uint32_t bcread_uleb128_33(Lexer* lex)
         } 
         while(*p++ >= 0x80);
     }
-    lex->p = (char*)p;
-    tea_assertLS(lex->p <= lex->pe, "buffer read overflow");
+    ls->p = (char*)p;
+    tea_assertLS(ls->p <= ls->pe, "buffer read overflow");
     return v;
 }
 
 /* -- Bytecode reader -------------------------------------------------- */
 
 /* Read number from constants */
-static double bcread_knum(Lexer* lex)
+static double bcread_knum(LexState* ls)
 {
     NumberBits x;
     
-    uint32_t lo = bcread_uleb128_33(lex);
+    uint32_t lo = bcread_uleb128_33(ls);
     x.u32.lo = lo;
-    x.u32.hi = bcread_uleb128(lex);
+    x.u32.hi = bcread_uleb128(ls);
 
     return x.n;
 }
 
 /* Read GC constants from function prototype */
-static void bcread_kgc(Lexer* lex, GCproto* pt, size_t count)
+static void bcread_kgc(LexState* ls, GCproto* pt, size_t count)
 {
-    pt->k = tea_mem_newvec(lex->T, TValue, count);
+    pt->k = tea_mem_newvec(ls->T, TValue, count);
     pt->k_count = count;
     pt->k_size = count;
 
     for(int i = 0; i < count; i++)
     {
-        size_t type = bcread_uleb128(lex);
+        size_t type = bcread_uleb128(ls);
         if(type >= BCDUMP_KGC_STR)
         {
             int len = type - BCDUMP_KGC_STR;
-            const char* p = (const char*)bcread_mem(lex, len);
-            GCstr* str = tea_str_new(lex->T, p, len);
-            setstrV(lex->T, proto_kgc(pt, i), str);
+            const char* p = (const char*)bcread_mem(ls, len);
+            GCstr* str = tea_str_new(ls->T, p, len);
+            setstrV(ls->T, proto_kgc(pt, i), str);
         }
         else if(type == BCDUMP_KGC_NUM)
         {
-            double num = bcread_knum(lex);
+            double num = bcread_knum(ls);
             setnumV(proto_kgc(pt, i), num);
         }
         else
         {
             tea_assertLS(type == BCDUMP_KGC_FUNC, "bad constant type %d", type);
-            lex->T->top--;
-            TValue* v = lex->T->top;
-            copyTV(lex->T, proto_kgc(pt, i), v);
+            ls->T->top--;
+            TValue* v = ls->T->top;
+            copyTV(ls->T, proto_kgc(pt, i), v);
         }
     }
 }
 
 /* Read bytecode instructions */
-static void bcread_bytecode(Lexer* lex, GCproto* pt, size_t count)
+static void bcread_bytecode(LexState* ls, GCproto* pt, size_t count)
 {
-    pt->bc = tea_mem_newvec(lex->T, BCIns, count);
+    pt->bc = tea_mem_newvec(ls->T, BCIns, count);
     pt->bc_count = count;
     pt->bc_size = count;
-    bcread_block(lex, pt->bc, pt->bc_count);
+    bcread_block(ls, pt->bc, pt->bc_count);
 }
 
 /* Read prototype */
-static GCproto* bcread_proto(Lexer* lex)
+static GCproto* bcread_proto(LexState* ls)
 {
     GCproto* pt;
     uint8_t numparams, numopts, variadic, max_slots, upvalue_count;
     int count, k_count;
 
     /* Read prototype name */
-    size_t len = bcread_uleb128(lex);
-    const char* name = (const char*)bcread_mem(lex, len);
+    size_t len = bcread_uleb128(ls);
+    const char* name = (const char*)bcread_mem(ls, len);
 
     /* Read prototype header */
-    numparams = bcread_byte(lex);
-    numopts = bcread_byte(lex);
-    variadic = bcread_byte(lex);
-    max_slots = bcread_byte(lex);
-    upvalue_count = bcread_byte(lex);
+    numparams = bcread_byte(ls);
+    numopts = bcread_byte(ls);
+    variadic = bcread_byte(ls);
+    max_slots = bcread_byte(ls);
+    upvalue_count = bcread_byte(ls);
 
-    count = bcread_uleb128(lex);
-    k_count = bcread_uleb128(lex);
+    count = bcread_uleb128(ls);
+    k_count = bcread_uleb128(ls);
 
     /* Allocate prototype and initialize its fields */
-    pt = tea_func_newproto(lex->T, max_slots);
-    pt->name = tea_str_new(lex->T, name, len);
+    pt = tea_func_newproto(ls->T, max_slots);
+    pt->name = tea_str_new(ls->T, name, len);
     pt->numparams = numparams;
     pt->numopts = numopts;
     pt->variadic = variadic;
@@ -241,34 +241,34 @@ static GCproto* bcread_proto(Lexer* lex)
     pt->k_count = k_count;
 
     /* Read bytecode instructions */
-    bcread_bytecode(lex, pt, count);
+    bcread_bytecode(ls, pt, count);
 
     /* Read constants */
-    bcread_kgc(lex, pt, k_count);
+    bcread_kgc(ls, pt, k_count);
 
     return pt;
 }
 
 /* Read and check header of bytecode dump */
-static bool bcread_header(Lexer* lex)
+static bool bcread_header(LexState* ls)
 {
-    bcread_want(lex, 4);
-    if(bcread_byte(lex) != BCDUMP_HEAD2 ||
-       bcread_byte(lex) != BCDUMP_HEAD3 ||
-       bcread_byte(lex) != BCDUMP_HEAD4 ||
-       bcread_byte(lex) != BCDUMP_VERSION) return false;
+    bcread_want(ls, 4);
+    if(bcread_byte(ls) != BCDUMP_HEAD2 ||
+       bcread_byte(ls) != BCDUMP_HEAD3 ||
+       bcread_byte(ls) != BCDUMP_HEAD4 ||
+       bcread_byte(ls) != BCDUMP_VERSION) return false;
     return true;
 }
 
 /* Read a bytecode dump */
-GCproto* tea_bcread(Lexer* lex)
+GCproto* tea_bcread(LexState* ls)
 {
-    tea_State* T = lex->T;
-    tea_assertLS(lex->c == BCDUMP_HEAD1, "bad bytecode header");
-    tea_buf_reset(&lex->sb);
+    tea_State* T = ls->T;
+    tea_assertLS(ls->c == BCDUMP_HEAD1, "bad bytecode header");
+    tea_buf_reset(&ls->sb);
     /* Check for a valid bytecode dump header */
-    if(!bcread_header(lex))
-        bcread_error(lex, TEA_ERR_BCFMT);
+    if(!bcread_header(ls))
+        bcread_error(ls, TEA_ERR_BCFMT);
 
     /* Process all functions in the bytecode dump */
     while(true)
@@ -278,22 +278,22 @@ GCproto* tea_bcread(Lexer* lex)
         const char* startp;
 
         /* Read length */
-        if(lex->p < lex->pe && lex->p[0] == 0)
+        if(ls->p < ls->pe && ls->p[0] == 0)
         {
             /* Shortcut EOF */
-            lex->p++;
+            ls->p++;
             break;
         }
-        bcread_want(lex, 5);
-        len = bcread_uleb128(lex);
+        bcread_want(ls, 5);
+        len = bcread_uleb128(ls);
         if(!len) break; /* EOF */
-        bcread_need(lex, len);
-        startp = lex->p;
+        bcread_need(ls, len);
+        startp = ls->p;
 
-        pt = bcread_proto(lex);
-        if(lex->p != startp + len)
+        pt = bcread_proto(ls);
+        if(ls->p != startp + len)
         {
-            bcread_error(lex, TEA_ERR_BCBAD);
+            bcread_error(ls, TEA_ERR_BCBAD);
         }
         setprotoV(T, T->top, pt);
         T->top++;

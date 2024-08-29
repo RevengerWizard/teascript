@@ -25,15 +25,15 @@
 
 static void parser_f(tea_State* T, void* ud)
 {
-    Lexer* lex = (Lexer*)ud;
-    bool bc = tea_lex_setup(T, lex);
-    if(lex->mode && !strchr(lex->mode, bc ? 'b' : 't'))
+    LexState* ls = (LexState*)ud;
+    bool bc = tea_lex_setup(T, ls);
+    if(ls->mode && !strchr(ls->mode, bc ? 'b' : 't'))
     {
         setstrV(T, T->top++, tea_err_str(T, TEA_ERR_XMODE));
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
-    GCproto* proto = bc ? tea_bcread(lex) : tea_parse(lex, lex->eval);
-    GCfunc* func = tea_func_newT(T, proto, lex->module);
+    GCproto* proto = bc ? tea_bcread(ls) : tea_parse(ls, ls->eval);
+    GCfunc* func = tea_func_newT(T, proto, ls->module);
     setfuncV(T, T->top++, func);
 }
 
@@ -63,15 +63,15 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
         T->top--;
     }
 
-    Lexer lex;
-    lex.eval = false;
-    lex.module = module;
-    lex.reader = reader;
-    lex.data = data;
-    lex.mode = mode;
-    tea_buf_init(&lex.sb);
-    int status = tea_vm_pcall(T, parser_f, &lex, stack_save(T, T->top));
-    tea_lex_cleanup(T, &lex);
+    LexState ls;
+    ls.eval = false;
+    ls.module = module;
+    ls.reader = reader;
+    ls.data = data;
+    ls.mode = mode;
+    tea_buf_init(&ls.sb);
+    int status = tea_vm_pcall(T, parser_f, &ls, stack_save(T, T->top));
+    tea_lex_cleanup(T, &ls);
     return status;
 }
 
@@ -176,15 +176,15 @@ TEA_API int tea_eval(tea_State* T, const char* s)
     tea_tab_merge(T, &T->globals, &module->vars);
     module->path = tea_str_newlit(T, ".");
 
-    Lexer lex;
-    lex.eval = true;
-    lex.module = module;
-    lex.reader = reader_string;
-    lex.data = &ctx;
-    lex.mode = "t";
-    tea_buf_init(&lex.sb);
-    int status = tea_vm_pcall(T, parser_f, &lex, stack_save(T, T->top));
-    tea_lex_cleanup(T, &lex);
+    LexState ls;
+    ls.eval = true;
+    ls.module = module;
+    ls.reader = reader_string;
+    ls.data = &ctx;
+    ls.mode = "t";
+    tea_buf_init(&ls.sb);
+    int status = tea_vm_pcall(T, parser_f, &ls, stack_save(T, T->top));
+    tea_lex_cleanup(T, &ls);
     return status;
 }
 
