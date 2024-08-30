@@ -165,7 +165,7 @@ static Token lex_number(LexState* ls)
     }
     lex_save(ls, '\0');
 
-    fmt = tea_strscan_scan((const uint8_t *)ls->sb.b, sbuf_len(&ls->sb) - 1, &tv,
+    fmt = tea_strscan_scan((const uint8_t*)ls->sb.b, sbuf_len(&ls->sb) - 1, &tv,
                           STRSCAN_OPT_TONUM);
 
     if(fmt == STRSCAN_NUM)
