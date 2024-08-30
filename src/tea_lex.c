@@ -121,6 +121,7 @@ static Token lex_number(LexState* ls)
     TValue tv;
     StrScanFmt fmt;
     LexChar c, xp = 'e';
+    bool und = false;
 
     tea_assertLS(tea_char_isdigit(ls->c), "bad usage");
     if((c = ls->c) == '0' && (lex_savenext(ls) | 0x20) == 'x')
@@ -131,8 +132,18 @@ static Token lex_number(LexState* ls)
         /* Ignore underscores */
         if(ls->c == '_')
         {
+            if(und)
+            {
+                /* Do not allow double underscores */
+                lex_syntaxerror(ls, TEA_ERR_XNUMBER);
+            }
+            und = true;
             lex_next(ls);
             continue;
+        }
+        else
+        {
+            und = false;
         }
         /* Do not allow leading '.' numbers */
         if(ls->c == '.')
@@ -146,6 +157,11 @@ static Token lex_number(LexState* ls)
         }
         c = ls->c;
         lex_savenext(ls);
+    }
+    /* Do not allow leading '_' */
+    if(und)
+    {
+        lex_syntaxerror(ls, TEA_ERR_XNUMBER);
     }
     lex_save(ls, '\0');
 
