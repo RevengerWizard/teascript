@@ -2054,8 +2054,6 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_CONSTANT:
         case BC_GET_LOCAL:
         case BC_SET_LOCAL:
-        case BC_GET_PRIVATE:
-        case BC_SET_PRIVATE:
         case BC_GET_MODULE:
         case BC_SET_MODULE:
         case BC_DEFINE_MODULE:
