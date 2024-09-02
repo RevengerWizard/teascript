@@ -131,9 +131,9 @@ TEA_NOINLINE void tea_err_run(tea_State* T)
         if(iscfunc(ci->func)) continue;
 
         GCproto* proto = ci->func->t.proto;
-        size_t instruction = ci->ip - proto->bc - 1;
+        BCIns bc = ci->ip - proto->bc - 1;
         tea_strfmt_pushf(T, "[line %d] in %s\n", 
-            tea_debug_line(proto, instruction), str_data(proto->name));
+            tea_debug_line(proto, bc), str_data(proto->name));
         msg = strV(T->top - 1);
         tea_buf_putmem(T, sb, str_data(msg), msg->len);
         T->top--;

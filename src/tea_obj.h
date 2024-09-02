@@ -381,7 +381,7 @@ struct tea_State
     uint16_t nccalls;    /* Number of nested C calls */
     /* ------ The following fields are global to the state ------ */
     GCState gc; /* Garbage collector */
-    struct Parser* parser;
+    struct ParseState* parser;
     Table modules;   /* Table of cached modules */
     Table globals;   /* Table of globals */
     Table constants;    /* Table to keep track of 'const' variables */

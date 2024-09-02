@@ -21,92 +21,219 @@
 #include "tea_vm.h"
 #include "tea_bc.h"
 #include "tea_tab.h"
+#include "tea_map.h"
+
+/* -- Parser structures and definitions ----------------------------------- */
+
+typedef enum
+{
+    PREC_NONE,
+    PREC_ASSIGNMENT, /*  =  */
+    PREC_OR,         /*  or  */
+    PREC_AND,        /*  and  */
+    PREC_EQUALITY,   /*  == !=  */
+    PREC_IS,         /*  is  */
+    PREC_COMPARISON, /*  < > <= >=  */
+    PREC_BOR,        /*  |  */
+    PREC_BXOR,       /*  ^  */
+    PREC_BAND,       /*  &  */
+    PREC_SHIFT,      /*  << >>  */
+    PREC_RANGE,      /*  .. ...  */
+    PREC_TERM,       /*  + -  */
+    PREC_FACTOR,     /*  * /  */
+    PREC_INDICES,    /*  **  */
+    PREC_UNARY,      /*  not ! - ~  */
+    PREC_SUBSCRIPT,  /*  []  */
+    PREC_CALL,       /*  . ()  */
+    PREC_PRIMARY
+} Precedence;
+
+typedef struct
+{
+    Token name;
+    int depth;
+    bool is_captured;
+    bool isconst;
+} Local;
+
+typedef struct
+{
+    uint8_t index;
+    bool islocal;
+    bool isconst;
+} Upvalue;
+
+typedef struct
+{
+    Token name;
+    bool isconst;
+} Private;
+
+typedef struct KlassState
+{
+    struct KlassState* prev; /* Enclosing class parser */
+    bool is_static;
+    bool has_superclass;
+} KlassState;
+
+typedef struct Loop
+{
+    struct Loop* prev; /* Enclosing loop */
+    int start;
+    int body;
+    int end;
+    int scope_depth;
+} Loop;
+
+typedef enum
+{
+    PROTO_FUNCTION,
+    PROTO_ANONYMOUS,
+    PROTO_INIT,
+    PROTO_METHOD,
+    PROTO_OPERATOR,
+    PROTO_SCRIPT
+} ProtoType;
+
+typedef struct ParseState
+{
+    GCmap* kt;
+    LexState* ls; /* Lexer state */
+    tea_State* T;   /* Teascript state */
+    struct ParseState* prev;   /* Enclosing parser */
+    KlassState* klass; /* Current class parser */
+    Loop* loop; /* Current loop context */
+    GCproto* proto; /* Current prototype function */
+    GCstr* name;    /* Name of prototype function */
+    ProtoType type;
+    Local locals[TEA_MAX_LOCAL];  /* Current scoped locals */
+    int local_count;    /* Number of local variables in scope */
+    Upvalue upvalues[TEA_MAX_UPVAL];  /* Saved upvalues */
+    int slot_count; /* Stack max size */
+    int scope_depth;    /* Current scope depth */
+} ParseState;
+
+typedef void (*ParseFn)(ParseState* parser, bool assign);
+
+typedef struct
+{
+    ParseFn prefix;
+    ParseFn infix;
+    Precedence prec;
+} ParseRule;
 
 /* -- Error handling --------------------------------------------- */
 
-TEA_NORET TEA_NOINLINE static void error(Parser* parser, ErrMsg em)
+TEA_NORET TEA_NOINLINE static void error(ParseState* ps, ErrMsg em)
 {
-    tea_lex_error(parser->ls, &parser->ls->prev, em);
+    tea_lex_error(ps->ls, &ps->ls->prev, em);
 }
 
-TEA_NORET TEA_NOINLINE static void error_at_current(Parser* parser, ErrMsg em)
+TEA_NORET TEA_NOINLINE static void error_at_current(ParseState* ps, ErrMsg em)
 {
-    tea_lex_error(parser->ls, &parser->ls->curr, em);
+    tea_lex_error(ps->ls, &ps->ls->curr, em);
 }
 
 /* -- Lexer support ------------------------------------------------------- */
 
-static Token lex_synthetic(Parser* parser, const char* text)
+static Token lex_synthetic(ParseState* ps, const char* text)
 {
-    Token token;
-    GCstr* s = tea_str_newlen(parser->ls->T, text);
-    setstrV(parser->ls->T, &token.value, s);
-    return token;
+    Token tok;
+    GCstr* s = tea_str_newlen(ps->ls->T, text);
+    setstrV(ps->ls->T, &tok.tv, s);
+    return tok;
 }
 
-static void lex_consume(Parser* parser, LexToken type)
+static void lex_consume(ParseState* ps, LexToken type)
 {
-    if(parser->ls->curr.type == type)
+    if(ps->ls->curr.t == type)
     {
-        tea_lex_next(parser->ls);
+        tea_lex_next(ps->ls);
         return;
     }
-
-    const char* tok = tea_lex_token2str(parser->ls, type);
-    tea_lex_error(parser->ls, &parser->ls->curr, TEA_ERR_XTOKEN, tok);
+    const char* tok = tea_lex_token2str(ps->ls, type);
+    tea_lex_error(ps->ls, &ps->ls->curr, TEA_ERR_XTOKEN, tok);
 }
 
 /* Check for matching token */
-static bool lex_check(Parser* parser, LexToken type)
+static bool lex_check(ParseState* ps, LexToken type)
 {
-    return parser->ls->curr.type == type;
+    return ps->ls->curr.t == type;
 }
 
 /* Check and consume token */
-static bool lex_match(Parser* parser, LexToken type)
+static bool lex_match(ParseState* ps, LexToken type)
 {
-    if(!lex_check(parser, type))
+    if(!lex_check(ps, type))
         return false;
-    tea_lex_next(parser->ls);
+    tea_lex_next(ps->ls);
     return true;
 }
 
 /* -- Management of constants --------------------------------------------- */
 
-static int const_add(tea_State* T, GCproto* f, TValue* value)
+static int const_add(tea_State* T, GCproto* f, TValue* o)
 {
-    copyTV(T, T->top++, value);
-
+    copyTV(T, T->top++, o);
     if(f->k_size < f->k_count + 1)
     {
         f->k = tea_mem_growvec(T, TValue, f->k, f->k_size, INT_MAX);
     }
-    copyTV(T, proto_kgc(f, f->k_count), value);
+    copyTV(T, proto_kgc(f, f->k_count), o);
     f->k_count++;
-
     T->top--;
-
     return f->k_count - 1;
 }
 
-static uint8_t const_make(Parser* parser, TValue* value)
+static uint8_t const_make(ParseState* ps, TValue* o)
 {
-    int constant = const_add(parser->ls->T, parser->proto, value);
-    if(constant > UINT8_MAX)
+    int idx = const_add(ps->ls->T, ps->proto, o);
+    if(idx > UINT8_MAX)
     {
-        error(parser, TEA_ERR_XKCONST);
+        error(ps, TEA_ERR_XKCONST);
     }
+    return (uint8_t)idx;
+}
 
-    return (uint8_t)constant;
+/* Add a number constant */
+static uint8_t const_num(ParseState* ps, TValue* n)
+{
+    tea_State* T = ps->T;
+    GCmap* kt = ps->kt;
+    cTValue* o = tea_map_get(kt, n);
+    if(o)
+        return (uint8_t)numV(o);
+
+    TValue tv;
+    setnumV(&tv, numV(n));
+    uint8_t idx = const_make(ps, &tv);
+    setnumV(tea_map_set(T, kt, n), idx);
+    return idx;
+}
+
+/* Add a string constant */
+static uint8_t const_str(ParseState* ps, GCstr* str)
+{
+    tea_State* T = ps->T;
+    GCmap* kt = ps->kt;
+    cTValue* o = tea_map_getstr(T, kt, str);
+    if(o)
+        return (uint8_t)numV(o);
+
+    TValue tv;
+    setstrV(T, &tv, str);
+    uint8_t idx = const_make(ps, &tv);
+    setnumV(tea_map_setstr(T, kt, str), idx);
+    return idx;
 }
 
 /* -- Bytecode emitter ---------------------------------------------------- */
 
-static void bcemit_byte(Parser* parser, uint8_t byte)
+static void bcemit_byte(ParseState* ps, uint8_t byte)
 {
-    tea_State* T = parser->ls->T;
-    GCproto* f = parser->proto;
-    int line = parser->ls->prev.line;
+    tea_State* T = ps->ls->T;
+    GCproto* f = ps->proto;
+    int line = ps->ls->prev.line;
 
     if(f->bc_size < f->bc_count + 1)
     {
@@ -133,10 +260,10 @@ static void bcemit_byte(Parser* parser, uint8_t byte)
     line_start->line = line;
 }
 
-static void bcemit_bytes(Parser* parser, uint8_t byte1, uint8_t byte2)
+static void bcemit_bytes(ParseState* ps, uint8_t byte1, uint8_t byte2)
 {
-    bcemit_byte(parser, byte1);
-    bcemit_byte(parser, byte2);
+    bcemit_byte(ps, byte1);
+    bcemit_byte(ps, byte2);
 }
 
 static const int stack_effects[] = {
@@ -146,144 +273,145 @@ static const int stack_effects[] = {
 };
 
 /* Emit bytecode instruction */
-static void bcemit_op(Parser* parser, BCOp op)
+static void bcemit_op(ParseState* ps, BCOp op)
 {
-    bcemit_byte(parser, op);
-
-    parser->slot_count += stack_effects[op];
-    if(parser->slot_count > parser->proto->max_slots)
+    bcemit_byte(ps, op);
+    ps->slot_count += stack_effects[op];
+    if(ps->slot_count > ps->proto->max_slots)
     {
-        parser->proto->max_slots = parser->slot_count;
+        ps->proto->max_slots = ps->slot_count;
     }
 }
+
 /* Emit 2 bytecode instructions */
-static void bcemit_ops(Parser* parser, BCOp op1, BCOp op2)
+static void bcemit_ops(ParseState* ps, BCOp op1, BCOp op2)
 {
-    bcemit_bytes(parser, op1, op2);
-
-    parser->slot_count += stack_effects[op1] + stack_effects[op2];
-    if(parser->slot_count > parser->proto->max_slots)
+    bcemit_bytes(ps, op1, op2);
+    ps->slot_count += stack_effects[op1] + stack_effects[op2];
+    if(ps->slot_count > ps->proto->max_slots)
     {
-        parser->proto->max_slots = parser->slot_count;
+        ps->proto->max_slots = ps->slot_count;
     }
 }
 
-static void bcemit_argued(Parser* parser, BCOp op, uint8_t byte)
+static void bcemit_argued(ParseState* ps, BCOp op, uint8_t byte)
 {
-    bcemit_bytes(parser, op, byte);
-
-    parser->slot_count += stack_effects[op];
-    if(parser->slot_count > parser->proto->max_slots)
+    bcemit_bytes(ps, op, byte);
+    ps->slot_count += stack_effects[op];
+    if(ps->slot_count > ps->proto->max_slots)
     {
-        parser->proto->max_slots = parser->slot_count;
+        ps->proto->max_slots = ps->slot_count;
     }
 }
 
-static void bcemit_loop(Parser* parser, int loop_start)
+static void bcemit_loop(ParseState* ps, int loop_start)
 {
-    bcemit_op(parser, BC_LOOP);
-
-    int ofs = parser->proto->bc_count - loop_start + 2;
+    bcemit_op(ps, BC_LOOP);
+    int ofs = ps->proto->bc_count - loop_start + 2;
     if(ofs > UINT16_MAX)
-        error(parser, TEA_ERR_XLOOP);
-
-    bcemit_byte(parser, (ofs >> 8) & 0xff);
-    bcemit_byte(parser, ofs & 0xff);
+        error(ps, TEA_ERR_XLOOP);
+    bcemit_byte(ps, (ofs >> 8) & 0xff);
+    bcemit_byte(ps, ofs & 0xff);
 }
 
-static int bcemit_jump(Parser* parser, uint8_t instruction)
+static int bcemit_jump(ParseState* ps, BCOp op)
 {
-    bcemit_op(parser, instruction);
-    bcemit_bytes(parser, 0xff, 0xff);
-
-    return parser->proto->bc_count - 2;
+    bcemit_op(ps, op);
+    bcemit_bytes(ps, 0xff, 0xff);
+    return ps->proto->bc_count - 2;
 }
 
-static void bcemit_return(Parser* parser)
+static void bcemit_return(ParseState* ps)
 {
-    if(parser->type == PROTO_INIT)
+    if(ps->type == PROTO_INIT)
     {
-        bcemit_argued(parser, BC_GET_LOCAL, 0);
+        bcemit_argued(ps, BC_GET_LOCAL, 0);
     }
     else
     {
-        bcemit_op(parser, BC_NIL);
+        bcemit_op(ps, BC_NIL);
     }
-
-    bcemit_op(parser, BC_RETURN);
+    bcemit_op(ps, BC_RETURN);
 }
 
-static void bcemit_invoke(Parser* parser, int args, const char* name)
+static void bcemit_invoke(ParseState* ps, int args, const char* name)
 {
-    TValue v;
-    GCstr* str = tea_str_new(parser->ls->T, name, strlen(name));
-    setstrV(parser->ls->T, &v, str);
-    bcemit_argued(parser, BC_INVOKE, const_make(parser, &v));
-    bcemit_byte(parser, args);
+    GCstr* str = tea_str_new(ps->T, name, strlen(name));
+    bcemit_argued(ps, BC_INVOKE, const_str(ps, str));
+    bcemit_byte(ps, args);
 }
 
-static void bcemit_constant(Parser* parser, TValue* value)
+static void bcemit_num(ParseState* ps, TValue* o)
 {
-    bcemit_argued(parser, BC_CONSTANT, const_make(parser, value));
+    bcemit_argued(ps, BC_CONSTANT, const_num(ps, o));
 }
 
-static void bcpatch_jump(Parser* parser, int ofs)
+static void bcemit_str(ParseState* ps, TValue* o)
+{
+    bcemit_argued(ps, BC_CONSTANT, const_str(ps, strV(o)));
+}
+
+static void bcpatch_jump(ParseState* ps, int ofs)
 {
     /* -2 to adjust for the bytecode for the jump offset itself */
-    int jump = parser->proto->bc_count - ofs - 2;
-
-    if(jump > UINT16_MAX)
+    int jmp = ps->proto->bc_count - ofs - 2;
+    if(jmp > UINT16_MAX)
     {
-        error(parser, TEA_ERR_XJUMP);
+        error(ps, TEA_ERR_XJUMP);
     }
-
-    parser->proto->bc[ofs] = (jump >> 8) & 0xff;
-    parser->proto->bc[ofs + 1] = jump & 0xff;
+    ps->proto->bc[ofs] = (jmp >> 8) & 0xff;
+    ps->proto->bc[ofs + 1] = jmp & 0xff;
 }
 
-static void parser_init(LexState* ls, Parser* parser, Parser* parent, ProtoType type)
-{
-    parser->ls = ls;
-    parser->enclosing = parent;
-    parser->proto = NULL;
-    parser->klass = NULL;
-    parser->loop = NULL;
+/* -- Parser state management ------------------------------------------- */
 
+static void parser_init(LexState* ls, ParseState* ps, ParseState* parent, ProtoType type)
+{
+    tea_State* T = ls->T;
+    ps->ls = ls;
+    ps->T = T;
+    ps->prev = parent;
+    ps->proto = NULL;
+    ps->klass = NULL;
+    ps->loop = NULL;
     if(parent != NULL)
     {
-        parser->klass = parent->klass;
+        ps->kt = parent->kt;
+        ps->klass = parent->klass;
+        /*ps->m = parent->m;*/
     }
-
-    parser->type = type;
-    parser->local_count = 1;
-    parser->slot_count = parser->local_count;
-    parser->scope_depth = 0;
-
-    ls->T->parser = parser;
-
-    parser->proto = tea_func_newproto(ls->T, parser->slot_count);
+    ps->type = type;
+    ps->local_count = 1;
+    ps->slot_count = ps->local_count;
+    ps->scope_depth = 0;
+    T->parser = ps;
+    ps->proto = tea_func_newproto(T, ps->slot_count);
+    ps->kt = tea_map_new(T);
+    /* Anchor table of constants in stack to avoid being collected */
+    setmapV(T, T->top, ps->kt);
+    incr_top(T);
 
     switch(type)
     {
         case PROTO_FUNCTION:
         case PROTO_INIT:
         case PROTO_METHOD:
-            parser->proto->name = strV(&parser->ls->prev.value);
+            ps->proto->name = strV(&ps->ls->prev.tv);
             break;
         case PROTO_OPERATOR:
-            parser->proto->name = parser->enclosing->name;
+            ps->proto->name = ps->prev->name;
             break;
         case PROTO_ANONYMOUS:
-            parser->proto->name = tea_str_newlit(ls->T, "<anonymous>");
+            ps->proto->name = tea_str_newlit(T, "<anonymous>");
             break;
         case PROTO_SCRIPT:
-            parser->proto->name = tea_str_newlit(ls->T, "<script>");
+            ps->proto->name = tea_str_newlit(T, "<script>");
             break;
         default:
             break;
     }
 
-    Local* local = &parser->locals[0];
+    Local* local = &ps->locals[0];
     local->depth = 0;
     local->is_captured = false;
 
@@ -293,123 +421,111 @@ static void parser_init(LexState* ls, Parser* parser, Parser* parent, ProtoType 
         case PROTO_SCRIPT:
         case PROTO_FUNCTION:
         case PROTO_ANONYMOUS:
-            s = &ls->T->strempty;
-            setstrV(ls->T, &local->name.value, s);
+            s = &T->strempty;
+            setstrV(T, &local->name.tv, s);
             break;
         case PROTO_INIT:
         case PROTO_METHOD:
         case PROTO_OPERATOR:
-            s = tea_str_newlit(ls->T, "this");
-            setstrV(ls->T, &local->name.value, s);
+            s = tea_str_newlit(T, "this");
+            setstrV(T, &local->name.tv, s);
             break;
         default:
             break;
     }
 }
 
-static GCproto* parser_end(Parser* parser)
+static GCproto* parser_end(ParseState* ps)
 {
-    GCproto* proto = parser->proto;
-    if(parser->enclosing != NULL)
+    GCproto* proto = ps->proto;
+    if(ps->prev != NULL)
     {
         TValue o;
-        setprotoV(parser->ls->T, &o, proto);
-        bcemit_argued(parser->enclosing, BC_CLOSURE, const_make(parser->enclosing, &o));
+        setprotoV(ps->ls->T, &o, proto);
+        bcemit_argued(ps->prev, BC_CLOSURE, const_make(ps->prev, &o));
 
         for(int i = 0; i < proto->upvalue_count; i++)
         {
-            bcemit_byte(parser->enclosing, parser->upvalues[i].is_local ? 1 : 0);
-            bcemit_byte(parser->enclosing, parser->upvalues[i].index);
+            bcemit_byte(ps->prev, ps->upvalues[i].islocal ? 1 : 0);
+            bcemit_byte(ps->prev, ps->upvalues[i].index);
         }
     }
-
-    parser->ls->T->parser = parser->enclosing;
-
+    ps->ls->T->top--;   /* Pop table of constants */
+    ps->ls->T->parser = ps->prev;
     return proto;
 }
 
 /* -- Scope handling ------------------------------------------------------ */
 
 /* Begin a scope */
-static void scope_begin(Parser* parser)
+static void scope_begin(ParseState* ps)
 {
-    parser->scope_depth++;
+    ps->scope_depth++;
 }
 
-static int discard_locals(Parser* parser, int depth)
+static int discard_locals(ParseState* ps, int depth)
 {
     int local;
-    for(local = parser->local_count - 1; local >= 0 && parser->locals[local].depth >= depth; local--)
+    for(local = ps->local_count - 1; local >= 0 && ps->locals[local].depth >= depth; local--)
     {
-        if(parser->locals[local].is_captured)
+        if(ps->locals[local].is_captured)
         {
-            bcemit_op(parser, BC_CLOSE_UPVALUE);
+            bcemit_op(ps, BC_CLOSE_UPVALUE);
         }
         else
         {
-            bcemit_op(parser, BC_POP);
+            bcemit_op(ps, BC_POP);
         }
     }
-
-    return parser->local_count - local - 1;
+    return ps->local_count - local - 1;
 }
 
 /* End a scope */
-static void scope_end(Parser* parser)
+static void scope_end(ParseState* ps)
 {
-    int effect = discard_locals(parser, parser->scope_depth);
-    parser->local_count -= effect;
-    parser->slot_count -= effect;
-    parser->scope_depth--;
+    int effect = discard_locals(ps, ps->scope_depth);
+    ps->local_count -= effect;
+    ps->slot_count -= effect;
+    ps->scope_depth--;
 }
 
 /* Forward declarations */
-static void expr(Parser* parser);
-static void parse_stmt(Parser* parser);
-static void parse_decl(Parser* parser);
+static void expr(ParseState* ps);
+static void parse_stmt(ParseState* ps);
+static void parse_decl(ParseState* ps);
 static ParseRule expr_rule(int type);
-static void expr_precedence(Parser* parser, Precedence precedence);
-static void expr_anonymous(Parser* parser, bool assign);
-static void expr_grouping(Parser* parser, bool assign);
-static void parse_block(Parser* parser);
+static void expr_precedence(ParseState* ps, Precedence precedence);
+static void expr_anonymous(ParseState* ps, bool assign);
+static void expr_grouping(ParseState* ps, bool assign);
+static void parse_block(ParseState* ps);
 
-static uint8_t identifier_constant(Parser* parser, Token* name)
-{
-    return const_make(parser, &name->value);
-}
+/* -- Variable handling --------------------------------------------------- */
 
-static bool identifiers_equal(Token* a, Token* b)
+static int var_lookup_local(ParseState* ps, Token* name)
 {
-    return strV(&a->value) == strV(&b->value);
-}
-
-static int resolve_local(Parser* parser, Token* name)
-{
-    for(int i = parser->local_count - 1; i >= 0; i--)
+    for(int i = ps->local_count - 1; i >= 0; i--)
     {
-        Local* local = &parser->locals[i];
-        if(identifiers_equal(name, &local->name))
+        Local* local = &ps->locals[i];
+        if(strV(&name->tv) == strV(&local->name.tv))
         {
             if(local->depth == -1)
             {
                 break;
             }
-
             return i;
         }
     }
-
     return -1;
 }
 
-static int add_upvalue(Parser* parser, uint8_t index, bool is_local, bool constant)
+static int var_add_uv(ParseState* ps, uint8_t index, bool islocal, bool isconst)
 {
-    int upvalue_count = parser->proto->upvalue_count;
+    int upvalue_count = ps->proto->upvalue_count;
 
     for(int i = 0; i < upvalue_count; i++)
     {
-        Upvalue* upvalue = &parser->upvalues[i];
-        if(upvalue->index == index && upvalue->is_local == is_local)
+        Upvalue* upvalue = &ps->upvalues[i];
+        if(upvalue->index == index && upvalue->islocal == islocal)
         {
             return i;
         }
@@ -417,510 +533,436 @@ static int add_upvalue(Parser* parser, uint8_t index, bool is_local, bool consta
 
     if(upvalue_count == TEA_MAX_UPVAL)
     {
-        error(parser, TEA_ERR_XUPVAL);
+        error(ps, TEA_ERR_XUPVAL);
     }
 
-    parser->upvalues[upvalue_count].is_local = is_local;
-    parser->upvalues[upvalue_count].index = index;
-    parser->upvalues[upvalue_count].constant = constant;
+    ps->upvalues[upvalue_count].islocal = islocal;
+    ps->upvalues[upvalue_count].index = index;
+    ps->upvalues[upvalue_count].isconst = isconst;
 
-    return parser->proto->upvalue_count++;
+    return ps->proto->upvalue_count++;
 }
 
-static int resolve_upvalue(Parser* parser, Token* name)
+static int var_lookup_uv(ParseState* ps, Token* name)
 {
-    if(parser->enclosing == NULL)
+    if(ps->prev == NULL)
         return -1;
 
-    bool constant;
-    int local = resolve_local(parser->enclosing, name);
+    bool isconst;
+    int local = var_lookup_local(ps->prev, name);
     if(local != -1)
     {
-        constant = parser->enclosing->locals[local].constant;
-        parser->enclosing->locals[local].is_captured = true;
-        return add_upvalue(parser, (uint8_t)local, true, constant);
+        isconst = ps->prev->locals[local].isconst;
+        ps->prev->locals[local].is_captured = true;
+        return var_add_uv(ps, (uint8_t)local, true, isconst);
     }
 
-    int upvalue = resolve_upvalue(parser->enclosing, name);
+    int upvalue = var_lookup_uv(ps->prev, name);
     if(upvalue != -1)
     {
-        constant = parser->enclosing->upvalues[upvalue].constant;
-        return add_upvalue(parser, (uint8_t)upvalue, false, constant);
+        isconst = ps->prev->upvalues[upvalue].isconst;
+        return var_add_uv(ps, (uint8_t)upvalue, false, isconst);
     }
 
     return -1;
 }
 
-static void add_local(Parser* parser, Token name)
+static void var_add_local(ParseState* ps, Token name)
 {
-    if(parser->local_count == TEA_MAX_LOCAL)
+    if(ps->local_count == TEA_MAX_LOCAL)
     {
-        error(parser, TEA_ERR_XLOCALS);
+        error(ps, TEA_ERR_XLOCALS);
     }
-
-    Local* local = &parser->locals[parser->local_count++];
+    Local* local = &ps->locals[ps->local_count++];
     local->name = name;
     local->depth = -1;
     local->is_captured = false;
-    local->constant = false;
+    local->isconst = false;
 }
 
-static int add_init_local(Parser* parser, Token name)
+static int var_add_ilocal(ParseState* ps, Token name)
 {
-    add_local(parser, name);
-
-    Local* local = &parser->locals[parser->local_count - 1];
-    local->depth = parser->scope_depth;
-
-    return parser->local_count - 1;
+    var_add_local(ps, name);
+    Local* local = &ps->locals[ps->local_count - 1];
+    local->depth = ps->scope_depth;
+    return ps->local_count - 1;
 }
 
-static void declare_variable(Parser* parser, Token* name)
+static void var_declare(ParseState* ps, Token* name)
 {
-    if(parser->scope_depth == 0)
+    if(ps->scope_depth == 0)
         return;
-
-    add_local(parser, *name);
+    var_add_local(ps, *name);
 }
 
-static uint8_t parse_variable(Parser* parser)
+static void var_mark(ParseState* ps, bool isconst)
 {
-    lex_consume(parser, TK_NAME);
-
-    declare_variable(parser, &parser->ls->prev);
-    if(parser->scope_depth > 0)
-        return 0;
-
-    return identifier_constant(parser, &parser->ls->prev);
+    if(ps->scope_depth == 0) return;
+    ps->locals[ps->local_count - 1].depth = ps->scope_depth;
+    ps->locals[ps->local_count - 1].isconst = isconst;
 }
 
-static uint8_t parse_variable_at(Parser* parser, Token name)
+static void var_define(ParseState* ps, Token* name, bool isconst)
 {
-    declare_variable(parser, &name);
-    if(parser->scope_depth > 0)
-        return 0;
-
-    return identifier_constant(parser, &name);
-}
-
-static void mark_initialized(Parser* parser, bool constant)
-{
-    if(parser->scope_depth == 0) return;
-
-    parser->locals[parser->local_count - 1].depth = parser->scope_depth;
-    parser->locals[parser->local_count - 1].constant = constant;
-}
-
-static void define_variable(Parser* parser, uint8_t global, bool constant)
-{
-    if(parser->scope_depth > 0)
+    if(ps->scope_depth > 0)
     {
-        mark_initialized(parser, constant);
+        var_mark(ps, isconst);
         return;
     }
-
-    GCstr* string = strV(proto_kgc(parser->proto, global));
-    if(constant)
+    GCstr* str = strV(&(name->tv));
+    uint8_t k = const_str(ps, str);
+    if(isconst)
     {
-        TValue* o = tea_tab_set(parser->ls->T, &parser->ls->T->constants, string, NULL);
+        TValue* o = tea_tab_set(ps->ls->T, &ps->ls->T->constants, str, NULL);
         setnilV(o);
     }
-
-    bcemit_argued(parser, BC_DEFINE_MODULE, global);
-}
-
-static uint8_t parse_arg_list(Parser* parser)
-{
-    uint8_t nargs = 0;
-    if(!lex_check(parser, ')'))
-    {
-        do
-        {
-            expr(parser);
-            if(nargs == 255)
-            {
-                error(parser, TEA_ERR_XARGS);
-            }
-            nargs++;
-        }
-        while(lex_match(parser, ','));
-    }
-    lex_consume(parser, ')');
-
-    return nargs;
+    bcemit_argued(ps, BC_DEFINE_MODULE, k);
 }
 
 /* -- Expressions --------------------------------------------------------- */
 
-static void expr_and(Parser* parser, bool assign)
+static void expr_and(ParseState* ps, bool assign)
 {
-    int jump = bcemit_jump(parser, BC_JUMP_IF_FALSE);
-    bcemit_op(parser, BC_POP);
-    expr_precedence(parser, PREC_AND);
-    bcpatch_jump(parser, jump);
+    int jmp = bcemit_jump(ps, BC_JUMP_IF_FALSE);
+    bcemit_op(ps, BC_POP);
+    expr_precedence(ps, PREC_AND);
+    bcpatch_jump(ps, jmp);
 }
 
-static void expr_binary(Parser* parser, bool assign)
+static void expr_binary(ParseState* ps, bool assign)
 {
-    LexToken op_type = parser->ls->prev.type;
-
-    if(op_type == TK_NOT)
+    LexToken op = ps->ls->prev.t;
+    if(op == TK_NOT)
     {
-        lex_consume(parser, TK_IN);
+        lex_consume(ps, TK_IN);
 
-        ParseRule rule = expr_rule(op_type);
-        expr_precedence(parser, (Precedence)(rule.prec + 1));
+        ParseRule rule = expr_rule(op);
+        expr_precedence(ps, (Precedence)(rule.prec + 1));
 
-        bcemit_ops(parser, BC_IN, BC_NOT);
+        bcemit_ops(ps, BC_IN, BC_NOT);
         return;
     }
 
-    if(op_type == TK_IS && lex_match(parser, TK_NOT))
+    if(op == TK_IS && lex_match(ps, TK_NOT))
     {
-        ParseRule rule = expr_rule(op_type);
-        expr_precedence(parser, (Precedence)(rule.prec + 1));
+        ParseRule rule = expr_rule(op);
+        expr_precedence(ps, (Precedence)(rule.prec + 1));
 
-        bcemit_ops(parser, BC_IS, BC_NOT);
+        bcemit_ops(ps, BC_IS, BC_NOT);
         return;
     }
 
-    ParseRule rule = expr_rule(op_type);
-    expr_precedence(parser, (Precedence)(rule.prec + 1));
-
-    switch(op_type)
+    ParseRule rule = expr_rule(op);
+    expr_precedence(ps, (Precedence)(rule.prec + 1));
+    switch(op)
     {
         case TK_BANG_EQUAL:
-        {
-            bcemit_ops(parser, BC_EQUAL, BC_NOT);
+            bcemit_ops(ps, BC_EQUAL, BC_NOT);
             break;
-        }
         case TK_EQUAL_EQUAL:
-        {
-            bcemit_op(parser, BC_EQUAL);
+            bcemit_op(ps, BC_EQUAL);
             break;
-        }
         case TK_IS:
-        {
-            bcemit_op(parser, BC_IS);
+            bcemit_op(ps, BC_IS);
             break;
-        }
         case '>':
-        {
-            bcemit_op(parser, BC_GREATER);
+            bcemit_op(ps, BC_GREATER);
             break;
-        }
         case TK_GREATER_EQUAL:
-        {
-            bcemit_op(parser, BC_GREATER_EQUAL);
+            bcemit_op(ps, BC_GREATER_EQUAL);
             break;
-        }
         case '<':
-        {
-            bcemit_op(parser, BC_LESS);
+            bcemit_op(ps, BC_LESS);
             break;
-        }
         case TK_LESS_EQUAL:
-        {
-            bcemit_op(parser, BC_LESS_EQUAL);
+            bcemit_op(ps, BC_LESS_EQUAL);
             break;
-        }
         case '+':
-        {
-            bcemit_op(parser, BC_ADD);
+            bcemit_op(ps, BC_ADD);
             break;
-        }
         case '-':
-        {
-            bcemit_op(parser, BC_SUBTRACT);
+            bcemit_op(ps, BC_SUBTRACT);
             break;
-        }
         case '*':
-        {
-            bcemit_op(parser, BC_MULTIPLY);
+            bcemit_op(ps, BC_MULTIPLY);
             break;
-        }
         case '/':
-        {
-            bcemit_op(parser, BC_DIVIDE);
+            bcemit_op(ps, BC_DIVIDE);
             break;
-        }
         case '%':
-        {
-            bcemit_op(parser, BC_MOD);
+            bcemit_op(ps, BC_MOD);
             break;
-        }
         case TK_STAR_STAR:
-        {
-            bcemit_op(parser, BC_POW);
+            bcemit_op(ps, BC_POW);
             break;
-        }
         case '&':
-        {
-            bcemit_op(parser, BC_BAND);
+            bcemit_op(ps, BC_BAND);
             break;
-        }
         case '|':
-        {
-            bcemit_op(parser, BC_BOR);
+            bcemit_op(ps, BC_BOR);
             break;
-        }
         case '^':
-        {
-            bcemit_op(parser, BC_BXOR);
+            bcemit_op(ps, BC_BXOR);
             break;
-        }
         case TK_GREATER_GREATER:
-        {
-            bcemit_op(parser, BC_RSHIFT);
+            bcemit_op(ps, BC_RSHIFT);
             break;
-        }
         case TK_LESS_LESS:
-        {
-            bcemit_op(parser, BC_LSHIFT);
+            bcemit_op(ps, BC_LSHIFT);
             break;
-        }
         case TK_IN:
-        {
-            bcemit_op(parser, BC_IN);
+            bcemit_op(ps, BC_IN);
             break;
-        }
-        default: return; /* Unreachable */
+        default: 
+            return; /* Unreachable */
     }
 }
 
-static void expr_ternary(Parser* parser, bool assign)
+static void expr_ternary(ParseState* ps, bool assign)
 {
     /* Jump to else branch if the condition is false */
-    int else_jump = bcemit_jump(parser, BC_JUMP_IF_FALSE);
+    int else_jmp = bcemit_jump(ps, BC_JUMP_IF_FALSE);
 
     /* Pop the condition */
-    bcemit_op(parser, BC_POP);
-    expr(parser);
+    bcemit_op(ps, BC_POP);
+    expr(ps);
 
-    int end_jump = bcemit_jump(parser, BC_JUMP);
+    int end_jmp = bcemit_jump(ps, BC_JUMP);
 
-    bcpatch_jump(parser, else_jump);
-    bcemit_op(parser, BC_POP);
+    bcpatch_jump(ps, else_jmp);
+    bcemit_op(ps, BC_POP);
 
-    lex_consume(parser, ':');
-    expr(parser);
+    lex_consume(ps, ':');
+    expr(ps);
 
-    bcpatch_jump(parser, end_jump);
+    bcpatch_jump(ps, end_jmp);
 }
 
-static void expr_call(Parser* parser, bool assign)
+static uint8_t parse_arg_list(ParseState* ps)
 {
-    uint8_t nargs = parse_arg_list(parser);
-    bcemit_argued(parser, BC_CALL, nargs);
+    uint8_t nargs = 0;
+    if(!lex_check(ps, ')'))
+    {
+        do
+        {
+            expr(ps);
+            if(nargs == 255)
+            {
+                error(ps, TEA_ERR_XARGS);
+            }
+            nargs++;
+        }
+        while(lex_match(ps, ','));
+    }
+    lex_consume(ps, ')');
+    return nargs;
 }
 
-static void expr_dot(Parser* parser, bool assign)
+static void expr_call(ParseState* ps, bool assign)
+{
+    uint8_t nargs = parse_arg_list(ps);
+    bcemit_argued(ps, BC_CALL, nargs);
+}
+
+static void expr_dot(ParseState* ps, bool assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    bcemit_argued(parser, BC_PUSH_ATTR, name); \
-    expr(parser); \
-    bcemit_op(parser, op); \
-    bcemit_argued(parser, BC_SET_ATTR, name);
+    bcemit_argued(ps, BC_PUSH_ATTR, name); \
+    expr(ps); \
+    bcemit_op(ps, op); \
+    bcemit_argued(ps, BC_SET_ATTR, name);
 
 #define SHORT_HAND_INCREMENT(op) \
-    bcemit_argued(parser, BC_PUSH_ATTR, name); \
+    bcemit_argued(ps, BC_PUSH_ATTR, name); \
     TValue _v; \
     setnumV(&_v, 1); \
-    bcemit_constant(parser, &_v); \
-    bcemit_op(parser, op); \
-    bcemit_argued(parser, BC_SET_ATTR, name);
+    bcemit_num(ps, &_v); \
+    bcemit_op(ps, op); \
+    bcemit_argued(ps, BC_SET_ATTR, name);
 
-    lex_consume(parser, TK_NAME);
-    uint8_t name = identifier_constant(parser, &parser->ls->prev);
+    lex_consume(ps, TK_NAME);
+    uint8_t name = const_str(ps, strV(&ps->ls->prev.tv));
 
-    if(lex_match(parser, '('))
+    if(lex_match(ps, '('))
     {
-        uint8_t nargs = parse_arg_list(parser);
-        bcemit_argued(parser, BC_INVOKE, name);
-        bcemit_byte(parser, nargs);
+        uint8_t nargs = parse_arg_list(ps);
+        bcemit_argued(ps, BC_INVOKE, name);
+        bcemit_byte(ps, nargs);
         return;
     }
 
-    if(assign && lex_match(parser, '='))
+    if(assign && lex_match(ps, '='))
     {
-        expr(parser);
-        bcemit_argued(parser, BC_SET_ATTR, name);
+        expr(ps);
+        bcemit_argued(ps, BC_SET_ATTR, name);
     }
-    else if(assign && lex_match(parser, TK_PLUS_EQUAL))
+    else if(assign && lex_match(ps, TK_PLUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_ADD);
     }
-    else if(assign && lex_match(parser, TK_MINUS_EQUAL))
+    else if(assign && lex_match(ps, TK_MINUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_SUBTRACT);
     }
-    else if(assign && lex_match(parser, TK_STAR_EQUAL))
+    else if(assign && lex_match(ps, TK_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_MULTIPLY);
     }
-    else if(assign && lex_match(parser, TK_SLASH_EQUAL))
+    else if(assign && lex_match(ps, TK_SLASH_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_DIVIDE);
     }
-    else if(assign && lex_match(parser, TK_PERCENT_EQUAL))
+    else if(assign && lex_match(ps, TK_PERCENT_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_MOD);
     }
-    else if(assign && lex_match(parser, TK_STAR_STAR_EQUAL))
+    else if(assign && lex_match(ps, TK_STAR_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_POW);
     }
-    else if(assign && lex_match(parser, TK_AMPERSAND_EQUAL))
+    else if(assign && lex_match(ps, TK_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BAND);
     }
-    else if(assign && lex_match(parser, TK_PIPE_EQUAL))
+    else if(assign && lex_match(ps, TK_PIPE_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BOR);
     }
-    else if(assign && lex_match(parser, TK_CARET_EQUAL))
+    else if(assign && lex_match(ps, TK_CARET_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BXOR);
     }
-    else if(assign && lex_match(parser, TK_LESS_LESS_EQUAL))
+    else if(assign && lex_match(ps, TK_LESS_LESS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_LSHIFT);
     }
-    else if(assign && lex_match(parser, TK_GREATER_GREATER_EQUAL))
+    else if(assign && lex_match(ps, TK_GREATER_GREATER_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_RSHIFT);
     }
     else
     {
-        if(lex_match(parser, TK_PLUS_PLUS))
+        if(lex_match(ps, TK_PLUS_PLUS))
         {
             SHORT_HAND_INCREMENT(BC_ADD);
         }
-        else if(lex_match(parser, TK_MINUS_MINUS))
+        else if(lex_match(ps, TK_MINUS_MINUS))
         {
             SHORT_HAND_INCREMENT(BC_SUBTRACT);
         }
         else
         {
-            bcemit_argued(parser, BC_GET_ATTR, name);
+            bcemit_argued(ps, BC_GET_ATTR, name);
         }
     }
 #undef SHORT_HAND_ASSIGNMENT
 #undef SHORT_HAND_INCREMENT
 }
 
-static void expr_bool(Parser* parser, bool assign)
+static void expr_bool(ParseState* ps, bool assign)
 {
-    bcemit_op(parser, parser->ls->prev.type == TK_FALSE ? BC_FALSE : BC_TRUE);
+    bcemit_op(ps, ps->ls->prev.t == TK_FALSE ? BC_FALSE : BC_TRUE);
 }
 
-static void expr_nil(Parser* parser, bool assign)
+static void expr_nil(ParseState* ps, bool assign)
 {
-    bcemit_op(parser, BC_NIL);
+    bcemit_op(ps, BC_NIL);
 }
 
-static void expr_list(Parser* parser, bool assign)
+static void expr_list(ParseState* ps, bool assign)
 {
-    bcemit_op(parser, BC_LIST);
-
-    if(!lex_check(parser, ']'))
+    bcemit_op(ps, BC_LIST);
+    if(!lex_check(ps, ']'))
     {
         do
         {
             /* Traling comma */
-            if(lex_check(parser, ']'))
+            if(lex_check(ps, ']'))
                 break;
 
-            if(lex_match(parser, TK_DOT_DOT_DOT))
+            if(lex_match(ps, TK_DOT_DOT_DOT))
             {
-                expr(parser);
-                bcemit_op(parser, BC_LIST_EXTEND);
+                expr(ps);
+                bcemit_op(ps, BC_LIST_EXTEND);
                 continue;
             }
 
-            expr(parser);
-            bcemit_op(parser, BC_LIST_ITEM);
+            expr(ps);
+            bcemit_op(ps, BC_LIST_ITEM);
         }
-        while(lex_match(parser, ','));
+        while(lex_match(ps, ','));
     }
-
-    lex_consume(parser, ']');
+    lex_consume(ps, ']');
 }
 
-static void expr_map(Parser* parser, bool assign)
+static void expr_map(ParseState* ps, bool assign)
 {
-    bcemit_op(parser, BC_MAP);
-
-    if(!lex_check(parser, '}'))
+    bcemit_op(ps, BC_MAP);
+    if(!lex_check(ps, '}'))
     {
         do
         {
             /* Traling comma */
-            if(lex_check(parser, '}'))
+            if(lex_check(ps, '}'))
                 break;
 
-            if(lex_match(parser, '['))
+            if(lex_match(ps, '['))
             {
-                expr(parser);
-                lex_consume(parser, ']');
-                lex_consume(parser, '=');
-                expr(parser);
+                expr(ps);
+                lex_consume(ps, ']');
+                lex_consume(ps, '=');
+                expr(ps);
             }
             else
             {
-                lex_consume(parser, TK_NAME);
-                bcemit_constant(parser, &parser->ls->prev.value);
-                lex_consume(parser, '=');
-                expr(parser);
+                lex_consume(ps, TK_NAME);
+                bcemit_str(ps, &ps->ls->prev.tv);
+                lex_consume(ps, '=');
+                expr(ps);
             }
-
-            bcemit_op(parser, BC_MAP_FIELD);
+            bcemit_op(ps, BC_MAP_FIELD);
         }
-        while(lex_match(parser, ','));
+        while(lex_match(ps, ','));
     }
-
-    lex_consume(parser, '}');
+    lex_consume(ps, '}');
 }
 
-static bool parse_slice(Parser* parser)
+static bool parse_slice(ParseState* ps)
 {
-    expr(parser);
-
+    expr(ps);
     /* It's a slice */
-    if(lex_match(parser, ':'))
+    if(lex_match(ps, ':'))
     {
+        TValue tv1, tv2;
         /* [n:] */
-        if(lex_check(parser, ']'))
+        if(lex_check(ps, ']'))
         {
-            TValue v1, v2;
-            setnumV(&v1, INFINITY);
-            setnumV(&v2, 1);
-            bcemit_constant(parser, &v1);
-            bcemit_constant(parser, &v2);
+            setnumV(&tv1, INFINITY);
+            setnumV(&tv2, 1);
+            bcemit_num(ps, &tv1);
+            bcemit_num(ps, &tv2);
         }
         else
         {
             /* [n::n] */
-            if(lex_match(parser, ':'))
+            if(lex_match(ps, ':'))
             {
-                TValue v;
-                setnumV(&v, INFINITY);
-                bcemit_constant(parser, &v);
-                expr(parser);
+                setnumV(&tv1, INFINITY);
+                bcemit_num(ps, &tv1);
+                expr(ps);
             }
             else
             {
-                expr(parser);
-                if(lex_match(parser, ':'))
+                expr(ps);
+                if(lex_match(ps, ':'))
                 {
                     /* [n:n:n] */
-                    expr(parser);
+                    expr(ps);
                 }
                 else
                 {
-                    TValue v;
-                    setnumV(&v, 1);
-                    bcemit_constant(parser, &v);
+                    setnumV(&tv1, 1);
+                    bcemit_num(ps, &tv1);
                 }
             }
         }
@@ -929,91 +971,91 @@ static bool parse_slice(Parser* parser)
     return false;
 }
 
-static void expr_subscript(Parser* parser, bool assign)
+static void expr_subscript(ParseState* ps, bool assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    bcemit_op(parser, BC_PUSH_INDEX); \
-    expr(parser); \
-    bcemit_op(parser, op); \
-    bcemit_op(parser, BC_SET_INDEX);
+    bcemit_op(ps, BC_PUSH_INDEX); \
+    expr(ps); \
+    bcemit_op(ps, op); \
+    bcemit_op(ps, BC_SET_INDEX);
 
 #define SHORT_HAND_INCREMENT(op) \
-    bcemit_op(parser, BC_PUSH_INDEX); \
+    bcemit_op(ps, BC_PUSH_INDEX); \
     TValue _v; \
     setnumV(&_v, 1); \
-    bcemit_constant(parser, &_v); \
-    bcemit_op(parser, op); \
-    bcemit_op(parser, BC_SET_INDEX);
+    bcemit_num(ps, &_v); \
+    bcemit_op(ps, op); \
+    bcemit_op(ps, BC_SET_INDEX);
 
-    if(parse_slice(parser))
+    if(parse_slice(ps))
     {
-        bcemit_op(parser, BC_RANGE);
+        bcemit_op(ps, BC_RANGE);
     }
 
-    lex_consume(parser, ']');
+    lex_consume(ps, ']');
 
-    if(assign && lex_match(parser, '='))
+    if(assign && lex_match(ps, '='))
     {
-        expr(parser);
-        bcemit_op(parser, BC_SET_INDEX);
+        expr(ps);
+        bcemit_op(ps, BC_SET_INDEX);
     }
-    else if(assign && lex_match(parser, TK_PLUS_EQUAL))
+    else if(assign && lex_match(ps, TK_PLUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_ADD);
     }
-    else if(assign && lex_match(parser, TK_MINUS_EQUAL))
+    else if(assign && lex_match(ps, TK_MINUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_SUBTRACT);
     }
-    else if(assign && lex_match(parser, TK_STAR_EQUAL))
+    else if(assign && lex_match(ps, TK_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_MULTIPLY);
     }
-    else if(assign && lex_match(parser, TK_SLASH_EQUAL))
+    else if(assign && lex_match(ps, TK_SLASH_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_DIVIDE);
     }
-    else if(assign && lex_match(parser, TK_PERCENT_EQUAL))
+    else if(assign && lex_match(ps, TK_PERCENT_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_MOD);
     }
-    else if(assign && lex_match(parser, TK_STAR_STAR_EQUAL))
+    else if(assign && lex_match(ps, TK_STAR_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_POW);
     }
-    else if(assign && lex_match(parser, TK_AMPERSAND_EQUAL))
+    else if(assign && lex_match(ps, TK_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BAND);
     }
-    else if(assign && lex_match(parser, TK_PIPE_EQUAL))
+    else if(assign && lex_match(ps, TK_PIPE_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BOR);
     }
-    else if(assign && lex_match(parser, TK_CARET_EQUAL))
+    else if(assign && lex_match(ps, TK_CARET_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BXOR);
     }
-    else if(assign && lex_match(parser, TK_LESS_LESS_EQUAL))
+    else if(assign && lex_match(ps, TK_LESS_LESS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_LSHIFT);
     }
-    else if(assign && lex_match(parser, TK_GREATER_GREATER_EQUAL))
+    else if(assign && lex_match(ps, TK_GREATER_GREATER_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_RSHIFT);
     }
     else
     {
-        if(lex_match(parser, TK_PLUS_PLUS))
+        if(lex_match(ps, TK_PLUS_PLUS))
         {
             SHORT_HAND_INCREMENT(BC_ADD);
         }
-        else if(lex_match(parser, TK_MINUS_MINUS))
+        else if(lex_match(ps, TK_MINUS_MINUS))
         {
             SHORT_HAND_INCREMENT(BC_SUBTRACT);
         }
         else
         {
-            bcemit_op(parser, BC_GET_INDEX);
+            bcemit_op(ps, BC_GET_INDEX);
         }
     }
 
@@ -1021,97 +1063,90 @@ static void expr_subscript(Parser* parser, bool assign)
 #undef SHORT_HAND_INCREMENT
 }
 
-static void expr_or(Parser* parser, bool assign)
+static void expr_or(ParseState* ps, bool assign)
 {
-    int else_jump = bcemit_jump(parser, BC_JUMP_IF_FALSE);
-    int jump = bcemit_jump(parser, BC_JUMP);
-    bcpatch_jump(parser, else_jump);
-    bcemit_op(parser, BC_POP);
-
-    expr_precedence(parser, PREC_OR);
-    bcpatch_jump(parser, jump);
+    int else_jmp = bcemit_jump(ps, BC_JUMP_IF_FALSE);
+    int jmp = bcemit_jump(ps, BC_JUMP);
+    bcpatch_jump(ps, else_jmp);
+    bcemit_op(ps, BC_POP);
+    expr_precedence(ps, PREC_OR);
+    bcpatch_jump(ps, jmp);
 }
 
-static void expr_literal(Parser* parser, bool assign)
+static void expr_number(ParseState* ps, bool assign)
 {
-    bcemit_constant(parser, &parser->ls->prev.value);
+    bcemit_num(ps, &ps->ls->prev.tv);
 }
 
-static void expr_str(Parser* parser, bool assign)
+static void expr_str(ParseState* ps, bool assign)
 {
-    tea_State* T = parser->ls->T;
+    tea_State* T = ps->T;
     TValue tv;
-    copyTV(T, &tv, &parser->ls->prev.value);
-    if((parser->ls->curr.type == '+') &&
-        (parser->ls->next.type == TK_STRING))
+    copyTV(T, &tv, &ps->ls->prev.tv);
+    if((ps->ls->curr.t == '+') &&
+        (ps->ls->next.t == TK_STRING))
     {
         SBuf* sb = tea_buf_tmp_(T);
         tea_buf_putstr(T, sb, strV(&tv));
-
-        while((parser->ls->curr.type == '+') && (parser->ls->next.type == TK_STRING)) 
+        while((ps->ls->curr.t == '+') && (ps->ls->next.t == TK_STRING)) 
         {
-            TValue* o = &parser->ls->next.value;
+            TValue* o = &ps->ls->next.tv;
             GCstr* s2 = strV(o);
             tea_buf_putstr(T, sb, s2);
-            tea_lex_next(parser->ls);
-            tea_lex_next(parser->ls);
+            tea_lex_next(ps->ls);
+            tea_lex_next(ps->ls);
         }
-
         GCstr* str = tea_buf_str(T, sb);
         setstrV(T, &tv, str);
     }
-    bcemit_constant(parser, &tv);
+    bcemit_str(ps, &tv);
 }
 
-static void expr_interpolation(Parser* parser, bool assign)
+static void expr_interpolation(ParseState* ps, bool assign)
 {
-    bcemit_op(parser, BC_LIST);
-
+    bcemit_op(ps, BC_LIST);
     do
     {
-        expr_literal(parser, false);
-        bcemit_op(parser, BC_LIST_ITEM);
+        bcemit_str(ps, &ps->ls->prev.tv);
+        bcemit_op(ps, BC_LIST_ITEM);
 
-        expr(parser);
-        bcemit_op(parser, BC_LIST_ITEM);
+        expr(ps);
+        bcemit_op(ps, BC_LIST_ITEM);
     }
-    while(lex_match(parser, TK_INTERPOLATION));
+    while(lex_match(ps, TK_INTERPOLATION));
 
-    lex_consume(parser, TK_STRING);
-    
-    expr_literal(parser, false);
-    bcemit_op(parser, BC_LIST_ITEM);
-
-    bcemit_invoke(parser, 0, "join");
+    lex_consume(ps, TK_STRING);
+    bcemit_str(ps, &ps->ls->prev.tv);
+    bcemit_op(ps, BC_LIST_ITEM);
+    bcemit_invoke(ps, 0, "join");
 }
 
-static void check_const(Parser* parser, uint8_t set_op, int arg)
+static void check_const(ParseState* ps, uint8_t set_op, int arg)
 {
     switch(set_op)
     {
         case BC_SET_LOCAL:
         {
-            if(parser->locals[arg].constant)
+            if(ps->locals[arg].isconst)
             {
-                error(parser, TEA_ERR_XVCONST);
+                error(ps, TEA_ERR_XVCONST);
             }
             break;
         }
         case BC_SET_UPVALUE:
         {
-            if(parser->upvalues[arg].constant)
+            if(ps->upvalues[arg].isconst)
             {
-                error(parser, TEA_ERR_XVCONST);
+                error(ps, TEA_ERR_XVCONST);
             }
             break;
         }
         case BC_SET_MODULE:
         {
-            GCstr* string = strV(proto_kgc(parser->proto, arg));
-            TValue* _ = tea_tab_get(&parser->ls->T->constants, string);
-            if(_)
+            GCstr* string = strV(proto_kgc(ps->proto, arg));
+            if(tea_tab_get(&ps->ls->T->constants, string))
             {
-                error(parser, TEA_ERR_XVCONST);
+                error(ps, TEA_ERR_XVCONST);
             }
             break;
         }
@@ -1120,125 +1155,125 @@ static void check_const(Parser* parser, uint8_t set_op, int arg)
     }
 }
 
-static void named_variable(Parser* parser, Token name, bool assign)
+static void named_variable(ParseState* ps, Token name, bool assign)
 {
 #define SHORT_HAND_ASSIGNMENT(op) \
-    check_const(parser, set_op, arg); \
-    bcemit_argued(parser, get_op, (uint8_t)arg); \
-    expr(parser); \
-    bcemit_op(parser, op); \
-    bcemit_argued(parser, set_op, (uint8_t)arg);
+    check_const(ps, set_op, arg); \
+    bcemit_argued(ps, get_op, (uint8_t)arg); \
+    expr(ps); \
+    bcemit_op(ps, op); \
+    bcemit_argued(ps, set_op, (uint8_t)arg);
 
 #define SHORT_HAND_INCREMENT(op) \
-    check_const(parser, set_op, arg); \
-    bcemit_argued(parser, get_op, (uint8_t)arg); \
+    check_const(ps, set_op, arg); \
+    bcemit_argued(ps, get_op, (uint8_t)arg); \
     TValue _v; \
     setnumV(&_v, 1); \
-    bcemit_constant(parser, &_v); \
-    bcemit_op(parser, op); \
-    bcemit_argued(parser, set_op, (uint8_t)arg);
+    bcemit_num(ps, &_v); \
+    bcemit_op(ps, op); \
+    bcemit_argued(ps, set_op, (uint8_t)arg);
 
     uint8_t get_op, set_op;
-    int arg = resolve_local(parser, &name);
+    int arg = var_lookup_local(ps, &name);
     if(arg != -1)
     {
         get_op = BC_GET_LOCAL;
         set_op = BC_SET_LOCAL;
     }
-    else if((arg = resolve_upvalue(parser, &name)) != -1)
+    else if((arg = var_lookup_uv(ps, &name)) != -1)
     {
         get_op = BC_GET_UPVALUE;
         set_op = BC_SET_UPVALUE;
     }
     else
     {
-        arg = identifier_constant(parser, &name);
+        arg = const_str(ps, strV(&name.tv));
         get_op = BC_GET_MODULE;
         set_op = BC_SET_MODULE;
     }
 
-    if(assign && lex_match(parser, '='))
+    if(assign && lex_match(ps, '='))
     {
-        check_const(parser, set_op, arg);
-        expr(parser);
-        bcemit_argued(parser, set_op, (uint8_t)arg);
+        check_const(ps, set_op, arg);
+        expr(ps);
+        bcemit_argued(ps, set_op, (uint8_t)arg);
     }
-    else if(assign && lex_match(parser, TK_PLUS_EQUAL))
+    else if(assign && lex_match(ps, TK_PLUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_ADD);
     }
-    else if(assign && lex_match(parser, TK_MINUS_EQUAL))
+    else if(assign && lex_match(ps, TK_MINUS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_SUBTRACT);
     }
-    else if(assign && lex_match(parser, TK_STAR_EQUAL))
+    else if(assign && lex_match(ps, TK_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_MULTIPLY);
     }
-    else if(assign && lex_match(parser, TK_SLASH_EQUAL))
+    else if(assign && lex_match(ps, TK_SLASH_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_DIVIDE);
     }
-    else if(assign && lex_match(parser, TK_PERCENT_EQUAL))
+    else if(assign && lex_match(ps, TK_PERCENT_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_MOD);
     }
-    else if(assign && lex_match(parser, TK_STAR_STAR_EQUAL))
+    else if(assign && lex_match(ps, TK_STAR_STAR_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_POW);
     }
-    else if(assign && lex_match(parser, TK_AMPERSAND_EQUAL))
+    else if(assign && lex_match(ps, TK_AMPERSAND_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BAND);
     }
-    else if(assign && lex_match(parser, TK_PIPE_EQUAL))
+    else if(assign && lex_match(ps, TK_PIPE_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BOR);
     }
-    else if(assign && lex_match(parser, TK_CARET_EQUAL))
+    else if(assign && lex_match(ps, TK_CARET_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_BXOR);
     }
-    else if(assign && lex_match(parser, TK_LESS_LESS_EQUAL))
+    else if(assign && lex_match(ps, TK_LESS_LESS_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_LSHIFT);
     }
-    else if(assign && lex_match(parser, TK_GREATER_GREATER_EQUAL))
+    else if(assign && lex_match(ps, TK_GREATER_GREATER_EQUAL))
     {
         SHORT_HAND_ASSIGNMENT(BC_RSHIFT);
     }
     else
     {
-        if(lex_match(parser, TK_PLUS_PLUS))
+        if(lex_match(ps, TK_PLUS_PLUS))
         {
             SHORT_HAND_INCREMENT(BC_ADD);
         }
-        else if(lex_match(parser, TK_MINUS_MINUS))
+        else if(lex_match(ps, TK_MINUS_MINUS))
         {
             SHORT_HAND_INCREMENT(BC_SUBTRACT);
         }
         else
         {
-            bcemit_argued(parser, get_op, (uint8_t)arg);
+            bcemit_argued(ps, get_op, (uint8_t)arg);
         }
     }
 #undef SHORT_HAND_ASSIGNMENT
 #undef SHORT_HAND_INCREMENT
 }
 
-static void expr_name(Parser* parser, bool assign)
+static void expr_name(ParseState* ps, bool assign)
 {
-    Token name = parser->ls->prev;
+    Token name = ps->ls->prev;
 
-    if(lex_match(parser, TK_ARROW))
+    if(lex_match(ps, TK_ARROW))
     {
-        Parser fn_parser;
+        ParseState fn_parser;
 
-        parser_init(parser->ls, &fn_parser, parser, PROTO_ANONYMOUS);
+        parser_init(ps->ls, &fn_parser, ps, PROTO_ANONYMOUS);
         fn_parser.proto->numparams = 1;
 
-        uint8_t constant = parse_variable_at(&fn_parser, name);
-        define_variable(&fn_parser, constant, false);
+        var_declare(&fn_parser, &name);
+        var_define(&fn_parser, &name, false);
 
         if(lex_match(&fn_parser, '{'))
         {
@@ -1256,137 +1291,125 @@ static void expr_name(Parser* parser, bool assign)
         return;
     }
 
-    named_variable(parser, name, assign);
+    named_variable(ps, name, assign);
 }
 
-static void expr_super(Parser* parser, bool assign)
+static void expr_super(ParseState* ps, bool assign)
 {
-    if(parser->klass == NULL)
+    if(ps->klass == NULL)
     {
-        error(parser, TEA_ERR_XSUPERO);
+        error(ps, TEA_ERR_XSUPERO);
     }
-    else if(parser->klass->is_static)
+    else if(ps->klass->is_static)
     {
-        error(parser, TEA_ERR_XTHISM);
+        error(ps, TEA_ERR_XTHISM);
     }
-    else if(!parser->klass->has_superclass)
+    else if(!ps->klass->has_superclass)
     {
-        error(parser, TEA_ERR_XSUPERK);
+        error(ps, TEA_ERR_XSUPERK);
     }
 
     /* super */
-    if(!lex_check(parser, '(') && !lex_check(parser, '.'))
+    if(!lex_check(ps, '(') && !lex_check(ps, '.'))
     {
-        named_variable(parser, lex_synthetic(parser, "super"), false);
+        named_variable(ps, lex_synthetic(ps, "super"), false);
         return;
     }
 
     /* super() -> super.init() */
-    if(lex_match(parser, '('))
+    if(lex_match(ps, '('))
     {
-        Token token = lex_synthetic(parser, "new");
-
-        uint8_t name = identifier_constant(parser, &token);
-        named_variable(parser, lex_synthetic(parser, "this"), false);
-        uint8_t nargs = parse_arg_list(parser);
-        named_variable(parser, lex_synthetic(parser, "super"), false);
-        bcemit_argued(parser, BC_SUPER, name);
-        bcemit_byte(parser, nargs);
+        Token tok = lex_synthetic(ps, "new");
+        uint8_t name = const_str(ps, strV(&tok.tv));
+        named_variable(ps, lex_synthetic(ps, "this"), false);
+        uint8_t nargs = parse_arg_list(ps);
+        named_variable(ps, lex_synthetic(ps, "super"), false);
+        bcemit_argued(ps, BC_SUPER, name);
+        bcemit_byte(ps, nargs);
         return;
     }
 
     /* super.name */
-    lex_consume(parser, '.');
-    lex_consume(parser, TK_NAME);
-    uint8_t name = identifier_constant(parser, &parser->ls->prev);
+    lex_consume(ps, '.');
+    lex_consume(ps, TK_NAME);
+    uint8_t name = const_str(ps, strV(&ps->ls->prev.tv));
 
-    named_variable(parser, lex_synthetic(parser, "this"), false);
+    named_variable(ps, lex_synthetic(ps, "this"), false);
 
-    if(lex_match(parser, '('))
+    if(lex_match(ps, '('))
     {
         /* super.name() */
-        uint8_t nargs = parse_arg_list(parser);
-        named_variable(parser, lex_synthetic(parser, "super"), false);
-        bcemit_argued(parser, BC_SUPER, name);
-        bcemit_byte(parser, nargs);
+        uint8_t nargs = parse_arg_list(ps);
+        named_variable(ps, lex_synthetic(ps, "super"), false);
+        bcemit_argued(ps, BC_SUPER, name);
+        bcemit_byte(ps, nargs);
     }
     else
     {
         /* super.name */
-        named_variable(parser, lex_synthetic(parser, "super"), false);
-        bcemit_argued(parser, BC_GET_SUPER, name);
+        named_variable(ps, lex_synthetic(ps, "super"), false);
+        bcemit_argued(ps, BC_GET_SUPER, name);
     }
 }
 
-static void expr_this(Parser* parser, bool assign)
+static void expr_this(ParseState* ps, bool assign)
 {
-    if(parser->klass == NULL)
+    if(ps->klass == NULL)
     {
-        error(parser, TEA_ERR_XTHISO);
+        error(ps, TEA_ERR_XTHISO);
     }
-    else if(parser->klass->is_static)
+    else if(ps->klass->is_static)
     {
-        error(parser, TEA_ERR_XTHISM);
+        error(ps, TEA_ERR_XTHISM);
     }
-
-    expr_name(parser, false);
+    expr_name(ps, false);
 }
 
-static void expr_static(Parser* parser, bool assign)
+static void expr_static(ParseState* ps, bool assign)
 {
-    if(parser->klass == NULL)
+    if(ps->klass == NULL)
     {
-        error(parser, TEA_ERR_XSTATIC);
+        error(ps, TEA_ERR_XSTATIC);
     }
 }
 
-static void expr_unary(Parser* parser, bool assign)
+static void expr_unary(ParseState* ps, bool assign)
 {
-    int op = parser->ls->prev.type;
-    expr_precedence(parser, PREC_UNARY);
-
-    /* Emit the operator instruction */
+    int op = ps->ls->prev.t;
+    expr_precedence(ps, PREC_UNARY);
     switch(op)
     {
         case TK_NOT:
         case '!':
-        {
-            bcemit_op(parser, BC_NOT);
+            bcemit_op(ps, BC_NOT);
             break;
-        }
         case '-':
-        {
-            bcemit_op(parser, BC_NEGATE);
+            bcemit_op(ps, BC_NEGATE);
             break;
-        }
         case '~':
-        {
-            bcemit_op(parser, BC_BNOT);
+            bcemit_op(ps, BC_BNOT);
             break;
-        }
         default:
             return; /* Unreachable */
     }
 }
 
-static void expr_range(Parser* parser, bool assign)
+static void expr_range(ParseState* ps, bool assign)
 {
-    LexToken op_type = parser->ls->prev.type;
+    LexToken op_type = ps->ls->prev.t;
     ParseRule rule = expr_rule(op_type);
-    expr_precedence(parser, (Precedence)(rule.prec + 1));
-
-    if(lex_match(parser, TK_DOT_DOT))
+    expr_precedence(ps, (Precedence)(rule.prec + 1));
+    if(lex_match(ps, TK_DOT_DOT))
     {
-        expr(parser);
+        expr(ps);
     }
     else
     {
-        TValue v;
-        setnumV(&v, 1);
-        bcemit_constant(parser, &v);
+        TValue tv;
+        setnumV(&tv, 1);
+        bcemit_num(ps, &tv);
     }
-
-    bcemit_op(parser, BC_RANGE);
+    bcemit_op(ps, BC_RANGE);
 }
 
 #define NONE                    (ParseRule){ NULL, NULL, PREC_NONE }
@@ -1448,7 +1471,7 @@ static ParseRule expr_rule(int type)
         case TK_NAME:
             return PREFIX(expr_name);
         case TK_NUMBER:
-            return PREFIX(expr_literal);
+            return PREFIX(expr_number);
         case TK_STRING:
             return PREFIX(expr_str);
         case TK_INTERPOLATION:
@@ -1483,64 +1506,62 @@ static ParseRule expr_rule(int type)
 #undef PREFIX
 #undef OPERATOR
 
-static void expr_precedence(Parser* parser, Precedence prec)
+static void expr_precedence(ParseState* ps, Precedence prec)
 {
-    tea_lex_next(parser->ls);
-    ParseFn prefix_rule = expr_rule(parser->ls->prev.type).prefix;
+    tea_lex_next(ps->ls);
+    ParseFn prefix_rule = expr_rule(ps->ls->prev.t).prefix;
     if(prefix_rule == NULL)
     {
-        error(parser, TEA_ERR_XEXPR);
+        error(ps, TEA_ERR_XEXPR);
     }
 
     bool assign = prec <= PREC_ASSIGNMENT;
-    prefix_rule(parser, assign);
+    prefix_rule(ps, assign);
 
-    while(prec <= expr_rule(parser->ls->curr.type).prec)
+    while(prec <= expr_rule(ps->ls->curr.t).prec)
     {
-        tea_lex_next(parser->ls);
-        ParseFn infix_rule = expr_rule(parser->ls->prev.type).infix;
-        infix_rule(parser, assign);
+        tea_lex_next(ps->ls);
+        ParseFn infix_rule = expr_rule(ps->ls->prev.t).infix;
+        infix_rule(ps, assign);
     }
 
-    if(assign && lex_match(parser, '='))
+    if(assign && lex_match(ps, '='))
     {
-        error(parser, TEA_ERR_XASSIGN);
+        error(ps, TEA_ERR_XASSIGN);
     }
 }
 
-static void expr(Parser* parser)
+static void expr(ParseState* ps)
 {
-    expr_precedence(parser, PREC_ASSIGNMENT);
+    expr_precedence(ps, PREC_ASSIGNMENT);
 }
 
 /* Parse a block */
-static void parse_block(Parser* parser)
+static void parse_block(ParseState* ps)
 {
-    while(!lex_check(parser, '}') && !lex_check(parser, TK_EOF))
+    while(!lex_check(ps, '}') && !lex_check(ps, TK_EOF))
     {
-        parse_decl(parser);
+        parse_decl(ps);
     }
-
-    lex_consume(parser, '}');
+    lex_consume(ps, '}');
 }
 
-static void check_parameters(Parser* parser, Token* name)
+static void check_parameters(ParseState* ps, Token* name)
 {
-    for(int i = parser->local_count - 1; i >= 0; i--)
+    for(int i = ps->local_count - 1; i >= 0; i--)
     {
-        Local* local = &parser->locals[i];
-        if(identifiers_equal(name, &local->name))
+        Local* local = &ps->locals[i];
+        if(strV(&name->tv) == strV(&local->name.tv))
         {
-            error(parser, TEA_ERR_XDUPARGS);
+            error(ps, TEA_ERR_XDUPARGS);
         }
     }
 }
 
-static void begin_function(Parser* parser, Parser* fn_parser)
+static void begin_function(ParseState* ps)
 {
-    scope_begin(fn_parser);
-
-    if(!lex_check(fn_parser, ')'))
+    scope_begin(ps);
+    if(!lex_check(ps, ')'))
     {
         bool optional = false;
         bool spread = false;
@@ -1549,67 +1570,65 @@ static void begin_function(Parser* parser, Parser* fn_parser)
         {
             if(spread)
             {
-                error(fn_parser, TEA_ERR_XSPREADARGS);
+                error(ps, TEA_ERR_XSPREADARGS);
             }
 
-            spread = lex_match(fn_parser, TK_DOT_DOT_DOT);
-            lex_consume(fn_parser, TK_NAME);
+            spread = lex_match(ps, TK_DOT_DOT_DOT);
+            lex_consume(ps, TK_NAME);
 
-            Token name = fn_parser->ls->prev;
-            check_parameters(fn_parser, &name);
+            Token name = ps->ls->prev;
+            check_parameters(ps, &name);
 
             if(spread)
             {
-                fn_parser->proto->variadic = spread;
+                ps->proto->variadic = spread;
             }
 
-            if(lex_match(fn_parser, '='))
+            if(lex_match(ps, '='))
             {
                 if(spread)
                 {
-                    error(fn_parser, TEA_ERR_XSPREADOPT);
+                    error(ps, TEA_ERR_XSPREADOPT);
                 }
-                fn_parser->proto->numopts++;
+                ps->proto->numopts++;
                 optional = true;
-                expr(fn_parser);
+                expr(ps);
             }
             else
             {
-                fn_parser->proto->numparams++;
-
+                ps->proto->numparams++;
                 if(optional)
                 {
-                    error(fn_parser, TEA_ERR_XOPT);
+                    error(ps, TEA_ERR_XOPT);
                 }
             }
 
-            if(fn_parser->proto->numparams + fn_parser->proto->numopts > 255)
+            if(ps->proto->numparams + ps->proto->numopts > 255)
             {
-                error(fn_parser, TEA_ERR_XMAXARGS);
+                error(ps, TEA_ERR_XMAXARGS);
             }
 
-            uint8_t constant = parse_variable_at(fn_parser, name);
-            define_variable(fn_parser, constant, false);
+            var_declare(ps, &name);
+            var_define(ps, &name, false);
         }
-        while(lex_match(fn_parser, ','));
+        while(lex_match(ps, ','));
 
-        if(fn_parser->proto->numopts > 0)
+        if(ps->proto->numopts > 0)
         {
-            bcemit_op(fn_parser, BC_DEFINE_OPTIONAL);
-            bcemit_bytes(fn_parser, fn_parser->proto->numparams, fn_parser->proto->numopts);
+            bcemit_op(ps, BC_DEFINE_OPTIONAL);
+            bcemit_bytes(ps, ps->proto->numparams, ps->proto->numopts);
         }
     }
-
-    lex_consume(fn_parser, ')');
+    lex_consume(ps, ')');
 }
 
-static void function(Parser* parser, ProtoType type)
+static void function(ParseState* ps, ProtoType type)
 {
-    Parser fn_parser;
+    ParseState fn_parser;
 
-    parser_init(parser->ls, &fn_parser, parser, type);
+    parser_init(ps->ls, &fn_parser, ps, type);
     lex_consume(&fn_parser, '(');
-    begin_function(parser, &fn_parser);
+    begin_function(&fn_parser);
 
     lex_consume(&fn_parser, '{');
     parse_block(&fn_parser);
@@ -1617,17 +1636,17 @@ static void function(Parser* parser, ProtoType type)
     parser_end(&fn_parser);
 }
 
-static void expr_anonymous(Parser* parser, bool assign)
+static void expr_anonymous(ParseState* ps, bool assign)
 {
-    function(parser, PROTO_FUNCTION);
+    function(ps, PROTO_FUNCTION);
 }
 
-static void parse_arrow(Parser* parser)
+static void parse_arrow(ParseState* ps)
 {
-    Parser fn_parser;
+    ParseState fn_parser;
 
-    parser_init(parser->ls, &fn_parser, parser, PROTO_ANONYMOUS);
-    begin_function(parser, &fn_parser);
+    parser_init(ps->ls, &fn_parser, ps, PROTO_ANONYMOUS);
+    begin_function(&fn_parser);
 
     lex_consume(&fn_parser, TK_ARROW);
     if(lex_match(&fn_parser, '{'))
@@ -1645,27 +1664,27 @@ static void parse_arrow(Parser* parser)
     parser_end(&fn_parser);
 }
 
-static void expr_grouping(Parser* parser, bool assign)
+static void expr_grouping(ParseState* ps, bool assign)
 {
     /* () => ...; (...v) => ... */
-    if(lex_check(parser, ')') || lex_check(parser, TK_DOT_DOT_DOT))
+    if(lex_check(ps, ')') || lex_check(ps, TK_DOT_DOT_DOT))
     {
-        parse_arrow(parser);
+        parse_arrow(ps);
         return;
     }
 
-    LexToken curr = parser->ls->curr.type;
-    LexToken next = parser->ls->next.type;
+    LexToken curr = ps->ls->curr.t;
+    LexToken next = ps->ls->next.t;
 
     /* (a) => ...; (a, ) => ... */
     if((curr == TK_NAME && (next == ',' || next == ')')) || (curr == ')' && next == TK_ARROW))
     {
-        parse_arrow(parser);
+        parse_arrow(ps);
         return;
     }
 
-    expr(parser);
-    lex_consume(parser, ')');
+    expr(ps);
+    lex_consume(ps, ')');
 }
 
 static const LexToken ops[] = {
@@ -1685,192 +1704,187 @@ static const LexToken ops[] = {
 
 #define SENTINEL 18
 
-static void parse_operator(Parser* parser)
+static void parse_operator(ParseState* ps)
 {
     int i = 0;
     while(ops[i] != TK_EOF)
     {
-        if(lex_match(parser, ops[i]))
-        {
+        if(lex_match(ps, ops[i]))
             break;
-        }
-
         i++;
     }
 
     if(i == SENTINEL)
     {
-        error_at_current(parser, TEA_ERR_XMETHOD);
+        error_at_current(ps, TEA_ERR_XMETHOD);
     }
 
     GCstr* name = NULL;
 
-    if(parser->ls->prev.type == '[')
+    if(ps->ls->prev.t == '[')
     {
-        parser->klass->is_static = false;
-        lex_consume(parser, ']');
-        if(lex_match(parser, '='))
-            name = mmname_str(parser->ls->T, MM_SETINDEX);
+        ps->klass->is_static = false;
+        lex_consume(ps, ']');
+        if(lex_match(ps, '='))
+            name = mmname_str(ps->ls->T, MM_SETINDEX);
         else
-            name = mmname_str(parser->ls->T, MM_GETINDEX);
+            name = mmname_str(ps->ls->T, MM_GETINDEX);
     }
     else
     {
-        parser->klass->is_static = true;
-        name = mmname_str(parser->ls->T, i);
+        ps->klass->is_static = true;
+        name = mmname_str(ps->ls->T, i);
     }
 
-    TValue v;
-    setstrV(parser->ls->T, &v, name);
-    uint8_t constant = const_make(parser, &v);
+    TValue tv;
+    setstrV(ps->ls->T, &tv, name);
+    uint8_t k = const_str(ps, strV(&tv));
 
-    parser->name = name;
-    function(parser, PROTO_OPERATOR);
-    bcemit_argued(parser, BC_METHOD, constant);
-    parser->klass->is_static = false;
+    ps->name = name;
+    function(ps, PROTO_OPERATOR);
+    bcemit_argued(ps, BC_METHOD, k);
+    ps->klass->is_static = false;
 }
 
-static void parse_method(Parser* parser, ProtoType type)
+static void parse_method(ParseState* ps, ProtoType type)
 {
-    uint8_t constant = identifier_constant(parser, &parser->ls->prev);
-
-    if(strV(&parser->ls->prev.value) == parser->ls->T->init_str)
+    uint8_t k = const_str(ps, strV(&ps->ls->prev.tv));
+    if(strV(&ps->ls->prev.tv) == ps->ls->T->init_str)
     {
         type = PROTO_INIT;
     }
-
-    function(parser, type);
-    bcemit_argued(parser, BC_METHOD, constant);
+    function(ps, type);
+    bcemit_argued(ps, BC_METHOD, k);
 }
 
-static void parserclass_init(Parser* parser, ClassParser* classparser)
+static void parserclass_init(ParseState* ps, KlassState* ks)
 {
-    classparser->is_static = false;
-    classparser->has_superclass = false;
-    classparser->enclosing = parser->klass;
-    parser->klass = classparser;
+    ks->is_static = false;
+    ks->has_superclass = false;
+    ks->prev = ps->klass;
+    ps->klass = ks;
 }
 
-static void parse_class_body(Parser* parser)
+static void parse_class_body(ParseState* ps)
 {
-    while(!lex_check(parser, '}') && !lex_check(parser, TK_EOF))
+    while(!lex_check(ps, '}') && !lex_check(ps, TK_EOF))
     {
-        if(lex_match(parser, TK_NAME))
+        if(lex_match(ps, TK_NAME))
         {
-            parse_method(parser, PROTO_METHOD);
+            parse_method(ps, PROTO_METHOD);
         }
         else
         {
-            parse_operator(parser);
+            parse_operator(ps);
         }
     }
 }
 
 /* Parse 'class' declaration */
-static void parse_class(Parser* parser)
+static void parse_class(ParseState* ps)
 {
-    tea_lex_next(parser->ls);  /* Skip 'class' */
-    lex_consume(parser, TK_NAME);
-    Token class_name = parser->ls->prev;
-    uint8_t name_constant = identifier_constant(parser, &parser->ls->prev);
-    declare_variable(parser, &parser->ls->prev);
+    tea_lex_next(ps->ls);  /* Skip 'class' */
+    lex_consume(ps, TK_NAME);
+    Token class_name = ps->ls->prev;
+    uint8_t k = const_str(ps, strV(&class_name.tv));
+    var_declare(ps, &class_name);
 
-    bcemit_argued(parser, BC_CLASS, name_constant);
-    define_variable(parser, name_constant, false);
+    bcemit_argued(ps, BC_CLASS, k);
+    var_define(ps, &class_name, false);
 
-    ClassParser class_compiler;
-    parserclass_init(parser, &class_compiler);
+    KlassState ks;
+    parserclass_init(ps, &ks);
 
-    if(lex_match(parser, ':'))
+    if(lex_match(ps, ':'))
     {
-        expr(parser);
+        expr(ps);
 
-        scope_begin(parser);
-        add_local(parser, lex_synthetic(parser, "super"));
-        define_variable(parser, 0, false);
+        scope_begin(ps);
+        var_add_local(ps, lex_synthetic(ps, "super"));
+        var_define(ps, 0, false);
 
-        named_variable(parser, class_name, false);
-        bcemit_op(parser, BC_INHERIT);
-        class_compiler.has_superclass = true;
+        named_variable(ps, class_name, false);
+        bcemit_op(ps, BC_INHERIT);
+        ks.has_superclass = true;
     }
 
-    named_variable(parser, class_name, false);
+    named_variable(ps, class_name, false);
 
-    lex_consume(parser, '{');
-    parse_class_body(parser);
-    lex_consume(parser, '}');
+    lex_consume(ps, '{');
+    parse_class_body(ps);
+    lex_consume(ps, '}');
 
-    bcemit_op(parser, BC_POP);
+    bcemit_op(ps, BC_POP);
 
-    if(class_compiler.has_superclass)
+    if(ks.has_superclass)
     {
-        scope_end(parser);
+        scope_end(ps);
     }
 
-    parser->klass = parser->klass->enclosing;
+    ps->klass = ps->klass->prev;
 }
 
-static void parse_function_assign(Parser* parser)
+static void parse_function_assign(ParseState* ps)
 {
-    if(lex_match(parser, '.'))
+    if(lex_match(ps, '.'))
     {
-        lex_consume(parser, TK_NAME);
-        uint8_t expr_dot = identifier_constant(parser, &parser->ls->prev);
-        if(!lex_check(parser, '('))
+        lex_consume(ps, TK_NAME);
+        uint8_t k = const_str(ps, strV(&ps->ls->prev.tv));
+        if(!lex_check(ps, '('))
         {
-            bcemit_argued(parser, BC_GET_ATTR, expr_dot);
-            parse_function_assign(parser);
+            bcemit_argued(ps, BC_GET_ATTR, k);
+            parse_function_assign(ps);
         }
         else
         {
-            function(parser, PROTO_FUNCTION);
-            bcemit_argued(parser, BC_SET_ATTR, expr_dot);
-            bcemit_op(parser, BC_POP);
+            function(ps, PROTO_FUNCTION);
+            bcemit_argued(ps, BC_SET_ATTR, k);
+            bcemit_op(ps, BC_POP);
             return;
         }
     }
-    else if(lex_match(parser, ':'))
+    else if(lex_match(ps, ':'))
     {
-        lex_consume(parser, TK_NAME);
-        uint8_t constant = identifier_constant(parser, &parser->ls->prev);
+        lex_consume(ps, TK_NAME);
+        uint8_t k = const_str(ps, strV(&ps->ls->prev.tv));
 
-        ClassParser class_compiler;
-        parserclass_init(parser, &class_compiler);
+        KlassState ks;
+        parserclass_init(ps, &ks);
 
-        function(parser, PROTO_METHOD);
+        function(ps, PROTO_METHOD);
 
-        parser->klass = parser->klass->enclosing;
+        ps->klass = ps->klass->prev;
 
-        bcemit_argued(parser, BC_EXTENSION_METHOD, constant);
-        bcemit_op(parser, BC_POP);
+        bcemit_argued(ps, BC_EXTENSION_METHOD, k);
+        bcemit_op(ps, BC_POP);
         return;
     }
 }
 
 /* Parse 'function' declaration */
-static void parse_function(Parser* parser)
+static void parse_function(ParseState* ps)
 {
-    tea_lex_next(parser->ls);  /* Skip 'function' */
-    lex_consume(parser, TK_NAME);
-    Token name = parser->ls->prev;
+    tea_lex_next(ps->ls);  /* Skip 'function' */
+    lex_consume(ps, TK_NAME);
+    Token name = ps->ls->prev;
 
-    if(lex_check(parser, '.') || lex_check(parser, ':'))
+    if(lex_check(ps, '.') || lex_check(ps, ':'))
     {
-        named_variable(parser, name, false);
-        parse_function_assign(parser);
+        named_variable(ps, name, false);
+        parse_function_assign(ps);
         return;
     }
 
-    uint8_t global = parse_variable_at(parser, name);
-    mark_initialized(parser, false);
-    function(parser, PROTO_FUNCTION);
-    define_variable(parser, global, false);
+    var_declare(ps, &name);
+    var_mark(ps, false);
+    function(ps, PROTO_FUNCTION);
+    var_define(ps, &name, false);
 }
 
 /* Parse 'var' or 'const' declaration */
-static void parse_var(Parser* parser, bool constant)
+static void parse_var(ParseState* ps, bool isconst)
 {
-    Token variables[255];
+    Token vars[255];
     int var_count = 0;
     int expr_count = 0;
     bool rest = false;
@@ -1881,17 +1895,17 @@ static void parse_var(Parser* parser, bool constant)
     {
         if(rest_count > 1)
         {
-            error(parser, TEA_ERR_XDOTS);
+            error(ps, TEA_ERR_XDOTS);
         }
 
-        if(lex_match(parser, TK_DOT_DOT_DOT))
+        if(lex_match(ps, TK_DOT_DOT_DOT))
         {
             rest = true;
             rest_count++;
         }
 
-        lex_consume(parser, TK_NAME);
-        variables[var_count] = parser->ls->prev;
+        lex_consume(ps, TK_NAME);
+        vars[var_count] = ps->ls->prev;
         var_count++;
 
         if(rest)
@@ -1900,94 +1914,95 @@ static void parse_var(Parser* parser, bool constant)
             rest = false;
         }
 
-        if(var_count == 1 && lex_match(parser, '='))
+        if(var_count == 1 && lex_match(ps, '='))
         {
             if(rest_count)
             {
-                error(parser, TEA_ERR_XSINGLEREST);
+                error(ps, TEA_ERR_XSINGLEREST);
             }
 
-            uint8_t global = parse_variable_at(parser, variables[0]);
-            expr(parser);
-            define_variable(parser, global, constant);
+            var_declare(ps, &vars[0]);
+            expr(ps);
+            var_define(ps, &vars[0], isconst);
 
-            if(lex_match(parser, ','))
+            if(lex_match(ps, ','))
             {
                 do
                 {
-                    uint8_t global = parse_variable(parser);
-                    lex_consume(parser, '=');
-                    expr(parser);
-                    define_variable(parser, global, constant);
+                    lex_consume(ps, TK_NAME);
+                    Token tok = ps->ls->prev;
+                    var_declare(ps, &tok);
+                    lex_consume(ps, '=');
+                    expr(ps);
+                    var_define(ps, &tok, isconst);
                 }
-                while(lex_match(parser, ','));
+                while(lex_match(ps, ','));
             }
             return;
         }
     }
-    while(lex_match(parser, ','));
+    while(lex_match(ps, ','));
 
     if(rest_count)
     {
-        lex_consume(parser, '=');
-        expr(parser);
-        bcemit_op(parser, BC_UNPACK_REST);
-        bcemit_bytes(parser, var_count, rest_pos - 1);
+        lex_consume(ps, '=');
+        expr(ps);
+        bcemit_op(ps, BC_UNPACK_REST);
+        bcemit_bytes(ps, var_count, rest_pos - 1);
         goto finish;
     }
 
-    if(lex_match(parser, '='))
+    if(lex_match(ps, '='))
     {
         do
         {
-            expr(parser);
+            expr(ps);
             expr_count++;
-            if(expr_count == 1 && (!lex_check(parser, ',')))
+            if(expr_count == 1 && (!lex_check(ps, ',')))
             {
-                bcemit_argued(parser, BC_UNPACK, var_count);
+                bcemit_argued(ps, BC_UNPACK, var_count);
                 goto finish;
             }
 
         }
-        while(lex_match(parser, ','));
+        while(lex_match(ps, ','));
 
         if(expr_count != var_count)
         {
-            error(parser, TEA_ERR_XVALASSIGN);
+            error(ps, TEA_ERR_XVALASSIGN);
         }
     }
     else
     {
         for(int i = 0; i < var_count; i++)
         {
-            bcemit_op(parser, BC_NIL);
+            bcemit_op(ps, BC_NIL);
         }
     }
 
 finish:
-    if(parser->scope_depth == 0)
+    if(ps->scope_depth == 0)
     {
         for(int i = var_count - 1; i >= 0; i--)
         {
-            uint8_t identifier = identifier_constant(parser, &variables[i]);
-            define_variable(parser, identifier, constant);
+            var_define(ps, &vars[i], isconst);
         }
     }
     else
     {
         for(int i = 0; i < var_count; i++)
         {
-            declare_variable(parser, &variables[i]);
-            define_variable(parser, 0, constant);
+            var_declare(ps, &vars[i]);
+            var_define(ps, NULL, isconst);
         }
     }
 }
 
 /* Parse an expression statement */
-static void parse_expr_stmt(Parser* parser)
+static void parse_expr_stmt(ParseState* ps)
 {
-    expr(parser);
-    bcemit_op(parser, BC_POP);
+    expr(ps);
+    bcemit_op(ps, BC_POP);
 }
 
 /* Get the number of bytes for the arguments of bytecode instructions */
@@ -2039,6 +2054,8 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_CONSTANT:
         case BC_GET_LOCAL:
         case BC_SET_LOCAL:
+        case BC_GET_PRIVATE:
+        case BC_SET_PRIVATE:
         case BC_GET_MODULE:
         case BC_SET_MODULE:
         case BC_DEFINE_MODULE:
@@ -2073,673 +2090,659 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_CLOSURE:
         {
             int constant = code[ip + 1];
-            GCproto* loaded_fn = protoV(constants + constant);
+            GCproto* pt = protoV(constants + constant);
 
             /* There is one byte for the constant, then two for each upvalue */
-            return 1 + (loaded_fn->upvalue_count * 2);
+            return 1 + (pt->upvalue_count * 2);
         }
     }
-
     return 0;
 }
 
-static void loop_begin(Parser* parser, Loop* loop)
+static void loop_begin(ParseState* ps, Loop* loop)
 {
-    loop->start = parser->proto->bc_count;
-    loop->scope_depth = parser->scope_depth;
-    loop->enclosing = parser->loop;
-    parser->loop = loop;
+    loop->start = ps->proto->bc_count;
+    loop->scope_depth = ps->scope_depth;
+    loop->prev = ps->loop;
+    ps->loop = loop;
 }
 
-static void loop_end(Parser* parser)
+static void loop_end(ParseState* ps)
 {
-    if(parser->loop->end != -1)
+    if(ps->loop->end != -1)
     {
-        bcpatch_jump(parser, parser->loop->end);
-        bcemit_op(parser, BC_POP);
+        bcpatch_jump(ps, ps->loop->end);
+        bcemit_op(ps, BC_POP);
     }
 
-    int i = parser->loop->body;
-    while(i < parser->proto->bc_count)
+    int i = ps->loop->body;
+    while(i < ps->proto->bc_count)
     {
-        if(parser->proto->bc[i] == BC_END)
+        if(ps->proto->bc[i] == BC_END)
         {
-            parser->proto->bc[i] = BC_JUMP;
-            bcpatch_jump(parser, i + 1);
+            ps->proto->bc[i] = BC_JUMP;
+            bcpatch_jump(ps, i + 1);
             i += 3;
         }
         else
         {
-            i += 1 + get_arg_count(parser->proto->bc, parser->proto->k, i);
+            i += 1 + get_arg_count(ps->proto->bc, ps->proto->k, i);
         }
     }
-
-    parser->loop = parser->loop->enclosing;
+    ps->loop = ps->loop->prev;
 }
 
 /* Parse iterable 'for' */
-static void parse_for_in(Parser* parser, Token var, bool constant)
+static void parse_for_in(ParseState* ps, Token var, bool isconst)
 {
-    Token variables[255];
+    Token vars[255];
     int var_count = 1;
-    variables[0] = var;
+    vars[0] = var;
 
-    if(lex_match(parser, ','))
+    if(lex_match(ps, ','))
     {
         do
         {
-            lex_consume(parser, TK_NAME);
-            variables[var_count] = parser->ls->prev;
+            lex_consume(ps, TK_NAME);
+            vars[var_count] = ps->ls->prev;
             var_count++;
         }
-        while(lex_match(parser, ','));
+        while(lex_match(ps, ','));
     }
 
-    lex_consume(parser, TK_IN);
+    lex_consume(ps, TK_IN);
 
-    expr(parser);
-    int seq_slot = add_init_local(parser, lex_synthetic(parser, "seq "));
+    expr(ps);
+    int seq_slot = var_add_ilocal(ps, lex_synthetic(ps, "seq "));
 
-    expr_nil(parser, false);
-    int iter_slot = add_init_local(parser, lex_synthetic(parser, "iter "));
+    expr_nil(ps, false);
+    int iter_slot = var_add_ilocal(ps, lex_synthetic(ps, "iter "));
 
-    lex_consume(parser, ')');
+    lex_consume(ps, ')');
 
     Loop loop;
-    loop_begin(parser, &loop);
+    loop_begin(ps, &loop);
 
     /* Get the iterator index. If it's nil, it means the loop is over */
-    bcemit_op(parser, BC_GET_ITER);
-    bcemit_bytes(parser, seq_slot, iter_slot);
-    parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_NIL);
-    bcemit_op(parser, BC_POP);
+    bcemit_op(ps, BC_GET_ITER);
+    bcemit_bytes(ps, seq_slot, iter_slot);
+    ps->loop->end = bcemit_jump(ps, BC_JUMP_IF_NIL);
+    bcemit_op(ps, BC_POP);
 
     /* Get the iterator value */
-    bcemit_op(parser, BC_FOR_ITER);
-    bcemit_bytes(parser, seq_slot, iter_slot);
+    bcemit_op(ps, BC_FOR_ITER);
+    bcemit_bytes(ps, seq_slot, iter_slot);
 
-    scope_begin(parser);
+    scope_begin(ps);
 
     if(var_count > 1)
-        bcemit_argued(parser, BC_UNPACK, var_count);
+        bcemit_argued(ps, BC_UNPACK, var_count);
 
     for(int i = 0; i < var_count; i++)
     {
-        declare_variable(parser, &variables[i]);
-        define_variable(parser, 0, constant);
+        var_declare(ps, &vars[i]);
+        var_define(ps, 0, isconst);
     }
 
-    parser->loop->body = parser->proto->bc_count;
-    parse_stmt(parser);
+    ps->loop->body = ps->proto->bc_count;
+    parse_stmt(ps);
 
     /* Loop variable */
-    scope_end(parser);
+    scope_end(ps);
 
-    bcemit_loop(parser, parser->loop->start);
-    loop_end(parser);
+    bcemit_loop(ps, ps->loop->start);
+    loop_end(ps);
 
     /* Hidden variables */
-    scope_end(parser);
+    scope_end(ps);
 }
 
 /* Parse generic 'for' */
-static void parse_for(Parser* parser)
+static void parse_for(ParseState* ps)
 {
-    scope_begin(parser);
+    scope_begin(ps);
 
-    tea_lex_next(parser->ls);  /* Skip 'for' */
-    lex_consume(parser, '(');
+    tea_lex_next(ps->ls);  /* Skip 'for' */
+    lex_consume(ps, '(');
 
     int loop_var = -1;
-    Token var_name = parser->ls->curr;
+    Token var_name = ps->ls->curr;
 
-    bool constant = false;
-    if(lex_match(parser, TK_VAR) || (constant = lex_match(parser, TK_CONST)))
+    bool isconst = false;
+    if(lex_match(ps, TK_VAR) || (isconst = lex_match(ps, TK_CONST)))
     {
-        lex_consume(parser, TK_NAME);
-        Token var = parser->ls->prev;
+        lex_consume(ps, TK_NAME);
+        Token var = ps->ls->prev;
 
-        if(lex_check(parser, TK_IN) || lex_check(parser, ','))
+        if(lex_check(ps, TK_IN) || lex_check(ps, ','))
         {
             /* It's a for in statement */
-            parse_for_in(parser, var, constant);
+            parse_for_in(ps, var, isconst);
             return;
         }
 
         /* Grab the name of the loop variable */
         var_name = var;
 
-        uint8_t global = parse_variable_at(parser, var);
+        var_declare(ps, &var);
 
-        if(lex_match(parser, '='))
+        if(lex_match(ps, '='))
         {
-            expr(parser);
+            expr(ps);
         }
         else
         {
-            bcemit_op(parser, BC_NIL);
+            bcemit_op(ps, BC_NIL);
         }
 
-        define_variable(parser, global, constant);
-        lex_consume(parser, ';');
+        var_define(ps, &var, isconst);
+        lex_consume(ps, ';');
 
         /* Get loop variable slot */
-        loop_var = parser->local_count - 1;
+        loop_var = ps->local_count - 1;
     }
     else
     {
-        parse_expr_stmt(parser);
-        lex_consume(parser, ';');
+        parse_expr_stmt(ps);
+        lex_consume(ps, ';');
     }
 
     Loop loop;
-    loop_begin(parser, &loop);
+    loop_begin(ps, &loop);
 
-    parser->loop->end = -1;
+    ps->loop->end = -1;
 
-    expr(parser);
-    lex_consume(parser, ';');
+    expr(ps);
+    lex_consume(ps, ';');
 
-    parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_FALSE);
-    bcemit_op(parser, BC_POP); /* Condition */
+    ps->loop->end = bcemit_jump(ps, BC_JUMP_IF_FALSE);
+    bcemit_op(ps, BC_POP); /* Condition */
 
-    int body_jump = bcemit_jump(parser, BC_JUMP);
+    int body_jmp = bcemit_jump(ps, BC_JUMP);
 
-    int increment_start = parser->proto->bc_count;
-    expr(parser);
-    bcemit_op(parser, BC_POP);
-    lex_consume(parser, ')');
+    int increment_start = ps->proto->bc_count;
+    expr(ps);
+    bcemit_op(ps, BC_POP);
+    lex_consume(ps, ')');
 
-    bcemit_loop(parser, parser->loop->start);
-    parser->loop->start = increment_start;
+    bcemit_loop(ps, ps->loop->start);
+    ps->loop->start = increment_start;
 
-    bcpatch_jump(parser, body_jump);
+    bcpatch_jump(ps, body_jmp);
 
-    parser->loop->body = parser->proto->bc_count;
+    ps->loop->body = ps->proto->bc_count;
 
     int inner_var = -1;
     if(loop_var != -1)
     {
-        scope_begin(parser);
-        bcemit_argued(parser, BC_GET_LOCAL, (uint8_t)loop_var);
-        add_local(parser, var_name);
-        mark_initialized(parser, false);
-        inner_var = parser->local_count - 1;
+        scope_begin(ps);
+        bcemit_argued(ps, BC_GET_LOCAL, (uint8_t)loop_var);
+        var_add_local(ps, var_name);
+        var_mark(ps, false);
+        inner_var = ps->local_count - 1;
     }
 
-    parse_stmt(parser);
+    parse_stmt(ps);
 
     if(inner_var != -1)
     {
-        bcemit_argued(parser, BC_GET_LOCAL, (uint8_t)inner_var);
-        bcemit_argued(parser, BC_SET_LOCAL, (uint8_t)loop_var);
-        bcemit_op(parser, BC_POP);
-        scope_end(parser);
+        bcemit_argued(ps, BC_GET_LOCAL, (uint8_t)inner_var);
+        bcemit_argued(ps, BC_SET_LOCAL, (uint8_t)loop_var);
+        bcemit_op(ps, BC_POP);
+        scope_end(ps);
     }
 
-    bcemit_loop(parser, parser->loop->start);
+    bcemit_loop(ps, ps->loop->start);
 
-    loop_end(parser);
-    scope_end(parser);
+    loop_end(ps);
+    scope_end(ps);
 }
 
 /* Parse 'break' statement */
-static void parse_break(Parser* parser)
+static void parse_break(ParseState* ps)
 {
-    tea_lex_next(parser->ls);  /* Skip 'break' */
-
-    if(parser->loop == NULL)
+    tea_lex_next(ps->ls);  /* Skip 'break' */
+    if(ps->loop == NULL)
     {
-        error(parser, TEA_ERR_XBREAK);
+        error(ps, TEA_ERR_XBREAK);
     }
 
     /* Discard any locals created inside the loop */
-    discard_locals(parser, parser->loop->scope_depth + 1);
-
-    bcemit_jump(parser, BC_END);
+    discard_locals(ps, ps->loop->scope_depth + 1);
+    bcemit_jump(ps, BC_END);
 }
 
 /* Parse 'continue' statement */
-static void parse_continue(Parser* parser)
+static void parse_continue(ParseState* ps)
 {
-    tea_lex_next(parser->ls);  /* Skip 'continue' */
-
-    if(parser->loop == NULL)
+    tea_lex_next(ps->ls);  /* Skip 'continue' */
+    if(ps->loop == NULL)
     {
-        error(parser, TEA_ERR_XCONTINUE);
+        error(ps, TEA_ERR_XCONTINUE);
     }
 
     /* Discard any locals created inside the loop */
-    discard_locals(parser, parser->loop->scope_depth + 1);
+    discard_locals(ps, ps->loop->scope_depth + 1);
 
     /* Jump to the top of the innermost loop */
-    bcemit_loop(parser, parser->loop->start);
+    bcemit_loop(ps, ps->loop->start);
 }
 
 /* Parse 'if' statement */
-static void parse_if(Parser* parser)
+static void parse_if(ParseState* ps)
 {
-    tea_lex_next(parser->ls);  /* Skip 'if' */
-    lex_consume(parser, '(');
-    expr(parser);
-    lex_consume(parser, ')');
+    tea_lex_next(ps->ls);  /* Skip 'if' */
+    lex_consume(ps, '(');
+    expr(ps);
+    lex_consume(ps, ')');
 
-    int else_jump = bcemit_jump(parser, BC_JUMP_IF_FALSE);
+    int else_jmp = bcemit_jump(ps, BC_JUMP_IF_FALSE);
 
-    bcemit_op(parser, BC_POP);
-    parse_stmt(parser);
+    bcemit_op(ps, BC_POP);
+    parse_stmt(ps);
 
-    int end_jump = bcemit_jump(parser, BC_JUMP);
+    int end_jmp = bcemit_jump(ps, BC_JUMP);
 
-    bcpatch_jump(parser, else_jump);
-    bcemit_op(parser, BC_POP);
+    bcpatch_jump(ps, else_jmp);
+    bcemit_op(ps, BC_POP);
 
-    if(lex_match(parser, TK_ELSE))
-        parse_stmt(parser);
+    if(lex_match(ps, TK_ELSE))
+        parse_stmt(ps);
 
-    bcpatch_jump(parser, end_jump);
+    bcpatch_jump(ps, end_jmp);
 }
 
 /* Parse 'switch' statement */
-static void parse_switch(Parser* parser)
+static void parse_switch(ParseState* ps)
 {
     int case_ends[256];
     int case_count = 0;
 
-    tea_lex_next(parser->ls);  /* Skip 'switch' */
-    lex_consume(parser, '(');
-    expr(parser);
-    lex_consume(parser, ')');
-    lex_consume(parser, '{');
+    tea_lex_next(ps->ls);  /* Skip 'switch' */
+    lex_consume(ps, '(');
+    expr(ps);
+    lex_consume(ps, ')');
+    lex_consume(ps, '{');
 
-    if(lex_match(parser, TK_CASE))
+    if(lex_match(ps, TK_CASE))
     {
         do
         {
-            expr(parser);
+            expr(ps);
             int multiple_cases = 0;
-            if(lex_match(parser, ','))
+            if(lex_match(ps, ','))
             {
                 do
                 {
                     multiple_cases++;
-                    expr(parser);
+                    expr(ps);
                 }
-                while(lex_match(parser, ','));
-                bcemit_argued(parser, BC_MULTI_CASE, multiple_cases);
+                while(lex_match(ps, ','));
+                bcemit_argued(ps, BC_MULTI_CASE, multiple_cases);
             }
-            int compare_jump = bcemit_jump(parser, BC_COMPARE_JUMP);
-            lex_consume(parser, ':');
-            parse_stmt(parser);
-            case_ends[case_count++] = bcemit_jump(parser, BC_JUMP);
-            bcpatch_jump(parser, compare_jump);
+            int compare_jmp = bcemit_jump(ps, BC_COMPARE_JUMP);
+            lex_consume(ps, ':');
+            parse_stmt(ps);
+            case_ends[case_count++] = bcemit_jump(ps, BC_JUMP);
+            bcpatch_jump(ps, compare_jmp);
             if(case_count > 255)
             {
-                error_at_current(parser, TEA_ERR_XSWITCH);
+                error_at_current(ps, TEA_ERR_XSWITCH);
             }
 
         }
-        while(lex_match(parser, TK_CASE));
+        while(lex_match(ps, TK_CASE));
     }
 
-    bcemit_op(parser, BC_POP); /* Expression */
-    if(lex_match(parser, TK_DEFAULT))
+    bcemit_op(ps, BC_POP); /* Expression */
+    if(lex_match(ps, TK_DEFAULT))
     {
-        lex_consume(parser, ':');
-        parse_stmt(parser);
+        lex_consume(ps, ':');
+        parse_stmt(ps);
     }
 
-    if(lex_match(parser, TK_CASE))
+    if(lex_match(ps, TK_CASE))
     {
-        error(parser, TEA_ERR_XCASE);
+        error(ps, TEA_ERR_XCASE);
     }
 
-    lex_consume(parser, '}');
+    lex_consume(ps, '}');
 
     for(int i = 0; i < case_count; i++)
     {
-    	bcpatch_jump(parser, case_ends[i]);
+    	bcpatch_jump(ps, case_ends[i]);
     }
 }
 
 /* Parse 'return' statement */
-static void parse_return(Parser* parser)
+static void parse_return(ParseState* ps)
 {
-    tea_lex_next(parser->ls);  /* Skip 'return' */
+    tea_lex_next(ps->ls);  /* Skip 'return' */
 
-    if(parser->type == PROTO_SCRIPT)
+    if(ps->type == PROTO_SCRIPT)
     {
-        error(parser, TEA_ERR_XRET);
+        error(ps, TEA_ERR_XRET);
     }
 
-    if(lex_check(parser, '}') || lex_match(parser, ';'))
+    if(lex_check(ps, '}') || lex_match(ps, ';'))
     {
-        bcemit_return(parser);
+        bcemit_return(ps);
     }
     else
     {
-        if(parser->type == PROTO_INIT)
+        if(ps->type == PROTO_INIT)
         {
-            error(parser, TEA_ERR_XINIT);
+            error(ps, TEA_ERR_XINIT);
         }
 
-        expr(parser);
-        bcemit_op(parser, BC_RETURN);
+        expr(ps);
+        bcemit_op(ps, BC_RETURN);
     }
 }
 
-/* Parse 'import' statement */
-static void parse_import(Parser* parser)
+/* Parse 'import name' statement */
+static void parse_import_name(ParseState* ps)
 {
-    if(lex_match(parser, TK_STRING))
+    lex_consume(ps, TK_NAME);
+    Token name = ps->ls->prev;
+    uint8_t k = const_str(ps, strV(&name.tv));
+    bcemit_argued(ps, BC_IMPORT_NAME, k);
+    bcemit_op(ps, BC_POP);
+
+    if(lex_match(ps, TK_AS))
     {
-        int import_constant = const_make(parser, &parser->ls->prev.value);
-
-        bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
-        bcemit_op(parser, BC_POP);
-
-        if(lex_match(parser, TK_AS))
-        {
-            uint8_t import_name = parse_variable(parser);
-            bcemit_op(parser, BC_IMPORT_ALIAS);
-            define_variable(parser, import_name, false);
-        }
-
-        bcemit_op(parser, BC_IMPORT_END);
-
-        if(lex_match(parser, ','))
-        {
-            parse_import(parser);
-        }
+        lex_consume(ps, TK_NAME);
+        name = ps->ls->prev;
+        var_declare(ps, &name);
+        bcemit_op(ps, BC_IMPORT_ALIAS);
+        var_define(ps, &name, false);
     }
     else
     {
-        lex_consume(parser, TK_NAME);
-        Token name = parser->ls->prev;
-        uint8_t import_name = identifier_constant(parser, &name);
-        bcemit_argued(parser, BC_IMPORT_NAME, import_name);
-        bcemit_op(parser, BC_POP);
+        var_declare(ps, &name);
+        bcemit_op(ps, BC_IMPORT_ALIAS);
+        var_define(ps, &name, false);
+    }
 
-        if(lex_match(parser, TK_AS))
-        {
-            uint8_t import_alias = parse_variable(parser);
-            bcemit_op(parser, BC_IMPORT_ALIAS);
-            define_variable(parser, import_alias, false);
-        }
-        else
-        {
-            uint8_t constant = parse_variable_at(parser, name);
-            bcemit_op(parser, BC_IMPORT_ALIAS);
-            define_variable(parser, constant, false);
-        }
+    bcemit_op(ps, BC_IMPORT_END);
 
-        bcemit_op(parser, BC_IMPORT_END);
+    if(lex_match(ps, ','))
+    {
+        parse_import_name(ps);
+    }
+}
 
-        if(lex_match(parser, ','))
-        {
-            parse_import(parser);
-        }
+/* Parse 'import <string>' statement */
+static void parse_import_string(ParseState* ps)
+{
+    lex_consume(ps, TK_STRING);
+    uint8_t k = const_str(ps, strV(&ps->ls->prev.tv));
+
+    bcemit_argued(ps, BC_IMPORT_STRING, k);
+    bcemit_op(ps, BC_POP);
+
+    if(lex_match(ps, TK_AS))
+    {
+        lex_consume(ps, TK_NAME);
+        Token name = ps->ls->prev;
+        var_declare(ps, &name);
+        bcemit_op(ps, BC_IMPORT_ALIAS);
+        var_define(ps, &name, false);
+    }
+
+    bcemit_op(ps, BC_IMPORT_END);
+
+    if(lex_match(ps, ','))
+    {
+        parse_import_string(ps);
     }
 }
 
 /* Parse 'from' statement */
-static void parse_from_import(Parser* parser)
+static void parse_from(ParseState* ps)
 {
-    if(lex_match(parser, TK_STRING))
+    if(lex_match(ps, TK_STRING))
     {
-        int import_constant = const_make(parser, &parser->ls->prev.value);
-
-        lex_consume(parser, TK_IMPORT);
-        bcemit_argued(parser, BC_IMPORT_STRING, import_constant);
-        bcemit_op(parser, BC_POP);
+        uint8_t k = const_str(ps, strV(&ps->ls->prev.tv));
+        lex_consume(ps, TK_IMPORT);
+        bcemit_argued(ps, BC_IMPORT_STRING, k);
+        bcemit_op(ps, BC_POP);
     }
     else
     {
-        lex_consume(parser, TK_NAME);
-        uint8_t import_name = identifier_constant(parser, &parser->ls->prev);
-
-        lex_consume(parser, TK_IMPORT);
-
-        bcemit_argued(parser, BC_IMPORT_NAME, import_name);
-        bcemit_op(parser, BC_POP);
+        lex_consume(ps, TK_NAME);
+        uint8_t k = const_str(ps, strV(&ps->ls->prev.tv));
+        lex_consume(ps, TK_IMPORT);
+        bcemit_argued(ps, BC_IMPORT_NAME, k);
+        bcemit_op(ps, BC_POP);
     }
-
-    int var_count = 0;
 
     do
     {
-        lex_consume(parser, TK_NAME);
-        Token var_token = parser->ls->prev;
-        uint8_t var_constant = identifier_constant(parser, &var_token);
+        lex_consume(ps, TK_NAME);
+        Token name = ps->ls->prev;
+        uint8_t k = const_str(ps, strV(&name.tv));
 
-        uint8_t slot;
-        if(lex_match(parser, TK_AS))
+        if(lex_match(ps, TK_AS))
         {
-            slot = parse_variable(parser);
+            lex_consume(ps, TK_NAME);
+            name = ps->ls->prev;
         }
-        else
-        {
-            slot = parse_variable_at(parser, var_token);
-        }
-
-        bcemit_argued(parser, BC_IMPORT_VARIABLE, var_constant);
-        define_variable(parser, slot, false);
-
-        var_count++;
-        if(var_count > 255)
-        {
-            error(parser, TEA_ERR_XVARS);
-        }
+        var_declare(ps, &name);
+        bcemit_argued(ps, BC_IMPORT_VARIABLE, k);
+        var_define(ps, &name, false);
     }
-    while(lex_match(parser, ','));
+    while(lex_match(ps, ','));
 
-    bcemit_op(parser, BC_IMPORT_END);
+    bcemit_op(ps, BC_IMPORT_END);
 }
 
 /* Parse 'while' statement */
-static void parse_while(Parser* parser)
+static void parse_while(ParseState* ps)
 {
     Loop loop;
-    loop_begin(parser, &loop);
+    loop_begin(ps, &loop);
 
-    tea_lex_next(parser->ls);  /* Skip 'while' */
-    if(!lex_check(parser, '('))
+    tea_lex_next(ps->ls);  /* Skip 'while' */
+    if(!lex_check(ps, '('))
     {
-        bcemit_byte(parser, BC_TRUE);
+        bcemit_byte(ps, BC_TRUE);
     }
     else
     {
-        lex_consume(parser, '(');
-        expr(parser);
-        lex_consume(parser, ')');
+        lex_consume(ps, '(');
+        expr(ps);
+        lex_consume(ps, ')');
     }
 
     /* Jump ot of the loop if the condition is false */
-    parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_FALSE);
-    bcemit_op(parser, BC_POP);
+    ps->loop->end = bcemit_jump(ps, BC_JUMP_IF_FALSE);
+    bcemit_op(ps, BC_POP);
 
     /* Compile the body */
-    parser->loop->body = parser->proto->bc_count;
-    parse_stmt(parser);
+    ps->loop->body = ps->proto->bc_count;
+    parse_stmt(ps);
 
     /* Loop back to the start */
-    bcemit_loop(parser, parser->loop->start);
-    loop_end(parser);
+    bcemit_loop(ps, ps->loop->start);
+    loop_end(ps);
 }
 
 /* Parse 'do' statement */
-static void parse_do(Parser* parser)
+static void parse_do(ParseState* ps)
 {
     Loop loop;
-    loop_begin(parser, &loop);
+    loop_begin(ps, &loop);
 
-    tea_lex_next(parser->ls);  /* Skip 'do' */
+    tea_lex_next(ps->ls);  /* Skip 'do' */
 
-    parser->loop->body = parser->proto->bc_count;
-    parse_stmt(parser);
+    ps->loop->body = ps->proto->bc_count;
+    parse_stmt(ps);
 
-    lex_consume(parser, TK_WHILE);
+    lex_consume(ps, TK_WHILE);
 
-    if(!lex_check(parser, '('))
+    if(!lex_check(ps, '('))
     {
-        bcemit_op(parser, BC_TRUE);
+        bcemit_op(ps, BC_TRUE);
     }
     else
     {
-        lex_consume(parser, '(');
-        expr(parser);
-        lex_consume(parser, ')');
+        lex_consume(ps, '(');
+        expr(ps);
+        lex_consume(ps, ')');
     }
 
-    parser->loop->end = bcemit_jump(parser, BC_JUMP_IF_FALSE);
-    bcemit_op(parser, BC_POP);
+    ps->loop->end = bcemit_jump(ps, BC_JUMP_IF_FALSE);
+    bcemit_op(ps, BC_POP);
 
-    bcemit_loop(parser, parser->loop->start);
-    loop_end(parser);
+    bcemit_loop(ps, ps->loop->start);
+    loop_end(ps);
 }
 
-static void parse_multiple_assign(Parser* parser)
+static void parse_multiple_assign(ParseState* ps)
 {
     int expr_count = 0;
     int var_count = 0;
-    Token variables[255];
+    Token vars[255];
 
     do
     {
-        lex_consume(parser, TK_NAME);
-        variables[var_count] = parser->ls->prev;
+        lex_consume(ps, TK_NAME);
+        vars[var_count] = ps->ls->prev;
         var_count++;
     }
-    while(lex_match(parser, ','));
+    while(lex_match(ps, ','));
 
-    lex_consume(parser, '=');
+    lex_consume(ps, '=');
 
     do
     {
-        expr(parser);
+        expr(ps);
         expr_count++;
-        if(expr_count == 1 && (!lex_check(parser, ',')))
+        if(expr_count == 1 && (!lex_check(ps, ',')))
         {
-            bcemit_argued(parser, BC_UNPACK, var_count);
+            bcemit_argued(ps, BC_UNPACK, var_count);
             goto finish;
         }
     }
-    while(lex_match(parser, ','));
+    while(lex_match(ps, ','));
 
     if(expr_count != var_count)
     {
-        error(parser, TEA_ERR_XVASSIGN);
+        error(ps, TEA_ERR_XVASSIGN);
     }
 
 finish:
     for(int i = var_count - 1; i >= 0; i--)
     {
-        Token token = variables[i];
-
+        Token tok = vars[i];
         uint8_t set_op;
-        int arg = resolve_local(parser, &token);
+        int arg = var_lookup_local(ps, &tok);
         if(arg != -1)
         {
             set_op = BC_SET_LOCAL;
         }
-        else if((arg = resolve_upvalue(parser, &token)) != -1)
+        else if((arg = var_lookup_uv(ps, &tok)) != -1)
         {
             set_op = BC_SET_UPVALUE;
         }
         else
         {
-            arg = identifier_constant(parser, &token);
+            arg = const_str(ps, strV(&tok.tv));
             set_op = BC_SET_MODULE;
         }
-        check_const(parser, set_op, arg);
-        bcemit_argued(parser, set_op, (uint8_t)arg);
-        bcemit_op(parser, BC_POP);
+        check_const(ps, set_op, arg);
+        bcemit_argued(ps, set_op, (uint8_t)arg);
+        bcemit_op(ps, BC_POP);
     }
 }
 
 /* -- Parse statements and declarations ---------------------------------------------------- */
 
 /* Parse a declaration */
-static void parse_decl(Parser* parser)
+static void parse_decl(ParseState* ps)
 {
-    LexToken tok = parser->ls->curr.type;
-    switch(tok)
+    LexToken t = ps->ls->curr.t;
+    switch(t)
     {
         case TK_CLASS:
-            parse_class(parser);
+            parse_class(ps);
             break;
         case TK_FUNCTION:
-            parse_function(parser);
+            parse_function(ps);
             break;
         case TK_CONST:
         case TK_VAR:
-            tea_lex_next(parser->ls);  /* Skip 'const' or 'var' */
-            parse_var(parser, tok == TK_CONST);
+            tea_lex_next(ps->ls);  /* Skip 'const' or 'var' */
+            parse_var(ps, t == TK_CONST);
             break;
         default:
-            parse_stmt(parser);
+            parse_stmt(ps);
             break;
     }
 }
 
 /* Parse a statement */
-static void parse_stmt(Parser* parser)
+static void parse_stmt(ParseState* ps)
 {
-    switch(parser->ls->curr.type)
+    switch(ps->ls->curr.t)
     {
         case ';':
-            tea_lex_next(parser->ls);
+            tea_lex_next(ps->ls);
             break;
         case TK_FOR:
-            parse_for(parser);
+            parse_for(ps);
             break;
         case TK_IF:
-            parse_if(parser);
+            parse_if(ps);
             break;
         case TK_SWITCH:
-            parse_switch(parser);
+            parse_switch(ps);
             break;
         case TK_RETURN:
-            parse_return(parser);
+            parse_return(ps);
             break;
         case TK_WHILE:
-            parse_while(parser);
+            parse_while(ps);
             break;
         case TK_DO:
-            parse_do(parser);
+            parse_do(ps);
             break;
         case TK_IMPORT:
-            tea_lex_next(parser->ls);  /* Skip 'import' */
-            parse_import(parser);
+            tea_lex_next(ps->ls);  /* Skip 'import' */
+            if(lex_check(ps, TK_STRING))
+                parse_import_string(ps);
+            else
+                parse_import_name(ps);
             break;
         case TK_FROM:
-            tea_lex_next(parser->ls);  /* Skip 'from' */
-            parse_from_import(parser);
+            tea_lex_next(ps->ls);  /* Skip 'from' */
+            parse_from(ps);
             break;
         case TK_BREAK:
-            parse_break(parser);
+            parse_break(ps);
             break;
         case TK_CONTINUE:
-            parse_continue(parser);
+            parse_continue(ps);
             break;
         case TK_NAME:
         {
-            if(parser->ls->next.type == ',')
-                parse_multiple_assign(parser);
+            if(ps->ls->next.t == ',')
+                parse_multiple_assign(ps);
             else
-                parse_expr_stmt(parser);
+                parse_expr_stmt(ps);
             break;
         }
         case '{':
         {
-            tea_lex_next(parser->ls);  /* Skip '{' */
-            scope_begin(parser);
-            parse_block(parser);
-            scope_end(parser);
+            tea_lex_next(ps->ls);  /* Skip '{' */
+            scope_begin(ps);
+            parse_block(ps);
+            scope_end(ps);
             break;
         }
         default:
-            parse_expr_stmt(parser);
+            parse_expr_stmt(ps);
             break;
     }
 }
@@ -2747,41 +2750,37 @@ static void parse_stmt(Parser* parser)
 /* Entry point of bytecode parser */
 GCproto* tea_parse(LexState* ls, bool isexpr)
 {
-    Parser parser;
-    parser_init(ls, &parser, NULL, PROTO_SCRIPT);
+    ParseState ps;
+    parser_init(ls, &ps, NULL, PROTO_SCRIPT);
 
-    tea_lex_next(parser.ls);   /* Read the first token into "next" */
-    tea_lex_next(parser.ls);   /* Copy "next" -> "curr" */
+    tea_lex_next(ps.ls);   /* Read the first token into "next" */
+    tea_lex_next(ps.ls);   /* Copy "next" -> "curr" */
 
     if(isexpr)
     {
-        expr(&parser);
-        bcemit_op(&parser, BC_RETURN);
-        lex_consume(&parser, TK_EOF);
+        expr(&ps);
+        bcemit_op(&ps, BC_RETURN);
+        lex_consume(&ps, TK_EOF);
     }
     else
     {
-        while(!lex_match(&parser, TK_EOF))
+        while(!lex_match(&ps, TK_EOF))
         {
-            parse_decl(&parser);
+            parse_decl(&ps);
         }
-        bcemit_return(&parser);
+        bcemit_return(&ps);
     }
-
-    GCproto* proto = parser_end(&parser);
-
-    return proto;
+    return parser_end(&ps);
 }
 
-void tea_parse_mark(tea_State* T, Parser* parser)
+void tea_parse_mark(tea_State* T, ParseState* ps)
 {
-    tea_gc_markval(T, &parser->ls->prev.value);
-    tea_gc_markval(T, &parser->ls->curr.value);
-    tea_gc_markval(T, &parser->ls->next.value);
-
-    while(parser != NULL)
+    tea_gc_markval(T, &ps->ls->prev.tv);
+    tea_gc_markval(T, &ps->ls->curr.tv);
+    tea_gc_markval(T, &ps->ls->next.tv);
+    while(ps != NULL)
     {
-        tea_gc_markobj(T, (GCobj*)parser->proto);
-        parser = parser->enclosing;
+        tea_gc_markobj(T, (GCobj*)ps->proto);
+        ps = ps->prev;
     }
 }

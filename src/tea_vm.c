@@ -431,7 +431,7 @@ static void vm_execute(tea_State* T)
     #define DISPATCH() \
         do \
         { \
-            goto *dispatch_table[instruction = READ_BYTE()]; \
+            goto *dispatch_table[bc = READ_BYTE()]; \
         } \
         while(false)
 
@@ -440,7 +440,7 @@ static void vm_execute(tea_State* T)
 #else
     #define INTERPRET_LOOP \
         loop: \
-            switch(instruction = READ_BYTE())
+            switch(bc = READ_BYTE())
 
     #define DISPATCH() goto loop
 
@@ -456,7 +456,7 @@ static void vm_execute(tea_State* T)
     /* Main interpreter loop */
     while(true)
     {
-        uint8_t instruction;
+        uint8_t bc;
         INTERPRET_LOOP
         {
             CASE_CODE(BC_CONSTANT):

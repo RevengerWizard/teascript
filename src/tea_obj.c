@@ -34,7 +34,6 @@ TEA_DATADEF const char* const tea_obj_typenames[] = {
 GCmodule* tea_module_new(tea_State* T, GCstr* name)
 {
     char c = str_data(name)[0];
-
     TValue* module_val = tea_tab_get(&T->modules, name);
     if(c != '?' && module_val)
     {

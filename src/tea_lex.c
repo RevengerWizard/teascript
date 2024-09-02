@@ -105,12 +105,12 @@ static void lex_syntaxerror(LexState* ls, ErrMsg em)
     tea_lex_error(ls, NULL, em);
 }
 
-static Token lex_token(LexState* ls, int type)
+static Token lex_token(LexState* ls, LexToken type)
 {
-    Token token;
-    token.type = type;
-    token.line = ls->line;
-    return token;
+    Token tok;
+    tok.t = type;
+    tok.line = ls->line;
+    return tok;
 }
 
 /* -- Scanner for terminals ----------------------------------------------- */
@@ -178,10 +178,10 @@ static Token lex_number(LexState* ls)
         lex_syntaxerror(ls, TEA_ERR_XNUMBER);
     }
 
-    Token token = lex_token(ls, TK_NUMBER);
+    Token tok = lex_token(ls, TK_NUMBER);
     tv.tt = TEA_TNUM;
-    copyTV(ls->T, &token.value, &tv);
-	return token;
+    copyTV(ls->T, &tok.tv, &tv);
+	return tok;
 }
 
 static LexChar lex_hex_escape(LexState* ls)
@@ -287,10 +287,10 @@ static Token lex_multistring(LexState* ls)
         lex_syntaxerror(ls, TEA_ERR_XSTR);
     }
 
-    Token token = lex_token(ls, TK_STRING);
+    Token tok = lex_token(ls, TK_STRING);
     GCstr* str = tea_str_new(ls->T, ls->sb.b + 3, sbuf_len(&ls->sb) - 6);
-    setstrV(ls->T, &token.value, str);
-    return token;
+    setstrV(ls->T, &tok.tv, str);
+    return tok;
 }
 
 /* Parse a string */
@@ -412,11 +412,10 @@ static Token lex_string(LexState* ls)
 
     lex_savenext(ls);
 
-    Token token = lex_token(ls, type);
+    Token tok = lex_token(ls, type);
     GCstr* str = tea_str_new(T, ls->sb.b + 1, sbuf_len(&ls->sb) - 2);
-    setstrV(T, &token.value, str);
-
-	return token;
+    setstrV(T, &tok.tv, str);
+	return tok;
 }
 
 /* -- Main lexical scanner ------------------------------------------------ */
@@ -758,18 +757,18 @@ static Token lex_scan(LexState* ls)
                     TValue tv;
                     GCstr* s = tea_str_new(ls->T, ls->sb.b, sbuf_len(&ls->sb));
                     setstrV(ls->T, &tv, s);
-                    Token token;
+                    Token tok;
                     if(s->reserved > 0)
                     {
-                        token = lex_token(ls, TK_OFS + s->reserved);
-                        copyTV(ls->T, &token.value, &tv);
+                        tok = lex_token(ls, TK_OFS + s->reserved);
+                        copyTV(ls->T, &tok.tv, &tv);
                     }
                     else
                     {
-                        token = lex_token(ls, TK_NAME);
-                        copyTV(ls->T, &token.value, &tv);
+                        tok = lex_token(ls, TK_NAME);
+                        copyTV(ls->T, &tok.tv, &tv);
                     }
-                    return token;
+                    return tok;
                 }
                 else
                     lex_syntaxerror(ls, TEA_ERR_XCHAR);
@@ -786,7 +785,7 @@ bool tea_lex_setup(tea_State* T, LexState* ls)
     bool header = false;
     ls->T = T;
     ls->pe = ls->p = NULL;
-    ls->next.type = 0; /* Initialize the next token */
+    ls->next.t = 0; /* Initialize the next token */
     ls->line = 1;
     ls->num_braces = 0;
     ls->endmark = false;
@@ -850,8 +849,8 @@ const char* tea_lex_token2str(LexState* ls, LexToken t)
 /* Lexer error */
 void tea_lex_error(LexState* ls, Token* token, ErrMsg em, ...)
 {
-    char* module_name = str_datawr(ls->module->name);
-    char c = module_name[0];
+    char* name = str_datawr(ls->module->name);
+    char c = name[0];
     int off = 0;
     if(c == '?' || c == '=') off = 1;
 
@@ -859,10 +858,10 @@ void tea_lex_error(LexState* ls, Token* token, ErrMsg em, ...)
     va_list argp;
     if(token != NULL)
     {
-        tokstr = tea_lex_token2str(ls, token->type);
+        tokstr = tea_lex_token2str(ls, token->t);
     }
     va_start(argp, em);
-    tea_err_lex(ls->T, module_name + off, tokstr, token ? token->line : ls->line, em, argp);
+    tea_err_lex(ls->T, name + off, tokstr, token ? token->line : ls->line, em, argp);
     va_end(argp);
 }
 
@@ -871,10 +870,8 @@ void tea_lex_next(LexState* ls)
 {
     ls->prev = ls->curr;
     ls->curr = ls->next;
-
-    if(ls->next.type == TK_EOF) return;
-    if(ls->curr.type == TK_EOF) return;
-
+    if(ls->next.t == TK_EOF) return;
+    if(ls->curr.t == TK_EOF) return;
     ls->next = lex_scan(ls);
 }
 

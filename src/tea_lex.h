@@ -49,9 +49,9 @@ typedef int LexToken; /* Lexical token */
 
 typedef struct
 {
-    LexToken type;
+    LexToken t;
     int line;
-    TValue value;
+    TValue tv;
 } Token;
 
 /* Teascript lexer state */
