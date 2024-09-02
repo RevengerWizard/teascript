@@ -54,6 +54,7 @@ typedef struct
     int depth;
     bool is_captured;
     bool isconst;
+    bool init;
 } Local;
 
 typedef struct
@@ -62,12 +63,6 @@ typedef struct
     bool islocal;
     bool isconst;
 } Upvalue;
-
-typedef struct
-{
-    Token name;
-    bool isconst;
-} Private;
 
 typedef struct KlassState
 {
@@ -378,7 +373,6 @@ static void parser_init(LexState* ls, ParseState* ps, ParseState* parent, ProtoT
     {
         ps->kt = parent->kt;
         ps->klass = parent->klass;
-        /*ps->m = parent->m;*/
     }
     ps->type = type;
     ps->local_count = 1;
@@ -573,11 +567,19 @@ static void var_add_local(ParseState* ps, Token name)
     {
         error(ps, TEA_ERR_XLOCALS);
     }
+    int found = var_lookup_local(ps, &name);
+    if(found != -1 && ps->locals[found].init && 
+        ps->locals[found].depth == ps->scope_depth)
+    {
+        GCstr* name = strV(&ps->locals[found].name.tv);
+        tea_lex_error(ps->ls, &ps->ls->prev, TEA_ERR_XDECL, str_data(name));
+    }
     Local* local = &ps->locals[ps->local_count++];
     local->name = name;
     local->depth = -1;
     local->is_captured = false;
     local->isconst = false;
+    local->init = true;
 }
 
 static int var_add_ilocal(ParseState* ps, Token name)
@@ -1985,6 +1987,7 @@ finish:
     {
         for(int i = var_count - 1; i >= 0; i--)
         {
+            var_declare(ps, &vars[i]);
             var_define(ps, &vars[i], isconst);
         }
     }
@@ -1993,7 +1996,7 @@ finish:
         for(int i = 0; i < var_count; i++)
         {
             var_declare(ps, &vars[i]);
-            var_define(ps, NULL, isconst);
+            var_define(ps, &vars[i], isconst);
         }
     }
 }
@@ -2179,7 +2182,7 @@ static void parse_for_in(ParseState* ps, Token var, bool isconst)
     for(int i = 0; i < var_count; i++)
     {
         var_declare(ps, &vars[i]);
-        var_define(ps, 0, isconst);
+        var_define(ps, &vars[i], isconst);
     }
 
     ps->loop->body = ps->proto->bc_count;
