@@ -759,22 +759,39 @@ static void expr_call(ParseState* ps, bool assign)
     bcemit_argued(ps, BC_CALL, nargs);
 }
 
-static void expr_dot(ParseState* ps, bool assign)
+static int bcassign(ParseState* ps)
 {
-#define SHORT_HAND_ASSIGNMENT(op) \
-    bcemit_argued(ps, BC_PUSH_ATTR, name); \
-    expr(ps); \
-    bcemit_op(ps, op); \
-    bcemit_argued(ps, BC_SET_ATTR, name);
+    switch(ps->ls->curr.t)
+    {
+        case TK_PLUS_EQUAL:
+            return BC_ADD;
+        case TK_MINUS_EQUAL:
+            return BC_SUBTRACT;
+        case TK_STAR_EQUAL:
+            return BC_MULTIPLY;
+        case TK_SLASH_EQUAL:
+            return BC_DIVIDE;
+        case TK_PERCENT_EQUAL:
+            return BC_MOD;
+        case TK_STAR_STAR_EQUAL:
+            return BC_POW;
+        case TK_AMPERSAND_EQUAL:
+            return BC_BAND;
+        case TK_PIPE_EQUAL:
+            return BC_BOR;
+        case TK_CARET_EQUAL:
+            return BC_BXOR;
+        case TK_LESS_LESS_EQUAL:
+            return BC_LSHIFT;
+        case TK_GREATER_GREATER_EQUAL:
+            return BC_RSHIFT;
+        default:
+            return 0;
+    }
+}
 
-#define SHORT_HAND_INCREMENT(op) \
-    bcemit_argued(ps, BC_PUSH_ATTR, name); \
-    TValue _v; \
-    setnumV(&_v, 1); \
-    bcemit_num(ps, &_v); \
-    bcemit_op(ps, op); \
-    bcemit_argued(ps, BC_SET_ATTR, name);
-
+static void expr_dot(ParseState* ps, bool assign)
+{    
     lex_consume(ps, TK_NAME);
     uint8_t name = const_str(ps, strV(&ps->ls->prev.tv));
 
@@ -786,72 +803,39 @@ static void expr_dot(ParseState* ps, bool assign)
         return;
     }
 
+    int bc;
     if(assign && lex_match(ps, '='))
     {
         expr(ps);
         bcemit_argued(ps, BC_SET_ATTR, name);
     }
-    else if(assign && lex_match(ps, TK_PLUS_EQUAL))
+    else if(assign && (bc = bcassign(ps)))
     {
-        SHORT_HAND_ASSIGNMENT(BC_ADD);
-    }
-    else if(assign && lex_match(ps, TK_MINUS_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_SUBTRACT);
-    }
-    else if(assign && lex_match(ps, TK_STAR_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_MULTIPLY);
-    }
-    else if(assign && lex_match(ps, TK_SLASH_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_DIVIDE);
-    }
-    else if(assign && lex_match(ps, TK_PERCENT_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_MOD);
-    }
-    else if(assign && lex_match(ps, TK_STAR_STAR_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_POW);
-    }
-    else if(assign && lex_match(ps, TK_AMPERSAND_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BAND);
-    }
-    else if(assign && lex_match(ps, TK_PIPE_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BOR);
-    }
-    else if(assign && lex_match(ps, TK_CARET_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BXOR);
-    }
-    else if(assign && lex_match(ps, TK_LESS_LESS_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_LSHIFT);
-    }
-    else if(assign && lex_match(ps, TK_GREATER_GREATER_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_RSHIFT);
+        tea_lex_next(ps->ls);
+        bcemit_argued(ps, BC_PUSH_ATTR, name);
+        expr(ps);
+        bcemit_op(ps, bc);
+        bcemit_argued(ps, BC_SET_ATTR, name);
     }
     else
     {
-        if(lex_match(ps, TK_PLUS_PLUS))
+        if(lex_match(ps, TK_PLUS_PLUS)) bc = BC_ADD;
+        else if(lex_match(ps, TK_MINUS_MINUS)) bc = BC_SUBTRACT;
+        else bc = 0;
+        if(bc)
         {
-            SHORT_HAND_INCREMENT(BC_ADD);
-        }
-        else if(lex_match(ps, TK_MINUS_MINUS))
-        {
-            SHORT_HAND_INCREMENT(BC_SUBTRACT);
+            bcemit_argued(ps, BC_PUSH_ATTR, name);
+            TValue _v;
+            setnumV(&_v, 1);
+            bcemit_num(ps, &_v);
+            bcemit_op(ps, bc);
+            bcemit_argued(ps, BC_SET_ATTR, name);
         }
         else
         {
             bcemit_argued(ps, BC_GET_ATTR, name);
         }
     }
-#undef SHORT_HAND_ASSIGNMENT
-#undef SHORT_HAND_INCREMENT
 }
 
 static void expr_bool(ParseState* ps, bool assign)
@@ -968,20 +952,6 @@ static bool parse_slice(ParseState* ps)
 
 static void expr_subscript(ParseState* ps, bool assign)
 {
-#define SHORT_HAND_ASSIGNMENT(op) \
-    bcemit_op(ps, BC_PUSH_INDEX); \
-    expr(ps); \
-    bcemit_op(ps, op); \
-    bcemit_op(ps, BC_SET_INDEX);
-
-#define SHORT_HAND_INCREMENT(op) \
-    bcemit_op(ps, BC_PUSH_INDEX); \
-    TValue _v; \
-    setnumV(&_v, 1); \
-    bcemit_num(ps, &_v); \
-    bcemit_op(ps, op); \
-    bcemit_op(ps, BC_SET_INDEX);
-
     if(parse_slice(ps))
     {
         bcemit_op(ps, BC_RANGE);
@@ -989,73 +959,39 @@ static void expr_subscript(ParseState* ps, bool assign)
 
     lex_consume(ps, ']');
 
+    int bc;
     if(assign && lex_match(ps, '='))
     {
         expr(ps);
         bcemit_op(ps, BC_SET_INDEX);
     }
-    else if(assign && lex_match(ps, TK_PLUS_EQUAL))
+    else if(assign && (bc = bcassign(ps)))
     {
-        SHORT_HAND_ASSIGNMENT(BC_ADD);
-    }
-    else if(assign && lex_match(ps, TK_MINUS_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_SUBTRACT);
-    }
-    else if(assign && lex_match(ps, TK_STAR_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_MULTIPLY);
-    }
-    else if(assign && lex_match(ps, TK_SLASH_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_DIVIDE);
-    }
-    else if(assign && lex_match(ps, TK_PERCENT_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_MOD);
-    }
-    else if(assign && lex_match(ps, TK_STAR_STAR_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_POW);
-    }
-    else if(assign && lex_match(ps, TK_AMPERSAND_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BAND);
-    }
-    else if(assign && lex_match(ps, TK_PIPE_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BOR);
-    }
-    else if(assign && lex_match(ps, TK_CARET_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BXOR);
-    }
-    else if(assign && lex_match(ps, TK_LESS_LESS_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_LSHIFT);
-    }
-    else if(assign && lex_match(ps, TK_GREATER_GREATER_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_RSHIFT);
+        tea_lex_next(ps->ls);
+        bcemit_op(ps, BC_PUSH_INDEX);
+        expr(ps);
+        bcemit_op(ps, bc);
+        bcemit_op(ps, BC_SET_INDEX);
     }
     else
     {
-        if(lex_match(ps, TK_PLUS_PLUS))
+        if(lex_match(ps, TK_PLUS_PLUS)) bc = BC_ADD;
+        else if(lex_match(ps, TK_MINUS_MINUS)) bc = BC_SUBTRACT;
+        else bc = 0;
+        if(bc)
         {
-            SHORT_HAND_INCREMENT(BC_ADD);
-        }
-        else if(lex_match(ps, TK_MINUS_MINUS))
-        {
-            SHORT_HAND_INCREMENT(BC_SUBTRACT);
+            bcemit_op(ps, BC_PUSH_INDEX);
+            TValue _v;
+            setnumV(&_v, 1);
+            bcemit_num(ps, &_v);
+            bcemit_op(ps, bc);
+            bcemit_op(ps, BC_SET_INDEX);
         }
         else
         {
             bcemit_op(ps, BC_GET_INDEX);
         }
     }
-
-#undef SHORT_HAND_ASSIGNMENT
-#undef SHORT_HAND_INCREMENT
 }
 
 static void expr_or(ParseState* ps, bool assign)
@@ -1152,22 +1088,6 @@ static void check_const(ParseState* ps, uint8_t set_op, int arg)
 
 static void named_variable(ParseState* ps, Token name, bool assign)
 {
-#define SHORT_HAND_ASSIGNMENT(op) \
-    check_const(ps, set_op, arg); \
-    bcemit_argued(ps, get_op, (uint8_t)arg); \
-    expr(ps); \
-    bcemit_op(ps, op); \
-    bcemit_argued(ps, set_op, (uint8_t)arg);
-
-#define SHORT_HAND_INCREMENT(op) \
-    check_const(ps, set_op, arg); \
-    bcemit_argued(ps, get_op, (uint8_t)arg); \
-    TValue _v; \
-    setnumV(&_v, 1); \
-    bcemit_num(ps, &_v); \
-    bcemit_op(ps, op); \
-    bcemit_argued(ps, set_op, (uint8_t)arg);
-
     uint8_t get_op, set_op;
     int arg = var_lookup_local(ps, &name);
     if(arg != -1)
@@ -1187,73 +1107,42 @@ static void named_variable(ParseState* ps, Token name, bool assign)
         set_op = BC_SET_MODULE;
     }
 
+    int bc;
     if(assign && lex_match(ps, '='))
     {
         check_const(ps, set_op, arg);
         expr(ps);
         bcemit_argued(ps, set_op, (uint8_t)arg);
     }
-    else if(assign && lex_match(ps, TK_PLUS_EQUAL))
+    else if(assign && (bc = bcassign(ps)))
     {
-        SHORT_HAND_ASSIGNMENT(BC_ADD);
-    }
-    else if(assign && lex_match(ps, TK_MINUS_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_SUBTRACT);
-    }
-    else if(assign && lex_match(ps, TK_STAR_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_MULTIPLY);
-    }
-    else if(assign && lex_match(ps, TK_SLASH_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_DIVIDE);
-    }
-    else if(assign && lex_match(ps, TK_PERCENT_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_MOD);
-    }
-    else if(assign && lex_match(ps, TK_STAR_STAR_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_POW);
-    }
-    else if(assign && lex_match(ps, TK_AMPERSAND_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BAND);
-    }
-    else if(assign && lex_match(ps, TK_PIPE_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BOR);
-    }
-    else if(assign && lex_match(ps, TK_CARET_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_BXOR);
-    }
-    else if(assign && lex_match(ps, TK_LESS_LESS_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_LSHIFT);
-    }
-    else if(assign && lex_match(ps, TK_GREATER_GREATER_EQUAL))
-    {
-        SHORT_HAND_ASSIGNMENT(BC_RSHIFT);
+        tea_lex_next(ps->ls);
+        check_const(ps, set_op, arg);
+        bcemit_argued(ps, get_op, (uint8_t)arg);
+        expr(ps);
+        bcemit_op(ps, bc);
+        bcemit_argued(ps, set_op, (uint8_t)arg);
     }
     else
     {
-        if(lex_match(ps, TK_PLUS_PLUS))
+        if(lex_match(ps, TK_PLUS_PLUS)) bc = BC_ADD;
+        else if(lex_match(ps, TK_MINUS_MINUS)) bc = BC_SUBTRACT;
+        else bc = 0;
+        if(bc)
         {
-            SHORT_HAND_INCREMENT(BC_ADD);
-        }
-        else if(lex_match(ps, TK_MINUS_MINUS))
-        {
-            SHORT_HAND_INCREMENT(BC_SUBTRACT);
+            check_const(ps, set_op, arg);
+            bcemit_argued(ps, get_op, (uint8_t)arg);
+            TValue _v;
+            setnumV(&_v, 1);
+            bcemit_num(ps, &_v);
+            bcemit_op(ps, bc);
+            bcemit_argued(ps, set_op, (uint8_t)arg);
         }
         else
         {
             bcemit_argued(ps, get_op, (uint8_t)arg);
         }
     }
-#undef SHORT_HAND_ASSIGNMENT
-#undef SHORT_HAND_INCREMENT
 }
 
 static void expr_name(ParseState* ps, bool assign)
