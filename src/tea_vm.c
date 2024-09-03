@@ -78,59 +78,51 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
     return nargs;
 }
 
-static bool vm_callT(tea_State* T, GCfunc* f, int nargs)
-{
-    GCfuncT* func = &f->t;
-    nargs = vm_argcheck(T, nargs, func->proto->numparams, func->proto->numopts, func->proto->variadic);
-    tea_state_checkstack(T, func->proto->max_slots);
-    CallInfo* ci = tea_state_growci(T); /* Enter new function */
-    ci->func = f;
-    ci->ip = func->proto->bc;
-    ci->state = CIST_TEA;
-    ci->base = T->top - nargs - 1;
-    return true;
-}
-
-static bool vm_callC(tea_State* T, GCfunc* f, int nargs)
-{
-    GCfuncC* cfunc = &f->c;
-    int extra = cfunc->type > C_FUNCTION;
-    if(cfunc->nargs != TEA_VARG)
-    {
-        vm_argcheck(T, nargs, cfunc->nargs - extra, cfunc->nopts, 0);
-    }
-    tea_state_checkstack(T, TEA_STACK_START);
-    CallInfo* ci = tea_state_growci(T); /* Enter new function */
-    ci->func = f;
-    ci->ip = NULL;
-    ci->state = CIST_C;
-    ci->base = T->top - nargs - 1;
-
-    if(extra)
-        T->base = T->top - nargs - 1;
-    else 
-        T->base = T->top - nargs;
-
-    cfunc->fn(T);   /* Do the actual call */
-    
-    TValue* res = T->top - 1;
-    ci = T->ci--;
-    T->base = T->ci->base;
-    if(iscci(T))
-    {
-        T->base++;
-    }
-    T->top = ci->base;
-    copyTV(T, T->top++, res);
-    return false;
-}
-
 static bool vm_call(tea_State* T, GCfunc* func, int nargs)
 {
     if(isteafunc(func))
-        return vm_callT(T, func, nargs);
+    {
+        GCfuncT* f = &func->t;
+        nargs = vm_argcheck(T, nargs, f->proto->numparams, f->proto->numopts, f->proto->variadic);
+        tea_state_checkstack(T, f->proto->max_slots);
+        CallInfo* ci = tea_state_growci(T); /* Enter new function */
+        ci->func = func;
+        ci->ip = f->proto->bc;
+        ci->state = CIST_TEA;
+        ci->base = T->top - nargs - 1;
+        return true;
+    }
     else
-        return vm_callC(T, func, nargs);
+    {
+        GCfuncC* cf = &func->c;
+        int extra = cf->type > C_FUNCTION;
+        if(cf->nargs != TEA_VARG)
+        {
+            vm_argcheck(T, nargs, cf->nargs - extra, cf->nopts, 0);
+        }
+        tea_state_checkstack(T, TEA_STACK_START);
+        CallInfo* ci = tea_state_growci(T); /* Enter new function */
+        ci->func = func;
+        ci->ip = NULL;
+        ci->state = CIST_C;
+        ci->base = T->top - nargs - 1;
+        
+        /* -1 if it's a C method */
+        T->base = T->top - nargs - extra;
+
+        cf->fn(T);   /* Do the actual call */
+        
+        TValue* res = T->top - 1;
+        ci = T->ci--;
+        T->base = T->ci->base;
+        if(iscci(T))
+        {
+            T->base++;
+        }
+        T->top = ci->base;
+        copyTV(T, T->top++, res);
+        return false;
+    }
 }
 
 static bool vm_precall(tea_State* T, TValue* callee, int nargs)
@@ -182,17 +174,7 @@ static bool vm_precall(tea_State* T, TValue* callee, int nargs)
             break; /* Non-callable object type */
     }
     tea_err_callerv(T, TEA_ERR_CALL, tea_typename(callee));
-    return false;
-}
-
-static bool vm_invoke_from_class(tea_State* T, GCclass* klass, GCstr* name, int nargs)
-{
-    TValue* mo = tea_tab_get(&klass->methods, name);
-    if(!mo)
-    {
-        tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
-    }
-    return vm_call(T, funcV(mo), nargs);
+    return false;   /* Unreachable */
 }
 
 static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
@@ -229,7 +211,12 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
                 copyTV(T, T->top - nargs - 1, o);
                 return vm_precall(T, o, nargs);
             }
-            return vm_invoke_from_class(T, instance->klass, name, nargs);
+            o = tea_tab_get(&instance->klass->methods, name);
+            if(!o)
+            {
+                tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
+            }
+            return vm_call(T, funcV(o), nargs);
         }
         default:
         {
@@ -1049,9 +1036,14 @@ static void vm_execute(tea_State* T)
                 uint8_t nargs = READ_BYTE();
                 GCclass* superclass = classV(--T->top);
                 STORE_FRAME;
-                if(vm_invoke_from_class(T, superclass, method, nargs))
+                TValue* mo = tea_tab_get(&superclass->methods, method);
+                if(mo && vm_call(T, funcV(mo), nargs))
                 {
                     (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
+                }
+                else
+                {
+                    RUNTIME_ERROR(TEA_ERR_METHOD, str_data(method));
                 }
                 READ_FRAME();
                 DISPATCH();

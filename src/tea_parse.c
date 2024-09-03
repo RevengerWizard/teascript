@@ -561,7 +561,14 @@ static int var_lookup_uv(ParseState* ps, Token* name)
     return -1;
 }
 
-static void var_add_local(ParseState* ps, Token name)
+static void var_mark(ParseState* ps, bool isconst)
+{
+    if(ps->scope_depth == 0) return;
+    ps->locals[ps->local_count - 1].depth = ps->scope_depth;
+    ps->locals[ps->local_count - 1].isconst = isconst;
+}
+
+static int var_add_local(ParseState* ps, Token name)
 {
     if(ps->local_count == TEA_MAX_LOCAL)
     {
@@ -580,13 +587,6 @@ static void var_add_local(ParseState* ps, Token name)
     local->is_captured = false;
     local->isconst = false;
     local->init = true;
-}
-
-static int var_add_ilocal(ParseState* ps, Token name)
-{
-    var_add_local(ps, name);
-    Local* local = &ps->locals[ps->local_count - 1];
-    local->depth = ps->scope_depth;
     return ps->local_count - 1;
 }
 
@@ -595,13 +595,6 @@ static void var_declare(ParseState* ps, Token* name)
     if(ps->scope_depth == 0)
         return;
     var_add_local(ps, *name);
-}
-
-static void var_mark(ParseState* ps, bool isconst)
-{
-    if(ps->scope_depth == 0) return;
-    ps->locals[ps->local_count - 1].depth = ps->scope_depth;
-    ps->locals[ps->local_count - 1].isconst = isconst;
 }
 
 static void var_define(ParseState* ps, Token* name, bool isconst)
@@ -2154,10 +2147,12 @@ static void parse_for_in(ParseState* ps, Token var, bool isconst)
     lex_consume(ps, TK_IN);
 
     expr(ps);
-    int seq_slot = var_add_ilocal(ps, lex_synthetic(ps, "seq "));
+    int seq_slot = var_add_local(ps, lex_synthetic(ps, "seq "));
+    var_mark(ps, false);
 
     expr_nil(ps, false);
-    int iter_slot = var_add_ilocal(ps, lex_synthetic(ps, "iter "));
+    int iter_slot = var_add_local(ps, lex_synthetic(ps, "iter "));
+    var_mark(ps, false);
 
     lex_consume(ps, ')');
 
