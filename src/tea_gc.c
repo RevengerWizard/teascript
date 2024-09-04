@@ -42,6 +42,7 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             tea_gc_markobj(T, (GCobj*)module->name);
             tea_gc_markobj(T, (GCobj*)module->path);
             tea_tab_mark(T, &module->vars);
+            tea_tab_mark(T, &module->exports);
             break;
         }
         case TEA_TLIST:

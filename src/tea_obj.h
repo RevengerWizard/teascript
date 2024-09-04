@@ -137,7 +137,8 @@ typedef struct
     GCobj obj;
     GCstr* name;    /* Canonical module name */
     GCstr* path;    /* Absolute module path */
-    Table vars;   /* Table of defined variables */
+    Table vars;   /* Table of private variables */
+    Table exports;  /* Table of exported variables */
 } GCmodule;
 
 /* -- Prototype object -------------------------------------------------- */

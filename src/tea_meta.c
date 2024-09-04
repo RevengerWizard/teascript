@@ -151,7 +151,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(obj);
-            cTValue* o = tea_tab_get(&module->vars, name);
+            cTValue* o = tea_tab_get(&module->exports, name);
             if(o)
             {
                 return o;
@@ -222,7 +222,7 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(obj);
-            copyTV(T, tea_tab_set(T, &module->vars, name, NULL), item);
+            copyTV(T, tea_tab_set(T, &module->exports, name, NULL), item);
             return item;
         }
         default:

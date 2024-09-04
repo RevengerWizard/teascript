@@ -42,6 +42,7 @@ GCmodule* tea_module_new(tea_State* T, GCstr* name)
 
     GCmodule* module = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
     tea_tab_init(&module->vars);
+    tea_tab_init(&module->exports);
     module->name = name;
     module->path = NULL;
 
@@ -94,6 +95,7 @@ GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* func)
 void TEA_FASTCALL tea_module_free(tea_State* T, GCmodule* module)
 {
     tea_tab_free(T, &module->vars);
+    tea_tab_free(T, &module->exports);
     tea_mem_freet(T, module);
 }
 

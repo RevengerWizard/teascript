@@ -194,7 +194,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(receiver);
-            TValue* o = tea_tab_get(&module->vars, name);
+            TValue* o = tea_tab_get(&module->exports, name);
             if(o)
             {
                 return vm_precall(T, o, nargs);
@@ -548,8 +548,16 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_DEFINE_MODULE):
             {
                 GCstr* name = READ_STRING();
-                TValue* o = tea_tab_set(T, &T->ci->func->t.module->vars, name, NULL);
-                copyTV(T, o, T->top - 1);
+                uint8_t flag = READ_BYTE();
+                cTValue* o = T->top - 1;
+                if(flag == 1 || flag == 0)
+                {
+                    copyTV(T, tea_tab_set(T, &T->ci->func->t.module->vars, name, NULL), o);
+                }
+                if(flag == 1 || flag == 2)
+                {
+                    copyTV(T, tea_tab_set(T, &T->ci->func->t.module->exports, name, NULL), o);
+                }
                 T->top--;
                 DISPATCH();
             }
@@ -1202,13 +1210,13 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_IMPORT_VARIABLE):
             {
-                GCstr* variable = READ_STRING();
-                TValue* module_variable = tea_tab_get(&T->last_module->vars, variable);
-                if(!module_variable)
+                GCstr* name = READ_STRING();
+                TValue* o = tea_tab_get(&T->last_module->exports, name);
+                if(!o)
                 {
-                    RUNTIME_ERROR(TEA_ERR_VARMOD, str_data(variable), str_data(T->last_module->name));
+                    RUNTIME_ERROR(TEA_ERR_VARMOD, str_data(name), str_data(T->last_module->name));
                 }
-                copyTV(T, T->top++, module_variable);
+                copyTV(T, T->top++, o);
                 DISPATCH();
             }
             CASE_CODE(BC_IMPORT_ALIAS):

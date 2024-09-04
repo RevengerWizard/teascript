@@ -485,8 +485,9 @@ static void scope_end(ParseState* ps)
 
 /* Forward declarations */
 static void expr(ParseState* ps);
+static void expr_arrow(ParseState* ps);
 static void parse_stmt(ParseState* ps);
-static void parse_decl(ParseState* ps);
+static void parse_decl(ParseState* ps, bool export);
 static ParseRule expr_rule(int type);
 static void expr_precedence(ParseState* ps, Precedence precedence);
 static void expr_anonymous(ParseState* ps, bool assign);
@@ -597,7 +598,7 @@ static void var_declare(ParseState* ps, Token* name)
     var_add_local(ps, *name);
 }
 
-static void var_define(ParseState* ps, Token* name, bool isconst)
+static void var_define(ParseState* ps, Token* name, bool isconst, uint8_t export)
 {
     if(ps->scope_depth > 0)
     {
@@ -612,6 +613,7 @@ static void var_define(ParseState* ps, Token* name, bool isconst)
         setnilV(o);
     }
     bcemit_argued(ps, BC_DEFINE_MODULE, k);
+    bcemit_byte(ps, export);
 }
 
 /* -- Expressions --------------------------------------------------------- */
@@ -1149,29 +1151,14 @@ static void expr_name(ParseState* ps, bool assign)
 {
     Token name = ps->ls->prev;
 
-    if(lex_match(ps, TK_ARROW))
+    if(lex_check(ps, TK_ARROW))
     {
-        ParseState fn_parser;
-
-        parser_init(ps->ls, &fn_parser, ps, PROTO_ANONYMOUS);
-        fn_parser.proto->numparams = 1;
-
-        var_declare(&fn_parser, &name);
-        var_define(&fn_parser, &name, false);
-
-        if(lex_match(&fn_parser, '{'))
-        {
-            /* Brace so expect a block */
-            parse_block(&fn_parser);
-            bcemit_return(&fn_parser);
-        }
-        else
-        {
-            /* No brace, so expect single expression */
-            expr(&fn_parser);
-            bcemit_op(&fn_parser, BC_RETURN);
-        }
-        parser_end(&fn_parser);
+        ParseState pps;
+        parser_init(ps->ls, &pps, ps, PROTO_ANONYMOUS);
+        pps.proto->numparams = 1;
+        var_declare(&pps, &name);
+        var_define(&pps, &name, false, false);
+        expr_arrow(&pps);
         return;
     }
 
@@ -1247,14 +1234,6 @@ static void expr_this(ParseState* ps, bool assign)
         error(ps, TEA_ERR_XTHISM);
     }
     expr_name(ps, false);
-}
-
-static void expr_static(ParseState* ps, bool assign)
-{
-    if(ps->klass == NULL)
-    {
-        error(ps, TEA_ERR_XSTATIC);
-    }
 }
 
 static void expr_unary(ParseState* ps, bool assign)
@@ -1362,8 +1341,6 @@ static ParseRule expr_rule(int type)
             return PREFIX(expr_interpolation);
         case TK_AND:
             return OPERATOR(expr_and, PREC_AND);
-        case TK_STATIC:
-            return PREFIX(expr_static);
         case TK_FUNCTION:
             return PREFIX(expr_anonymous);
         case TK_NIL:
@@ -1425,7 +1402,7 @@ static void parse_block(ParseState* ps)
 {
     while(!lex_check(ps, '}') && !lex_check(ps, TK_EOF))
     {
-        parse_decl(ps);
+        parse_decl(ps, false);
     }
     lex_consume(ps, '}');
 }
@@ -1493,7 +1470,7 @@ static void begin_function(ParseState* ps)
             }
 
             var_declare(ps, &name);
-            var_define(ps, &name, false);
+            var_define(ps, &name, false, false);
         }
         while(lex_match(ps, ','));
 
@@ -1506,64 +1483,56 @@ static void begin_function(ParseState* ps)
     lex_consume(ps, ')');
 }
 
-static void function(ParseState* ps, ProtoType type)
+static void function(ParseState* ps)
 {
-    ParseState fn_parser;
-
-    parser_init(ps->ls, &fn_parser, ps, type);
-    lex_consume(&fn_parser, '(');
-    begin_function(&fn_parser);
-
-    lex_consume(&fn_parser, '{');
-    parse_block(&fn_parser);
-    bcemit_return(&fn_parser);
-    parser_end(&fn_parser);
+    lex_consume(ps, '(');
+    begin_function(ps);
+    lex_consume(ps, '{');
+    parse_block(ps);
+    bcemit_return(ps);
+    parser_end(ps);
 }
 
 static void expr_anonymous(ParseState* ps, bool assign)
 {
-    function(ps, PROTO_FUNCTION);
+    ParseState pps;
+    parser_init(ps->ls, &pps, ps, PROTO_FUNCTION);
+    function(&pps);
 }
 
-static void parse_arrow(ParseState* ps)
+static void expr_arrow(ParseState* ps)
 {
-    ParseState fn_parser;
-
-    parser_init(ps->ls, &fn_parser, ps, PROTO_ANONYMOUS);
-    begin_function(&fn_parser);
-
-    lex_consume(&fn_parser, TK_ARROW);
-    if(lex_match(&fn_parser, '{'))
+    lex_consume(ps, TK_ARROW);
+    if(lex_match(ps, '{'))
     {
         /* Brace so expect a block */
-        parse_block(&fn_parser);
-        bcemit_return(&fn_parser);
+        parse_block(ps);
+        bcemit_return(ps);
     }
     else
     {
         /* No brace, so expect single expression */
-        expr(&fn_parser);
-        bcemit_op(&fn_parser, BC_RETURN);
+        expr(ps);
+        bcemit_op(ps, BC_RETURN);
     }
-    parser_end(&fn_parser);
+    parser_end(ps);
 }
 
 static void expr_grouping(ParseState* ps, bool assign)
 {
-    /* () => ...; (...v) => ... */
-    if(lex_check(ps, ')') || lex_check(ps, TK_DOT_DOT_DOT))
-    {
-        parse_arrow(ps);
-        return;
-    }
-
     LexToken curr = ps->ls->curr.t;
     LexToken next = ps->ls->next.t;
 
+    /* () => ...; (...v) => ... */
     /* (a) => ...; (a, ) => ... */
-    if((curr == TK_NAME && (next == ',' || next == ')')) || (curr == ')' && next == TK_ARROW))
+    if((curr == ')' && curr == TK_DOT_DOT_DOT) || 
+        (curr == TK_NAME && (next == ',' || next == ')')) || 
+        (curr == ')' && next == TK_ARROW))
     {
-        parse_arrow(ps);
+        ParseState pps;
+        parser_init(ps->ls, &pps, ps, PROTO_ANONYMOUS);
+        begin_function(&pps);
+        expr_arrow(&pps);
         return;
     }
 
@@ -1625,7 +1594,9 @@ static void parse_operator(ParseState* ps)
     uint8_t k = const_str(ps, strV(&tv));
 
     ps->name = name;
-    function(ps, PROTO_OPERATOR);
+    ParseState pps;
+    parser_init(ps->ls, &pps, ps, PROTO_OPERATOR);
+    function(&pps);
     bcemit_argued(ps, BC_METHOD, k);
     ps->klass->is_static = false;
 }
@@ -1637,7 +1608,9 @@ static void parse_method(ParseState* ps, ProtoType type)
     {
         type = PROTO_INIT;
     }
-    function(ps, type);
+    ParseState pps;
+    parser_init(ps->ls, &pps, ps, type);
+    function(&pps);
     bcemit_argued(ps, BC_METHOD, k);
 }
 
@@ -1665,7 +1638,7 @@ static void parse_class_body(ParseState* ps)
 }
 
 /* Parse 'class' declaration */
-static void parse_class(ParseState* ps)
+static void parse_class(ParseState* ps, bool export)
 {
     tea_lex_next(ps->ls);  /* Skip 'class' */
     lex_consume(ps, TK_NAME);
@@ -1674,7 +1647,7 @@ static void parse_class(ParseState* ps)
     var_declare(ps, &class_name);
 
     bcemit_argued(ps, BC_CLASS, k);
-    var_define(ps, &class_name, false);
+    var_define(ps, &class_name, false, export);
 
     KlassState ks;
     parserclass_init(ps, &ks);
@@ -1685,7 +1658,7 @@ static void parse_class(ParseState* ps)
 
         scope_begin(ps);
         var_add_local(ps, lex_synthetic(ps, "super"));
-        var_define(ps, 0, false);
+        var_define(ps, 0, false, false);
 
         named_variable(ps, class_name, false);
         bcemit_op(ps, BC_INHERIT);
@@ -1710,6 +1683,7 @@ static void parse_class(ParseState* ps)
 
 static void parse_function_assign(ParseState* ps)
 {
+    ParseState pps;
     if(lex_match(ps, '.'))
     {
         lex_consume(ps, TK_NAME);
@@ -1721,7 +1695,8 @@ static void parse_function_assign(ParseState* ps)
         }
         else
         {
-            function(ps, PROTO_FUNCTION);
+            parser_init(ps->ls, &pps, ps, PROTO_FUNCTION);
+            function(&pps);
             bcemit_argued(ps, BC_SET_ATTR, k);
             bcemit_op(ps, BC_POP);
             return;
@@ -1735,7 +1710,8 @@ static void parse_function_assign(ParseState* ps)
         KlassState ks;
         parserclass_init(ps, &ks);
 
-        function(ps, PROTO_METHOD);
+        parser_init(ps->ls, &pps, ps, PROTO_METHOD);
+        function(&pps);
 
         ps->klass = ps->klass->prev;
 
@@ -1746,13 +1722,13 @@ static void parse_function_assign(ParseState* ps)
 }
 
 /* Parse 'function' declaration */
-static void parse_function(ParseState* ps)
+static void parse_function(ParseState* ps, bool export)
 {
     tea_lex_next(ps->ls);  /* Skip 'function' */
     lex_consume(ps, TK_NAME);
     Token name = ps->ls->prev;
 
-    if(lex_check(ps, '.') || lex_check(ps, ':'))
+    if((lex_check(ps, '.') || lex_check(ps, ':')) && !export)
     {
         named_variable(ps, name, false);
         parse_function_assign(ps);
@@ -1761,12 +1737,14 @@ static void parse_function(ParseState* ps)
 
     var_declare(ps, &name);
     var_mark(ps, false);
-    function(ps, PROTO_FUNCTION);
-    var_define(ps, &name, false);
+    ParseState pps;
+    parser_init(ps->ls, &pps, ps, PROTO_FUNCTION);
+    function(&pps);
+    var_define(ps, &name, false, export);
 }
 
 /* Parse 'var' or 'const' declaration */
-static void parse_var(ParseState* ps, bool isconst)
+static void parse_var(ParseState* ps, bool isconst, bool export)
 {
     Token vars[255];
     int var_count = 0;
@@ -1807,7 +1785,7 @@ static void parse_var(ParseState* ps, bool isconst)
 
             var_declare(ps, &vars[0]);
             expr(ps);
-            var_define(ps, &vars[0], isconst);
+            var_define(ps, &vars[0], isconst, export);
 
             if(lex_match(ps, ','))
             {
@@ -1818,7 +1796,7 @@ static void parse_var(ParseState* ps, bool isconst)
                     var_declare(ps, &tok);
                     lex_consume(ps, '=');
                     expr(ps);
-                    var_define(ps, &tok, isconst);
+                    var_define(ps, &tok, isconst, export);
                 }
                 while(lex_match(ps, ','));
             }
@@ -1870,7 +1848,7 @@ finish:
         for(int i = var_count - 1; i >= 0; i--)
         {
             var_declare(ps, &vars[i]);
-            var_define(ps, &vars[i], isconst);
+            var_define(ps, &vars[i], isconst, export);
         }
     }
     else
@@ -1878,7 +1856,7 @@ finish:
         for(int i = 0; i < var_count; i++)
         {
             var_declare(ps, &vars[i]);
-            var_define(ps, &vars[i], isconst);
+            var_define(ps, &vars[i], isconst, export);
         }
     }
 }
@@ -1941,7 +1919,6 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_SET_LOCAL:
         case BC_GET_MODULE:
         case BC_SET_MODULE:
-        case BC_DEFINE_MODULE:
         case BC_GET_UPVALUE:
         case BC_SET_UPVALUE:
         case BC_GET_ATTR:
@@ -1969,6 +1946,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_SUPER:
         case BC_GET_ITER:
         case BC_FOR_ITER:
+        case BC_DEFINE_MODULE:
             return 2;
         case BC_CLOSURE:
         {
@@ -2066,7 +2044,7 @@ static void parse_for_in(ParseState* ps, Token var, bool isconst)
     for(int i = 0; i < var_count; i++)
     {
         var_declare(ps, &vars[i]);
-        var_define(ps, &vars[i], isconst);
+        var_define(ps, &vars[i], isconst, false);
     }
 
     ps->loop->body = ps->proto->bc_count;
@@ -2120,7 +2098,7 @@ static void parse_for(ParseState* ps)
             bcemit_op(ps, BC_NIL);
         }
 
-        var_define(ps, &var, isconst);
+        var_define(ps, &var, isconst, false);
         lex_consume(ps, ';');
 
         /* Get loop variable slot */
@@ -2338,16 +2316,11 @@ static void parse_import_name(ParseState* ps)
     {
         lex_consume(ps, TK_NAME);
         name = ps->ls->prev;
-        var_declare(ps, &name);
-        bcemit_op(ps, BC_IMPORT_ALIAS);
-        var_define(ps, &name, false);
     }
-    else
-    {
-        var_declare(ps, &name);
-        bcemit_op(ps, BC_IMPORT_ALIAS);
-        var_define(ps, &name, false);
-    }
+    
+    var_declare(ps, &name);
+    bcemit_op(ps, BC_IMPORT_ALIAS);
+    var_define(ps, &name, false, false);
 
     bcemit_op(ps, BC_IMPORT_END);
 
@@ -2372,7 +2345,7 @@ static void parse_import_string(ParseState* ps)
         Token name = ps->ls->prev;
         var_declare(ps, &name);
         bcemit_op(ps, BC_IMPORT_ALIAS);
-        var_define(ps, &name, false);
+        var_define(ps, &name, false, false);
     }
 
     bcemit_op(ps, BC_IMPORT_END);
@@ -2415,7 +2388,7 @@ static void parse_from(ParseState* ps)
         }
         var_declare(ps, &name);
         bcemit_argued(ps, BC_IMPORT_VARIABLE, k);
-        var_define(ps, &name, false);
+        var_define(ps, &name, false, false);
     }
     while(lex_match(ps, ','));
 
@@ -2542,24 +2515,55 @@ finish:
     }
 }
 
+static void parse_export(ParseState* ps)
+{
+    tea_lex_next(ps->ls);
+    if(ps->type != PROTO_SCRIPT)
+    {
+        error(ps, TEA_ERR_XRET);
+    }
+    LexToken t = ps->ls->curr.t;
+    if(t == TK_CLASS || t == TK_FUNCTION || t == TK_CONST || t == TK_VAR)
+    {
+        parse_decl(ps, true);
+        return;
+    }
+    lex_consume(ps, '{');
+    while(!lex_check(ps, '}') && !lex_check(ps, TK_EOF))
+    {
+        do
+        {
+            Token name;
+            lex_consume(ps, TK_NAME);
+            name = ps->ls->prev;
+            uint8_t k = const_str(ps, strV(&name.tv));
+            bcemit_argued(ps, BC_GET_MODULE, k);
+            bcemit_argued(ps, BC_DEFINE_MODULE, k);
+            bcemit_byte(ps, 2);
+        }
+        while(lex_match(ps, ','));
+    }
+    lex_consume(ps, '}');
+}
+
 /* -- Parse statements and declarations ---------------------------------------------------- */
 
 /* Parse a declaration */
-static void parse_decl(ParseState* ps)
+static void parse_decl(ParseState* ps, bool export)
 {
     LexToken t = ps->ls->curr.t;
     switch(t)
     {
         case TK_CLASS:
-            parse_class(ps);
+            parse_class(ps, export);
             break;
         case TK_FUNCTION:
-            parse_function(ps);
+            parse_function(ps, export);
             break;
         case TK_CONST:
         case TK_VAR:
             tea_lex_next(ps->ls);  /* Skip 'const' or 'var' */
-            parse_var(ps, t == TK_CONST);
+            parse_var(ps, t == TK_CONST, export);
             break;
         default:
             parse_stmt(ps);
@@ -2583,6 +2587,9 @@ static void parse_stmt(ParseState* ps)
             break;
         case TK_SWITCH:
             parse_switch(ps);
+            break;
+        case TK_EXPORT:
+            parse_export(ps);
             break;
         case TK_RETURN:
             parse_return(ps);
@@ -2651,7 +2658,7 @@ GCproto* tea_parse(LexState* ls, bool isexpr)
     {
         while(!lex_match(&ps, TK_EOF))
         {
-            parse_decl(&ps);
+            parse_decl(&ps, false);
         }
         bcemit_return(&ps);
     }

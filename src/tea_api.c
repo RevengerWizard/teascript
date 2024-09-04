@@ -918,7 +918,7 @@ TEA_API bool tea_get_var(tea_State* T, const char* name, const char* var)
     GCstr* s1 = tea_str_newlen(T, name);
     GCstr* s2 = tea_str_newlen(T, var);
     GCmodule* module = moduleV(tea_tab_get(&T->modules, s1));
-    TValue* o = tea_tab_get(&module->vars, s2);
+    TValue* o = tea_tab_get(&module->exports, s2);
     if(o)
     {
         found = true;
@@ -935,7 +935,7 @@ TEA_API void tea_set_var(tea_State* T, const char* name, const char* var)
     GCstr* s1 = tea_str_newlen(T, name);
     GCstr* s2 = tea_str_newlen(T, var);
     GCmodule* module = moduleV(tea_tab_get(&T->modules, s1));
-    copyTV(T, tea_tab_set(T, &module->vars, s2, NULL), o);
+    copyTV(T, tea_tab_set(T, &module->exports, s2, NULL), o);
     T->top--;
 }
 
