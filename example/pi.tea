@@ -1,0 +1,19 @@
+const MIN_FLOAT = 1.11e-16
+
+var pi = 2.0
+var tmp = 2.0
+var a = 1
+var b = 3
+
+while(tmp > MIN_FLOAT)
+{
+    tmp *= a / b
+    pi += tmp
+    a += 1
+    b += 2
+}
+
+import math
+
+print("Computed  π value: ${pi}")
+print("Teascript π value: ${math.pi}")
