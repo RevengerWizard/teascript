@@ -1626,7 +1626,7 @@ static void parse_class_body(ParseState* ps)
 {
     while(!lex_check(ps, '}') && !lex_check(ps, TK_EOF))
     {
-        if(lex_match(ps, TK_NAME))
+        if(lex_match(ps, TK_NAME) || lex_match(ps, TK_NEW))
         {
             parse_method(ps, PROTO_METHOD);
         }

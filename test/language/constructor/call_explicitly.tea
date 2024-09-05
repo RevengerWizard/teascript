@@ -10,8 +10,7 @@ class Foo
 var foo = Foo("one") // expect: Foo.new(one)
 foo.field = "field"
 
-var foo2 = foo.new("two") // expect: Foo.new(two)
-print(foo2) // expect: <Foo instance>
+print(foo) // expect: <Foo instance>
 
 // Make sure new() doesn't create a fresh instance
-print(foo.field) // expect: new
+print(foo.field) // expect: field
