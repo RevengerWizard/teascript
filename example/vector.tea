@@ -10,7 +10,7 @@ class Vector
     {
         assert(a is Vector and b is Vector, "wrong argument type")
 
-        return Vector(a.x + b.x, a.y + b.y)
+        return Vector.new(a.x + b.x, a.y + b.y)
     }
 
     - (a, b)
@@ -19,7 +19,7 @@ class Vector
 
         assert(a is Vector and b is Vector, "wrong argument type")
 
-        return Vector(a.x - b.x, a.y - b.y)
+        return Vector.new(a.x - b.x, a.y - b.y)
     }
 
     * (a, b)
@@ -28,14 +28,14 @@ class Vector
 
         assert(a is Vector and b is Vector, "wrong argument type")
 
-        return Vector(a.x * b.x, a.y * b.y)
+        return Vector.new(a.x * b.x, a.y * b.y)
     }
 
     / (a, b)
     {
         assert(a is Vector and b is Vector, "wrong argument type")
 
-        return Vector(a.x / b.x, a.y / b.y)
+        return Vector.new(a.x / b.x, a.y / b.y)
     }
 
     == (a, b)
@@ -61,12 +61,12 @@ class Vector
     }
 }
 
-var a = Vector(2, 3)
+var a = Vector.new(2, 3)
 print(a)
 print(a[0])
 print(a[1])
 
-var b = Vector(4, 4)
+var b = Vector.new(4, 4)
 
 print(b)
 print(a + b)

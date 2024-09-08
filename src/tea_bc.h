@@ -69,6 +69,7 @@
     _(JUMP_IF_FALSE, -1) \
     _(JUMP_IF_NIL, -1) \
     _(LOOP, 0) \
+    _(INVOKE_NEW, 0) \
     _(CALL, 0) \
     _(INVOKE, 0) \
     _(SUPER, 0) \

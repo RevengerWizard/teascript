@@ -13,7 +13,7 @@ class Person
     }
 }
 
-var p1 = Person("john")
+var p1 = Person.new("john")
 print(p1.name)  // "john"
 print(p1.sleep())   // "slept"
 
@@ -26,7 +26,7 @@ class Employee : Person
     }
 }
 
-var e1 = Employee("smith", 300000)
+var e1 = Employee.new("smith", 300000)
 print(e1.name)  // "smith"
 print(e1.eyes)  // 2
 print(e1.salary)    // 300000

@@ -59,7 +59,7 @@ ERRDEF(IS, "Right operand must be a class")
 ERRDEF(ITER, TEA_QS " is not iterable")
 ERRDEF(BUILTINSELF, "Cannot inherit from built-in " TEA_QS)
 ERRDEF(SELF, "A class can't inherit from itself")
-ERRDEF(EXTMETHOD, "Cannot assign extension method to " TEA_QS)
+ERRDEF(ISCLASS, "Expected class, got " TEA_QS)
 ERRDEF(VARMOD, TEA_QS " variable can't be found in module " TEA_QS)
 
 /* Standard library function errors */

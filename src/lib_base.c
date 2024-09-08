@@ -91,6 +91,54 @@ static void base_typeof(tea_State* T)
     tea_push_string(T, tea_typeof(T, 0));
 }
 
+static void base_tonumber(tea_State* T)
+{
+    int base = tea_opt_number(T, 1, 10);
+    if(base == 10)
+    {
+        bool is_num;
+        double n = tea_to_numberx(T, 0, &is_num);
+        if(is_num)
+        {
+            tea_push_number(T, n);
+            return;
+        }
+    }
+    else
+    {
+        const char* p = str_data(tea_lib_checkstr(T, 0));
+        char* ep;
+        unsigned int neg = 0;
+        unsigned long ul;
+        if(base < 2 || base > 36)
+            tea_error(T, "Number base out of range");
+        while(tea_char_isspace((unsigned char)(*p))) p++;
+        if(*p == '-') { p++; neg = 1; } else if(*p == '+') { p++; }
+        if(tea_char_isalnum((unsigned char)(*p)))
+        {
+            ul = strtoul(p, &ep, base);
+            if(p != ep)
+            {
+                while(tea_char_isspace((unsigned char)(*ep))) ep++;
+                if(*ep == '\0')
+                {
+
+                    double n = (double)ul;
+                    if(neg) n = -n;
+                    tea_push_number(T, n);
+                    return;
+                }
+            }
+        }
+    }
+    tea_push_nil(T);
+}
+
+static void base_tostring(tea_State* T)
+{
+    tea_to_string(T, 0);
+}
+
 static void base_gc(tea_State* T)
 {
     int collected = tea_gc(T);
@@ -245,45 +293,8 @@ static void bool_init(tea_State* T)
 
 static void number_init(tea_State* T)
 {
-    int base = tea_opt_number(T, 2, 10);
-    if(base == 10)
-    {
-        bool is_num;
-        double n = tea_to_numberx(T, 1, &is_num);
-        if(is_num)
-        {
-            tea_push_number(T, n);
-            return;
-        }
-    }
-    else
-    {
-        const char* p = str_data(tea_lib_checkstr(T, 1));
-        char* ep;
-        unsigned int neg = 0;
-        unsigned long ul;
-        if(base < 2 || base > 36)
-            tea_error(T, "Number base out of range");
-        while(tea_char_isspace((unsigned char)(*p))) p++;
-        if(*p == '-') { p++; neg = 1; } else if(*p == '+') { p++; }
-        if(tea_char_isalnum((unsigned char)(*p)))
-        {
-            ul = strtoul(p, &ep, base);
-            if(p != ep)
-            {
-                while(tea_char_isspace((unsigned char)(*ep))) ep++;
-                if(*ep == '\0')
-                {
-
-                    double n = (double)ul;
-                    if(neg) n = -n;
-                    tea_push_number(T, n);
-                    return;
-                }
-            }
-        }
-    }
-    tea_push_nil(T);
+    tea_remove(T, 0);
+    base_tonumber(T);
 }
 
 static void invalid_init(tea_State* T)
@@ -314,6 +325,8 @@ static const tea_Reg globals[] = {
     { "assert", base_assert, 1, 1 },
     { "error", base_error, 1, 0 },
     { "typeof", base_typeof, 1, 0 },
+    { "tonumber", base_tonumber, 1, 1 },
+    { "tostring", base_tostring, 1, 0 },
     { "gc", base_gc, 0, 0 },
     { "eval", base_eval, 1, 0 },
     { "dump", base_dump, 1, 0 },

@@ -10,7 +10,7 @@ class Bar : Foo
     override() { print("bar") }
 }
 
-var bar = Bar()
+var bar = Bar.new()
 bar.foo() // expect: foo
 bar.bar() // expect: bar
 bar.override() // expect: bar

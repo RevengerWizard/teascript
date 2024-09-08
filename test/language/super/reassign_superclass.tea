@@ -22,7 +22,7 @@ class OtherBase
     }
 }
 
-var derived = Derived()
+var derived = Derived.new()
 derived.method() // expect: Base.method()
 Base = OtherBase
 derived.method() // expect: Base.method()

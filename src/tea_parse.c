@@ -793,15 +793,30 @@ static int bcassign(ParseState* ps)
 }
 
 static void expr_dot(ParseState* ps, bool assign)
-{    
-    lex_consume(ps, TK_NAME);
+{
+    bool isnew = false;
+    if(lex_match(ps, TK_NEW))
+    {
+        isnew = true;
+    }
+    else
+    {
+        lex_consume(ps, TK_NAME);
+    }
     uint8_t name = const_str(ps, strV(&ps->ls->prev.tv));
 
     if(lex_match(ps, '('))
     {
         uint8_t nargs = parse_arg_list(ps);
-        bcemit_argued(ps, BC_INVOKE, name);
-        bcemit_byte(ps, nargs);
+        if(isnew)
+        {
+            bcemit_argued(ps, BC_INVOKE_NEW, nargs);
+        }
+        else
+        {
+            bcemit_argued(ps, BC_INVOKE, name);
+            bcemit_byte(ps, nargs);
+        }
         return;
     }
 
@@ -1933,6 +1948,7 @@ static int get_arg_count(uint8_t* code, const TValue* constants, int ip)
         case BC_IMPORT_NAME:
         case BC_UNPACK:
         case BC_MULTI_CASE:
+        case BC_INVOKE_NEW:
             return 1;
         case BC_IMPORT_VARIABLE:
         case BC_UNPACK_REST:

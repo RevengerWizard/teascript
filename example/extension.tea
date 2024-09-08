@@ -13,6 +13,6 @@ function Foo:say()
     print(this, this.said)
 }
 
-var foo = Foo(12, 32)
+var foo = Foo.new(12, 32)
 foo.say()
 print(foo.said)

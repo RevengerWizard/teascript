@@ -42,7 +42,7 @@ function bctarget(func, ofs, out)
     switch(bcnames[pc])
     {
         case "CONSTANT", "PUSH_ATTR",
-        "GET_MODULE", "SET_MODULE", "DEFINE_MODULE",
+        "GET_MODULE", "SET_MODULE",
         "GET_ATTR", "SET_ATTR",
         "GET_SUPER",
         "CLASS",
@@ -54,11 +54,12 @@ function bctarget(func, ofs, out)
         {
             const k = funcbc(func, ofs + 1)
             out.write("%4d '".format(k))
-            out.write(String(funck(func, k)))
+            out.write(String.new(funck(func, k)))
             out.write("'\n")
             return ofs + 2
         }
         case "DEFINE_OPTIONAL",
+        "DEFINE_MODULE",
         "FOR_ITER", "GET_ITER":
         {
             const seq = funcbc(func, ofs + 1)
@@ -93,7 +94,7 @@ function bctarget(func, ofs, out)
         case "GET_LOCAL", "SET_LOCAL",
         "GET_UPVALUE", "SET_UPVALUE",
         "MULTI_CASE", "UNPACK", "UNPACK_REST",
-        "CALL":
+        "CALL", "INVOKE_NEW":
         {
             const slot = funcbc(func, ofs + 1)
             out.write("%4d\n".format(slot))

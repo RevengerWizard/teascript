@@ -135,32 +135,6 @@ static bool vm_precall(tea_State* T, TValue* callee, int nargs)
             copyTV(T, T->top - nargs - 1, &bound->receiver);
             return vm_call(T, bound->func, nargs);
         }
-        case TEA_TCLASS:
-        {
-            GCclass* klass = classV(callee);
-            TValue* f = &klass->init;
-            if(!tvisnil(f))
-            {
-                if(tvisfunc(f) && !iscfunc(funcV(f)))
-                {
-                    setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
-                }
-                else
-                {
-                    setclassV(T, T->top - nargs - 1, klass);
-                }
-                return vm_precall(T, f, nargs);
-            }
-            else if(nargs != 0)
-            {
-                tea_err_callerv(T, TEA_ERR_ARGS, 0, nargs);
-            }
-            else
-            {
-                setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
-            }
-            return false;
-        }
         case TEA_TUDATA:
         case TEA_TINSTANCE:
         {
@@ -1015,6 +989,43 @@ static void vm_execute(tea_State* T)
                 ip -= ofs;
                 DISPATCH();
             }
+            CASE_CODE(BC_INVOKE_NEW):
+            {
+                uint8_t nargs = READ_BYTE();
+                if(!tvisclass(T->top - nargs - 1))
+                {
+                    RUNTIME_ERROR(TEA_ERR_ISCLASS, tea_typename(T->top - nargs - 1));
+                }
+                GCclass* klass = classV(T->top - nargs - 1);
+                TValue* f = &klass->init;
+                if(!tvisnil(f))
+                {
+                    if(tvisfunc(f) && !iscfunc(funcV(f)))
+                    {
+                        setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
+                    }
+                    else
+                    {
+                        setclassV(T, T->top - nargs - 1, klass);
+                    }
+                    STORE_FRAME;
+                    if(vm_precall(T, f, nargs))
+                    {
+                        (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
+                    }
+                    READ_FRAME();
+                    DISPATCH();
+                }
+                else if(nargs != 0)
+                {
+                    RUNTIME_ERROR(TEA_ERR_ARGS, 0, nargs);
+                }
+                else
+                {
+                    setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
+                }
+                DISPATCH();
+            }
             CASE_CODE(BC_CALL):
             {
                 uint8_t nargs = READ_BYTE();
@@ -1178,7 +1189,7 @@ static void vm_execute(tea_State* T)
             {
                 if(!tvisclass(T->top - 2))
                 {
-                    RUNTIME_ERROR(TEA_ERR_EXTMETHOD, tea_typename(T->top - 2));
+                    RUNTIME_ERROR(TEA_ERR_ISCLASS, tea_typename(T->top - 2));
                 }
                 /* Fallback */
             }

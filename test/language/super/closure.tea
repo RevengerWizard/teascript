@@ -17,5 +17,5 @@ class Derived : Base
     toString() { return "Derived" }
 }
 
-var closure = Derived().getClosure()
+var closure = Derived.new().getClosure()
 print(closure()) // expect: Base

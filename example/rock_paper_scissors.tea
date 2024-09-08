@@ -9,6 +9,8 @@ var player = false
 while(not player)
 {
     player = input("Rock, Paper, Scissors? ")
+    if(player == nil)
+        break
     switch(player)
     {
         case computer:

@@ -9,7 +9,7 @@ class Point
     + (a, b)
     {
         assert(a is Point and b is Point)
-        return Point(a.x + b.x, a.y + b.y)
+        return Point.new(a.x + b.x, a.y + b.y)
     }
 
     distance(other)
@@ -25,7 +25,7 @@ class Point
     }
 }
 
-var p1 = Point(1, 2)
-var p2 = Point(4, 5)
+var p1 = Point.new(1, 2)
+var p2 = Point.new(4, 5)
 print(p1.distance(p2))
 print(p1 + p2)
