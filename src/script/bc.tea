@@ -114,7 +114,7 @@ function bctarget(func, ofs, out)
             const k = funcbc(func, ofs + 1)
             const nargs = funcbc(func, ofs + 2)
             out.write("   (%d args) %4d '".format(nargs, k))
-            out.write(String(funck(func, k)))
+            out.write(tostring(funck(func, k)))
             out.write("'\n")
             return ofs + 3;
         }
@@ -123,7 +123,7 @@ function bctarget(func, ofs, out)
             ofs++
             const k = funcbc(func, ofs) ofs++
             out.write("%4d ".format(k))
-            out.write(String(funck(func, k)))
+            out.write(tostring(funck(func, k)))
             out.write('\n')
 
             const proto = funcinfo(funck(func, k))
