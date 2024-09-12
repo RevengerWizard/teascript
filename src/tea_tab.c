@@ -12,27 +12,27 @@
 #include "tea_gc.h"
 #include "tea_tab.h"
 
-void tea_tab_init(Table* tab)
+void tea_tab_init(Tab* tab)
 {
     tab->count = 0;
     tab->size = 0;
     tab->entries = NULL;
 }
 
-void tea_tab_free(tea_State* T, Table* tab)
+void tea_tab_free(tea_State* T, Tab* tab)
 {
-    tea_mem_freevec(T, TableEntry, tab->entries, tab->size);
+    tea_mem_freevec(T, TabEntry, tab->entries, tab->size);
     tea_tab_init(tab);
 }
 
-static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
+static TabEntry* tab_find_entry(TabEntry* entries, int size, GCstr* key)
 {
     uint32_t idx = key->hash & (size - 1);
-    TableEntry* tombstone = NULL;
+    TabEntry* tombstone = NULL;
 
     while(true)
     {
-        TableEntry* entry = &entries[idx];
+        TabEntry* entry = &entries[idx];
         if(entry->key == NULL)
         {
             if(tvisnil(&entry->val))
@@ -57,21 +57,21 @@ static TableEntry* tab_find_entry(TableEntry* entries, int size, GCstr* key)
     }
 }
 
-TValue* tea_tab_get(Table* tab, GCstr* key)
+TValue* tea_tab_get(Tab* tab, GCstr* key)
 {
     if(tab->count == 0)
         return NULL;
 
-    TableEntry* entry = tab_find_entry(tab->entries, tab->size, key);
+    TabEntry* entry = tab_find_entry(tab->entries, tab->size, key);
     if(entry->key == NULL)
         return NULL;
 
     return &entry->val;
 }
 
-static void tab_resize(tea_State* T, Table* tab, int size)
+static void tab_resize(tea_State* T, Tab* tab, int size)
 {
-    TableEntry* entries = tea_mem_newvec(T, TableEntry, size);
+    TabEntry* entries = tea_mem_newvec(T, TabEntry, size);
     for(int i = 0; i < size; i++)
     {
         entries[i].key = NULL;
@@ -81,24 +81,24 @@ static void tab_resize(tea_State* T, Table* tab, int size)
     tab->count = 0;
     for(int i = 0; i < tab->size; i++)
     {
-        TableEntry *entry = &tab->entries[i];
+        TabEntry *entry = &tab->entries[i];
         if(entry->key == NULL)
             continue;
 
-        TableEntry* dest = tab_find_entry(entries, size, entry->key);
+        TabEntry* dest = tab_find_entry(entries, size, entry->key);
         dest->key = entry->key;
         dest->val = entry->val;
         tab->count++;
     }
 
-    tea_mem_freevec(T, TableEntry, tab->entries, tab->size);
+    tea_mem_freevec(T, TabEntry, tab->entries, tab->size);
     tab->entries = entries;
     tab->size = size;
 }
 
 #define TABLE_MAX_LOAD 0.75
 
-TValue* tea_tab_set(tea_State* T, Table* tab, GCstr* key, bool* b)
+TValue* tea_tab_set(tea_State* T, Tab* tab, GCstr* key, bool* b)
 {
     if(tab->count + 1 > tab->size * TABLE_MAX_LOAD)
     {
@@ -106,7 +106,7 @@ TValue* tea_tab_set(tea_State* T, Table* tab, GCstr* key, bool* b)
         tab_resize(T, tab, size);
     }
 
-    TableEntry* entry = tab_find_entry(tab->entries, tab->size, key);
+    TabEntry* entry = tab_find_entry(tab->entries, tab->size, key);
     bool is_new_key = entry->key == NULL;
 
     if(is_new_key && tvisnil(&entry->val))
@@ -119,13 +119,13 @@ TValue* tea_tab_set(tea_State* T, Table* tab, GCstr* key, bool* b)
     return &entry->val;
 }
 
-bool tea_tab_delete(Table* tab, GCstr* key)
+bool tea_tab_delete(Tab* tab, GCstr* key)
 {
     if(tab->count == 0)
         return false;
 
     /* Find the entry */
-    TableEntry* entry = tab_find_entry(tab->entries, tab->size, key);
+    TabEntry* entry = tab_find_entry(tab->entries, tab->size, key);
     if(entry->key == NULL)
         return false;
 
@@ -136,11 +136,11 @@ bool tea_tab_delete(Table* tab, GCstr* key)
     return true;
 }
 
-void tea_tab_merge(tea_State* T, Table* from, Table* to)
+void tea_tab_merge(tea_State* T, Tab* from, Tab* to)
 {
     for(int i = 0; i < from->size; i++)
     {
-        TableEntry* entry = &from->entries[i];
+        TabEntry* entry = &from->entries[i];
         if(entry->key != NULL)
         {
             TValue* o = tea_tab_set(T, to, entry->key, NULL);
@@ -149,7 +149,7 @@ void tea_tab_merge(tea_State* T, Table* from, Table* to)
     }
 }
 
-GCstr* tea_tab_findstr(Table* tab, const char* chars, int len, StrHash hash)
+GCstr* tea_tab_findstr(Tab* tab, const char* chars, int len, StrHash hash)
 {
     if(tab->count == 0)
         return NULL;
@@ -157,7 +157,7 @@ GCstr* tea_tab_findstr(Table* tab, const char* chars, int len, StrHash hash)
     uint32_t idx = hash & (tab->size - 1);
     while(true)
     {
-        TableEntry* entry = &tab->entries[idx];
+        TabEntry* entry = &tab->entries[idx];
         if(entry->key == NULL)
         {
             /* Stop if we find an empty non-tombstone entry */
@@ -174,11 +174,11 @@ GCstr* tea_tab_findstr(Table* tab, const char* chars, int len, StrHash hash)
     }
 }
 
-void tea_tab_white(Table* tab)
+void tea_tab_white(Tab* tab)
 {
     for(int i = 0; i < tab->size; i++)
     {
-        TableEntry* entry = &tab->entries[i];
+        TabEntry* entry = &tab->entries[i];
         if(entry->key != NULL && !entry->key->obj.marked)
         {
             tea_tab_delete(tab, entry->key);
@@ -186,11 +186,11 @@ void tea_tab_white(Table* tab)
     }
 }
 
-void tea_tab_mark(tea_State* T, Table* tab)
+void tea_tab_mark(tea_State* T, Tab* tab)
 {
     for(int i = 0; i < tab->size; i++)
     {
-        TableEntry* entry = &tab->entries[i];
+        TabEntry* entry = &tab->entries[i];
         tea_gc_markobj(T, (GCobj*)entry->key);
         tea_gc_markval(T, &entry->val);
     }

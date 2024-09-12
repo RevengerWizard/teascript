@@ -111,14 +111,14 @@ typedef struct
 {
     GCstr* key;
     TValue val;
-} TableEntry;
+} TabEntry;
 
 typedef struct
 {
     uint32_t count;
     uint32_t size;
-    TableEntry* entries;
-} Table;
+    TabEntry* entries;
+} Tab;
 
 /* -- Range object -------------------------------------------------- */
 
@@ -137,8 +137,8 @@ typedef struct
     GCobj obj;
     GCstr* name;    /* Canonical module name */
     GCstr* path;    /* Absolute module path */
-    Table vars;   /* Table of private variables */
-    Table exports;  /* Table of exported variables */
+    Tab vars;   /* Tab of private variables */
+    Tab exports;  /* Tab of exported variables */
 } GCmodule;
 
 /* -- Prototype object -------------------------------------------------- */
@@ -157,7 +157,7 @@ typedef struct
     uint8_t variadic;   /* Function has variadic argument */
     uint32_t upvalue_count;  /* Number of upvalues */
     uint8_t max_slots;  /* Max stack size used by the function */
-    uint8_t type;   /* Function type information */
+    uint8_t flags;   /* Miscellaneous flags */
     uint32_t bc_count;  /* Number of bytecode instructions */
     uint32_t bc_size;
     BCIns* bc;  /* Bytecode instructions */
@@ -266,7 +266,7 @@ typedef struct GCclass
     GCstr* name;
     struct GCclass* super;  /* Inherited class or NULL */
     TValue init; /* Cached */
-    Table methods;
+    Tab methods;
 } GCclass;
 
 /* -- Instance object -------------------------------------------------- */
@@ -275,7 +275,7 @@ typedef struct
 {
     GCobj obj;
     GCclass* klass; /* Instance class */
-    Table attrs;    /* Instance attributes */
+    Tab attrs;    /* Instance attributes */
 } GCinstance;
 
 /* -- Userdata object ----------------------------------------------------- */
@@ -285,7 +285,7 @@ typedef struct GCudata
 {
     GCobj obj;
     GCclass* klass;
-    Table attrs;
+    Tab attrs;
     uint8_t udtype; /* Userdata type */
     uint32_t len;
     tea_Finalizer fd;
@@ -318,7 +318,7 @@ typedef struct
 {
     GCfunc* func;
     uint8_t* ip;
-    int state;
+    uint8_t state;
     TValue* base; /* Base for this function */
 } CallInfo;
 
@@ -383,10 +383,10 @@ struct tea_State
     /* ------ The following fields are global to the state ------ */
     GCState gc; /* Garbage collector */
     struct ParseState* parser;
-    Table modules;   /* Table of cached modules */
-    Table globals;   /* Table of globals */
-    Table constants;    /* Table to keep track of 'const' variables */
-    Table strings;   /* String interning */
+    Tab modules;   /* Tab of cached modules */
+    Tab globals;   /* Tab of globals */
+    Tab constants;    /* Tab to keep track of 'const' variables */
+    Tab strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
     SBuf strbuf;    /* Termorary string conversion buffer */
     TValue tmptv;   /* Temporary TValue */
