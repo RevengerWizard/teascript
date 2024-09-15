@@ -12,33 +12,9 @@
 
 /* -- Prototypes -------------------------------------------------- */
 
-GCproto* tea_func_newproto(tea_State* T, int max_slots)
-{
-    GCproto* pt = tea_mem_newobj(T, GCproto, TEA_TPROTO);
-    pt->numparams = 0;
-    pt->numopts = 0;
-    pt->variadic = 0;
-    pt->upvalue_count = 0;
-    pt->max_slots = max_slots;
-    pt->name = NULL;
-    pt->bc_count = 0;
-    pt->bc_size = 0;
-    pt->bc = NULL;
-    pt->line_count = 0;
-    pt->line_size = 0;
-    pt->lines = NULL;
-    pt->k = NULL;
-    pt->k_size = 0;
-    pt->k_count = 0;
-    return pt;
-}
-
 void TEA_FASTCALL tea_func_freeproto(tea_State* T, GCproto* pt)
 {
-    tea_mem_freevec(T, BCIns, pt->bc, pt->bc_size);
-    tea_mem_freevec(T, LineStart, pt->lines, pt->line_size);
-    tea_mem_freevec(T, TValue, pt->k, pt->k_size);
-    tea_mem_freet(T, pt);
+    tea_mem_free(T, pt, pt->sizept);
 }
 
 /* -- Upvalues -------------------------------------------------- */
@@ -116,14 +92,14 @@ GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nupval
 }
 
 /* Create a new Teascript function with empty upvalues */
-GCfunc* tea_func_newT(tea_State* T, GCproto* proto, GCmodule* module)
+GCfunc* tea_func_newT(tea_State* T, GCproto* pt, GCmodule* module)
 {
-    GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeTfunc(proto->upvalue_count), TEA_TFUNC);
+    GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeTfunc(pt->sizeuv), TEA_TFUNC);
     func->t.ffid = FF_TEA;
-    func->t.upvalue_count = proto->upvalue_count;
+    func->t.upvalue_count = pt->sizeuv;
     func->t.module = module;
-    func->t.proto = proto;
-    for(int i = 0; i < proto->upvalue_count; i++)
+    func->t.pt = pt;
+    for(int i = 0; i < pt->sizeuv; i++)
     {
         func->t.upvalues[i] = NULL;
     }

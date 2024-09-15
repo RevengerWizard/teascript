@@ -8,6 +8,6 @@
 
 #include "tea_obj.h"
 
-TEA_FUNC int tea_debug_line(GCproto* pt, int pc);
+TEA_FUNC BCLine tea_debug_line(GCproto* pt, BCPos pc);
 
 #endif

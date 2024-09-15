@@ -19,6 +19,7 @@
 #include "tea_utf.h"
 #include "tea_strscan.h"
 #include "tea_strfmt.h"
+#include "tea_parse.h"
 
 /* Teascript lexer token names */
 static const char* const lex_tokennames[] = {
@@ -37,7 +38,7 @@ static const char* const lex_tokennames[] = {
 static TEA_NOINLINE LexChar lex_more(LexState* ls)
 {
     size_t size;
-    const char* p = ls->reader(ls->T, ls->data, &size);
+    const char* p = ls->reader(ls->T, ls->rdata, &size);
     if(p == NULL || size == 0) 
         return LEX_EOF;
     if(size >= TEA_MAX_BUF)
@@ -97,7 +98,8 @@ static void lex_newline(LexState* ls)
     lex_next(ls);   /* Skip "\n" or "\r" */
     if(lex_iseol(ls) && ls->c != old)
         lex_next(ls);  /* Skip "\n\r" or "\r\n" */
-    ls->line++;
+    if(++ls->linenumber >= TEA_MAX_LINE)
+        tea_lex_error(ls, NULL, TEA_ERR_XLINES);
 }
 
 static void lex_syntaxerror(LexState* ls, ErrMsg em)
@@ -109,7 +111,7 @@ static Token lex_token(LexState* ls, LexToken type)
 {
     Token tok;
     tok.t = type;
-    tok.line = ls->line;
+    tok.line = ls->linenumber;
     return tok;
 }
 
@@ -288,7 +290,7 @@ static Token lex_multistring(LexState* ls)
     }
 
     Token tok = lex_token(ls, TK_STRING);
-    GCstr* str = tea_str_new(ls->T, ls->sb.b + 3, sbuf_len(&ls->sb) - 6);
+    GCstr* str = tea_parse_keepstr(ls, ls->sb.b + 3, sbuf_len(&ls->sb) - 6);
     setstrV(ls->T, &tok.tv, str);
     return tok;
 }
@@ -413,7 +415,7 @@ static Token lex_string(LexState* ls)
     lex_savenext(ls);
 
     Token tok = lex_token(ls, type);
-    GCstr* str = tea_str_new(T, ls->sb.b + 1, sbuf_len(&ls->sb) - 2);
+    GCstr* str = tea_parse_keepstr(ls, ls->sb.b + 1, sbuf_len(&ls->sb) - 2);
     setstrV(T, &tok.tv, str);
 	return tok;
 }
@@ -464,7 +466,7 @@ static Token lex_scan(LexState* ls)
                         }
 
                         if(ls->c == '\n')
-                            ls->line++;
+                            ls->linenumber++;
 
                         lex_next(ls);
                     }
@@ -755,7 +757,8 @@ static Token lex_scan(LexState* ls)
                     }
                     while(tea_char_isident(ls->c) || tea_char_isdigit(ls->c));
                     TValue tv;
-                    GCstr* s = tea_str_new(ls->T, ls->sb.b, sbuf_len(&ls->sb));
+                    //GCstr* s = tea_str_new(ls->T, ls->sb.b, sbuf_len(&ls->sb));
+                    GCstr* s = tea_parse_keepstr(ls, ls->sb.b, sbuf_len(&ls->sb));
                     setstrV(ls->T, &tv, s);
                     Token tok;
                     if(s->reserved > 0)
@@ -784,9 +787,12 @@ bool tea_lex_setup(tea_State* T, LexState* ls)
 {
     bool header = false;
     ls->T = T;
+    ls->fs = NULL;
     ls->pe = ls->p = NULL;
+    ls->bcstack = NULL;
+    ls->sizebcstack = 0;
     ls->next.t = 0; /* Initialize the next token */
-    ls->line = 1;
+    ls->linenumber = 1;
     ls->num_braces = 0;
     ls->endmark = false;
     lex_next(ls);  /* Read first char */
@@ -832,6 +838,7 @@ bool tea_lex_setup(tea_State* T, LexState* ls)
 /* Cleanup lexer state */
 void tea_lex_cleanup(tea_State* T, LexState* ls)
 {
+    tea_mem_freevec(T, BCInsLine, ls->bcstack, ls->sizebcstack);
     tea_buf_free(T, &ls->sb);
 }
 
@@ -861,7 +868,7 @@ void tea_lex_error(LexState* ls, Token* token, ErrMsg em, ...)
         tokstr = tea_lex_token2str(ls, token->t);
     }
     va_start(argp, em);
-    tea_err_lex(ls->T, name + off, tokstr, token ? token->line : ls->line, em, argp);
+    tea_err_lex(ls->T, name + off, tokstr, token ? token->line : ls->linenumber, em, argp);
     va_end(argp);
 }
 

@@ -9,7 +9,6 @@
 #include "tea_obj.h"
 
 /* Prototypes */
-TEA_FUNC GCproto* tea_func_newproto(tea_State* T, int max_slots);
 TEA_FUNC void TEA_FASTCALL tea_func_freeproto(tea_State* T, GCproto* pt);
 
 /* Upvalues */

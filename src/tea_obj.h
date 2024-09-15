@@ -62,7 +62,9 @@ typedef struct GCobj
 /* -- Common type definitions --------------------------------------------- */
 
 /* Types for handling bytecodes */
-typedef uint8_t BCIns;
+typedef uint8_t BCIns;  /* Bytecode instruction */
+typedef uint32_t BCPos; /* Bytecode position */
+typedef int32_t BCLine; /* Bytecode line number */
 
 /* Resizable string buffer. Need this here, details in tea_buf.h */
 #define SBufHeader  char* w, *e, *b; uint8_t flag
@@ -103,6 +105,7 @@ typedef struct GCstr
 
 #define str_data(s) ((const char*)((s) + 1))
 #define str_datawr(s) ((char*)((s) + 1))
+#define strVdata(o) str_data(strV(o))
 
 /* -- Hash table -------------------------------------------------- */
 
@@ -145,33 +148,29 @@ typedef struct
 
 typedef struct
 {
-    uint32_t ofs; /* Bytecode instruction offset */
-    uint32_t line;   /* Line number for this bytecode */
-} LineStart;
-
-typedef struct
-{
     GCobj obj;
     uint8_t numparams;  /* Number of parameters */
     uint8_t numopts; /* Number of optional parameters */
-    uint8_t variadic;   /* Function has variadic argument */
-    uint32_t upvalue_count;  /* Number of upvalues */
+    uint8_t sizeuv;  /* Number of upvalues */
     uint8_t max_slots;  /* Max stack size used by the function */
     uint8_t flags;   /* Miscellaneous flags */
-    uint32_t bc_count;  /* Number of bytecode instructions */
-    uint32_t bc_size;
-    BCIns* bc;  /* Bytecode instructions */
-    uint32_t k_size;
-    uint32_t k_count;    /* Number of constants */
+    uint32_t sizept;    /* Total size including colocated arrays */
+    uint32_t sizebc;  /* Number of bytecode instructions */
+    uint32_t sizek;    /* Number of constants */
     TValue* k;  /* Constants used by the function */
-    uint32_t line_count; /* Number of lines for the function definition */
-    uint32_t line_size;
-    LineStart* lines;   /* Map from bytecode ins. to source lines */
+    /* ------ The following fields are for debugging/tracebacks only ------ */
+    BCLine firstline;   /* First line of the code this function was defined in */
+    BCLine numline; /* Number of lines for the function definition */
+    void* lineinfo; /* Compressed map from bytecode ins. to source line */
     GCstr* name;    /* Name of the function */
 } GCproto;
 
+/* Flags for prototype */
+#define PROTO_VARARG 1
+
 #define proto_kgc(pt, i) (&((pt)->k[(i)]))
-#define proto_bc(pt, i) ((pt)->bc[(i)])
+#define proto_bc(pt) ((BCIns*)((char*)(pt) + sizeof(GCproto)))
+#define proto_bcpos(pt, pc) ((BCPos)((pc) - proto_bc(pt)))
 
 /* -- Upvalue object -------------------------------------------------- */
 
@@ -210,7 +209,7 @@ typedef struct
 typedef struct
 {
     GCfuncHeader;
-    GCproto* proto;
+    GCproto* pt;
     GCupval* upvalues[1]; /* Array of _pointers_ to upvalue object */
 } GCfuncT;
 
@@ -224,7 +223,7 @@ typedef union
 #define FF_C  1
 #define isteafunc(fn)   ((fn)->c.ffid == FF_TEA)
 #define iscfunc(fn)     ((fn)->c.ffid == FF_C)
-#define funcproto(fn)   (funcV(fn)->t.proto)
+#define funcproto(fn)   (funcV(fn)->t.pt)
 #define sizeCfunc(n)    (sizeof(GCfuncC) - sizeof(TValue) + sizeof(TValue) * (n))
 #define sizeTfunc(n)    (sizeof(GCfuncT) - sizeof(GCupval*) + sizeof(GCupval*) * (n))
 
@@ -382,7 +381,6 @@ struct tea_State
     uint16_t nccalls;    /* Number of nested C calls */
     /* ------ The following fields are global to the state ------ */
     GCState gc; /* Garbage collector */
-    struct ParseState* parser;
     Tab modules;   /* Tab of cached modules */
     Tab globals;   /* Tab of globals */
     Tab constants;    /* Tab to keep track of 'const' variables */

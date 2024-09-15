@@ -8,12 +8,21 @@
 #define tea_bcread_c
 #define TEA_CORE
 
+#include "tea_arch.h"
 #include "tea_def.h"
 #include "tea_bcdump.h"
 #include "tea_strfmt.h"
 #include "tea_err.h"
 #include "tea_func.h"
 #include "tea_vm.h"
+
+/* Reuse some lexer fields for our own purposes */
+#define bcread_flags(ls)    ls->num_braces
+#define bcread_swap(ls) \
+    ((bcread_flags(ls) & BCDUMP_F_BE) != TEA_BE * BCDUMP_F_BE)
+#define bcread_oldtop(L, ls)	stack_restore(L, ls->linenumber)
+#define bcread_savetop(L, ls, top) \
+  ls->linenumber = (BCLine)stack_save(L, (top))
 
 /* -- Input buffer handling -------------------------------------------------- */
 
@@ -60,7 +69,7 @@ static TEA_NOINLINE void bcread_fill(LexState* ls, size_t len, bool need)
         }
 
         ls->sb.w = p + n;
-        buf = ls->reader(ls->T, ls->data, &size);  /* Get more data from reader */
+        buf = ls->reader(ls->T, ls->rdata, &size);  /* Get more data from reader */
         if(buf == NULL || size == 0)
         {
             if(need) 
@@ -156,26 +165,43 @@ static uint32_t bcread_uleb128_33(LexState* ls)
 
 /* -- Bytecode reader -------------------------------------------------- */
 
+/* Read debug info of a prototype */
+static void bcread_dbg(LexState* ls, GCproto *pt, size_t sizedbg)
+{
+    void* lineinfo = (void*)pt->lineinfo;
+    bcread_block(ls, lineinfo, sizedbg);
+    /* Swap lineinfo if the endianess differs */
+    if(bcread_swap(ls) && pt->numline >= 256)
+    {
+        size_t i, n = pt->sizebc - 1;
+        if(pt->numline < 65536)
+        {
+            uint16_t *p = (uint16_t*)lineinfo;
+            for(i = 0; i < n; i++) p[i] = (uint16_t)((p[i] >> 8)|(p[i] << 8));
+        } 
+        else
+        {
+            uint32_t* p = (uint32_t*)lineinfo;
+            for(i = 0; i < n; i++) p[i] = tea_bswap(p[i]);
+        }
+    }
+}
+
 /* Read number from constants */
 static double bcread_knum(LexState* ls)
 {
     NumberBits x;
-    
     uint32_t lo = bcread_uleb128_33(ls);
     x.u32.lo = lo;
     x.u32.hi = bcread_uleb128(ls);
-
     return x.n;
 }
 
 /* Read GC constants from function prototype */
-static void bcread_kgc(LexState* ls, GCproto* pt, size_t count)
+static void bcread_kgc(LexState* ls, GCproto* pt, size_t sizek)
 {
-    pt->k = tea_mem_newvec(ls->T, TValue, count);
-    pt->k_count = count;
-    pt->k_size = count;
-
-    for(int i = 0; i < count; i++)
+    pt->sizek = sizek;
+    for(int i = 0; i < sizek; i++)
     {
         size_t type = bcread_uleb128(ls);
         if(type >= BCDUMP_KGC_STR)
@@ -192,29 +218,37 @@ static void bcread_kgc(LexState* ls, GCproto* pt, size_t count)
         }
         else
         {
+            tea_State* T = ls->T;
             tea_assertLS(type == BCDUMP_KGC_FUNC, "bad constant type %d", type);
-            ls->T->top--;
-            TValue* v = ls->T->top;
-            copyTV(ls->T, proto_kgc(pt, i), v);
+            if(T->top <= bcread_oldtop(T, ls))  /* Stack underflow? */
+	            bcread_error(ls, TEA_ERR_BCBAD);
+            T->top--;
+            TValue* v = T->top;
+            copyTV(T, proto_kgc(pt, i), v);
         }
     }
 }
 
 /* Read bytecode instructions */
-static void bcread_bytecode(LexState* ls, GCproto* pt, size_t count)
+static void bcread_bytecode(LexState* ls, GCproto* pt, size_t sizebc)
 {
-    pt->bc = tea_mem_newvec(ls->T, BCIns, count);
-    pt->bc_count = count;
-    pt->bc_size = count;
-    bcread_block(ls, pt->bc, pt->bc_count);
+    BCIns* bc = proto_bc(pt);
+    bcread_block(ls, bc, sizebc);
+    /* Swap bytecode instructions if the endianess differs */
+    if(bcread_swap(ls))
+    {
+        for(int i = 0; i < sizebc; i++) bc[i] = tea_bswap(bc[i]);
+    }
 }
 
 /* Read prototype */
 static GCproto* bcread_proto(LexState* ls)
 {
     GCproto* pt;
-    uint8_t numparams, numopts, variadic, max_slots, upvalue_count;
-    int count, k_count;
+    size_t numparams, numopts, flags, max_slots, sizeuv, sizebc, sizek, sizept;
+    size_t ofsk, ofsdbg;
+    size_t sizedbg = 0;
+    BCLine firstline = 0, numline = 0;
 
     /* Read prototype name */
     size_t len = bcread_uleb128(ls);
@@ -223,40 +257,71 @@ static GCproto* bcread_proto(LexState* ls)
     /* Read prototype header */
     numparams = bcread_byte(ls);
     numopts = bcread_byte(ls);
-    variadic = bcread_byte(ls);
+    flags = bcread_byte(ls);
     max_slots = bcread_byte(ls);
-    upvalue_count = bcread_byte(ls);
+    sizeuv = bcread_byte(ls);
+    sizebc = bcread_uleb128(ls);
+    sizek = bcread_uleb128(ls);
+    if(!(bcread_flags(ls) & BCDUMP_F_STRIP))
+    {
+        sizedbg = bcread_uleb128(ls);
+        if(sizedbg)
+        {
+            firstline = bcread_uleb128(ls);
+            numline = bcread_uleb128(ls);
+        }
+    }
 
-    count = bcread_uleb128(ls);
-    k_count = bcread_uleb128(ls);
+    /* Calculate total size of prototype including all colocated arrays */
+    sizept = sizeof(GCproto) +
+        sizebc * sizeof(BCIns);
+    ofsk = sizept; sizept += sizek * sizeof(TValue);
+    ofsdbg = sizept; sizept += sizedbg;
 
     /* Allocate prototype and initialize its fields */
-    pt = tea_func_newproto(ls->T, max_slots);
+    pt = (GCproto*)tea_mem_newgco(ls->T, sizept, TEA_TPROTO);
     pt->name = tea_str_new(ls->T, name, len);
-    pt->numparams = numparams;
-    pt->numopts = numopts;
-    pt->variadic = variadic;
-    pt->upvalue_count = upvalue_count;
-    pt->bc_count = count;
-    pt->k_count = k_count;
+    pt->max_slots = (uint8_t)max_slots;
+    pt->numparams = (uint8_t)numparams;
+    pt->numopts = (uint8_t)numopts;
+    pt->flags = (uint8_t)flags;
+    pt->sizeuv = (uint8_t)sizeuv;
+    pt->sizebc = sizebc;
+    pt->k = (TValue*)((char*)pt + ofsk);
+    pt->sizek = sizek;
+    pt->sizept = sizept;
 
     /* Read bytecode instructions */
-    bcread_bytecode(ls, pt, count);
+    bcread_bytecode(ls, pt, sizebc);
 
     /* Read constants */
-    bcread_kgc(ls, pt, k_count);
+    bcread_kgc(ls, pt, sizek);
 
+    /* Read and initialize debug info */
+    pt->firstline = firstline;
+    pt->numline = numline;
+    if(sizedbg)
+    {
+        pt->lineinfo = (char*)pt + ofsdbg;
+        bcread_dbg(ls, pt, sizedbg);
+    }
+    else
+    {
+        pt->lineinfo = NULL;
+    }
     return pt;
 }
 
 /* Read and check header of bytecode dump */
 static bool bcread_header(LexState* ls)
 {
-    bcread_want(ls, 4);
+    uint32_t flags;
+    bcread_want(ls, 4+5);
     if(bcread_byte(ls) != BCDUMP_HEAD2 ||
        bcread_byte(ls) != BCDUMP_HEAD3 ||
        bcread_byte(ls) != BCDUMP_HEAD4 ||
        bcread_byte(ls) != BCDUMP_VERSION) return false;
+    bcread_flags(ls) = flags = bcread_uleb128(ls);
     return true;
 }
 
@@ -265,6 +330,7 @@ GCproto* tea_bcread(LexState* ls)
 {
     tea_State* T = ls->T;
     tea_assertLS(ls->c == BCDUMP_HEAD1, "bad bytecode header");
+    bcread_savetop(T, ls, T->top);
     tea_buf_reset(&ls->sb);
     /* Check for a valid bytecode dump header */
     if(!bcread_header(ls))
@@ -298,6 +364,8 @@ GCproto* tea_bcread(LexState* ls)
         setprotoV(T, T->top, pt);
         T->top++;
     }
+    if((ls->pe != ls->p && !ls->endmark) || T->top - 1 != bcread_oldtop(T, ls))
+        bcread_error(ls, TEA_ERR_BCBAD);
     /* Pop off last prototype */
     T->top--;
     return protoV(T->top);

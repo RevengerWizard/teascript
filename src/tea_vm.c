@@ -83,11 +83,12 @@ static bool vm_call(tea_State* T, GCfunc* func, int nargs)
     if(isteafunc(func))
     {
         GCfuncT* f = &func->t;
-        nargs = vm_argcheck(T, nargs, f->proto->numparams, f->proto->numopts, f->proto->variadic);
-        tea_state_checkstack(T, f->proto->max_slots);
+        nargs = vm_argcheck(T, nargs, f->pt->numparams, f->pt->numopts, 
+                    f->pt->flags == PROTO_VARARG);
+        tea_state_checkstack(T, f->pt->max_slots);
         CallInfo* ci = tea_state_growci(T); /* Enter new function */
         ci->func = func;
-        ci->ip = f->proto->bc;
+        ci->ip = proto_bc(f->pt);
         ci->state = CIST_TEA;
         ci->base = T->top - nargs - 1;
         return true;
@@ -331,7 +332,7 @@ static void vm_execute(tea_State* T)
 
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
-#define READ_CONSTANT() (proto_kgc(T->ci->func->t.proto, READ_BYTE()))
+#define READ_CONSTANT() (proto_kgc(T->ci->func->t.pt, READ_BYTE()))
 #define READ_STRING() strV(READ_CONSTANT())
 
 #define RUNTIME_ERROR(...) \
@@ -1069,8 +1070,8 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_CLOSURE):
             {
-                GCproto* proto = protoV(READ_CONSTANT());
-                GCfunc* func = tea_func_newT(T, proto, T->ci->func->t.module);
+                GCproto* pt = protoV(READ_CONSTANT());
+                GCfunc* func = tea_func_newT(T, pt, T->ci->func->t.module);
                 setfuncV(T, T->top++, func);
                 for(int i = 0; i < func->t.upvalue_count; i++)
                 {

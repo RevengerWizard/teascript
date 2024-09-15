@@ -13,6 +13,7 @@ function usage()
     io.stderr.write(
     "Save Teascript bytecode: tea -b[options] input output\n" +
     "  -l        Only list bytecode\n" +
+    "  -s        Strip debug info\n" +
     "  -t type   Set output file type (default: auto-detect from output name)\n" +
     "  -e chunk  Use chunk string as input\n" +
     "  --        Stop handling options\n" +
@@ -134,7 +135,7 @@ function bclist(ctx, input, output)
 function bcsave(ctx, input, output)
 {
     const f = readfile(ctx, input)
-    const s = dump(f)
+    const s = dump(f, ctx.mode)
     var t = ctx.type
     if(not t)
     {
@@ -157,7 +158,7 @@ export function docmd(...arg)
     var n = 0
     var list = false
     const ctx = {
-        type = false, modname = false, string = false
+        mode = false, type = false, modname = false, string = false
     }
     while(n < arg.len)
     {
@@ -170,6 +171,7 @@ export function docmd(...arg)
             {
                 const opt = a[m]
                 if(opt == 'l') list = true
+                else if(opt == 's') ctx.mode = true
                 else
                 {
                     if(n >= arg.len or m != a.len - 1) usage()

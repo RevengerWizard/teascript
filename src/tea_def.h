@@ -26,6 +26,8 @@
 #define TEA_MAX_BUF TEA_MAX_MEM32   /* Max. buffer length */
 #define TEA_MAX_UDATA TEA_MAX_MEM32 /* Max. userdata length */
 
+#define TEA_MAX_LINE TEA_MAX_MEM32
+
 #define TEA_BUFFER_SIZE 512
 
 #define TEA_MAX_INTEGER 9007199254740991
@@ -38,6 +40,7 @@
 #define TEA_MAX_TOSTR 8    /* Max. string depth conversion */
 #define TEA_MAX_SDEPTH (TEA_MAX_TOSTR * 2)  /* Max. string stack conversion */
 
+#define TEA_MAX_BCINS (1 << 26) /* Max. # of bytecode instructions */
 #define TEA_MAX_UPVAL 256  /* Max. # of upvalues */
 #define TEA_MAX_LOCAL 256  /* Max. # of local variables */
 
@@ -86,6 +89,47 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 #define tea_fls(x)	((uint32_t)(__builtin_clz(x)^31))
 #endif
 
+#if defined(__arm__)
+static TEA_AINLINE uint32_t tea_bswap(uint32_t x)
+{
+#if defined(__psp2__)
+    return __builtin_rev(x);
+#else
+  uint32_t r;
+#if __ARM_ARCH_6__ || __ARM_ARCH_6J__ || __ARM_ARCH_6T2__ || __ARM_ARCH_6Z__ ||\
+    __ARM_ARCH_6ZK__ || __ARM_ARCH_7__ || __ARM_ARCH_7A__ || __ARM_ARCH_7R__
+    __asm__("rev %0, %1" : "=r" (r) : "r" (x));
+    return r;
+#else
+#ifdef __thumb__
+    r = x ^ lj_ror(x, 16);
+#else
+    __asm__("eor %0, %1, %1, ror #16" : "=r" (r) : "r" (x));
+#endif
+    return ((r & 0xff00ffffu) >> 8) ^ lj_ror(x, 8);
+#endif
+#endif
+}
+
+#elif (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __clang__
+static TEA_AINLINE uint32_t tea_bswap(uint32_t x)
+{
+    return (uint32_t)__builtin_bswap32((int32_t)x);
+}
+
+#elif defined(__i386__) || defined(__x86_64__)
+static TEA_AINLINE uint32_t tea_bswap(uint32_t x)
+{
+    uint32_t r; __asm__("bswap %0" : "=r" (r) : "0" (x)); return r;
+}
+
+#else
+static TEA_AINLINE uint32_t tea_bswap(uint32_t x)
+{
+    return (x << 24) | ((x & 0xff00) << 8) | ((x >> 8) & 0xff00) | (x >> 24);
+}
+#endif
+
 #elif defined(_MSC_VER)
 
 #define TEA_NORET __declspec(noreturn)
@@ -110,6 +154,9 @@ static TEA_AINLINE uint32_t tea_fls(uint32_t x)
 {
     unsigned long r; _BitScanReverse(&r, x); return (uint32_t)r;
 }
+
+unsigned long _byteswap_ulong(unsigned long);
+#define tea_bswap(x) (_byteswap_ulong((x)))
 
 #else
 #error "missing defines for your compiler"

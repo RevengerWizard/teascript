@@ -50,29 +50,42 @@ typedef int LexToken; /* Lexical token */
 typedef struct
 {
     LexToken t;
-    int line;
+    BCLine line;
     TValue tv;
 } Token;
+
+/* Combined bytecode ins/line. Only used for bytecode generation */
+typedef struct BCInsLine
+{
+    BCIns ins;  /* Bytecode instruction */
+    BCLine line;    /* Line number for this bytecode */
+} BCInsLine;
 
 /* Teascript lexer state */
 typedef struct LexState
 {
     tea_State* T;    /* Teascript state */
+    struct FuncState* fs;   /* Current FuncState. Defined in tea_parse.c */
     SBuf sb;  /* String buffer for tokens */
+    TValue prevtv;  /* Previous token value */
+    TValue currtv;  /* Currently used token value */
+    TValue nexttv;  /* Next token value */
     const char* p;  /* Current position in input buffer */
     const char* pe;   /* End of input buffer */
     tea_Reader reader;   /* Reader callback */
-    void* data; /* Reader data */
+    void* rdata; /* Reader data */
     GCmodule* module; /* Current module */
     LexChar c;  /* Current character */
-    Token prev; /* Previous token */
-    Token curr;   /* Current used token */
-    Token next; /* Lookahead token */
-    int line;   /* Line counter */
     LexChar sc;    /* Whether string is ' or " */
+    Token prev; /* Previous token */
+    Token curr;   /* Currently used token */
+    Token next; /* Lookahead token */
+    BCLine linenumber;   /* Line counter */
     int braces[4];  /* Tracked string interpolations */
     int num_braces; /* Number of string interpolations */
     const char* mode;   /* Load bytecode (b) and/or source text (t) */
+    BCInsLine* bcstack; /* Stack for bytecode instructions/line numbers */
+    uint32_t sizebcstack;	/* Size of bytecode stack */
     bool endmark;   /* Trust bytecode end marker, even if not at EOF */
     bool eval;  /* Evaluate expression */
 } LexState;

@@ -85,7 +85,7 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             GCfunc* func = (GCfunc*)obj;
             if(isteafunc(func))
             {
-                tea_gc_markobj(T, (GCobj*)func->t.proto);
+                tea_gc_markobj(T, (GCobj*)func->t.pt);
                 for(int i = 0; i < func->t.upvalue_count; i++)
                 {
                     tea_gc_markobj(T, (GCobj*)func->t.upvalues[i]);
@@ -102,11 +102,11 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         }
         case TEA_TPROTO:
         {
-            GCproto* proto = (GCproto*)obj;
-            tea_gc_markobj(T, (GCobj*)proto->name);
-            for(int i = 0; i < proto->k_count; i++)
+            GCproto* pt = (GCproto*)obj;
+            tea_gc_markobj(T, (GCobj*)pt->name);
+            for(int i = 0; i < pt->sizek; i++)
             {
-                tea_gc_markval(T, proto_kgc(proto, i));
+                tea_gc_markval(T, proto_kgc(pt, i));
             }
             break;
         }
@@ -183,11 +183,6 @@ static void gc_mark_roots(tea_State* T)
     tea_gc_markobj(T, (GCobj*)T->string_class);
     tea_gc_markobj(T, (GCobj*)T->range_class);
     tea_gc_markobj(T, (GCobj*)T->object_class);
-
-    if(T->parser != NULL)
-    {
-        tea_parse_mark(T, T->parser);
-    }
 }
 
 static void gc_trace_references(tea_State* T)

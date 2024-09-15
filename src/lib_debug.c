@@ -28,9 +28,9 @@ static void debug_funcinfo(tea_State* T)
     GCmap* m;
     tea_new_map(T);
     m = mapV(T->top - 1);
-    setintfield(T, m, "upvalues", pt->upvalue_count);
-    setintfield(T, m, "kconsts", pt->k_count);
-    setintfield(T, m, "bytecodes", pt->bc_count);
+    setintfield(T, m, "upvalues", pt->sizeuv);
+    setintfield(T, m, "kconsts", pt->sizek);
+    setintfield(T, m, "bytecodes", pt->sizebc);
     setstrV(T, T->top++, pt->name);
     tea_set_key(T, -2, "name");
     setprotoV(T, tea_map_setstr(T, m, tea_str_newlit(T, "proto")), pt);
@@ -40,20 +40,30 @@ static void debug_funck(tea_State* T)
 {
     GCproto* pt = tea_lib_checkTproto(T, 0, false);
     int32_t idx = tea_lib_checkint(T, 1);
-    copyTV(T, T->top - 1, proto_kgc(pt, idx));
+    if(idx >= 0 && idx < (int32_t)pt->sizek)
+    {
+        copyTV(T, T->top - 1, proto_kgc(pt, idx));
+        return;
+    }
+    setnilV(T->top - 1);
 }
 
 static void debug_funcbc(tea_State* T)
 {
     GCproto* pt = tea_lib_checkTproto(T, 0, false);
-    int32_t idx = tea_lib_checkint(T, 1);
-    setnumV(T->top - 1, proto_bc(pt, idx));
+    BCPos pc = (BCPos)tea_lib_checkint(T, 1);
+    if(pc < pt->sizebc)
+    {
+        setnumV(T->top - 1, proto_bc(pt)[pc]);
+        return;
+    }
+    setnilV(T->top - 1);
 }
 
 static void debug_funcline(tea_State* T)
 {
     GCproto* pt = tea_lib_checkTproto(T, 0, false);
-    int32_t ofs = tea_lib_checkint(T, 1);
+    BCLine ofs = (BCLine)tea_lib_checkint(T, 1);
     setnumV(T->top++, tea_debug_line(pt, ofs));
 }
 

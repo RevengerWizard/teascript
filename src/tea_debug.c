@@ -12,26 +12,22 @@
 /* -- Line numbers -------------------------------------------------------- */
 
 /* Get line number for a bytecode position */
-int tea_debug_line(GCproto* pt, int pc)
+BCLine tea_debug_line(GCproto* pt, BCPos pc)
 {
-    int start = 0;
-    int end = pt->line_count - 1;
-
-    while(true)
+    const void* lineinfo = pt->lineinfo;
+    if(pc <= pt->sizebc && lineinfo)
     {
-        int mid = (start + end) / 2;
-        LineStart* line = &pt->lines[mid];
-        if(pc < line->ofs)
-        {
-            end = mid - 1;
-        }
-        else if(mid == pt->line_count - 1 || pc < pt->lines[mid + 1].ofs)
-        {
-            return line->line;
-        }
+        BCLine first = pt->firstline;
+        if(pc == pt->sizebc)
+            return first + pt->numline;
+        if(pc-- == 0)
+            return first;
+        if(pt->numline < 256)
+            return first + (BCLine)((const uint8_t*)lineinfo)[pc];
+        else if(pt->numline < 65536)
+            return first + (BCLine)((const uint16_t*)lineinfo)[pc];
         else
-        {
-            start = mid + 1;
-        }
+            return first + (BCLine)((const uint32_t*)lineinfo)[pc];
     }
+    return 0;
 }

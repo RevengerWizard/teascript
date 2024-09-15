@@ -9,6 +9,6 @@
 #include "tea_lex.h"
 
 TEA_FUNC GCproto* tea_parse(LexState* ls, bool isexpr);
-TEA_FUNC void tea_parse_mark(tea_State* T, struct ParseState* parser);
+TEA_FUNC GCstr* tea_parse_keepstr(LexState* ls, const char* str, size_t len);
 
 #endif

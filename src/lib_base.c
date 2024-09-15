@@ -169,14 +169,33 @@ static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
 
 static void base_dump(tea_State* T)
 {
-    tea_check_function(T, 0);
-    GCfunc* fn = funcV(T->base);
-    SBuf* sb = tea_buf_tmp_(T);
-    if(!isteafunc(fn) || tea_bcwrite(T, fn->t.proto, writer_buf, sb))
+    GCproto* pt = tea_lib_checkTproto(T, 0, true);
+    uint32_t flags = 0;
+    SBuf* sb;
+    TValue* o = T->base + 1;
+    if(o < T->top)
+    {
+        if(tvisstr(o))
+        {
+            const char* mode = strVdata(o);
+            char c;
+            while((c = *mode++))
+            {
+                if(c == 's') flags |= BCDUMP_F_STRIP;
+            }
+        }
+        else if(tvisbool(o) && boolV(o))
+        {
+            flags |= BCDUMP_F_STRIP;
+        }
+    }
+    sb = tea_buf_tmp_(T);
+    T->top = T->base + 1;
+    if(!pt || tea_bcwrite(T, pt, writer_buf, sb, flags))
     {
         tea_err_msg(T, TEA_ERR_DUMP);
     }
-    setstrV(T, T->top++, tea_buf_str(T, sb));
+    setstrV(T, T->top - 1, tea_buf_str(T, sb));
 }
 
 static void base_loadfile(tea_State* T)
@@ -329,7 +348,7 @@ static const tea_Reg globals[] = {
     { "tostring", base_tostring, 1, 0 },
     { "gc", base_gc, 0, 0 },
     { "eval", base_eval, 1, 0 },
-    { "dump", base_dump, 1, 0 },
+    { "dump", base_dump, 1, 1 },
     { "loadfile", base_loadfile, 1, 0 },
     { "loadstring", base_loadstring, 1, 0 },
     { "char", base_char, 1, 0 },

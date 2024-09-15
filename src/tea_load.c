@@ -32,8 +32,8 @@ static void parser_f(tea_State* T, void* ud)
         setstrV(T, T->top++, tea_err_str(T, TEA_ERR_XMODE));
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
-    GCproto* proto = bc ? tea_bcread(ls) : tea_parse(ls, ls->eval);
-    GCfunc* func = tea_func_newT(T, proto, ls->module);
+    GCproto* pt = bc ? tea_bcread(ls) : tea_parse(ls, ls->eval);
+    GCfunc* func = tea_func_newT(T, pt, ls->module);
     setfuncV(T, T->top++, func);
 }
 
@@ -67,7 +67,7 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     ls.eval = false;
     ls.module = module;
     ls.reader = reader;
-    ls.data = data;
+    ls.rdata = data;
     ls.mode = mode;
     tea_buf_init(&ls.sb);
     int status = tea_vm_pcall(T, parser_f, &ls, stack_save(T, T->top));
@@ -180,7 +180,7 @@ TEA_API int tea_eval(tea_State* T, const char* s)
     ls.eval = true;
     ls.module = module;
     ls.reader = reader_string;
-    ls.data = &ctx;
+    ls.rdata = &ctx;
     ls.mode = "t";
     tea_buf_init(&ls.sb);
     int status = tea_vm_pcall(T, parser_f, &ls, stack_save(T, T->top));
@@ -195,7 +195,7 @@ TEA_API int tea_dump(tea_State* T, tea_Writer writer, void* data)
     cTValue* o = T->top - 1;
     tea_checkapi(T->top > T->base, "top slot empty");
     if(tvisfunc(o) && isteafunc(funcV(o)))
-        return tea_bcwrite(T, funcV(o)->t.proto, writer, data);
+        return tea_bcwrite(T, funcV(o)->t.pt, writer, data, 0);
     else
         return TEA_ERROR_SYNTAX;
 }

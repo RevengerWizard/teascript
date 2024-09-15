@@ -50,22 +50,22 @@ static TEA_INLINE uint32_t map_hash(uint64_t hash)
     return (uint32_t)(hash & 0x3fffffff);
 }
 
-static uint32_t map_hash_obj(TValue* value)
+static uint32_t map_hash_obj(TValue* tv)
 {
-    switch(itype(value))
+    switch(itype(tv))
     {
         case TEA_TNIL:
             return 1;
         case TEA_TBOOL:
             return 2;
         case TEA_TNUM:
-            return map_hash(numV(value));
+            return map_hash(numV(tv));
         case TEA_TPOINTER:
-            return map_hash((uint64_t)pointerV(value));
+            return map_hash((uint64_t)pointerV(tv));
         case TEA_TSTR:
-            return strV(value)->hash;
+            return strV(tv)->hash;
         default:
-            return map_hash((uint64_t)gcV(value));
+            return map_hash((uint64_t)gcV(tv));
     }
 }
 

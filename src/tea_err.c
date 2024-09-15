@@ -130,10 +130,10 @@ TEA_NOINLINE void tea_err_run(tea_State* T)
         /* Skip stack trace for C functions */
         if(iscfunc(ci->func)) continue;
 
-        GCproto* proto = ci->func->t.proto;
-        BCIns bc = ci->ip - proto->bc - 1;
+        GCproto* pt = ci->func->t.pt;
+        BCPos pc = ci->ip - proto_bc(pt) - 1;
         tea_strfmt_pushf(T, "[line %d] in %s\n", 
-            tea_debug_line(proto, bc), str_data(proto->name));
+            tea_debug_line(pt, pc), str_data(pt->name));
         msg = strV(T->top - 1);
         tea_buf_putmem(T, sb, str_data(msg), msg->len);
         T->top--;
