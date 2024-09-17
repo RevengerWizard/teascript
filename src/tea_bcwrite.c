@@ -73,6 +73,7 @@ static void bcwrite_kgc(BCWriteCtx* ctx, GCproto* pt)
         }
         else if(tvisproto(o))
         {
+            tea_assertBCW((pt->flags & PROTO_CHILD), "prototype has unexpected child");
             type = BCDUMP_KGC_FUNC;
         }
         else if(tvisnum(o))
@@ -114,17 +115,19 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     char* p;
 
     /* Recursively write children of prototype */
-    for(int i = pt->sizek - 1; i >= 0; i--)
+    if((pt->flags & PROTO_CHILD))
     {
-        TValue* o = proto_kgc(pt, i);
-        if(tvisproto(o))
+        for(int i = pt->sizek - 1; i >= 0; i--)
         {
-            bcwrite_proto(ctx, protoV(o));
-        }    
+            TValue* o = proto_kgc(pt, i);
+            if(tvisproto(o))
+                bcwrite_proto(ctx, protoV(o));
+        }
     }
 
     /* Start writing the prototype into the buffer */
-    p = tea_buf_need(ctx->T, &ctx->sb, 5+(5+len)+6+2*5+(pt->sizebc-1));
+    p = tea_buf_need(ctx->T, &ctx->sb, 
+                5+(5+len)+6+2*5+(pt->sizebc-1)+(pt->sizeuv-1)*sizeof(uint16_t));
     p += 5; /* Leave room for final size */
 
     /* Write prototype name */
@@ -134,7 +137,7 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     /* Write prototype header */
     *p++ = pt->numparams;
     *p++ = pt->numopts;
-    *p++ = pt->flags;
+    *p++ = pt->flags & PROTO_CHILD;
     *p++ = pt->max_slots;
     *p++ = pt->sizeuv;
     p = bcwrite_wuleb128(p, pt->sizebc);
@@ -151,8 +154,10 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
         }
     }
 
-    /* Write bytecode instructions */
+    /* Write bytecode instructions and upvalue indexes */
     p = bcwrite_bytecode(ctx, pt, p);
+    ctx->sb.w = p;
+    p = tea_buf_wmem(p, pt->uv, pt->sizeuv * sizeof(uint16_t));
     ctx->sb.w = p;
 
     /* Write constants */

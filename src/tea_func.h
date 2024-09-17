@@ -18,7 +18,8 @@ TEA_FUNC void TEA_FASTCALL tea_func_freeuv(tea_State* T, GCupval* uv);
 
 /* Functions (closures) */
 TEA_FUNC GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nupvalues, int nargs, int nopts);
-TEA_FUNC GCfunc* tea_func_newT(tea_State* T, GCproto* proto, GCmodule* module);
+TEA_FUNC GCfunc* tea_func_newT_empty(tea_State* T, GCproto* pt, GCmodule* module);
+TEA_FUNC GCfunc* tea_func_newT(tea_State* T, GCproto* pt, GCfuncT* parent);
 TEA_FUNC void TEA_FASTCALL tea_func_free(tea_State* T, GCfunc* fn);
 
 #endif

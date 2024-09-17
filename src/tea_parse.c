@@ -113,6 +113,7 @@ typedef struct FuncState
     int local_count;    /* Number of local variables in scope */
     Local locals[TEA_MAX_LOCAL];  /* Current scoped locals */
     Upvalue upvalues[TEA_MAX_UPVAL];  /* Saved upvalues */
+    uint16_t uvmap[TEA_MAX_UPVAL];  /* Temporary upvalue map */
     int scope_depth;    /* Current scope depth */
 } FuncState;
 
@@ -375,6 +376,14 @@ static void fs_fixup_k(FuncState* fs, GCproto* pt, void* kptr)
     }
 }
 
+/* Fixup upvalues for prototype */
+static void fs_fixup_uv(FuncState* fs, GCproto* pt, uint16_t* uv)
+{
+    pt->uv = uv;
+    pt->sizeuv = (uint8_t)fs->nuv;
+    memcpy(uv, fs->uvmap, fs->nuv * sizeof(uint16_t));
+}
+
 /* Prepare lineinfo for prototype */
 static size_t fs_prep_line(FuncState* fs, BCLine numline)
 {
@@ -431,12 +440,13 @@ static GCproto* fs_finish(LexState* ls, BCLine line)
     tea_State* T = ls->T;
     FuncState* fs = ls->fs;
     BCLine numline = line - fs->linedefined;
-    size_t sizept, ofsk, ofsli;
+    size_t sizept, ofsk, ofsuv, ofsli;
     GCproto* pt;
 
     /* Calculate total size of prototype including all colocated arrays */
     sizept = sizeof(GCproto) + fs->pc * sizeof(BCIns);
     ofsk = sizept; sizept += fs->nk * sizeof(TValue);
+    ofsuv = sizept; sizept += fs->nuv * sizeof(uint16_t);
     ofsli = sizept; sizept += fs_prep_line(fs, numline);
 
     /* Allocate new prototype and initialize fields */
@@ -444,13 +454,13 @@ static GCproto* fs_finish(LexState* ls, BCLine line)
     pt->sizept = sizept;
     pt->numparams = fs->numparams;
     pt->numopts = fs->numopts;
-    pt->sizeuv = (uint8_t)fs->nuv;
     pt->max_slots = fs->max_slots;
     pt->flags = fs->flags;
     pt->name = fs->name;
 
     fs_fixup_bc(fs, pt, (BCIns*)((char*)pt + sizeof(GCproto)), fs->pc);
     fs_fixup_k(fs, pt, (void*)((char*)pt + ofsk));
+    fs_fixup_uv(fs, pt, (uint16_t*)((char*)pt + ofsuv));
     fs_fixup_line(fs, pt, (void*)((char*)pt + ofsli), numline);
 
     T->top--;   /* Pop table of constants */
@@ -635,6 +645,7 @@ static int loop_argcount(FuncState* fs, int ip)
         case BC_UNPACK:
         case BC_MULTI_CASE:
         case BC_INVOKE_NEW:
+        case BC_CLOSURE:
             return 1;
         case BC_IMPORT_VARIABLE:
         case BC_UNPACK_REST:
@@ -650,26 +661,6 @@ static int loop_argcount(FuncState* fs, int ip)
         case BC_FOR_ITER:
         case BC_DEFINE_MODULE:
             return 2;
-        case BC_CLOSURE:
-        {
-            int k = fs->bcbase[ip + 1].ins;
-            GCproto* pt = NULL;
-            for(int i = 0; i < fs->kt->size; i++)
-            {
-                MapEntry* n = &fs->kt->entries[i];
-                if(n->empty) continue;
-                if(tvisproto(&n->key) && k == (int32_t)numV(&n->val))
-                {
-                    pt = protoV(&n->key);
-                    break;
-                }
-            }
-            tea_assertFS(pt != NULL, "no proto found in constants?");
-
-            /* There is one byte for the constant, then two for each upvalue */
-            return 1 + (pt->sizeuv * 2);
-            break;
-        }
     }
     return 0;
 }
@@ -726,9 +717,8 @@ static int var_lookup_local(FuncState* fs, Token* name)
 
 static int var_add_uv(FuncState* fs, uint8_t index, bool islocal, bool isconst)
 {
-    int upvalue_count = fs->nuv;
-
-    for(int i = 0; i < upvalue_count; i++)
+    uint32_t i, n = fs->nuv;
+    for(i = 0; i < n; i++)
     {
         Upvalue* upvalue = &fs->upvalues[i];
         if(upvalue->index == index && upvalue->islocal == islocal)
@@ -737,15 +727,15 @@ static int var_add_uv(FuncState* fs, uint8_t index, bool islocal, bool isconst)
         }
     }
 
-    if(upvalue_count == TEA_MAX_UPVAL)
+    if(n == TEA_MAX_UPVAL)
     {
         error(fs, TEA_ERR_XUPVAL);
     }
 
-    fs->upvalues[upvalue_count].islocal = islocal;
-    fs->upvalues[upvalue_count].index = index;
-    fs->upvalues[upvalue_count].isconst = isconst;
-
+    fs->upvalues[n].islocal = islocal;
+    fs->upvalues[n].index = index;
+    fs->upvalues[n].isconst = isconst;
+    fs->uvmap[n] = (uint16_t)(((islocal) << 8) | (index));
     return fs->nuv++;
 }
 
@@ -1659,7 +1649,7 @@ static void parse_params(FuncState* fs)
 
             if(spread)
             {
-                fs->flags = PROTO_VARARG;
+                fs->flags |= PROTO_VARARG;
             }
 
             if(lex_match(fs, '='))
@@ -1745,10 +1735,9 @@ static void parse_body(LexState* ls, FuncInfo info, BCLine line)
     pfs->bclimit = (BCPos)(ls->sizebcstack - oldbase);
     /* Store new prototype in the constant array of the parent */
     bcemit_argued(pfs, BC_CLOSURE, const_gc(pfs, (GCobj*)pt, TEA_TPROTO));
-    for(int i = 0; i < pt->sizeuv; i++)
+    if(!(pfs->flags & PROTO_CHILD))
     {
-        bcemit_byte(pfs, fs.upvalues[i].islocal ? 1 : 0);
-        bcemit_byte(pfs, fs.upvalues[i].index);
+        pfs->flags |= PROTO_CHILD;
     }
 }
 

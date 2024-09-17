@@ -241,12 +241,29 @@ static void bcread_bytecode(LexState* ls, GCproto* pt, size_t sizebc)
     }
 }
 
+/* Read upvalue indexes */
+static void bcread_uv(LexState* ls, GCproto* pt, size_t sizeuv)
+{
+    if(sizeuv)
+    {
+        uint16_t* uv = pt->uv;
+        bcread_block(ls, uv, sizeuv*sizeof(uint16_t));
+        /* Swap upvalue idexes if the endianess differs */
+        if(bcread_swap(ls))
+        {
+            uint32_t i;
+            for(i = 0; i < sizeuv; i++)
+                uv[i] = (uint16_t)((uv[i] >> 8)|(uv[i] << 8));
+        }
+    }
+}
+
 /* Read prototype */
 static GCproto* bcread_proto(LexState* ls)
 {
     GCproto* pt;
     size_t numparams, numopts, flags, max_slots, sizeuv, sizebc, sizek, sizept;
-    size_t ofsk, ofsdbg;
+    size_t ofsk, ofsuv, ofsdbg;
     size_t sizedbg = 0;
     BCLine firstline = 0, numline = 0;
 
@@ -273,9 +290,9 @@ static GCproto* bcread_proto(LexState* ls)
     }
 
     /* Calculate total size of prototype including all colocated arrays */
-    sizept = sizeof(GCproto) +
-        sizebc * sizeof(BCIns);
+    sizept = sizeof(GCproto) + sizebc * sizeof(BCIns);
     ofsk = sizept; sizept += sizek * sizeof(TValue);
+    ofsuv = sizept; sizept += sizeuv * sizeof(uint16_t);
     ofsdbg = sizept; sizept += sizedbg;
 
     /* Allocate prototype and initialize its fields */
@@ -288,15 +305,17 @@ static GCproto* bcread_proto(LexState* ls)
     pt->sizeuv = (uint8_t)sizeuv;
     pt->sizebc = sizebc;
     pt->k = (TValue*)((char*)pt + ofsk);
+    pt->uv = (uint16_t*)((char*)pt + ofsuv);
     pt->sizek = sizek;
     pt->sizept = sizept;
 
-    /* Read bytecode instructions */
+    /* Read bytecode instructions and upvalue indexes */
     bcread_bytecode(ls, pt, sizebc);
+    bcread_uv(ls, pt, sizeuv);
 
     /* Read constants */
     bcread_kgc(ls, pt, sizek);
-
+    
     /* Read and initialize debug info */
     pt->firstline = firstline;
     pt->numline = numline;

@@ -84,7 +84,7 @@ static bool vm_call(tea_State* T, GCfunc* func, int nargs)
     {
         GCfuncT* f = &func->t;
         nargs = vm_argcheck(T, nargs, f->pt->numparams, f->pt->numopts, 
-                    f->pt->flags == PROTO_VARARG);
+                    (f->pt->flags & PROTO_VARARG) != 0);
         tea_state_checkstack(T, f->pt->max_slots);
         CallInfo* ci = tea_state_growci(T); /* Enter new function */
         ci->func = func;
@@ -1071,21 +1071,8 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_CLOSURE):
             {
                 GCproto* pt = protoV(READ_CONSTANT());
-                GCfunc* func = tea_func_newT(T, pt, T->ci->func->t.module);
+                GCfunc* func = tea_func_newT(T, pt, &T->ci->func->t);
                 setfuncV(T, T->top++, func);
-                for(int i = 0; i < func->t.upvalue_count; i++)
-                {
-                    uint8_t is_local = READ_BYTE();
-                    uint8_t idx = READ_BYTE();
-                    if(is_local)
-                    {
-                        func->t.upvalues[i] = tea_func_finduv(T, base + idx);
-                    }
-                    else
-                    {
-                        func->t.upvalues[i] = T->ci->func->t.upvalues[idx];
-                    }
-                }
                 DISPATCH();
             }
             CASE_CODE(BC_CLOSE_UPVALUE):

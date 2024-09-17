@@ -91,18 +91,52 @@ GCfunc* tea_func_newC(tea_State* T, CFuncType type, tea_CFunction fn, int nupval
     return func;
 }
 
-/* Create a new Teascript function with empty upvalues */
-GCfunc* tea_func_newT(tea_State* T, GCproto* pt, GCmodule* module)
+static GCfunc* func_newT(tea_State* T, GCproto* pt, GCmodule* module)
 {
     GCfunc* func = (GCfunc*)tea_mem_newgco(T, sizeTfunc(pt->sizeuv), TEA_TFUNC);
     func->t.ffid = FF_TEA;
-    func->t.upvalue_count = pt->sizeuv;
+    func->t.upvalue_count = 0;  /* Set to 0 until upvalues are initialized */
     func->t.module = module;
     func->t.pt = pt;
-    for(int i = 0; i < pt->sizeuv; i++)
+    return func;
+}
+
+/* Create a new Teascript function with empty upvalues */
+GCfunc* tea_func_newT_empty(tea_State* T, GCproto* pt, GCmodule* module)
+{
+    GCfunc* func = func_newT(T, pt, module);
+    uint32_t i, nuv = pt->sizeuv;
+    for(i = 0; i < nuv; i++)
     {
         func->t.upvalues[i] = NULL;
     }
+    func->t.upvalue_count = (uint8_t)nuv;
+    return func;
+}
+
+/* Create a new Teascript function with inherited upvalues */
+GCfunc* tea_func_newT(tea_State* T, GCproto* pt, GCfuncT* parent)
+{
+    GCfunc* func;
+    uint32_t i, nuv;
+    TValue* base;
+    func = func_newT(T, pt, parent->module);
+    nuv = pt->sizeuv;
+    base = T->ci->base;
+    for(i = 0; i < nuv; i++)
+    {
+        uint16_t v = pt->uv[i];
+        uint8_t idx = v & 0xff;
+        if((v & PROTO_UV_LOCAL) != 0)
+        {
+            func->t.upvalues[i] = tea_func_finduv(T, base + idx);
+        }
+        else
+        {
+            func->t.upvalues[i] = parent->upvalues[idx];
+        }
+    }
+    func->t.upvalue_count = (uint8_t)nuv;
     return func;
 }
 

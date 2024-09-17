@@ -158,6 +158,7 @@ typedef struct
     uint32_t sizebc;  /* Number of bytecode instructions */
     uint32_t sizek;    /* Number of constants */
     TValue* k;  /* Constants used by the function */
+    uint16_t* uv;   /* Upvalue list */
     /* ------ The following fields are for debugging/tracebacks only ------ */
     BCLine firstline;   /* First line of the code this function was defined in */
     BCLine numline; /* Number of lines for the function definition */
@@ -166,7 +167,10 @@ typedef struct
 } GCproto;
 
 /* Flags for prototype */
-#define PROTO_VARARG 1
+#define PROTO_CHILD 0x1 /* Has child prototypes */
+#define PROTO_VARARG 0x02   /* Variadic function */
+
+#define PROTO_UV_LOCAL 0x0100   /* Upvalue for local slot */
 
 #define proto_kgc(pt, i) (&((pt)->k[(i)]))
 #define proto_bc(pt) ((BCIns*)((char*)(pt) + sizeof(GCproto)))

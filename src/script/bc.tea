@@ -5,7 +5,7 @@
 **
 */
 
-from debug import funcinfo, funck, funcbc, funcline
+from debug import funcinfo, funck, funcbc, funcuv, funcline
 from vmdef import bcnames
 
 function bctarget_jump(func, ofs, out, sign)
@@ -122,19 +122,19 @@ function bctarget(func, ofs, out)
         {
             ofs++
             const k = funcbc(func, ofs) ofs++
+            const proto = funck(func, k)
             out.write("%4d ".format(k))
-            out.write(tostring(funck(func, k)))
+            out.write(tostring(proto))
             out.write('\n')
 
-            const proto = funcinfo(funck(func, k))
-            const upvalues = proto.upvalues
+            const upvalues = funcinfo(proto).upvalues
             for(var j = 0; j < upvalues; j++)
             {
-                const is_local = funcbc(func, ofs) ofs++
-                const idx = funcbc(func, ofs) ofs++
-                out.write("%04d    |                     %s %d\n".format(ofs - 2, is_local ? "local" : "upvalue", idx))
+                const uv = funcuv(proto, j)
+                const islocal = (uv & 0x0100) != 0
+                const idx = uv & 0xff
+                out.write("        |                     %s %d\n".format(islocal ? "local" : "upvalue", idx))
             }
-
             return ofs
         }
         default:
@@ -147,12 +147,15 @@ function bctarget(func, ofs, out)
 export function bcdump(func, out)
 {
     const fi = funcinfo(func)
-    for(var i = 0; i < fi.kconsts; i++)
+    if(fi.children)
     {
-        const k = funck(fi.proto, i)
-        if(typeof(k) == 'proto')
+        for(var i = 0; i < fi.kconsts; i++)
         {
-            bcdump(k, out)
+            const k = funck(fi.proto, i)
+            if(typeof(k) == 'proto')
+            {
+                bcdump(k, out)
+            }
         }
     }
     out.write("== '%s' ==\n".format(fi.name))

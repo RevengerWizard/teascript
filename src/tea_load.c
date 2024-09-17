@@ -33,7 +33,7 @@ static void parser_f(tea_State* T, void* ud)
         tea_err_throw(T, TEA_ERROR_SYNTAX);
     }
     GCproto* pt = bc ? tea_bcread(ls) : tea_parse(ls, ls->eval);
-    GCfunc* func = tea_func_newT(T, pt, ls->module);
+    GCfunc* func = tea_func_newT_empty(T, pt, ls->module);
     setfuncV(T, T->top++, func);
 }
 

@@ -31,6 +31,8 @@ static void debug_funcinfo(tea_State* T)
     setintfield(T, m, "upvalues", pt->sizeuv);
     setintfield(T, m, "kconsts", pt->sizek);
     setintfield(T, m, "bytecodes", pt->sizebc);
+    tea_push_bool(T, (pt->flags & PROTO_CHILD));
+    tea_set_key(T, -2, "children");
     setstrV(T, T->top++, pt->name);
     tea_set_key(T, -2, "name");
     setprotoV(T, tea_map_setstr(T, m, tea_str_newlit(T, "proto")), pt);
@@ -60,6 +62,18 @@ static void debug_funcbc(tea_State* T)
     setnilV(T->top - 1);
 }
 
+static void debug_funcuv(tea_State* T)
+{
+    GCproto* pt = tea_lib_checkTproto(T, 0, false);
+    int32_t idx = tea_lib_checkint(T, 1);
+    if(idx < pt->sizeuv)
+    {
+        setnumV(T->top - 1, pt->uv[idx]);
+        return;
+    }
+    setnilV(T->top - 1);
+}
+
 static void debug_funcline(tea_State* T)
 {
     GCproto* pt = tea_lib_checkTproto(T, 0, false);
@@ -73,6 +87,7 @@ static const tea_Reg debug_module[] = {
     { "funcinfo", debug_funcinfo, 1, 0 },
     { "funck", debug_funck, 2, 0 },
     { "funcbc", debug_funcbc, 2, 0 },
+    { "funcuv", debug_funcuv, 2, 0 },
     { "funcline", debug_funcline, 2, 0 },
     { NULL, NULL }
 };
