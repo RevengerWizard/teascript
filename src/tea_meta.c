@@ -107,7 +107,7 @@ bool tea_meta_hasattr(tea_State* T, GCstr* name, TValue* obj)
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(obj);
-            cTValue* o = tea_tab_get(&module->vars, name);
+            cTValue* o = tea_tab_get(&module->exports, name);
             if(o) return true;
             break;
         }
