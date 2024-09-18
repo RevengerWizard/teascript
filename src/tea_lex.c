@@ -99,12 +99,7 @@ static void lex_newline(LexState* ls)
     if(lex_iseol(ls) && ls->c != old)
         lex_next(ls);  /* Skip "\n\r" or "\r\n" */
     if(++ls->linenumber >= TEA_MAX_LINE)
-        tea_lex_error(ls, NULL, TEA_ERR_XLINES);
-}
-
-static void lex_syntaxerror(LexState* ls, ErrMsg em)
-{
-    tea_lex_error(ls, NULL, em);
+        tea_lex_error(ls, 0, ls->linenumber, TEA_ERR_XLINES);
 }
 
 static Token lex_token(LexState* ls, LexToken type)
@@ -137,7 +132,7 @@ static Token lex_number(LexState* ls)
             if(und)
             {
                 /* Do not allow double underscores */
-                lex_syntaxerror(ls, TEA_ERR_XNUMBER);
+                tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
             }
             und = true;
             lex_next(ls);
@@ -154,7 +149,7 @@ static Token lex_number(LexState* ls)
             if(d == '.') break;
             else if(!tea_char_isxdigit(d))
             {
-                lex_syntaxerror(ls, TEA_ERR_XNUMBER);
+                tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
             }
         }
         c = ls->c;
@@ -163,7 +158,7 @@ static Token lex_number(LexState* ls)
     /* Do not allow leading '_' */
     if(und)
     {
-        lex_syntaxerror(ls, TEA_ERR_XNUMBER);
+        tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
     }
     lex_save(ls, '\0');
 
@@ -177,7 +172,7 @@ static Token lex_number(LexState* ls)
     else
     {
         tea_assertLS(fmt == STRSCAN_ERROR, "unexpected number format %d", fmt);
-        lex_syntaxerror(ls, TEA_ERR_XNUMBER);
+        tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
     }
 
     Token tok = lex_token(ls, TK_NUMBER);
@@ -261,7 +256,7 @@ static Token lex_multistring(LexState* ls)
         {
             case LEX_EOF:
             {
-                lex_syntaxerror(ls, TEA_ERR_XSTR);
+                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
                 break;
             }
             case '\r':
@@ -286,7 +281,7 @@ static Token lex_multistring(LexState* ls)
 
     if((c != ls->sc) || (c1 != ls->sc) || (c2 != ls->sc))
     {
-        lex_syntaxerror(ls, TEA_ERR_XSTR);
+        tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
     }
 
     Token tok = lex_token(ls, TK_STRING);
@@ -307,7 +302,7 @@ static Token lex_string(LexState* ls)
         {
             if(ls->num_braces >= 4)
             {
-				lex_syntaxerror(ls, TEA_ERR_XSFMT);
+                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSFMT);
 			}
 
             lex_next(ls);
@@ -326,13 +321,13 @@ static Token lex_string(LexState* ls)
         {
             case LEX_EOF:
             {
-                lex_syntaxerror(ls, TEA_ERR_XSTR);
+                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
                 continue;
             }
             case '\n':
             case '\r':
             {
-                lex_syntaxerror(ls, TEA_ERR_XSTR);
+                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
                 continue;
             }
             case '\\':
@@ -360,7 +355,7 @@ static Token lex_string(LexState* ls)
                         c = lex_hex_escape(ls);
                         if(c == -1)
                         {
-                            lex_syntaxerror(ls, TEA_ERR_XHESC);
+                            tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XHESC);
                         }
                         break;
                     }
@@ -372,7 +367,7 @@ static Token lex_string(LexState* ls)
                         c = lex_unicode_escape(ls, u);
                         if(c == -1)
                         {
-                            lex_syntaxerror(ls, TEA_ERR_XUESC);
+                            tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XUESC);
                         }
                         lex_save(ls, c);
                         continue;
@@ -391,7 +386,7 @@ static Token lex_string(LexState* ls)
                                 if(c > 255)
                                 {
                                 err_xesc:
-                                    lex_syntaxerror(ls, TEA_ERR_XESC);
+                                    tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XESC);
                                 }
                                 lex_next(ls);
                             }
@@ -448,7 +443,7 @@ static Token lex_scan(LexState* ls)
                     {
                         if(ls->c == LEX_EOF)
                         {
-                            lex_syntaxerror(ls, TEA_ERR_XLCOM);
+                            tea_lex_error(ls, 0, ls->linenumber, TEA_ERR_XLCOM);
                         }
 
                         if(ls->c == '/' && lex_next(ls) == '*')
@@ -774,7 +769,7 @@ static Token lex_scan(LexState* ls)
                     return tok;
                 }
                 else
-                    lex_syntaxerror(ls, TEA_ERR_XCHAR);
+                    tea_lex_error(ls, 0, ls->linenumber, TEA_ERR_XCHAR);
             }
         }
     }
@@ -854,21 +849,24 @@ const char* tea_lex_token2str(LexState* ls, LexToken t)
 }
 
 /* Lexer error */
-void tea_lex_error(LexState* ls, Token* token, ErrMsg em, ...)
+void tea_lex_error(LexState* ls, LexToken tok, BCLine line, ErrMsg em, ...)
 {
+    const char* tokstr = NULL;
+    va_list argp;
     char* name = str_datawr(ls->module->name);
     char c = name[0];
     int off = 0;
     if(c == '?' || c == '=') off = 1;
-
-    const char* tokstr = NULL;
-    va_list argp;
-    if(token != NULL)
+    if(tok == 0)
     {
-        tokstr = tea_lex_token2str(ls, token->t);
+        tokstr = NULL;
+    }
+    else
+    {
+        tokstr = tea_lex_token2str(ls, tok);
     }
     va_start(argp, em);
-    tea_err_lex(ls->T, name + off, tokstr, token ? token->line : ls->linenumber, em, argp);
+    tea_err_lex(ls->T, name + off, tokstr, line, em, argp);
     va_end(argp);
 }
 

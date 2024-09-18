@@ -36,8 +36,8 @@ onetea.o: onetea.c tea.h teaconf.h tea_def.h tea_assert.c tea_obj.h \
  tea_func.h tea_map.h tea_vm.h tea_err.h tea_errmsg.h tea_gc.h tea_lex.h \
  tea_buf.h tea_tab.h tea_list.h tea_strfmt.h tea_udata.h tea_meta.h \
  tea_import.h tea_lib.c tea_lib.h tea_prng.c tea_prng.h tea_bcread.c \
- tea_bcdump.h tea_bcwrite.c tea_load.c tea_parse.h tea_buf.c tea_parse.c \
- tea_debug.c tea_debug.h tea_strscan.c tea_arch.h tea_strscan.h \
+ tea_arch.h tea_bcdump.h tea_bcwrite.c tea_load.c tea_parse.h tea_buf.c \
+ tea_parse.c tea_debug.c tea_debug.h tea_strscan.c tea_strscan.h \
  tea_strfmt.c tea_strfmt_num.c tea_err.c tea_import.c tealib.h tea_func.c \
  tea_str.c tea_map.c tea_list.c tea_udata.c tea_obj.c tea_gc.c tea_lex.c \
  tea_utf.h tea_state.c tea_meta.c tea_tab.c tea_utf.c tea_vm.c lib_base.c \
@@ -50,12 +50,12 @@ tea_api.o: tea_api.c tea.h teaconf.h tea_state.h tea_def.h tea_obj.h \
  tea_meta.h tea_import.h
 tea_assert.o: tea_assert.c tea_obj.h tea.h teaconf.h tea_def.h
 tea_bc.o: tea_bc.c tea_bc.h tea_def.h
-tea_bcread.o: tea_bcread.c tea_def.h tea_bcdump.h tea.h teaconf.h \
- tea_state.h tea_obj.h tea_lex.h tea_buf.h tea_gc.h tea_str.h tea_err.h \
- tea_errmsg.h tea_strfmt.h tea_func.h tea_vm.h
-tea_bcwrite.o: tea_bcwrite.c tea_bcdump.h tea.h teaconf.h tea_state.h \
- tea_def.h tea_obj.h tea_lex.h tea_buf.h tea_gc.h tea_str.h tea_err.h \
- tea_errmsg.h tea_vm.h
+tea_bcread.o: tea_bcread.c tea_arch.h tea_def.h tea_bcdump.h tea.h \
+ teaconf.h tea_state.h tea_obj.h tea_lex.h tea_buf.h tea_gc.h tea_str.h \
+ tea_err.h tea_errmsg.h tea_strfmt.h tea_func.h tea_vm.h
+tea_bcwrite.o: tea_bcwrite.c tea_arch.h tea_bcdump.h tea.h teaconf.h \
+ tea_state.h tea_def.h tea_obj.h tea_lex.h tea_buf.h tea_gc.h tea_str.h \
+ tea_err.h tea_errmsg.h tea_vm.h
 tea_buf.o: tea_buf.c tea_buf.h tea_def.h tea_obj.h tea.h teaconf.h \
  tea_gc.h tea_str.h tea_state.h tea_err.h tea_errmsg.h
 tea_char.o: tea_char.c tea_char.h tea_def.h
@@ -73,7 +73,7 @@ tea_import.o: tea_import.c tea.h teaconf.h tealib.h tea_arch.h \
  tea_errmsg.h tea_str.h tea_tab.h tea_gc.h
 tea_lex.o: tea_lex.c tea_def.h tea_lex.h tea.h teaconf.h tea_buf.h \
  tea_obj.h tea_gc.h tea_str.h tea_err.h tea_errmsg.h tea_char.h tea_utf.h \
- tea_strscan.h tea_strfmt.h
+ tea_strscan.h tea_strfmt.h tea_parse.h
 tea_lib.o: tea_lib.c tea_lib.h tea_obj.h tea.h teaconf.h tea_def.h \
  tea_err.h tea_errmsg.h
 tea_list.o: tea_list.c tea_list.h tea_obj.h tea.h teaconf.h tea_def.h \
@@ -91,7 +91,7 @@ tea_obj.o: tea_obj.c tea_def.h tea_gc.h tea_obj.h tea.h teaconf.h \
  tea_errmsg.h tea_strscan.h
 tea_parse.o: tea_parse.c tea_def.h tea_state.h tea.h teaconf.h tea_obj.h \
  tea_parse.h tea_lex.h tea_buf.h tea_gc.h tea_str.h tea_err.h \
- tea_errmsg.h tea_func.h tea_vm.h tea_bc.h tea_tab.h
+ tea_errmsg.h tea_func.h tea_vm.h tea_bc.h tea_tab.h tea_map.h
 tea_prng.o: tea_prng.c tea_def.h tea_prng.h
 tea_state.o: tea_state.c tealib.h tea.h teaconf.h tea_def.h tea_state.h \
  tea_obj.h tea_vm.h tea_err.h tea_errmsg.h tea_str.h tea_import.h \

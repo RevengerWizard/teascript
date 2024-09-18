@@ -93,7 +93,7 @@ typedef struct LexState
 TEA_FUNC bool tea_lex_setup(tea_State* T, LexState* ls);
 TEA_FUNC void tea_lex_cleanup(tea_State* T, LexState* ls);
 TEA_FUNC const char* tea_lex_token2str(LexState* ls, LexToken t);
-TEA_FUNC_NORET void tea_lex_error(LexState* ls, Token* token, ErrMsg em, ...);
+TEA_FUNC_NORET void tea_lex_error(LexState* ls, LexToken tok, BCLine line, ErrMsg em, ...);
 TEA_FUNC void tea_lex_next(LexState* ls);
 TEA_FUNC void tea_lex_init(tea_State* T);
 

@@ -136,13 +136,20 @@ typedef struct
 
 TEA_NORET TEA_NOINLINE static void error(FuncState* fs, ErrMsg em)
 {
-    tea_lex_error(fs->ls, &fs->ls->prev, em);
+    tea_lex_error(fs->ls, fs->ls->prev.t, fs->ls->prev.line, em);
 }
 
-TEA_NORET TEA_NOINLINE static void error_at_current(FuncState* fs, ErrMsg em)
+TEA_NORET static void err_limit(FuncState* fs, uint32_t limit, const char* what)
 {
-    tea_lex_error(fs->ls, &fs->ls->curr, em);
+    BCLine line = fs->ls->prev.line;
+    if(fs->linedefined == 0)
+        tea_lex_error(fs->ls, 0, line, TEA_ERR_XLIMM, limit, what);
+    else
+        tea_lex_error(fs->ls, 0, line,
+                        TEA_ERR_XLIMF, fs->linedefined, limit, what);
 }
+
+#define checklimit(fs, v, l, m)	if((v) >= (l)) err_limit(fs, l, m)
 
 /* -- Lexer support ------------------------------------------------------- */
 
@@ -162,7 +169,7 @@ static void lex_consume(FuncState* fs, LexToken tok)
         return;
     }
     const char* tokstr = tea_lex_token2str(fs->ls, tok);
-    tea_lex_error(fs->ls, &fs->ls->curr, TEA_ERR_XTOKEN, tokstr);
+    tea_lex_error(fs->ls, fs->ls->curr.t, fs->ls->curr.line, TEA_ERR_XTOKEN, tokstr);
 }
 
 /* Check for matching token */
@@ -240,6 +247,7 @@ static void bcemit_byte(FuncState* fs, uint8_t byte)
     if(TEA_UNLIKELY(pc >= fs->bclimit))
     {
         ptrdiff_t base = fs->bcbase - ls->bcstack;
+        checklimit(fs, ls->sizebcstack, TEA_MAX_BCINS, "bytecode instructions");
         ls->bcstack = tea_mem_growvec(fs->T, BCInsLine, ls->bcstack, ls->sizebcstack, TEA_MAX_BCINS);
         fs->bclimit = (BCPos)(ls->sizebcstack - base);
         fs->bcbase = ls->bcstack + base;
@@ -333,9 +341,7 @@ static void bcpatch_jump(FuncState* fs, BCPos ofs)
     /* -2 to adjust for the bytecode for the jump offset itself */
     BCPos jmp = fs->pc - ofs - 2;
     if(jmp > UINT16_MAX)
-    {
         error(fs, TEA_ERR_XJUMP);
-    }
     fs->bcbase[ofs].ins = (jmp >> 8) & 0xff;
     fs->bcbase[ofs + 1].ins = jmp & 0xff;
 }
@@ -726,12 +732,7 @@ static int var_add_uv(FuncState* fs, uint8_t index, bool islocal, bool isconst)
             return i;
         }
     }
-
-    if(n == TEA_MAX_UPVAL)
-    {
-        error(fs, TEA_ERR_XUPVAL);
-    }
-
+    checklimit(fs, n, TEA_MAX_UPVAL, "closure variables");
     fs->upvalues[n].islocal = islocal;
     fs->upvalues[n].index = index;
     fs->upvalues[n].isconst = isconst;
@@ -772,16 +773,13 @@ static void var_mark(FuncState* fs, bool isconst)
 
 static int var_add_local(FuncState* fs, Token name)
 {
-    if(fs->local_count == TEA_MAX_LOCAL)
-    {
-        error(fs, TEA_ERR_XLOCALS);
-    }
+    checklimit(fs, fs->local_count, TEA_MAX_LOCAL, "local variables");
     int found = var_lookup_local(fs, &name);
     if(found != -1 && fs->locals[found].init && 
         fs->locals[found].depth == fs->scope_depth)
     {
         GCstr* name = strV(&fs->locals[found].name.tv);
-        tea_lex_error(fs->ls, &fs->ls->prev, TEA_ERR_XDECL, str_data(name));
+        tea_lex_error(fs->ls, fs->ls->prev.t, fs->ls->prev.line, TEA_ERR_XDECL, str_data(name));
     }
     Local* local = &fs->locals[fs->local_count++];
     local->name = name;
@@ -1794,7 +1792,7 @@ static void parse_operator(FuncState* fs)
 
     if(i == SENTINEL)
     {
-        error_at_current(fs, TEA_ERR_XMETHOD);
+        error(fs, TEA_ERR_XMETHOD);
     }
 
     GCstr* name = NULL;
@@ -2343,7 +2341,7 @@ static void parse_switch(FuncState* fs)
             bcpatch_jump(fs, jmp);
             if(case_count > 255)
             {
-                error_at_current(fs, TEA_ERR_XSWITCH);
+                error(fs, TEA_ERR_XSWITCH);
             }
 
         }
