@@ -5,7 +5,7 @@ Teascript is a simple, multi-paradigm scripting language for embedding and stand
 You can try it now [inside your browser](https://revengerwizard.github.io/wasm-tea)
 
 > [!NOTE]
-> Teascript is in active development
+> Teascript is in active development.  
 > The API and language features may change without notice until version 1.0
 
 ## Building
