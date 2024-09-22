@@ -121,6 +121,7 @@ GCfunc* tea_func_newT(tea_State* T, GCproto* pt, GCfuncT* parent)
     uint32_t i, nuv;
     TValue* base;
     func = func_newT(T, pt, parent->module);
+    setfuncV(T, T->top++, func);
     nuv = pt->sizeuv;
     base = T->ci->base;
     for(i = 0; i < nuv; i++)
@@ -137,6 +138,7 @@ GCfunc* tea_func_newT(tea_State* T, GCproto* pt, GCfuncT* parent)
         }
     }
     func->t.upvalue_count = (uint8_t)nuv;
+    T->top--;
     return func;
 }
 
