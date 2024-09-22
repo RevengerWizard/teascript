@@ -273,7 +273,7 @@ void tea_gc_collect(tea_State* T)
 
 #ifdef TEA_DEBUG_LOG_GC
     printf("-- gc end\n");
-    printf("   collected %llu bytes (from %llu to %llu) next at %llu\n", before - T->gc.total, before, T->gc.total, T->next_gc);
+    printf("   collected %llu bytes (from %llu to %llu) next at %llu\n", before - T->gc.total, before, T->gc.total, T->gc.next_gc);
 #endif
 }
 
