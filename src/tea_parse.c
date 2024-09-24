@@ -2424,10 +2424,17 @@ static void parse_import_name(FuncState* fs)
 /* Parse 'import <string>' statement */
 static void parse_import_string(FuncState* fs)
 {
-    lex_consume(fs, TK_STRING);
-    uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
-
-    bcemit_argued(fs, BC_IMPORT_STRING, k);
+    if(lex_match(fs, TK_STRING))
+    {
+        uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
+        bcemit_argued(fs, BC_IMPORT_STRING, k);
+    }
+    else
+    {
+        lex_consume(fs, TK_INTERPOLATION);
+        expr_interpolation(fs, false);
+        bcemit_op(fs, BC_IMPORT_FMT);
+    }
     bcemit_op(fs, BC_POP);
 
     if(lex_match(fs, TK_AS))
@@ -2453,18 +2460,21 @@ static void parse_from(FuncState* fs)
     if(lex_match(fs, TK_STRING))
     {
         uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
-        lex_consume(fs, TK_IMPORT);
         bcemit_argued(fs, BC_IMPORT_STRING, k);
-        bcemit_op(fs, BC_POP);
+    }
+    else if(lex_match(fs, TK_INTERPOLATION))
+    {
+        expr_interpolation(fs, false);
+        bcemit_op(fs, BC_IMPORT_FMT);
     }
     else
     {
         lex_consume(fs, TK_NAME);
         uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
-        lex_consume(fs, TK_IMPORT);
         bcemit_argued(fs, BC_IMPORT_NAME, k);
-        bcemit_op(fs, BC_POP);
     }
+    lex_consume(fs, TK_IMPORT);
+    bcemit_op(fs, BC_POP);
 
     do
     {
@@ -2695,7 +2705,8 @@ static void parse_stmt(FuncState* fs)
             break;
         case TK_IMPORT:
             tea_lex_next(fs->ls);  /* Skip 'import' */
-            if(lex_check(fs, TK_STRING))
+            if(lex_check(fs, TK_STRING) ||
+                lex_check(fs, TK_INTERPOLATION))
                 parse_import_string(fs);
             else
                 parse_import_name(fs);

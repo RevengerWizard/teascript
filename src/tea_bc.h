@@ -82,6 +82,7 @@
     _(INHERIT, 0) \
     _(METHOD, -1) \
     _(EXTENSION_METHOD, 0) \
+    _(IMPORT_FMT, 0) \
     _(IMPORT_STRING, 0) \
     _(IMPORT_NAME, 0) \
     _(IMPORT_VARIABLE, 1) \
