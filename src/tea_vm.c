@@ -1194,7 +1194,7 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_IMPORT_FMT):
             {
                 tea_assertT(tvisstr(T->top - 1), "expected interpolated string");
-                GCstr* path = strV(T->top - 1);
+                GCstr* path = strV(--T->top);
                 STORE_FRAME;
                 tea_imp_relative(T, T->ci->func->t.module->path, path);
                 READ_FRAME();
