@@ -2748,6 +2748,7 @@ GCproto* tea_parse(LexState* ls, bool isexpr)
 {
     FuncState fs;
     GCproto* pt;
+    tea_State* T = ls->T;
     fs_init(ls, &fs, FUNC_SCRIPT);
     fs.linedefined = 0;
     fs.bcbase = NULL;
@@ -2770,8 +2771,12 @@ GCproto* tea_parse(LexState* ls, bool isexpr)
         }
         bcemit_return(&fs);
     }
+    if(strncmp(str_data(ls->module->name), "=<stdin>", 8) != 0)
+    {
+        tea_tab_free(T, &T->constants);
+    }
     pt = fs_finish(ls, ls->linenumber);
-    tea_assertLS(fs.prev == NULL && ls->fs == NULL, "mismatched frame nesting");
-    tea_assertLS(pt->sizeuv == 0, "toplevel proto has upvalues");
+    tea_assertT(fs.prev == NULL && ls->fs == NULL, "mismatched frame nesting");
+    tea_assertT(pt->sizeuv == 0, "top level proto has upvalues");
     return pt;
 }
