@@ -249,6 +249,39 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
     tea_err_callerv(T, TEA_ERR_SETATTR, tea_typename(obj));
 }
 
+void tea_meta_delattr(tea_State* T, GCstr* name, TValue* obj)
+{
+    switch(itype(obj))
+    {
+        case TEA_TUDATA:
+        case TEA_TINSTANCE:
+        {
+            GCinstance* instance = instanceV(obj);
+            if(!tea_tab_delete(&instance->attrs, name))
+                break;
+            return;
+        }
+        case TEA_TMAP:
+        {
+            GCmap* map = mapV(obj);
+            TValue tv; setstrV(T, &tv, name);
+            if(!tea_map_delete(T, map, &tv))
+                break;
+            return;
+        }
+        case TEA_TMODULE:
+        {
+            GCmodule* module = moduleV(obj);
+            if(!tea_tab_delete(&module->exports, name))
+                break;
+            return;
+        }
+        default:
+            break;
+    }
+    tea_err_callerv(T, TEA_ERR_NOATTR, tea_typename(obj), str_data(name));
+}
+
 cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
 {
     switch(itype(obj))

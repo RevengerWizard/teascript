@@ -868,6 +868,13 @@ TEA_API void tea_set_attr(tea_State* T, int obj, const char* key)
     T->top--;
 }
 
+TEA_API void tea_delete_attr(tea_State* T, int obj, const char* key)
+{
+    TValue* object = index2addr(T, obj);
+    GCstr* str = tea_str_newlen(T, key);
+    tea_meta_delattr(T, str, object);
+}
+
 TEA_API void tea_get_index(tea_State* T, int obj)
 {
     TValue* o = index2addr_check(T, obj);

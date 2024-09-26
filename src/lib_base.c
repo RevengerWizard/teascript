@@ -24,6 +24,7 @@
 #include "tea_strfmt.h"
 #include "tea_strscan.h"
 #include "tea_lib.h"
+#include "tea_meta.h"
 
 static void base_print(tea_State* T)
 {
@@ -290,18 +291,27 @@ static void base_hasattr(tea_State* T)
 
 static void base_getattr(tea_State* T)
 {
-    tea_check_any(T, 0);
-    const char* attr = tea_check_string(T, 1);
-    tea_get_attr(T, 0, attr);
+    TValue* tv = tea_lib_checkany(T, 0);
+    GCstr* attr = tea_lib_checkstr(T, 1);
+    cTValue* o = tea_meta_getattr(T, attr, tv);
+    copyTV(T, T->top++, o);
 }
 
 static void base_setattr(tea_State* T)
 {
     tea_check_any(T, 0);
-    const char* attr = tea_check_string(T, 1);
-    tea_check_any(T, 2);
-    tea_set_attr(T, 0, attr);
-    T->top--;
+    TValue* o = tea_lib_checkany(T, 0);
+    GCstr* attr = tea_lib_checkstr(T, 1);
+    TValue* item = tea_lib_checkany(T, 2);
+    tea_meta_setattr(T, attr, o, item);
+    tea_push_nil(T);
+}
+
+static void base_delattr(tea_State* T)
+{
+    TValue* o = tea_lib_checkany(T, 0);
+    GCstr* attr = tea_lib_checkstr(T, 1);
+    tea_meta_delattr(T, attr, o);
 }
 
 static void bool_init(tea_State* T)
@@ -359,6 +369,7 @@ static const tea_Reg globals[] = {
     { "hasattr", base_hasattr, 2, 0 },
     { "getattr", base_getattr, 2, 0 },
     { "setattr", base_setattr, 3, 0 },
+    { "delattr", base_delattr, 2, 0 },
     { NULL, NULL }
 };
 
