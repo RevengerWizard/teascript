@@ -562,6 +562,15 @@ TEA_API void tea_new_module(tea_State* T, const char* name)
     incr_top(T);
 }
 
+TEA_API void tea_new_submodule(tea_State* T, const char* name)
+{
+    GCstr* modname = tea_str_newlen(T, name);
+    GCmodule* mod = tea_submodule_new(T, modname);
+    mod->path = modname;
+    setmoduleV(T, T->top, mod);
+    incr_top(T);
+}
+
 TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nup, int nargs, int nopts)
 {
     GCfunc* cf;
@@ -657,6 +666,19 @@ TEA_API void tea_create_module(tea_State* T, const char* name, const tea_Reg* mo
 {
     GCstr* modname = tea_str_newlen(T, name);
     GCmodule* mod = tea_module_new(T, modname);
+    mod->path = modname;
+    setmoduleV(T, T->top, mod);
+    incr_top(T);
+    if(module)
+    {
+        set_module(T, module);
+    }
+}
+
+TEA_API void tea_create_submodule(tea_State* T, const char* name, const tea_Reg* module)
+{
+    GCstr* modname = tea_str_newlen(T, name);
+    GCmodule* mod = tea_submodule_new(T, modname);
     mod->path = modname;
     setmoduleV(T, T->top, mod);
     incr_top(T);

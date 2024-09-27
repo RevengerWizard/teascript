@@ -521,6 +521,7 @@ TEA_DATA const char* const tea_obj_typenames[];
 #define tea_typename(o) (tea_obj_typenames[itype(o)])
 
 TEA_FUNC GCmodule* tea_module_new(tea_State* T, GCstr* name);
+TEA_FUNC GCmodule* tea_submodule_new(tea_State* T, GCstr* name);
 TEA_FUNC GCrange* tea_range_new(tea_State* T, double start, double end, double step);
 TEA_FUNC GCclass* tea_class_new(tea_State* T, GCstr* name);
 TEA_FUNC GCinstance* tea_instance_new(tea_State* T, GCclass* klass);

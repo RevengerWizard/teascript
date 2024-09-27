@@ -219,9 +219,11 @@ TEA_API void* tea_new_userdata(tea_State* T, size_t size);
 TEA_API void* tea_new_udata(tea_State* T, size_t size, const char* name);
 TEA_API void tea_new_class(tea_State* T, const char* name);
 TEA_API void tea_new_module(tea_State* T, const char* name);
+TEA_API void tea_new_submodule(tea_State* T, const char* name);
 
 TEA_API void tea_create_class(tea_State* T, const char* name, const tea_Methods* klass);
 TEA_API void tea_create_module(tea_State* T, const char* name, const tea_Reg* module);
+TEA_API void tea_create_submodule(tea_State* T, const char* name, const tea_Reg* module);
 
 TEA_API int tea_len(tea_State* T, int index);
 

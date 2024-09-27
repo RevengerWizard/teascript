@@ -57,6 +57,16 @@ GCmodule* tea_module_new(tea_State* T, GCstr* name)
     return module;
 }
 
+GCmodule* tea_submodule_new(tea_State* T, GCstr* name)
+{
+    GCmodule* module = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
+    tea_tab_init(&module->vars);
+    tea_tab_init(&module->exports);
+    module->name = name;
+    module->path = NULL;
+    return module;
+}
+
 GCrange* tea_range_new(tea_State* T, double start, double end, double step)
 {
     GCrange* range = tea_mem_newobj(T, GCrange, TEA_TRANGE);
