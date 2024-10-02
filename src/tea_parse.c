@@ -372,7 +372,7 @@ static void fs_fixup_k(FuncState* fs, GCproto* pt, void* kptr)
     for(int i = 0; i < kt->size; i++)
     {
         MapEntry* n = &kt->entries[i];
-        if(n->empty) continue;
+        if(tvisnil(&n->key)) continue;
         if(!tvisbool(&n->val))
         {
             int32_t kidx = (int32_t)numV(&n->val);

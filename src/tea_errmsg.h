@@ -28,6 +28,8 @@ ERRDEF(NOPATH, "Could not resolve path " TEA_QS)
 ERRDEF(BUFFER_SELF, "Cannot put buffer into itself")
 
 /* VM errors */
+ERRDEF(NILIDX, "Map index is nil")
+ERRDEF(NANIDX, "Map index is nan")
 ERRDEF(TOSTR,  TEA_QL("tostring") " must return a string")
 ERRDEF(CALL, TEA_QS " is not callable")
 ERRDEF(METHOD, "Undefined method " TEA_QS)

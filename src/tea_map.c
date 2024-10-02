@@ -3,11 +3,14 @@
 ** Map handling
 */
 
+#include <math.h>
+
 #define tea_map_c
 #define TEA_CORE
 
 #include "tea_map.h"
 #include "tea_gc.h"
+#include "tea_err.h"
 
 GCmap* tea_map_new(tea_State* T)
 {
@@ -69,21 +72,22 @@ static uint32_t map_hash_obj(TValue* tv)
     }
 }
 
-static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
+static bool map_find_entry(MapEntry* items, uint32_t size, TValue* key, MapEntry** entry)
 {
-    uint32_t hash = map_hash_obj(key);
-    uint32_t idx = hash & (size - 1);
+    uint32_t startidx = map_hash_obj(key)& (size - 1);
+    uint32_t idx = startidx;
     MapEntry* tombstone = NULL;
 
-    while(true)
+    do
     {
         MapEntry* item = &items[idx];
-        if(item->empty)
+        if(tvisnil(&item->key))
         {
-            if(tvisnil(&item->val))
+            if(tvisfalse(&item->val))
             {
                 /* Empty item */
-                return tombstone != NULL ? tombstone : item;
+                *entry = tombstone != NULL ? tombstone : item;
+                return false;
             }
             else
             {
@@ -95,10 +99,34 @@ static MapEntry* map_find_entry(MapEntry* items, int size, TValue* key)
         else if(tea_obj_rawequal(&item->key, key))
         {
             /* We found the key */
-            return item;
+            *entry = item;
+            return true;
         }
 
         idx = (idx + 1) & (size - 1);
+    }
+    while(idx != startidx);
+    tea_assertX(tombstone != NULL, "Map should have tombstones or empty entries");
+    *entry = tombstone;
+    return false;
+}
+
+static bool map_insert_entry(tea_State* T, MapEntry* items, uint32_t size, TValue* key, TValue* val)
+{
+    tea_assertT(items != NULL, "should ensure size before inserting");
+  
+    MapEntry* item;
+    if(map_find_entry(items, size, key, &item))
+    {
+        /* Already present, so just replace the value */
+        copyTV(T, &item->val, val);
+        return false;
+    }
+    else
+    {
+        copyTV(T, &item->key, key);
+        copyTV(T, &item->val, val);
+        return true;
     }
 }
 
@@ -109,11 +137,11 @@ cTValue* tea_map_get(GCmap* map, TValue* key)
     if(map->count == 0)
         return NULL;
 
-    MapEntry* item = map_find_entry(map->entries, map->size, key);
-    if(item->empty)
-        return NULL;
+    MapEntry* item;
+    if(map_find_entry(map->entries, map->size, key, &item))
+        return &item->val;
 
-    return &item->val;
+    return NULL;
 }
 
 cTValue* tea_map_getstr(tea_State* T, GCmap* map, GCstr* key)
@@ -126,28 +154,37 @@ cTValue* tea_map_getstr(tea_State* T, GCmap* map, GCstr* key)
 #define MAP_MAX_LOAD 0.75
 
 /* Resize a map to fit the new size */
-static void map_resize(tea_State* T, GCmap* map, int size)
+static void map_resize(tea_State* T, GCmap* map, uint32_t size)
 {
     MapEntry* entries = tea_mem_newvec(T, MapEntry, size);
+    tea_assertT(entries != NULL, "should ensure size before inserting");
     for(int i = 0; i < size; i++)
     {
         setnilV(&entries[i].key);
-        setnilV(&entries[i].val);
-        entries[i].empty = true;
+        setfalseV(&entries[i].val);
     }
 
-    map->count = 0;
-    for(int i = 0; i < map->size; i++)
+    if(map->size > 0)
     {
-        MapEntry* item = &map->entries[i];
-        if(item->empty)
-            continue;
-
-        MapEntry* dest = map_find_entry(entries, size, &item->key);
-        dest->key = item->key;
-        dest->val = item->val;
-        dest->empty = false;
-        map->count++;
+        for(int i = 0; i < map->size; i++)
+        {
+            MapEntry* item = &map->entries[i];
+            if(tvisnil(&item->key))
+                continue;
+  
+            MapEntry* entry;
+            if(map_find_entry(entries, size, &item->key, &entry))
+            {
+                /* Already present, so just replace the value */
+                copyTV(T, &entry->val, &item->val);
+            }
+            else
+            {
+                copyTV(T, &entry->key, &item->key);
+                copyTV(T, &entry->val, &item->val);
+            }
+            map_insert_entry(T, entries, size, &item->key, &item->val);
+        }
     }
 
     tea_mem_freevec(T, MapEntry, map->entries, map->size);
@@ -159,20 +196,23 @@ static void map_resize(tea_State* T, GCmap* map, int size)
 
 TValue* tea_map_set(tea_State* T, GCmap* map, TValue* key)
 {
+    if(tvisnil(key))
+        tea_err_msg(T, TEA_ERR_NILIDX);
+    else if(tvisnum(key) && isnan(numV(key)))
+        tea_err_msg(T, TEA_ERR_NANIDX);
+
     if(map->count + 1 > map->size * MAP_MAX_LOAD)
     {
-        int size = TEA_MEM_GROW(map->size);
+        uint32_t size = TEA_MEM_GROW(map->size);
         map_resize(T, map, size);
     }
 
-    MapEntry* item = map_find_entry(map->entries, map->size, key);
-    bool is_new_key = item->empty;
-
-    if(is_new_key && tvisnil(&item->val))
+    MapEntry* item;
+    if(!map_find_entry(map->entries, map->size, key, &item))
+    {
+        copyTV(T, &item->key, key);
         map->count++;
-
-    copyTV(T, &item->key, key);
-    item->empty = false;
+    }
 
     return &item->val;
 }
@@ -189,7 +229,8 @@ GCmap* tea_map_copy(tea_State* T, GCmap* map)
     GCmap* m = tea_map_new(T);
     for(int i = 0; i < map->size; i++)
     {
-        if(map->entries[i].empty) continue;
+        if(tvisnil(&map->entries[i].key))
+            continue;
         TValue* o = tea_map_set(T, m, &map->entries[i].key);
         copyTV(T, o, &map->entries[i].val);
     }
@@ -202,25 +243,24 @@ bool tea_map_delete(tea_State* T, GCmap* map, TValue* key)
         return false;
 
     /* Find the entry */
-    MapEntry* item = map_find_entry(map->entries, map->size, key);
-    if(item->empty)
+    MapEntry* item;
+    if(!map_find_entry(map->entries, map->size, key, &item))
         return false;
 
     /* Place a tombstone in the entry */
     setnilV(&item->key);
-    setnilV(&item->val);
-    item->empty = true;
-
+    settrueV(&item->val);
     map->count--;
 
     if(map->count == 0)
     {
         tea_map_clear(T, map);
     }
-    else if(map->count - 1 < map->size * MAP_MAX_LOAD)
+    else if(map->size > TEA_MIN_VECSIZE &&
+        map->count < map->size / 2 * MAP_MAX_LOAD)
     {
         uint32_t size = map->size / 2;
-        if(size < 16) size = 16;
+        if(size < TEA_MIN_VECSIZE) size = TEA_MIN_VECSIZE;
         map_resize(T, map, size);
     }
 
@@ -232,7 +272,7 @@ void tea_map_merge(tea_State* T, GCmap* from, GCmap* to)
     for(int i = 0; i < from->size; i++)
     {
         MapEntry* item = &from->entries[i];
-        if(!item->empty)
+        if(!tvisnil(&item->key))
         {
             TValue* o = tea_map_set(T, to, &item->key);
             copyTV(T, o, &item->val);

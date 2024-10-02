@@ -250,7 +250,6 @@ typedef struct
 {
     TValue key;
     TValue val;
-    bool empty;
 } MapEntry;
 
 typedef struct
@@ -434,6 +433,8 @@ TEA_STATIC_ASSERT(offsetof(GCinstance, attrs) == offsetof(GCudata, attrs));
 #define itype(o) ((o)->tt)
 #define tvisnil(o) (itype(o) == TEA_TNIL)
 #define tvisbool(o) (itype(o) == TEA_TBOOL)
+#define tvisfalse(o) ((itype(o) == TEA_TBOOL) && (!boolV(o)))
+#define tvistrue(o) ((itype(o) == TEA_TBOOL) && (boolV(o)))
 #define tvisnum(o) (itype(o) == TEA_TNUM)
 #define tvispointer(o) (itype(o) == TEA_TPOINTER)
 #define tvisgcv(o) (itype(o) >= TEA_TSTR)

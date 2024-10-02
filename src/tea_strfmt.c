@@ -532,7 +532,7 @@ static void strfmt_map(tea_State* T, SBuf* sb, GCmap* map, int depth, ToStringSt
     for(int i = 0; i < map->size; i++)
     {
         MapEntry* entry = &map->entries[i];
-        if(entry->empty)
+        if(tvisnil(&entry->key))
         {
             continue;
         }

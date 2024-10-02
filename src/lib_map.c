@@ -29,7 +29,8 @@ static void map_keys(tea_State* T)
     GClist* list = listV(T->base + 1);
     for(int i = 0; i < map->size; i++)
     {
-        if(map->entries[i].empty) continue;
+        if(tvisnil(&map->entries[i].key))
+            continue;
         tea_list_add(T, list, &map->entries[i].key);
     }
 }
@@ -44,7 +45,8 @@ static void map_values(tea_State* T)
     GClist* list = listV(T->base + 1);
     for(int i = 0; i < map->size; i++)
     {
-        if(map->entries[i].empty) continue;
+        if(tvisnil(&map->entries[i].key))
+            continue;
         tea_list_add(T, list, &map->entries[i].val);
     }
 }
@@ -129,7 +131,8 @@ static void map_foreach(tea_State* T)
 
     for(int i = 0; i < map->size; i++)
     {
-        if(map->entries[i].empty) continue;
+        if(tvisnil(&map->entries[i].key))
+            continue;
 
         TValue* key = &map->entries[i].key;
         TValue* value = &map->entries[i].val;
@@ -183,7 +186,7 @@ static void map_iterate(tea_State* T)
     /* Find a used entry, if any */
     for(; idx < map->size; idx++)
     {
-        if(!map->entries[idx].empty)
+        if(!tvisnil(&map->entries[idx].key))
         {
             tea_push_number(T, idx);
             return;
@@ -199,7 +202,7 @@ static void map_iteratorvalue(tea_State* T)
     GCmap* map = tea_lib_checkmap(T, 0);
     int idx = tea_check_number(T, 1);
     MapEntry* entry = &map->entries[idx];
-    if(entry->empty)
+    if(tvisnil(&entry->key))
     {
         tea_error(T, "Invalid map iterator");
     }

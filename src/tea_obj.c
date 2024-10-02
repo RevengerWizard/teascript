@@ -183,7 +183,7 @@ static bool obj_map_equal(GCmap* a, GCmap* b)
     {
         MapEntry* entry = &a->entries[i];
 
-        if(entry->empty)
+        if(tvisnil(&entry->key))
         {
             continue;
         }
