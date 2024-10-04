@@ -215,7 +215,8 @@ static void base_loadstring(tea_State* T)
 {
     size_t len;
     const char* str = tea_check_lstring(T, 0, &len);
-    int status = tea_load_bufferx(T, str, len, "?<load>", NULL);
+    const char* name = tea_opt_string(T, 1, "?<load>");
+    int status = tea_load_bufferx(T, str, len, name, NULL);
     if(status != TEA_OK)
     {
         /* Rethrow the error */
@@ -360,7 +361,7 @@ static const tea_Reg globals[] = {
     { "eval", base_eval, 1, 0 },
     { "dump", base_dump, 1, 1 },
     { "loadfile", base_loadfile, 1, 0 },
-    { "loadstring", base_loadstring, 1, 0 },
+    { "loadstring", base_loadstring, 1, 1 },
     { "char", base_char, 1, 0 },
     { "ord", base_ord, 1, 0 },
     { "hex", base_hex, 1, 0 },
