@@ -152,6 +152,7 @@ cTValue* tea_map_getstr(tea_State* T, GCmap* map, GCstr* key)
 }
 
 #define MAP_MAX_LOAD 0.75
+#define MAP_MIN_LOAD 0.25
 
 /* Resize a map to fit the new size */
 static void map_resize(tea_State* T, GCmap* map, uint32_t size)
@@ -257,7 +258,7 @@ bool tea_map_delete(tea_State* T, GCmap* map, TValue* key)
         tea_map_clear(T, map);
     }
     else if(map->size > TEA_MIN_VECSIZE &&
-        map->count < map->size / 2 * MAP_MAX_LOAD)
+        map->count < map->size / 2 * MAP_MIN_LOAD)
     {
         uint32_t size = map->size / 2;
         if(size < TEA_MIN_VECSIZE) size = TEA_MIN_VECSIZE;
