@@ -24,7 +24,7 @@ static void map_keys(tea_State* T)
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     GCmap* map = mapV(T->base);
 
-    tea_new_list(T);
+    tea_new_list(T, 0);
 
     GClist* list = listV(T->base + 1);
     for(int i = 0; i < map->size; i++)
@@ -40,7 +40,7 @@ static void map_values(tea_State* T)
     if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     GCmap* map = mapV(T->base);
 
-    tea_new_list(T);
+    tea_new_list(T, 0);
 
     GClist* list = listV(T->base + 1);
     for(int i = 0; i < map->size; i++)
@@ -206,7 +206,7 @@ static void map_iteratorvalue(tea_State* T)
     {
         tea_error(T, "Invalid map iterator");
     }
-    tea_new_list(T);
+    tea_new_list(T, 2);
     copyTV(T, T->top++, &entry->key);
     tea_add_item(T, 2);
     copyTV(T, T->top++, &entry->val);

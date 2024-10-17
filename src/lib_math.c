@@ -256,7 +256,7 @@ static void math_frexp(tea_State* T)
 {
     int e;
     double n = frexp(tea_lib_checknumber(T, 0), &e);
-    tea_new_list(T);
+    tea_new_list(T, 2);
     tea_push_number(T, e);
     tea_push_number(T, n);
     tea_add_item(T, 1);

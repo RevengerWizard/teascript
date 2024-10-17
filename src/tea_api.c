@@ -513,9 +513,9 @@ TEA_API void tea_push_range(tea_State* T, tea_Number start, tea_Number end, tea_
     incr_top(T);
 }
 
-TEA_API void tea_new_list(tea_State* T)
+TEA_API void tea_new_list(tea_State* T, size_t n)
 {
-    GClist* list = tea_list_new(T);
+    GClist* list = tea_list_new(T, n);
     setlistV(T, T->top, list);
     incr_top(T);
 }

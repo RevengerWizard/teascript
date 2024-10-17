@@ -34,7 +34,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
         if((nargs + variadic) == numparams)
         {
             /* Add missing variadic param ([]) */
-            GClist* list = tea_list_new(T);
+            GClist* list = tea_list_new(T, 0);
             setlistV(T, T->top++, list);
             nargs++;
         }
@@ -50,7 +50,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
             int xargs = numparams + numops;
             /* +1 for the variadic param itself */
             int varargs = nargs - xargs + 1;
-            GClist* list = tea_list_new(T);
+            GClist* list = tea_list_new(T, 0);
             setlistV(T, T->top++, list);
             for(int i = varargs; i > 0; i--)
             {
@@ -69,7 +69,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
     else if(variadic)
     {
         /* Last argument is the variadic arg */
-        GClist* list = tea_list_new(T);
+        GClist* list = tea_list_new(T, 0);
         setlistV(T, T->top++, list);
         tea_list_add(T, list, T->top - 2);
         T->top -= 2;
@@ -614,7 +614,7 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_LIST):
             {
-                GClist* list = tea_list_new(T);
+                GClist* list = tea_list_new(T, 0);
                 setlistV(T, T->top++, list);
                 DISPATCH();
             }
@@ -669,7 +669,7 @@ static void vm_execute(tea_State* T)
                 {
                     if(i == rest_pos)
                     {
-                        GClist* rest_list = tea_list_new(T);
+                        GClist* rest_list = tea_list_new(T, 0);
                         setlistV(T, T->top++, rest_list);
                         int j;
                         for(j = i; j < list->len - (var_count - rest_pos) + 1; j++)

@@ -125,7 +125,7 @@ static void string_split(tea_State* T)
 
     char* token;
 
-    tea_new_list(T);
+    tea_new_list(T, 0);
     int list_len = 0;
 
     if(sep_len == 0)

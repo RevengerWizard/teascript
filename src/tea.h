@@ -213,7 +213,7 @@ TEA_API void tea_push_range(tea_State* T, tea_Number start, tea_Number end, tea_
 TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nupvalues, int nargs, int nopts);
 TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs, int nopts);
 
-TEA_API void tea_new_list(tea_State* T);
+TEA_API void tea_new_list(tea_State* T, size_t n);
 TEA_API void tea_new_map(tea_State* T);
 TEA_API void* tea_new_userdata(tea_State* T, size_t size);
 TEA_API void* tea_new_udata(tea_State* T, size_t size, const char* name);

@@ -38,7 +38,7 @@ static void init_argv(tea_State* T)
     int argc = T->argc;
     char** argv = T->argv;
     int argf = T->argf;
-    tea_new_list(T);
+    tea_new_list(T, 0);
     for(int i = 0; i < argc - argf; i++)
     {
         tea_push_string(T, argv[i + argf]);

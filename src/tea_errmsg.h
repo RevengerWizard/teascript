@@ -11,6 +11,7 @@ ERRDEF(ERRERR, "Error in error handling")
 
 /* Allocations */
 ERRDEF(STROV, "String length overflow")
+ERRDEF(LISTOV, "List items overflow")
 ERRDEF(STKOV, "Stack overflow")
 
 /* Arguments errors */

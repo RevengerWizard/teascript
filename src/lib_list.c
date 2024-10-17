@@ -27,7 +27,8 @@ static void list_len(tea_State* T)
 
 static void list_init(tea_State* T)
 {
-    tea_new_list(T);
+    size_t n = (size_t)tea_lib_optint(T, 1, 0);
+    tea_new_list(T, n);
 }
 
 static void list_add(tea_State* T)
@@ -428,7 +429,7 @@ static void flatten(tea_State* T, int src, int len)
 static void list_flat(tea_State* T)
 {
     int len = tea_len(T, 0);
-    tea_new_list(T);
+    tea_new_list(T, 0);
     flatten(T, 0, len);
 }
 
@@ -439,7 +440,7 @@ static void list_map(tea_State* T)
 
     int len = tea_len(T, 0);
 
-    tea_new_list(T);
+    tea_new_list(T, 0);
 
     for(int i = 0; i < len; i++)
     {
@@ -455,7 +456,7 @@ static void list_filter(tea_State* T)
 {
     int len = tea_len(T, 0);
 
-    tea_new_list(T);
+    tea_new_list(T, 0);
 
     int j = 0;
     for(int i = 0; i < len; i++)
@@ -566,7 +567,7 @@ static void list_opadd(tea_State* T)
     GClist* l1 = tea_lib_checklist(T, 0);
     GClist* l2 = tea_lib_checklist(T, 1);
 
-    GClist* list = tea_list_new(T);
+    GClist* list = tea_list_new(T, 0);
     setlistV(T, T->top++, list);
 
     for(int i = 0; i < l1->len; i++)
@@ -584,7 +585,7 @@ static void list_opadd(tea_State* T)
 
 static const tea_Methods list_class[] = {
     { "len", "property", list_len, TEA_VARG, 0 },
-    { "new", "method", list_init, 1, 0 },
+    { "new", "method", list_init, 1, 1 },
     { "add", "method", list_add, TEA_VARG, 0 },
     { "remove", "method", list_remove, 2, 0 },
     { "delete", "method", list_delete, 2, 0 },
