@@ -421,9 +421,11 @@ TEA_API void tea_concat(tea_State* T, int n)
     /* else n == 1: nothing to do */
 }
 
+#define ispseudo(i) ((i) <= TEA_REGISTRY_INDEX)
+
 TEA_API int tea_absindex(tea_State* T, int idx)
 {
-    return (idx > 0) ? idx : ((int)(T->top - T->base + idx));
+    return (idx > 0 || ispseudo(idx)) ? idx : ((int)(T->top - T->base + idx));
 }
 
 TEA_API void tea_pop(tea_State* T, int n)
@@ -776,6 +778,29 @@ TEA_API bool tea_delete_item(tea_State* T, int list, int idx)
     tea_list_delete(T, l, idx);
     T->top--;
     return true;
+}
+
+TEA_API int tea_next(tea_State* T, int obj)
+{
+    TValue* o = index2addr(T, obj);
+    int more;
+    tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
+    more = tea_map_next(mapV(o), T->top - 1, T->top - 1);
+    if(more > 0)
+    {
+        /* Return new key and value slot */
+        incr_top(T);
+    }
+    else if(!more)
+    {
+        /* Remove key slot */
+        T->top--;
+    }
+    else
+    {
+        tea_err_msg(T, TEA_ERR_NEXTIDX);
+    }
+    return more;
 }
 
 TEA_API bool tea_get_field(tea_State* T, int obj)

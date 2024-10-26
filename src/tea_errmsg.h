@@ -14,6 +14,11 @@ ERRDEF(STROV, "String length overflow")
 ERRDEF(LISTOV, "List items overflow")
 ERRDEF(STKOV, "Stack overflow")
 
+/* Map indexing */
+ERRDEF(NILIDX, "Map index is nil")
+ERRDEF(NANIDX, "Map index is nan")
+ERRDEF(NEXTIDX, "Invalid key to " TEA_QL("next"))
+
 /* Arguments errors */
 ERRDEF(ARGS, "Expected %d arguments, but got %d")
 ERRDEF(NOVAL, "Expected value")
@@ -29,8 +34,6 @@ ERRDEF(NOPATH, "Could not resolve path " TEA_QS)
 ERRDEF(BUFFER_SELF, "Cannot put buffer into itself")
 
 /* VM errors */
-ERRDEF(NILIDX, "Map index is nil")
-ERRDEF(NANIDX, "Map index is nan")
 ERRDEF(TOSTR,  TEA_QL("tostring") " must return a string")
 ERRDEF(CALL, TEA_QS " is not callable")
 ERRDEF(METHOD, "Undefined method " TEA_QS)

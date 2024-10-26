@@ -233,6 +233,8 @@ TEA_API bool tea_set_item(tea_State* T, int list, int index);
 TEA_API bool tea_delete_item(tea_State* T, int list, int index);
 TEA_API bool tea_insert_item(tea_State* T, int list, int index);
 
+TEA_API int tea_next(tea_State* T, int obj);
+
 TEA_API bool tea_get_field(tea_State* T, int obj);
 TEA_API void tea_set_field(tea_State* T, int obj);
 TEA_API bool tea_delete_field(tea_State* T, int obj);
@@ -334,7 +336,7 @@ TEA_API void tea_concat(tea_State* T, int n);
 #define tea_push_literal(T, s)  tea_push_lstring(T, "" s, (sizeof(s)/sizeof(char))-1)
 
 #define tea_arg_check(T, cond, narg, extramsg) \
-    ((void)((cond) || tea_arg_error(L, (narg), (extramsg))))
+    ((void)((cond) || tea_arg_error(T, (narg), (extramsg))))
 
 #define tea_check_list(T, index) tea_check_type(T, (index), TEA_TYPE_LIST)
 #define tea_check_map(T, index) tea_check_type(T, (index), TEA_TYPE_MAP)

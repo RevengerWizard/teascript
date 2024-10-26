@@ -74,7 +74,7 @@ static uint32_t map_hash_obj(TValue* tv)
 
 static bool map_find_entry(MapEntry* items, uint32_t size, TValue* key, MapEntry** entry)
 {
-    uint32_t startidx = map_hash_obj(key)& (size - 1);
+    uint32_t startidx = map_hash_obj(key) & (size - 1);
     uint32_t idx = startidx;
     MapEntry* tombstone = NULL;
 
@@ -279,4 +279,37 @@ void tea_map_merge(tea_State* T, GCmap* from, GCmap* to)
             copyTV(T, o, &item->val);
         }
     }
+}
+
+/* Get the successor traversal index of a key */
+uint32_t map_keyindex(GCmap* map, TValue* key)
+{
+    if(!tvisnil(key))
+    {
+        MapEntry* entry;
+        if(!map_find_entry(map->entries, map->size, key, &entry))
+        {
+            return (uint32_t)~0u;
+        }
+        uint32_t idx = (uint32_t)(entry - map->entries);
+        return idx + 1;
+    }
+    return 0;
+}
+
+/* Get the next key/value pair of a map traversal */
+int tea_map_next(GCmap* map, TValue* key, TValue* o)
+{
+    uint32_t idx = map_keyindex(map, key);
+    for(; idx < map->size; idx++)
+    {
+        MapEntry* item = &map->entries[idx];
+        if(!tvisnil(&item->key))
+        {
+            o[0] = item->key;
+            o[1] = item->val;
+            return 1;
+        }
+    }
+    return (int32_t)idx < 0 ? -1 : 0;
 }

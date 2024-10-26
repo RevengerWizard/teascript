@@ -18,5 +18,6 @@ TEA_FUNC cTValue* tea_map_getstr(tea_State* T, GCmap* map, GCstr* key);
 TEA_FUNC GCmap* tea_map_copy(tea_State* T, GCmap* map);
 TEA_FUNC bool tea_map_delete(tea_State* T, GCmap* map, TValue* key);
 TEA_FUNC void tea_map_merge(tea_State* T, GCmap* from, GCmap* to);
+TEA_FUNC int tea_map_next(GCmap* map, TValue* key, TValue* o);
 
 #endif
