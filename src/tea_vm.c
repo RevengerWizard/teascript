@@ -813,7 +813,7 @@ static void vm_execute(tea_State* T)
             {
                 TValue* a = T->top - 2;
                 TValue* b = T->top - 1;
-                if((tvisinstance(a) || tvisinstance(b)) &&
+                if((tvisinstance(a) || tvisinstance(b)) ||
                     (tvisudata(a) || tvisudata(b)))
                 {
                     STORE_FRAME;
