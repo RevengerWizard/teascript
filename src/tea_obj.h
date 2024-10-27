@@ -342,6 +342,7 @@ typedef struct
     _(BXOR, ^) _(LSHIFT, <<) _(RSHIFT, >>) \
     _(LT, <) _(LE, <=) _(GT, >) _(GE, >=) _(EQ, ==) \
     _(GETINDEX, []) _(SETINDEX, []=) \
+    _(GETATTR, getattr) _(SETATTR, setattr) \
     _(TOSTRING, tostring) _(CALL, call) \
     _(ITER, iterate) _(NEXT, iteratorvalue) \
     _(CONTAINS, contains) _(GC, gc)

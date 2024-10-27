@@ -146,6 +146,14 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
                 return &T->tmptv;
             }
 
+            o = tea_meta_lookup(T, obj, MM_GETATTR);
+            if(o)
+            {
+                copyTV(T, T->top++, obj);
+                setstrV(T, T->top++, name);
+                tea_vm_call(T, (TValue*)o, 1);
+                return --T->top;
+            }
             tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
         }
         case TEA_TMODULE:
@@ -210,6 +218,15 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
         case TEA_TINSTANCE:
         {
             GCinstance* instance = instanceV(obj);
+            TValue* mo = tea_meta_lookup(T, obj, MM_SETATTR);
+            if(mo)
+            {             
+                copyTV(T, T->top++, obj);
+                setstrV(T, T->top++, name);
+                copyTV(T, T->top++, item);
+                tea_vm_call(T, mo, 2);
+                return --T->top;
+            }
             copyTV(T, tea_tab_set(T, &instance->attrs, name, NULL), item);
             return item;
         }
