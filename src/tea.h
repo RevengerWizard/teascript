@@ -235,6 +235,8 @@ TEA_API bool tea_insert_item(tea_State* T, int list, int index);
 
 TEA_API int tea_next(tea_State* T, int obj);
 
+TEA_API bool tea_get_fieldi(tea_State* T, int obj, tea_Integer i);
+TEA_API void tea_set_fieldi(tea_State* T, int obj, tea_Integer i);
 TEA_API bool tea_get_field(tea_State* T, int obj);
 TEA_API void tea_set_field(tea_State* T, int obj);
 TEA_API bool tea_delete_field(tea_State* T, int obj);

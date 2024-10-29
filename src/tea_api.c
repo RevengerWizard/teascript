@@ -315,7 +315,7 @@ static GCstr* obj_tostring(tea_State* T, cTValue* o)
         {
             copyTV(T, T->top++, o);
             tea_vm_call(T, mo, 0);
-            TValue* o = T->top - 1;
+            TValue* o = --T->top;
             if(!tvisstr(o))
                 tea_err_msg(T, TEA_ERR_TOSTR);
             return strV(o);
@@ -801,6 +801,40 @@ TEA_API int tea_next(tea_State* T, int obj)
         tea_err_msg(T, TEA_ERR_NEXTIDX);
     }
     return more;
+}
+
+TEA_API bool tea_get_fieldi(tea_State* T, int obj, tea_Integer i)
+{
+    cTValue* o = index2addr_check(T, obj);
+    tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
+    tea_checkapi_slot(1);
+    bool found = false;
+    TValue key;
+    setintV(&key, i);
+
+    GCmap* map = mapV(o);
+    cTValue* v = tea_map_get(map, &key);
+    if(v)
+    {
+        found = true;
+        copyTV(T, T->top, v);
+        incr_top(T);
+    }
+    return found;
+}
+
+TEA_API void tea_set_fieldi(tea_State* T, int obj, tea_Integer i)
+{
+    cTValue* o = index2addr_check(T, obj);
+    tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
+    tea_checkapi_slot(1);
+    TValue* item = T->top - 1;
+    TValue key;
+    setintV(&key, i);
+
+    GCmap* map = mapV(o);
+    copyTV(T, tea_map_set(T, map, &key), item);
+    T->top--;
 }
 
 TEA_API bool tea_get_field(tea_State* T, int obj)
