@@ -141,7 +141,7 @@ static bool vm_precall(tea_State* T, TValue* callee, int nargs)
         {
             TValue* mo = tea_meta_lookup(T, callee, MM_CALL);
             if(!mo) break;
-            copyTV(T, callee, mo);   /* Fallback */
+            return vm_call(T, funcV(mo), nargs);
         }
         case TEA_TFUNC:
             return vm_call(T, funcV(callee), nargs);
@@ -152,23 +152,23 @@ static bool vm_precall(tea_State* T, TValue* callee, int nargs)
     return false;   /* Unreachable */
 }
 
-static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
+static bool vm_invoke(tea_State* T, TValue* obj, GCstr* name, int nargs)
 {
-    switch(itype(receiver))
+    switch(itype(obj))
     {
         case TEA_TCLASS:
         {
-            GCclass* type = classV(receiver);
+            GCclass* type = classV(obj);
             TValue* o = tea_tab_get(&type->methods, name);
             if(tvisfunc(o) && iscfunc(funcV(o)) && funcV(o)->c.type == C_FUNCTION)
             {
                 return vm_precall(T, o, nargs);
             }
-            tea_err_callerv(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
+            tea_err_callerv(T, TEA_ERR_NOMETHOD, tea_typename(obj), str_data(name));
         }
         case TEA_TMODULE:
         {
-            GCmodule* module = moduleV(receiver);
+            GCmodule* module = moduleV(obj);
             TValue* o = tea_tab_get(&module->exports, name);
             if(o)
             {
@@ -179,7 +179,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
         case TEA_TUDATA:
         case TEA_TINSTANCE:
         {
-            GCinstance* instance = instanceV(receiver);
+            GCinstance* instance = instanceV(obj);
             TValue* o = tea_tab_get(&instance->attrs, name);
             if(o)
             {
@@ -187,15 +187,26 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
                 return vm_precall(T, o, nargs);
             }
             o = tea_tab_get(&instance->klass->methods, name);
-            if(!o)
+            if(o)
             {
-                tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
+                return vm_call(T, funcV(o), nargs);
             }
-            return vm_call(T, funcV(o), nargs);
+            o = tea_meta_lookup(T, obj, MM_GETATTR);
+            if(o)
+            {
+                copyTV(T, T->top++, obj);
+                setstrV(T, T->top++, name);
+                tea_vm_call(T, (TValue*)o, 1);
+                TValue* tv = T->top - 1;
+                T->top--;
+                copyTV(T, obj, tv);
+                return vm_precall(T, obj, nargs);
+            }
+            tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
         }
         default:
         {
-            GCclass* type = tea_meta_getclass(T, receiver);
+            GCclass* type = tea_meta_getclass(T, obj);
             if(type)
             {
                 TValue* o = tea_tab_get(&type->methods, name);
@@ -204,7 +215,7 @@ static bool vm_invoke(tea_State* T, TValue* receiver, GCstr* name, int nargs)
                     return vm_precall(T, o, nargs);
                 }
             }
-            tea_err_callerv(T, TEA_ERR_NOMETHOD, tea_typename(receiver), str_data(name));
+            tea_err_callerv(T, TEA_ERR_NOMETHOD, tea_typename(obj), str_data(name));
         }
     }
     return false;
