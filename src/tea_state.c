@@ -23,6 +23,7 @@
 #include "tea_meta.h"
 #include "tea_lex.h"
 #include "tea_map.h"
+#include "tea_func.h"
 
 /* -- Stack handling -------------------------------------------------- */
 
@@ -158,6 +159,7 @@ static void cpteaopen(tea_State* T, void* ud)
 
 static void state_close(tea_State* T)
 {
+    tea_tab_free(T, &T->constants);
     tea_buf_free(T, &T->tmpbuf);
     tea_buf_free(T, &T->strbuf);
     tea_tab_free(T, &T->modules);
@@ -202,8 +204,23 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     return T;
 }
 
+static void cpfinalize(tea_State* T, void* ud)
+{
+    UNUSED(ud);
+    tea_gc_finalize_udata(T);
+}
+
 TEA_API void tea_close(tea_State* T)
 {
-    tea_tab_free(T, &T->constants);
+    tea_func_closeuv(T, T->stack);
+    tea_gc_separateudata(T);
+    do
+    {
+        T->ci = T->ci_base;
+        T->base = T->top = T->ci->base;
+        T->nccalls = 0;
+    }
+    while(tea_err_protected(T, cpfinalize, NULL) != 0);
+    tea_assertT(T->gc.mmudata == NULL, "lost userdata finalizers");
     state_close(T);
 }

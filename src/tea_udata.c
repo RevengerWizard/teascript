@@ -12,12 +12,17 @@
 
 GCudata* tea_udata_new(tea_State* T, size_t len)
 {
-    GCudata* ud = (GCudata*)tea_mem_newgco(T, tea_udata_size(len), TEA_TUDATA);
+    GCudata* ud = (GCudata*)tea_mem_new(T, tea_udata_size(len));
+    ud->obj.gct = TEA_TUDATA;
+    ud->obj.marked = 0;
     ud->udtype = UDTYPE_USERDATA;
     ud->len = len;
     ud->fd = NULL;
     ud->klass = T->object_class;
     tea_tab_init(&ud->attrs);
+    /* Chain to userdata list */
+    ud->obj.next = T->gc.rootud;
+    T->gc.rootud = (GCobj*)ud;
     return ud;
 }
 

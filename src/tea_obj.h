@@ -360,12 +360,14 @@ MMDEF(MMENUM)
 /* Garbage collector state */
 typedef struct GCState
 {
-    GCobj* objects;    /* List of all collectable objects */
+    GCobj* root;    /* List of (almost) all collectable objects */
     size_t total; /* Memory currently allocated */
     size_t next_gc; /* Memory threshold to activate GC */
     uint32_t gray_count; /* Number of grayed GC objects */
     uint32_t gray_size;
     GCobj** gray_stack; /* List of gray objects */
+    GCobj* rootud;  /* (Separated) list of all userdata */
+    GCobj* mmudata; /* List of userdata to be GC */
 } GCState;
 
 /* Per interpreter state */

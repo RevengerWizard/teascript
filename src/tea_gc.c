@@ -16,12 +16,16 @@
 #include "tea_udata.h"
 #include "tea_list.h"
 #include "tea_map.h"
+#include "tea_meta.h"
+#include "tea_vm.h"
 
 #ifdef TEA_DEBUG_LOG_GC
 #include <stdio.h>
 #endif
 
 #define GC_HEAP_GROW_FACTOR 2
+
+#define is_finalized(u) ((u)->marked & TEA_GC_FINALIZED)
 
 /* -- Collector -------------------------------------------------- */
 
@@ -194,17 +198,17 @@ static void gc_trace_references(tea_State* T)
     }
 }
 
-static void gc_sweep(tea_State* T)
+static void gc_sweep(tea_State* T, GCobj** p)
 {
     GCobj* prev = NULL;
-    GCobj* obj = T->gc.objects;
+    GCobj* obj = *p;
 
     while(obj != NULL)
     {
         if(obj->marked)
         {
-            if(obj->marked != TEA_GC_FIXED)
-                obj->marked = false;
+            if(!(obj->marked & TEA_GC_FIXED))
+                obj->marked = 0;
             prev = obj;
             obj = obj->next;
         }
@@ -218,11 +222,79 @@ static void gc_sweep(tea_State* T)
             }
             else
             {
-                T->gc.objects = obj;
+                *p = obj;
             }
             gc_free(T, unreached);
         }
     }
+}
+
+/* Mark userdata in mmudata list */
+static void gc_mark_mmudata(tea_State* T)
+{
+    GCobj* obj;
+    for(obj = T->gc.mmudata; obj; obj = obj->next)
+    {
+        obj->marked = 0;
+        gc_blacken(T, obj);
+    }
+}
+
+/* Separate userdata objects to be finalized to mmudata list */
+void tea_gc_separateudata(tea_State* T)
+{
+    GCobj** p = &T->gc.rootud;
+    GCobj* curr;
+    GCobj* collected = NULL; /* to collect udata with gc event */
+    GCobj** lastcollected = &collected;
+    while((curr = *p) != NULL)
+    {
+        tea_assertT(curr->gct == TEA_TUDATA, "trying to separate non-userdata");
+        GCudata* ud = (GCudata*)curr;
+        if((curr->marked == 1) || is_finalized(curr))
+            p = &curr->next;    /* Don't bother with them */
+        else if(tea_tab_get(&ud->klass->methods, mmname_str(T, MM_GC)) == NULL)
+        {
+            mark_finalized(curr);   /* Don't need finalization */
+            p = &curr->next;
+        }
+        else
+        {
+            /* Must call its gc method */
+            *p = curr->next;
+            curr->next = NULL;  /* Link 'curr' at the end of 'collected' list */
+            *lastcollected = curr;
+            lastcollected = &curr->next;
+        }
+    }
+    /* Insert finalizable userdata into 'mmudata' list */
+    *lastcollected = T->gc.mmudata;
+    T->gc.mmudata = collected;
+}
+
+/* Finalize all userdata objects from mmudata list */
+void tea_gc_finalize_udata(tea_State* T)
+{
+    T->top++;
+    while(T->gc.mmudata != NULL)
+    {
+        GCobj* obj = T->gc.mmudata;
+        GCudata* ud = (GCudata*)obj;
+        T->gc.mmudata = obj->next;  /* Remove userdata from mmudata list */
+        obj->next = T->gc.rootud;   /* Add it back to the 'rootud' list */
+        T->gc.rootud = obj;
+        setudataV(T, T->top - 1, ud);   /* Keep a reference to it */
+        obj->marked = 0;
+        mark_finalized(ud);
+        cTValue* mo = tea_tab_get(&ud->klass->methods, mmname_str(T, MM_GC));
+        if(mo != NULL)
+        {
+            setudataV(T, T->top++, ud);
+            tea_vm_call(T, (TValue*)mo, 0);
+            T->top--;
+        }
+    }
+    T->top--;
 }
 
 /* Mark a TValue (if needed) */
@@ -240,7 +312,7 @@ void tea_gc_markobj(tea_State* T, GCobj* obj)
     if(obj->marked)
         return;
 
-    obj->marked = true;
+    obj->marked = 1;
 
     if(T->gc.gray_size < T->gc.gray_count + 1)
     {
@@ -264,12 +336,20 @@ void tea_gc_collect(tea_State* T)
 
     gc_mark_roots(T);
     gc_trace_references(T);
+
+    tea_gc_separateudata(T);    /* Separate userdata to be finalized */
+    gc_mark_mmudata(T);     /* Mark them */
+    gc_trace_references(T); /* And propagate the marks */
+
+    gc_sweep(T, &T->gc.rootud);
     tea_tab_white(&T->strings);
-    gc_sweep(T);
+    gc_sweep(T, &T->gc.root);
     tea_buf_shrink(T, &T->tmpbuf);  /* Shrink temp buffer */
-    tea_buf_shrink(T, &T->strbuf);  /* Shrink buffer */
+    tea_buf_shrink(T, &T->strbuf);  /* Shrink string buffer */
 
     T->gc.next_gc = T->gc.total * GC_HEAP_GROW_FACTOR;
+
+    tea_gc_finalize_udata(T);
 
 #ifdef TEA_DEBUG_LOG_GC
     printf("-- gc end\n");
@@ -280,7 +360,15 @@ void tea_gc_collect(tea_State* T)
 /* Free all remaining GC objects */
 void tea_gc_freeall(tea_State* T)
 {
-    GCobj* obj = T->gc.objects;
+    GCobj* obj = T->gc.root;
+    while(obj != NULL)
+    {
+        GCobj* next = obj->next;
+        gc_free(T, obj);
+        obj = next;
+    }
+
+    obj = T->gc.rootud;
     while(obj != NULL)
     {
         GCobj* next = obj->next;
@@ -324,9 +412,9 @@ GCobj* tea_mem_newgco(tea_State* T, size_t size, uint8_t type)
 {
     GCobj* obj = (GCobj*)tea_mem_realloc(T, NULL, 0, size);
     obj->gct = type;
-    obj->marked = false;
-    obj->next = T->gc.objects;
-    T->gc.objects = obj;
+    obj->marked = 0;
+    obj->next = T->gc.root;
+    T->gc.root = obj;
     return obj;
 }
 
