@@ -100,7 +100,7 @@ static void random_range(tea_State* T)
 {
     PRNGState* rs = (PRNGState*)tea_check_userdata(T, tea_upvalue_index(0));
     int count = tea_get_top(T);
-    double start, end, step;
+    double start = 0, end = 0, step = 0;
 
     if(count == 1)
     {
