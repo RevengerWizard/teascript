@@ -68,7 +68,7 @@ static void io_file_new(tea_State* T, FILE* fp, uint32_t type)
 {
     tea_push_value(T, tea_upvalue_index(0));
     GCclass* klass = classV(T->top - 1);
-    GCudata* ud = tea_udata_new(T, sizeof(IOFileUD));
+    GCudata* ud = tea_udata_new(T, sizeof(IOFileUD), 0);
     ud->udtype = UDTYPE_IOFILE;
     ud->klass = klass;
     ud->fd = io_file_free;
@@ -308,7 +308,7 @@ static void io_popen(tea_State* T)
 static void io_stdfile(tea_State* T, FILE* fp, const char* name, const char* mode)
 {
     GCclass* klass = classV(T->top - 1);
-    GCudata* ud = tea_udata_new(T, sizeof(IOFileUD));
+    GCudata* ud = tea_udata_new(T, sizeof(IOFileUD), 0);
     ud->udtype = UDTYPE_IOFILE;
     ud->klass = klass;
     ud->fd = io_file_free;

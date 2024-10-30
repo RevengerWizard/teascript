@@ -529,10 +529,60 @@ TEA_API void tea_new_map(tea_State* T)
     incr_top(T);
 }
 
+TEA_API bool tea_get_udvalue(tea_State* T, int ud, int n)
+{
+    GCudata* udata;
+    cTValue* o = index2addr_check(T, ud);
+    tea_checkapi(tvisudata(o), "stack slot #%d is not a userdata", ud);
+    udata = udataV(o);
+    if(n < 0 || n >= udata->nuvals)
+        return false;
+    copyTV(T, T->top, &ud_uvalues(udata)[n]);
+    incr_top(T);
+    return true;
+}
+
+TEA_API void tea_set_udvalue(tea_State* T, int ud, int n)
+{
+    GCudata* udata;
+    tea_checkapi_slot(1);
+    cTValue* o = index2addr_check(T, ud);
+    tea_checkapi(tvisudata(o), "stack slot #%d is not a userdata", ud);
+    udata = udataV(o);
+    if(n < 0 || n >= udata->nuvals)
+    {
+        tea_checkapi(0, "attempt to index out of bounds uservalue #%d", n);
+        return;
+    }
+    o = T->top - 1;
+    TValue* uvalues = ud_uvalues(udata);
+    copyTV(T, &uvalues[n], o);
+    T->top--;
+}
+
+TEA_API void* tea_new_userdatav(tea_State* T, size_t size, int nuvs)
+{
+    GCudata* ud;
+    ud = tea_udata_new(T, size, (uint8_t)nuvs);
+    setudataV(T, T->top, ud);
+    incr_top(T);
+    return ud_data(ud);
+}
+
+TEA_API void* tea_new_udatav(tea_State* T, size_t size, int nuvs, const char* name)
+{
+    GCclass* klass = classV(tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name)));
+    GCudata* ud = tea_udata_new(T, size, (uint8_t)nuvs);
+    ud->klass = klass;
+    setudataV(T, T->top, ud);
+    incr_top(T);
+    return ud_data(ud);
+}
+
 TEA_API void* tea_new_userdata(tea_State* T, size_t size)
 {
     GCudata* ud;
-    ud = tea_udata_new(T, size);
+    ud = tea_udata_new(T, size, 0);
     setudataV(T, T->top, ud);
     incr_top(T);
     return ud_data(ud);
@@ -541,7 +591,7 @@ TEA_API void* tea_new_userdata(tea_State* T, size_t size)
 TEA_API void* tea_new_udata(tea_State* T, size_t size, const char* name)
 {
     GCclass* klass = classV(tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name)));
-    GCudata* ud = tea_udata_new(T, size);
+    GCudata* ud = tea_udata_new(T, size, 0);
     ud->klass = klass;
     setudataV(T, T->top, ud);
     incr_top(T);

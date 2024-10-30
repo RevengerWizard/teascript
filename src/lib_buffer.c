@@ -51,7 +51,7 @@ static void buffer_init(tea_State* T)
         size = (size_t)tea_lib_checkintrange(T, 1, 0, TEA_MAX_BUF);
     }
     GCclass* klass = classV(T->base);
-    GCudata* ud = tea_udata_new(T, sizeof(SBufExt));
+    GCudata* ud = tea_udata_new(T, sizeof(SBufExt), 0);
     ud->klass = klass;
     ud->udtype = UDTYPE_BUFFER;
     ud->fd = buffer_free;

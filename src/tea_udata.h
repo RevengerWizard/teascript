@@ -8,9 +8,9 @@
 
 #include "tea_obj.h"
 
-TEA_FUNC GCudata* tea_udata_new(tea_State* T, size_t len);
+TEA_FUNC GCudata* tea_udata_new(tea_State* T, size_t len, uint8_t nuvals);
 TEA_FUNC void TEA_FASTCALL tea_udata_free(tea_State* T, GCudata* ud);
 
-#define tea_udata_size(len) (sizeof(struct GCudata) + (len))
+#define tea_udata_size(len, uv) (sizeof(struct GCudata) + (len) + ((uv) * sizeof(TValue)))
 
 #endif

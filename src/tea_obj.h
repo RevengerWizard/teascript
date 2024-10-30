@@ -289,6 +289,7 @@ typedef struct GCudata
     GCclass* klass;
     Tab attrs;
     uint8_t udtype; /* Userdata type */
+    uint8_t nuvals;    /* Number of uservalues */
     uint32_t len;
     tea_Finalizer fd;
 } GCudata;
@@ -302,7 +303,8 @@ enum
     UDTYPE__MAX
 };
 
-#define ud_data(u) ((void*)((u) + 1))
+#define ud_uvalues(u) ((TValue*)((char*)(u) + sizeof(GCudata)))
+#define ud_data(u) ((void*)(ud_uvalues(u) + (u)->nuvals))
 
 /* -- Bound method object -------------------------------------------------- */
 
