@@ -73,7 +73,7 @@ static void base_assert(tea_State* T)
 {
     if(!tea_to_bool(T, 0))
     {
-        if(tvisstr(T->base + 1))
+        if(tea_is_string(T, 1))
             tea_error(T, tea_check_string(T, 1));
         else
             tea_err_msg(T, TEA_ERR_ASSERT);
