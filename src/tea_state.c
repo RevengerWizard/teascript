@@ -159,7 +159,6 @@ static void cpteaopen(tea_State* T, void* ud)
 
 static void state_close(tea_State* T)
 {
-    tea_tab_free(T, &T->constants);
     tea_buf_free(T, &T->tmpbuf);
     tea_buf_free(T, &T->strbuf);
     tea_tab_free(T, &T->modules);
