@@ -17,7 +17,7 @@
 #define TEA_API		extern
 #endif
 
-#define TEAMOD_API  extern
+#define TEAMOD_API  TEA_API
 
 #define TEA_NUMBER_FMT		"%.14g"
 
