@@ -64,12 +64,15 @@ static const tea_Reg sys_module[] = {
     { "argv", NULL },
     { "version", NULL },
     { "byteorder", NULL },
+    { "bits", NULL },
     { NULL, NULL }
 };
 
 TEAMOD_API void tea_import_sys(tea_State* T)
 {
     tea_create_module(T, TEA_MODULE_SYS, sys_module);
+    tea_push_integer(T, TEA_64 ? 64 : 32);
+    tea_set_attr(T, 0, "bits");
     tea_push_string(T, TEA_ARCH_BYTEORDER);
     tea_set_attr(T, 0, "byteorder");
     init_argv(T);
