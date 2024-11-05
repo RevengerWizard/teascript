@@ -380,6 +380,23 @@ static void string_format(tea_State* T)
     setstrV(T, T->top - 1, tea_buf_str(T, sb));
 }
 
+static void string_repeat(tea_State* T)
+{
+    GCstr* s = tea_lib_checkstr(T, 0);
+    int32_t rep = tea_lib_checkint(T, 1);
+    GCstr* sep = tea_lib_optstr(T, 2);
+    SBuf* sb = tea_buf_tmp_(T);
+    if(sep && rep > 1)
+    {
+        GCstr* s2 = tea_buf_cat2str(T, sep, s);
+        tea_buf_reset(sb);
+        s = s2;
+        rep--;
+    }
+    sb = tea_buf_putstr_repeat(T, sb, s, rep);
+    setstrV(T, T->top - 1, tea_buf_str(T, sb));
+}
+
 static void string_iterate(tea_State* T)
 {
     size_t len;
@@ -436,63 +453,6 @@ static void string_opadd(tea_State* T)
     setstrV(T, T->top++, str);
 }
 
-static bool repeat(tea_State* T)
-{
-    GCstr* str;
-    int n;
-
-    if(tvisstr(T->top - 1) && tvisnum(T->top - 2))
-    {
-        str = strV(T->top - 1);
-        n = numV(T->top - 2);
-    }
-    else if(tvisnum(T->top - 1) && tvisstr(T->top - 2))
-    {
-        n = numV(T->top - 1);
-        str = strV(T->top - 2);
-    }
-    else
-    {
-        return false;
-    }
-
-    if(n <= 0)
-    {
-        T->top -= 2;
-        setstrV(T, T->top++, &T->strempty);
-        return true;
-    }
-    else if(n == 1)
-    {
-        T->top -= 2;
-        setstrV(T, T->top++, str);
-        return true;
-    }
-
-    int len = str->len;
-    char* chars = tea_buf_tmp(T, n * len);
-
-    int i;
-    char* p;
-    for(i = 0, p = chars; i < n; ++i, p += len)
-    {
-        memcpy(p, str_data(str), len);
-    }
-
-    GCstr* result = tea_str_new(T, chars, n * len);
-    T->top -= 2;
-    setstrV(T, T->top++, result);
-    return true;
-}
-
-static void string_opmultiply(tea_State* T)
-{
-    if(!repeat(T))
-    {
-        tea_err_bioptype(T, T->base, T->base + 1, MM_MULT);
-    }
-}
-
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods string_class[] = {
@@ -514,10 +474,10 @@ static const tea_Methods string_class[] = {
     { "find", "method", string_find, 2, 1 },
     { "replace", "method", string_replace, 3, 0 },
     { "format", "method", string_format, TEA_VARG, 0 },
+    { "repeat", "method", string_repeat, 2, 1 },
     { "iterate", "method", string_iterate, 2, 0 },
     { "iteratorvalue", "method", string_iteratorvalue, 2, 0 },
     { "+", "static", string_opadd, 2, 0 },
-    { "*", "static", string_opmultiply, 2, 0 },
     { NULL, NULL, NULL }
 };
 

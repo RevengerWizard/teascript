@@ -134,3 +134,34 @@ GCstr* tea_buf_cat2str(tea_State* T, GCstr* s1, GCstr* s2)
     memcpy(buf + len1, str_data(s2), len2);
     return tea_str_new(T, buf, len1 + len2);
 }
+
+SBuf* tea_buf_putstr_repeat(tea_State* T, SBuf* sb, GCstr* s, int32_t rep)
+{
+    uint32_t len = s->len;
+    if(rep > 0 && len)
+    {
+        uint64_t tlen = (uint64_t)rep * len;
+        char* w;
+        if(TEA_UNLIKELY(tlen > TEA_MAX_STR))
+            tea_err_mem(T);
+        w = tea_buf_more(T, sb, (uint32_t)tlen);
+        if(len == 1)
+        {
+            /* Optimize a common case */
+            uint32_t c = str_data(s)[0];
+            do { *w++ = c; } while(--rep > 0);
+        }
+        else
+        {
+            const char* e = str_data(s) + len;
+            do
+            {
+                const char* q = str_data(s);
+                do { *w++ = *q++; } while(q < e);
+            }
+            while(--rep > 0);
+        }
+        sb->w = w;
+    }
+    return sb;
+}
