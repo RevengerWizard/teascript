@@ -8,7 +8,7 @@ for(var i in 1..tree_height+1)
 {
     var num_leaf_chars = 2 * i - 1
     var num_spaces = tree_height - i
-    print(" ".repeat(num_spaces) + leaf_char * num_leaf_chars)
+    print(" ".repeat(num_spaces) + leaf_char.repeat(num_leaf_chars))
 }
 
 var trunk_height = floor(tree_height / 2)
