@@ -1616,6 +1616,7 @@ static void parse_decl(FuncState* fs, bool export);
 /* Parse a block */
 static void parse_block(FuncState* fs)
 {
+    lex_consume(fs, '{');
     while(!lex_check(fs, '}') && !lex_check(fs, TK_EOF))
     {
         parse_decl(fs, false);
@@ -1692,7 +1693,7 @@ static void parse_arrow(FuncState* fs)
 {
     parse_params(fs);
     lex_consume(fs, TK_ARROW);
-    if(lex_match(fs, '{'))
+    if(lex_check(fs, '{'))
     {
         /* Brace so expect a block */
         parse_block(fs);
@@ -1720,7 +1721,6 @@ static void parse_body(LexState* ls, FuncInfo info, BCLine line)
     {
         lex_consume(&fs, '(');
         parse_params(&fs);
-        lex_consume(&fs, '{');
         parse_block(&fs);
         bcemit_return(&fs);
     }
@@ -2731,7 +2731,6 @@ static void parse_stmt(FuncState* fs)
         }
         case '{':
         {
-            tea_lex_next(fs->ls);  /* Skip '{' */
             scope_begin(fs);
             parse_block(fs);
             scope_end(fs);
