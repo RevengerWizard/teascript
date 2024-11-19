@@ -28,8 +28,16 @@
 #if TEA_TARGET_WINDOWS
 #define DIR_SEP '\\'
 #define DIR_ALT_SEP '/'
+
+#define TEA_PATH_LIB "lib"
+#define TEA_PATH_PACKAGE "package"
+#define TEA_PATH_SCRIPT "script"
 #else
 #define DIR_SEP '/'
+
+#define TEA_PATH_LIB "/usr/lib/teascript/lib"
+#define TEA_PATH_PACKAGE "/usr/lib/teascript/package"
+#define TEA_PATH_SCRIPT "/usr/lib/teascript/script"
 #endif
 
 #ifdef DIR_ALT_SEP
@@ -38,9 +46,9 @@
 #define IS_DIR_SEP(c) (c == DIR_SEP)
 #endif
 
-#define setprogdir(T) (".")
+#define setprogdir(T) ("")
 
-#define TEA_LL_SYM "tea_import_"
+#define TEA_IMPORT_SYM "tea_import_%s"
 
 /* ------------------------------------------------------------------------ */
 
@@ -253,7 +261,7 @@ static bool readable(const char* filename)
 #define SHARED_EXT  ".so"
 #endif
 
-static GCstr* resolve_filename(tea_State* T, char* dir, char* path_name)
+static GCstr* imp_search_path(tea_State* T, char* dir, char* path_name)
 {
     GCstr* file = NULL;
 
@@ -284,10 +292,26 @@ static GCstr* resolve_filename(tea_State* T, char* dir, char* path_name)
     return file;
 }
 
+static GCmodule* imp_module_load(tea_State* T, GCstr* path)
+{
+    GCmodule* module = tea_module_new(T, path);
+    module->path = tea_imp_dirname(T, str_datawr(path), path->len);
+    T->last_module = module;
+
+    int status = tea_load_file(T, str_data(path), str_data(path));
+    if(status != TEA_OK)
+    {
+        /* Rethrow the syntax error */
+        tea_err_throw(T, TEA_ERROR_SYNTAX);
+    }
+    tea_call(T, 0);
+    return module;
+}
+
 void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
 {
-    GCstr* path = resolve_filename(T, str_datawr(dir), str_datawr(path_name));
-    if(path == NULL)
+    GCstr* path = imp_search_path(T, str_datawr(dir), str_datawr(path_name));
+    if(!path)
     {
         tea_err_callerv(T, TEA_ERR_NOPATH, str_data(path_name));
     }
@@ -299,18 +323,7 @@ void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
         copyTV(T, T->top++, o);
         return;
     }
-
-    GCmodule* module = tea_module_new(T, path);
-    module->path = tea_imp_dirname(T, str_datawr(path), path->len);
-    T->last_module = module;
-
-    int status = tea_load_file(T, str_data(path), NULL);
-    if(status != TEA_OK)
-    {
-        /* Rethrow the syntax error */
-        tea_err_throw(T, TEA_ERROR_SYNTAX);
-    }
-    tea_call(T, 0);
+    imp_module_load(T, path);
 }
 
 void tea_imp_logical(tea_State* T, GCstr* name)
@@ -338,20 +351,20 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     GCstr* dir = tea_str_newlen(T, exe);
     T->top--;
 
-    const char* exts[] = { "script", "lib", "package" };
+    const char* exts[] = { TEA_PATH_SCRIPT, TEA_PATH_LIB, TEA_PATH_PACKAGE };
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     GCstr* path;
     for(int i = 0; i < n; i++)
     {
         const char* x = tea_push_fstring(T, "%s%c%s", exts[i], DIR_SEP, str_data(name));
-        path = resolve_filename(T, str_datawr(dir), (char*)x);
+        path = imp_search_path(T, str_datawr(dir), (char*)x);
         tea_pop(T, 1);
         if(path)
             break;
     }
 
-    if(path == NULL)
+    if(!path)
     {
         tea_err_callerv(T, TEA_ERR_NOPATH, str_data(name));
     }
@@ -366,7 +379,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
 
     if(get_filename_ext(str_data(path), SHARED_EXT))
     {
-        const char* symname = tea_push_fstring(T, TEA_LL_SYM "%s", str_data(name));
+        const char* symname = tea_push_fstring(T, TEA_IMPORT_SYM, str_data(name));
 
         void* lib = ll_load(T, str_data(path));
         tea_CFunction fn = ll_sym(T, lib, symname);
@@ -379,17 +392,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         return;
     }
 
-    GCmodule* module = tea_module_new(T, path);
-    module->path = tea_imp_dirname(T, str_datawr(path), path->len);
-    T->last_module = module;
-
-    int status = tea_load_file(T, str_data(path), str_data(path));
-    if(status != TEA_OK)
-    {
-        /* Rethrow the syntax error */
-        tea_err_throw(T, TEA_ERROR_SYNTAX);
-    }
-    tea_call(T, 0);
+    GCmodule* module = imp_module_load(T, path);
     T->top--;
 
     setmoduleV(T, T->top++, module);
