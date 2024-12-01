@@ -2,14 +2,13 @@ import time
 
 function fib(n)
 {
-    if(n < 2) return n
-
+    if n < 2 { return n }
     return fib(n - 2) + fib(n - 1)
 }
 
 var start = time.clock()
 
-for(var i in 0..5)
+for var i in 0..5
 {
     print(fib(28))
 }
