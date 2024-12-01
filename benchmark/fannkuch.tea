@@ -1,0 +1,95 @@
+import io
+
+function fannkuch(n)
+{
+    const p, q, s = [], [], []
+    var sign, maxflips, sum = 1, 0, 0
+    for var i = 0; i < n; i++
+    {
+        p.add(i)
+        q.add(i)
+        s.add(i)
+    }
+    while
+    {
+        var q1 = p[0]
+        if q1 != 0
+        {
+            for var i = 1; i < n; i++
+            {
+                q[i] = p[i]
+            }
+            var flips = 1
+            while
+            {
+                const qq = q[q1]
+                if qq == 0
+                {
+                    sum += sign * flips
+                    if flips > maxflips
+                    {
+                        maxflips = flips
+                    }
+                    break
+                }
+                q[q1] = q1
+                if q1 >= 3
+                {
+                    var i = 1, j = q1 - 1
+                    while i < j
+                    {
+                        //q[i], q[j] = q[j], q[i]
+                        const temp = q[i]
+                        q[i] = q[j]
+                        q[j] = temp
+                        i++
+                        j--
+                    }
+                }
+                q1 = qq
+                flips++
+            }
+        }
+
+        if sign == 1
+        {
+            //p[0], p[1] = p[1], p[0]
+            const temp = p[0]
+            p[0] = p[1]
+            p[1] = temp
+            sign = -1
+        }
+        else
+        {
+            //p[1], p[2] = p[2], p[1]
+            const temp = p[1]
+            p[1] = p[2]
+            p[2] = temp
+            sign = 1
+            for var i = 2; i < n; i++
+            {
+                const sx = s[i]
+                if sx != 0
+                {
+                    s[i] = sx - 1
+                    break
+                }
+                if i == n - 1
+                {
+                    return [sum, maxflips]
+                }
+                s[i] = i
+                const t = p[0]
+                for var j = 0; j <= i; j++
+                {
+                    p[j] = p[j + 1]
+                }
+                p[i + 1] = t
+            }
+        }
+    }
+}
+
+const n = 9
+const sum, flips = fannkuch(n)
+io.stdout.write(sum, '\nfannkuchen(', ') = ', flips, '\n')
