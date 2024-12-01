@@ -4,13 +4,13 @@ function hex2rgb(hex)
     var b = 0x0
     var g = 0x0
 
-    if(hex[0] == '#')
+    if hex[0] == '#'
     {
         hex = hex[1:]
     }
 
     var num = assert(tonumber(hex, 16))
-    if(hex.len == 3)
+    if hex.len == 3
     {
         b = num & 0xF
         b |= b << 4

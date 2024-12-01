@@ -1,12 +1,16 @@
 function histogram(s)
 {
     var hist = {}
-    for(var c in s)
+    for var c in s
     {
-        if(c in hist)
+        if c in hist
+        {
             hist[c]++
+        }
         else
+        {
             hist[c] = 1
+        }
     }
     return hist
 }

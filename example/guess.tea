@@ -5,12 +5,12 @@ var n = random.range(1..101)
 while
 {
     var guess = tonumber(input("Pick a number from 1 to 100: "))
-    if(guess == n)
+    if guess == n
     {
         print("You guessed it!")
         break
     }
-    else if(guess < n)
+    else if guess < n
     {
         print("Too low")
     }

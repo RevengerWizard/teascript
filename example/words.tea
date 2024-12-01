@@ -7,15 +7,19 @@ function generate_words(num_words)
     var consonants = "bcdfghjklmnpqrstvwxyz"
     var vowels = "aeiou"
     var words = []
-    for(var i in Range.new(num_words))
+    for var i in Range.new(num_words)
     {
         var word = ""
-        for(var j in Range.new(size))
+        for var j in Range.new(size)
         {
-            if(j % 2 == 0)
+            if j % 2 == 0
+            {
                 word += random.choice(consonants.split(''))
+            }
             else
+            {
                 word += random.choice(vowels.split(''))
+            }
         }
         words.add(word)
     }

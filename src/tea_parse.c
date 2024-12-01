@@ -1624,6 +1624,14 @@ static void parse_block(FuncState* fs)
     lex_consume(fs, '}');
 }
 
+/* Parse a code block */
+static void parse_code(FuncState* fs)
+{
+    scope_begin(fs);
+    parse_block(fs);
+    scope_end(fs);
+}
+
 /* Parse function parameters */
 static void parse_params(FuncState* fs)
 {
@@ -2081,9 +2089,6 @@ static void parse_expr_stmt(FuncState* fs)
     bcemit_op(fs, BC_POP);
 }
 
-/* Forward declaration */
-static void parse_stmt(FuncState* fs);
-
 /* Parse iterable 'for' */
 static void parse_for_in(FuncState* fs, Token var, bool isconst)
 {
@@ -2112,8 +2117,6 @@ static void parse_for_in(FuncState* fs, Token var, bool isconst)
     int iter_slot = var_add_local(fs, lex_synthetic(fs, "iter "));
     var_mark(fs, false);
 
-    lex_consume(fs, ')');
-
     Loop loop;
     loop_begin(fs, &loop);
 
@@ -2139,7 +2142,7 @@ static void parse_for_in(FuncState* fs, Token var, bool isconst)
     }
 
     fs->loop->body = fs->pc;
-    parse_stmt(fs);
+    parse_code(fs);
 
     /* Loop variable */
     scope_end(fs);
@@ -2157,7 +2160,6 @@ static void parse_for(FuncState* fs)
     scope_begin(fs);
 
     tea_lex_next(fs->ls);  /* Skip 'for' */
-    lex_consume(fs, '(');
 
     int loop_var = -1;
     Token var_name = fs->ls->curr;
@@ -2217,7 +2219,6 @@ static void parse_for(FuncState* fs)
     BCPos increment_start = fs->pc;
     expr(fs);
     bcemit_op(fs, BC_POP);
-    lex_consume(fs, ')');
 
     bcemit_loop(fs, fs->loop->start);
     fs->loop->start = increment_start;
@@ -2236,7 +2237,7 @@ static void parse_for(FuncState* fs)
         inner_var = fs->local_count - 1;
     }
 
-    parse_stmt(fs);
+    parse_code(fs);
 
     if(inner_var != -1)
     {
@@ -2286,14 +2287,12 @@ static void parse_continue(FuncState* fs)
 static void parse_if(FuncState* fs)
 {
     tea_lex_next(fs->ls);  /* Skip 'if' */
-    lex_consume(fs, '(');
     expr(fs);
-    lex_consume(fs, ')');
 
     BCPos else_jmp = bcemit_jump(fs, BC_JUMP_IF_FALSE);
-
     bcemit_op(fs, BC_POP);
-    parse_stmt(fs);
+    
+    parse_code(fs);
 
     BCPos end_jmp = bcemit_jump(fs, BC_JUMP);
 
@@ -2301,7 +2300,12 @@ static void parse_if(FuncState* fs)
     bcemit_op(fs, BC_POP);
 
     if(lex_match(fs, TK_ELSE))
-        parse_stmt(fs);
+    {
+        if(lex_check(fs, TK_IF))
+            parse_if(fs);
+        else
+            parse_code(fs);
+    }
 
     bcpatch_jump(fs, end_jmp);
 }
@@ -2313,9 +2317,7 @@ static void parse_switch(FuncState* fs)
     int case_count = 0;
 
     tea_lex_next(fs->ls);  /* Skip 'switch' */
-    lex_consume(fs, '(');
     expr(fs);
-    lex_consume(fs, ')');
     lex_consume(fs, '{');
 
     if(lex_match(fs, TK_CASE))
@@ -2335,8 +2337,7 @@ static void parse_switch(FuncState* fs)
                 bcemit_argued(fs, BC_MULTI_CASE, multiple_cases);
             }
             BCPos jmp = bcemit_jump(fs, BC_COMPARE_JUMP);
-            lex_consume(fs, ':');
-            parse_stmt(fs);
+            parse_code(fs);
             case_ends[case_count++] = bcemit_jump(fs, BC_JUMP);
             bcpatch_jump(fs, jmp);
             if(case_count > 255)
@@ -2351,8 +2352,7 @@ static void parse_switch(FuncState* fs)
     bcemit_op(fs, BC_POP); /* Expression */
     if(lex_match(fs, TK_DEFAULT))
     {
-        lex_consume(fs, ':');
-        parse_stmt(fs);
+        parse_code(fs);
     }
 
     if(lex_match(fs, TK_CASE))
@@ -2503,15 +2503,13 @@ static void parse_while(FuncState* fs)
     loop_begin(fs, &loop);
 
     tea_lex_next(fs->ls);  /* Skip 'while' */
-    if(!lex_check(fs, '('))
+    if(lex_check(fs, '{'))
     {
         bcemit_byte(fs, BC_TRUE);
     }
     else
     {
-        lex_consume(fs, '(');
         expr(fs);
-        lex_consume(fs, ')');
     }
 
     /* Jump ot of the loop if the condition is false */
@@ -2520,7 +2518,7 @@ static void parse_while(FuncState* fs)
 
     /* Compile the body */
     fs->loop->body = fs->pc;
-    parse_stmt(fs);
+    parse_code(fs);
 
     /* Loop back to the start */
     bcemit_loop(fs, fs->loop->start);
@@ -2536,20 +2534,10 @@ static void parse_do(FuncState* fs)
     tea_lex_next(fs->ls);  /* Skip 'do' */
 
     fs->loop->body = fs->pc;
-    parse_stmt(fs);
+    parse_code(fs);
 
     lex_consume(fs, TK_WHILE);
-
-    if(!lex_check(fs, '('))
-    {
-        bcemit_op(fs, BC_TRUE);
-    }
-    else
-    {
-        lex_consume(fs, '(');
-        expr(fs);
-        lex_consume(fs, ')');
-    }
+    expr(fs);
 
     fs->loop->end = bcemit_jump(fs, BC_JUMP_IF_FALSE);
     bcemit_op(fs, BC_POP);
@@ -2651,29 +2639,6 @@ static void parse_export(FuncState* fs)
 
 /* -- Parse statements and declarations ---------------------------------------------------- */
 
-/* Parse a declaration */
-static void parse_decl(FuncState* fs, bool export)
-{
-    LexToken t = fs->ls->curr.t;
-    switch(t)
-    {
-        case TK_CLASS:
-            parse_class(fs, export);
-            break;
-        case TK_FUNCTION:
-            parse_function(fs, export);
-            break;
-        case TK_CONST:
-        case TK_VAR:
-            tea_lex_next(fs->ls);  /* Skip 'const' or 'var' */
-            parse_var(fs, t == TK_CONST, export);
-            break;
-        default:
-            parse_stmt(fs);
-            break;
-    }
-}
-
 /* Parse a statement */
 static void parse_stmt(FuncState* fs)
 {
@@ -2731,13 +2696,34 @@ static void parse_stmt(FuncState* fs)
         }
         case '{':
         {
-            scope_begin(fs);
-            parse_block(fs);
-            scope_end(fs);
+            parse_code(fs);
             break;
         }
         default:
             parse_expr_stmt(fs);
+            break;
+    }
+}
+
+/* Parse a declaration */
+static void parse_decl(FuncState* fs, bool export)
+{
+    LexToken t = fs->ls->curr.t;
+    switch(t)
+    {
+        case TK_CLASS:
+            parse_class(fs, export);
+            break;
+        case TK_FUNCTION:
+            parse_function(fs, export);
+            break;
+        case TK_CONST:
+        case TK_VAR:
+            tea_lex_next(fs->ls);  /* Skip 'const' or 'var' */
+            parse_var(fs, t == TK_CONST, export);
+            break;
+        default:
+            parse_stmt(fs);
             break;
     }
 }

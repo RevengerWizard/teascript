@@ -1,12 +1,12 @@
-for(var i in 0..3) 
+for var i in 0..3
 {
     print("outer ${i}")
-    if(i > 1) break
+    if i > 1 { break }
 
-    for(var j in 0..3) 
+    for var j in 0..3 
     {
         print("inner ${j}")
-        if(j > 1) break
+        if j > 1 { break }
     }
 }
 

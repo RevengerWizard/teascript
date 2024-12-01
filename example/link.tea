@@ -2,8 +2,8 @@ function link(value, next)
 {
     return function(method)
     {
-        if(method == "value") return value
-        if(method == "next") return next
+        if method == "value" { return value }
+        if method == "next" { return next }
         print("Unknown method " + method)
     }
 }
@@ -11,7 +11,7 @@ function link(value, next)
 function traverse(n, fn)
 {
     fn(n)
-    if(n("next") != nil)
+    if n("next") != nil
     {
         return traverse(n("next"), fn)
     }

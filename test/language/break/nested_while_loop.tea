@@ -1,14 +1,14 @@
 var i = 0
-while(true) 
+while true
 {
     print("outer ${i}")
-    if(i > 1) break
+    if i > 1 { break }
 
     var j = 0
-    while(true) 
+    while true
     {
         print("inner ${j}")
-        if(j > 1) break
+        if j > 1 { break }
 
         j = j + 1
     }

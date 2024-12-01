@@ -4,11 +4,13 @@ function stalin_sort(array)
 {
     var l = []
     var last
-    for(var item in array)
+    for var item in array
     {
-        if(not last)
+        if not last
+        {
             last = item
-        if(last <= item)
+        }
+        if last <= item
         {
             last = item
             l.add(item)

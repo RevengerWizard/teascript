@@ -15,7 +15,7 @@ class Vector
 
     - (a, b)
     {
-        if(!b) return Vector(-a.x, -a.y)
+        if not b { return Vector(-a.x, -a.y) }
 
         assert(a is Vector and b is Vector, "wrong argument type")
 
@@ -24,7 +24,7 @@ class Vector
 
     * (a, b)
     {
-        if(b is Number) return Vector(a.x * b, a.y * b)
+        if b is Number { return Vector(a.x * b, a.y * b) }
 
         assert(a is Vector and b is Vector, "wrong argument type")
 

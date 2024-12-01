@@ -19,14 +19,18 @@ const chars = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV',
 function roman(n)
 {
     var sum = 0
-    for(var i in 0..n.len-1)
+    for var i in 0..n.len-1
     {
         var left = n[i]
         var right = n[i + 1]
-        if(tallies[left] < tallies[right])
+        if tallies[left] < tallies[right]
+        {
             sum -= tallies[left]
+        }
         else
+        {
             sum += tallies[left]
+        }
     }
     sum += tallies[n[-1]]
     return sum
@@ -35,9 +39,9 @@ function roman(n)
 function decimal(x)
 {
     var out = ""
-    for(var literal in chars)
+    for var literal in chars
     {
-        while(x >= tallies[literal])
+        while x >= tallies[literal]
         {
             out += literal
             x -= tallies[literal]

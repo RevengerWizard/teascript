@@ -8,7 +8,7 @@ class PersonList
 
     iterate(iter)
     {
-        if(this.current < this.people.len)
+        if this.current < this.people.len
         {
             iter = [this.people[this.current].name, this.people[this.current].age]
             this.current++
@@ -33,7 +33,7 @@ const luigi = {name = 'Luigi', age = 56}
 
 const personList = PersonList.new(alice, bob, charlie, luigi)
 
-for(const name, age in personList)
+for const name, age in personList
 {
     print("${name} is ${age} years old")
 }

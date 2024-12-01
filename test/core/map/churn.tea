@@ -1,10 +1,13 @@
 var map = {}
 
-for(var i in 0..101) 
+for var i in 0..101 
 {
     map[i] = i
 
-    if(i >= 10) map.delete(i - 10)
+    if i >= 10
+    {
+        map.delete(i - 10)
+    }
 }
 
 print(map.count) // expect: 10

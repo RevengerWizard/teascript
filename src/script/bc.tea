@@ -20,7 +20,7 @@ function bctarget(func, ofs, out)
 {
     out.write("%04d ".format(ofs))
     const line = funcline(func, ofs)
-    if(ofs > 0 and line == funcline(func, ofs - 1))
+    if ofs > 0 and line == funcline(func, ofs - 1)
     {
         out.write("   | ")
     }
@@ -30,7 +30,7 @@ function bctarget(func, ofs, out)
     }
 
     const pc = funcbc(func, ofs)
-    if(pc < bcnames.len)
+    if pc < bcnames.len
     {
         out.write("%-16s ".format(bcnames[pc]))
     }
@@ -39,7 +39,7 @@ function bctarget(func, ofs, out)
         out.write("Unknown opcode %d\n".format(pc))
     }
     
-    switch(bcnames[pc])
+    switch bcnames[pc]
     {
         case "CONSTANT", "PUSH_ATTR",
         "GET_MODULE", "SET_MODULE",
@@ -51,7 +51,7 @@ function bctarget(func, ofs, out)
         "IMPORT_FMT",
         "IMPORT_STRING",
         "IMPORT_NAME",
-        "IMPORT_VARIABLE":
+        "IMPORT_VARIABLE"
         {
             const k = funcbc(func, ofs + 1)
             out.write("%4d '".format(k))
@@ -61,7 +61,7 @@ function bctarget(func, ofs, out)
         }
         case "DEFINE_OPTIONAL",
         "DEFINE_MODULE",
-        "FOR_ITER", "GET_ITER":
+        "FOR_ITER", "GET_ITER"
         {
             const seq = funcbc(func, ofs + 1)
             const iter = funcbc(func, ofs + 2)
@@ -87,7 +87,7 @@ function bctarget(func, ofs, out)
         "INHERIT",
         "IMPORT_ALIAS",
         "IMPORT_END",
-        "END":
+        "END"
         {
             out.write('\n')
             return ofs + 1
@@ -95,22 +95,22 @@ function bctarget(func, ofs, out)
         case "GET_LOCAL", "SET_LOCAL",
         "GET_UPVALUE", "SET_UPVALUE",
         "MULTI_CASE", "UNPACK", "UNPACK_REST",
-        "CALL", "INVOKE_NEW":
+        "CALL", "INVOKE_NEW"
         {
             const slot = funcbc(func, ofs + 1)
             out.write("%4d\n".format(slot))
             return ofs + 2
         }
         case "COMPARE_JUMP", "JUMP",
-        "JUMP_IF_FALSE", "JUMP_IF_NIL":
+        "JUMP_IF_FALSE", "JUMP_IF_NIL"
         {
             return bctarget_jump(func, ofs, out, 1)
         }
-        case "LOOP":
+        case "LOOP"
         {
             return bctarget_jump(func, ofs, out, -1)
         }
-        case "INVOKE", "SUPER":
+        case "INVOKE", "SUPER"
         {
             const k = funcbc(func, ofs + 1)
             const nargs = funcbc(func, ofs + 2)
@@ -119,7 +119,7 @@ function bctarget(func, ofs, out)
             out.write("'\n")
             return ofs + 3;
         }
-        case "CLOSURE":
+        case "CLOSURE"
         {
             ofs++
             const k = funcbc(func, ofs) ofs++
@@ -129,7 +129,7 @@ function bctarget(func, ofs, out)
             out.write('\n')
 
             const upvalues = funcinfo(proto).upvalues
-            for(var j = 0; j < upvalues; j++)
+            for var j = 0; j < upvalues; j++
             {
                 const uv = funcuv(proto, j)
                 const islocal = (uv & 0x0100) != 0
@@ -138,7 +138,7 @@ function bctarget(func, ofs, out)
             }
             return ofs
         }
-        default:
+        default
         {
             return ofs + 1
         }
@@ -148,12 +148,12 @@ function bctarget(func, ofs, out)
 export function bcdump(func, out)
 {
     const fi = funcinfo(func)
-    if(fi.children)
+    if fi.children
     {
-        for(var i = 0; i < fi.kconsts; i++)
+        for var i = 0; i < fi.kconsts; i++
         {
             const k = funck(fi.proto, i)
-            if(typeof(k) == 'proto')
+            if typeof(k) == 'proto'
             {
                 bcdump(k, out)
             }
@@ -161,7 +161,7 @@ export function bcdump(func, out)
     }
     out.write("== '%s' ==\n".format(fi.name))
     var ofs = 0
-    while(ofs < fi.bytecodes)
+    while ofs < fi.bytecodes
     {
         ofs = bctarget(fi.proto, ofs, out)
     }
