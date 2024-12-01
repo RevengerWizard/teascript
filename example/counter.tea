@@ -2,23 +2,19 @@ class Counter
 {
     new(start, end) 
     {
-        this.start = start
-        this.end = end
-        this.current = start
+        self.start = start
+        self.end = end
+        self.current = start
     }
 
     iterate(iter) 
     {
-        if(this.current <= this.end)
+        if self.current <= self.end
         {
-            iter = this.current
-            this.current++
+            iter = self.current
+            self.current++
             return iter
         } 
-        else 
-        {
-            return nil
-        }
     }
 
     iteratorvalue(iter) 

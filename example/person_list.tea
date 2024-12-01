@@ -2,22 +2,18 @@ class PersonList
 {
     new(...people)
     {
-        this.people = people
-        this.current = 0
+        self.people = people
+        self.current = 0
     }
 
     iterate(iter)
     {
-        if this.current < this.people.len
+        if self.current < self.people.len
         {
-            iter = [this.people[this.current].name, this.people[this.current].age]
-            this.current++
+            iter = [self.people[self.current].name, self.people[self.current].age]
+            self.current++
             return iter
         } 
-        else
-        {
-            return nil
-        }
     }
 
     iteratorvalue(iter)

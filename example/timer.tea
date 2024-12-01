@@ -2,23 +2,23 @@ class Timer
 {
     new(time)
     {
-        this.total = time
-        this.left = 0
+        self.total = time
+        self.left = 0
     }
 
     start()
     {
-        this.left = this.total
+        self.left = self.total
     }
 
     step(delta)
     {
-        this.left -= delta
+        self.left -= delta
     }
 
     isover()
     {
-        return this.left < 0
+        return self.left < 0
     }
 }
 

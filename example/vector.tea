@@ -2,8 +2,8 @@ class Vector
 {
     new(x=0, y=0)
     {
-        this.x = x
-        this.y = y
+        self.x = x
+        self.y = y
     }
 
     + (a, b)
@@ -47,17 +47,17 @@ class Vector
 
     [] (index)
     {
-        return (index % 2) == 0 ? this.x : this.y
+        return (index % 2) == 0 ? self.x : self.y
     }
 
     []= (index, value)
     {   
-        return index == 0 ? this.x = value : this.y = value
+        return index == 0 ? self.x = value : self.y = value
     }
 
     tostring()
     {
-        return '(${this.x}, ${this.y})'
+        return '(${self.x}, ${self.y})'
     }
 }
 

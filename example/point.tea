@@ -2,8 +2,8 @@ class Point
 {
     new(x, y)
     {
-        this.x = x
-        this.y = y
+        self.x = x
+        self.y = y
     }
 
     + (a, b)
@@ -14,14 +14,14 @@ class Point
 
     distance(other)
     {
-        var dx = this.x - other.x
-        var dy = this.y - other.y
+        var dx = self.x - other.x
+        var dy = self.y - other.y
         return (dx * dx + dy * dy) ** 0.5
     }
 
     tostring()
     {
-        return "(${this.x}, ${this.y})"
+        return "(${self.x}, ${self.y})"
     }
 }
 

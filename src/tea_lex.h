@@ -18,7 +18,7 @@
     _(FOR, for) _(FUNCTION, function) _(CASE, case) _(SWITCH, switch) _(DEFAULT, default) \
     _(IF, if) _(NIL, nil) _(OR, or) _(IS, is) \
     _(IMPORT, import) _(FROM, from) _(AS, as) _(ENUM, enum) \
-    _(RETURN, return) _(SUPER, super) _(THIS, this) \
+    _(RETURN, return) _(SUPER, super) _(SELF, self) \
     _(CONTINUE, continue) _(BREAK, break) _(IN, in) \
     _(TRUE, true) _(VAR, var) _(CONST, const) \
     _(NEW, new) _(EXPORT, export) _(DO, do) _(WHILE, while) \

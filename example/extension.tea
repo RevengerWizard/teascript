@@ -2,15 +2,15 @@ class Foo
 {
     new(x, y)
     {
-        this.x = x
-        this.y = y
+        self.x = x
+        self.y = y
     }
 }
 
 function Foo:say()
 {
-    this.said = "hello hello"
-    print(this, this.said)
+    self.said = "hello hello"
+    print(self, self.said)
 }
 
 var foo = Foo.new(12, 32)

@@ -541,7 +541,7 @@ static void fs_init(LexState* ls, FuncState* fs, FuncInfo info)
         case FUNC_INIT:
         case FUNC_METHOD:
         case FUNC_OPERATOR:
-            s = tea_str_newlit(T, "this");
+            s = tea_str_newlit(T, "self");
             setstrV(T, &local->name.tv, s);
             break;
         default:
@@ -1404,7 +1404,7 @@ static void expr_super(FuncState* fs, bool assign)
     {
         Token tok = lex_synthetic(fs, "new");
         uint8_t name = const_str(fs, strV(&tok.tv));
-        named_variable(fs, lex_synthetic(fs, "this"), false);
+        named_variable(fs, lex_synthetic(fs, "self"), false);
         uint8_t nargs = parse_args(fs);
         named_variable(fs, lex_synthetic(fs, "super"), false);
         bcemit_argued(fs, BC_SUPER, name);
@@ -1417,7 +1417,7 @@ static void expr_super(FuncState* fs, bool assign)
     lex_consume(fs, TK_NAME);
     uint8_t name = const_str(fs, strV(&fs->ls->prev.tv));
 
-    named_variable(fs, lex_synthetic(fs, "this"), false);
+    named_variable(fs, lex_synthetic(fs, "self"), false);
 
     if(lex_match(fs, '('))
     {
@@ -1435,11 +1435,11 @@ static void expr_super(FuncState* fs, bool assign)
     }
 }
 
-static void expr_this(FuncState* fs, bool assign)
+static void expr_self(FuncState* fs, bool assign)
 {
     if(fs->klass == NULL)
     {
-        error(fs, TEA_ERR_XTHISO);
+        error(fs, TEA_ERR_XSELFO);
     }
     expr_name(fs, false);
 }
@@ -1563,8 +1563,8 @@ static ParseRule expr_rule(int type)
             return OPERATOR(expr_binary, PREC_IS);
         case TK_SUPER:
             return PREFIX(expr_super);
-        case TK_THIS:
-            return PREFIX(expr_this);
+        case TK_SELF:
+            return PREFIX(expr_self);
         case TK_TRUE:
             return PREFIX(expr_true);
         case TK_FALSE:
