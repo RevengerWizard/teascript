@@ -121,8 +121,7 @@ function bctarget(func, ofs, out)
         }
         case "CLOSURE"
         {
-            ofs++
-            const k = funcbc(func, ofs) ofs++
+            const k = funcbc(func, ofs + 1)
             const proto = funck(func, k)
             out.write("%4d ".format(k))
             out.write(tostring(proto))
@@ -136,7 +135,7 @@ function bctarget(func, ofs, out)
                 const idx = uv & 0xff
                 out.write("        |                     %s %d\n".format(islocal ? "local" : "upvalue", idx))
             }
-            return ofs
+            return ofs + 2
         }
         default
         {
