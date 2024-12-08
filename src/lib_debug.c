@@ -25,14 +25,30 @@ static void setintfield(tea_State* T, GCmap* m, const char* name, int32_t val)
 static void debug_funcinfo(tea_State* T)
 {
     GCproto* pt = tea_lib_checkTproto(T, 0, false);
+    BCPos pc = (BCPos)tea_lib_optint(T, 1, 0);
     GCmap* m;
     tea_new_map(T);
     m = mapV(T->top - 1);
-    setintfield(T, m, "upvalues", pt->sizeuv);
+    setintfield(T, m, "linedefined", pt->firstline);
+    setintfield(T, m, "lastlinedefined", pt->firstline + pt->numline);
+    setintfield(T, m, "stackslots", pt->max_slots);
+    setintfield(T, m, "params", pt->numparams);
+    setintfield(T, m, "optparams", pt->numopts);
     setintfield(T, m, "kconsts", pt->sizek);
+    setintfield(T, m, "upvalues", pt->sizeuv);
+    if(pc < pt->sizebc)
+    {
+        setintfield(T, m, "currentline", tea_debug_line(pt, pc));
+    }
+    else
+    {
+        setintfield(T, m, "currentline", -1);
+    }
     setintfield(T, m, "bytecodes", pt->sizebc);
     tea_push_bool(T, (pt->flags & PROTO_CHILD));
     tea_set_key(T, -2, "children");
+    tea_push_bool(T, (pt->flags & PROTO_VARARG));
+    tea_set_key(T, -2, "isvararg");
     setstrV(T, T->top++, pt->name);
     tea_set_key(T, -2, "name");
     setprotoV(T, tea_map_setstr(T, m, tea_str_newlit(T, "proto")), pt);
