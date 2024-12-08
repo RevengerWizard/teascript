@@ -8,14 +8,6 @@
 from debug import funcinfo, funck, funcbc, funcuv, funcline
 from vmdef import bcnames
 
-function bctarget_jump(func, ofs, out, sign)
-{
-    var jump = funcbc(func, ofs + 1) << 8
-    jump |= funcbc(func, ofs + 2)
-    out.write("%4d -> %d\n".format(ofs, ofs + 3 + sign * jump))
-    return ofs + 3
-}
-
 function bctarget(func, ofs, out)
 {
     out.write("%04d ".format(ofs))
@@ -102,13 +94,14 @@ function bctarget(func, ofs, out)
             return ofs + 2
         }
         case "COMPARE_JUMP", "JUMP",
-        "JUMP_IF_FALSE", "JUMP_IF_NIL"
+        "JUMP_IF_FALSE", "JUMP_IF_NIL",
+        "LOOP"
         {
-            return bctarget_jump(func, ofs, out, 1)
-        }
-        case "LOOP"
-        {
-            return bctarget_jump(func, ofs, out, -1)
+            const sign = bcnames[pc] == "LOOP" ? -1 : 1
+            var jump = funcbc(func, ofs + 1) << 8
+            jump |= funcbc(func, ofs + 2)
+            out.write("%4d -> %d\n".format(ofs, ofs + 3 + sign * jump))
+            return ofs + 3
         }
         case "INVOKE", "SUPER"
         {
