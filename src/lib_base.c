@@ -224,6 +224,19 @@ static void base_loadstring(tea_State* T)
     }
 }
 
+static void base_pcall(tea_State* T)
+{
+    int status;
+    tea_check_any(T, 0);
+    printf("PCALL %d\n", tea_get_top(T) - 1);
+    status = tea_pcall(T, tea_get_top(T) - 1);
+    tea_new_list(T, 2);
+    tea_push_bool(T, status);
+    tea_add_item(T, -2);
+    tea_push_value(T, -2);
+    tea_add_item(T, -2);
+}
+
 static void base_char(tea_State* T)
 {
     int n = tea_check_number(T, 0);
@@ -362,6 +375,7 @@ static const tea_Reg globals[] = {
     { "dump", base_dump, 1, 1 },
     { "loadfile", base_loadfile, 1, 0 },
     { "loadstring", base_loadstring, 1, 1 },
+    { "pcall", base_pcall, TEA_VARG, 0 },
     { "char", base_char, 1, 0 },
     { "ord", base_ord, 1, 0 },
     { "hex", base_hex, 1, 0 },
