@@ -8,7 +8,34 @@
 from debug import funcinfo, funck, funcbc, funcuv, funcline
 from vmdef import bcnames
 
-function bctarget(func, ofs, out)
+function ctlsub(c)
+{
+    if c == "\n" { return "n" }
+    else if c == "\r" { return "r" }
+    else if c == "\t" { return "t" }
+    else if ord(c) < 32 or ord(c) == 127
+    {
+        return "\\%03d".format(ord(c))
+    }
+    return c
+}
+
+function escapestr(val)
+{
+    if typeof(val) == "string"
+    {
+        var res = ""
+        const fmt = "%q".format(val)
+        for const c in fmt
+        {
+            res += ctlsub(c)
+        }
+        return res
+    }
+    return tostring(val)
+}
+
+function bcline(func, ofs, out)
 {
     out.write("%04d ".format(ofs))
     const line = funcline(func, ofs)
@@ -22,16 +49,10 @@ function bctarget(func, ofs, out)
     }
 
     const pc = funcbc(func, ofs)
-    if pc < bcnames.len
-    {
-        out.write("%-16s ".format(bcnames[pc]))
-    }
-    else
-    {
-        out.write("Unknown opcode %d\n".format(pc))
-    }
-    
-    switch bcnames[pc]
+    const bcname = bcnames[pc]
+    out.write("%-16s ".format(bcname))
+
+    switch bcname
     {
         case "CONSTANT", "PUSH_ATTR",
         "GET_MODULE", "SET_MODULE",
@@ -46,18 +67,17 @@ function bctarget(func, ofs, out)
         "IMPORT_VARIABLE"
         {
             const k = funcbc(func, ofs + 1)
-            out.write("%4d '".format(k))
-            out.write(String.new(funck(func, k)))
-            out.write("'\n")
+            out.write("%4d %s\n".format(k, escapestr(funck(func, k))))
             return ofs + 2
         }
         case "DEFINE_OPTIONAL",
         "DEFINE_MODULE",
+        "UNPACK_REST",
         "FOR_ITER", "GET_ITER"
         {
-            const seq = funcbc(func, ofs + 1)
-            const iter = funcbc(func, ofs + 2)
-            out.write("%4d     %4d\n".format(seq, iter))
+            const slot1 = funcbc(func, ofs + 1)
+            const slot2 = funcbc(func, ofs + 2)
+            out.write("%4d     %4d\n".format(slot1, slot2))
             return ofs + 3
         }
         case "NIL", "TRUE", "FALSE",
@@ -86,7 +106,7 @@ function bctarget(func, ofs, out)
         }
         case "GET_LOCAL", "SET_LOCAL",
         "GET_UPVALUE", "SET_UPVALUE",
-        "MULTI_CASE", "UNPACK", "UNPACK_REST",
+        "MULTI_CASE", "UNPACK",
         "CALL", "INVOKE_NEW"
         {
             const slot = funcbc(func, ofs + 1)
@@ -97,7 +117,7 @@ function bctarget(func, ofs, out)
         "JUMP_IF_FALSE", "JUMP_IF_NIL",
         "LOOP"
         {
-            const sign = bcnames[pc] == "LOOP" ? -1 : 1
+            const sign = bcname == "LOOP" ? -1 : 1
             var jump = funcbc(func, ofs + 1) << 8
             jump |= funcbc(func, ofs + 2)
             out.write("%4d -> %d\n".format(ofs, ofs + 3 + sign * jump))
@@ -107,18 +127,14 @@ function bctarget(func, ofs, out)
         {
             const k = funcbc(func, ofs + 1)
             const nargs = funcbc(func, ofs + 2)
-            out.write("   (%d args) %4d '".format(nargs, k))
-            out.write(tostring(funck(func, k)))
-            out.write("'\n")
+            out.write("   (%d args) %4d %s\n".format(nargs, k, escapestr(funck(func, k))))
             return ofs + 3;
         }
         case "CLOSURE"
         {
             const k = funcbc(func, ofs + 1)
             const proto = funck(func, k)
-            out.write("%4d ".format(k))
-            out.write(tostring(proto))
-            out.write('\n')
+            out.write("%4d %s\n".format(k, escapestr(proto)))
 
             const upvalues = funcinfo(proto).upvalues
             for var j = 0; j < upvalues; j++
@@ -155,6 +171,6 @@ export function bcdump(func, out)
     var ofs = 0
     while ofs < fi.bytecodes
     {
-        ofs = bctarget(fi.proto, ofs, out)
+        ofs = bcline(fi.proto, ofs, out)
     }
 }
