@@ -111,13 +111,6 @@ bool tea_meta_hasattr(tea_State* T, GCstr* name, TValue* obj)
             if(o) return true;
             break;
         }
-        case TEA_TMAP:
-        {
-            GCmap* map = mapV(obj);
-            cTValue* o = tea_map_getstr(T, map, name);
-            if(o) return true;
-            break;
-        }
         default:
             break;
     }
@@ -166,22 +159,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
             }
             tea_err_callerv(T, TEA_ERR_MODATTR, str_data(module->name), str_data(name));
         }
-        case TEA_TMAP:
-        {
-            GCmap* map = mapV(obj);
-            cTValue* o = tea_map_getstr(T, map, name);
-            if(o)
-            {
-                return o;
-            }
-            else
-            {
-                goto retry;
-            }
-            tea_err_callerv(T, TEA_ERR_MAPATTR, str_data(name));
-        }
         default:
-retry:
         {
             GCclass* klass = tea_meta_getclass(T, obj);
             if(klass)
@@ -230,12 +208,6 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
             copyTV(T, tea_tab_set(T, &instance->attrs, name, NULL), item);
             return item;
         }
-        case TEA_TMAP:
-        {
-            GCmap* map = mapV(obj);
-            copyTV(T, tea_map_setstr(T, map, name), item);
-            return item;
-        }
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(obj);
@@ -275,14 +247,6 @@ void tea_meta_delattr(tea_State* T, GCstr* name, TValue* obj)
         {
             GCinstance* instance = instanceV(obj);
             if(!tea_tab_delete(&instance->attrs, name))
-                break;
-            return;
-        }
-        case TEA_TMAP:
-        {
-            GCmap* map = mapV(obj);
-            TValue tv; setstrV(T, &tv, name);
-            if(!tea_map_delete(T, map, &tv))
                 break;
             return;
         }

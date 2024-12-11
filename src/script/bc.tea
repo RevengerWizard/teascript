@@ -136,7 +136,7 @@ function bcline(func, ofs, out)
             const proto = funck(func, k)
             out.write("%4d %s\n".format(k, escapestr(proto)))
 
-            const upvalues = funcinfo(proto).upvalues
+            const upvalues = funcinfo(proto)['upvalues']
             for var j = 0; j < upvalues; j++
             {
                 const uv = funcuv(proto, j)
@@ -156,21 +156,21 @@ function bcline(func, ofs, out)
 export function bcdump(func, out)
 {
     const fi = funcinfo(func)
-    if fi.children
+    if fi['children']
     {
-        for var i = 0; i < fi.kconsts; i++
+        for var i = 0; i < fi['kconsts']; i++
         {
-            const k = funck(fi.proto, i)
+            const k = funck(fi['proto'], i)
             if typeof(k) == 'proto'
             {
                 bcdump(k, out)
             }
         }
     }
-    out.write("== '%s' ==\n".format(fi.name))
+    out.write("== '%s' ==\n".format(fi['name']))
     var ofs = 0
-    while ofs < fi.bytecodes
+    while ofs < fi['bytecodes']
     {
-        ofs = bcline(fi.proto, ofs, out)
+        ofs = bcline(fi['proto'], ofs, out)
     }
 }

@@ -26,7 +26,7 @@ function usage()
 
 function readfile(ctx, input)
 {
-    if ctx.string
+    if ctx['string']
     {
         return loadstring(input)
     }
@@ -81,7 +81,7 @@ function bcsave_c(ctx, output, s)
 {
     const fp = savefile(output, 'w')
 
-    if ctx.type == 'c'
+    if ctx['type'] == 'c'
     {
         fp.write(
 '#ifdef __cplusplus\n' +
@@ -90,14 +90,14 @@ function bcsave_c(ctx, output, s)
 '#ifdef _WIN32\n' +
 '__declspec(dllexport)\n' +
 '#endif\n' +
-'const unsigned char ${ctx.modname}[] = {\n'
+'const unsigned char ${ctx['modname']}[] = {\n'
 )
     }
     else
     {
         fp.write(
-'#define ${ctx.modname}_SIZE ${s.bytelen}\n' +
-'static const unsigned char ${ctx.modname}[] = {\n'
+'#define ${ctx['modname']}_SIZE ${s.bytelen}\n' +
+'static const unsigned char ${ctx['modname']}[] = {\n'
 )
     }
 
@@ -140,11 +140,11 @@ function bcsave(ctx, input, output)
 {
     const f = readfile(ctx, input)
     const s = dump(f, ctx.mode)
-    var t = ctx.type
+    var t = ctx['type']
     if not t
     {
         t = detecttype(output)
-        ctx.type = t
+        ctx['type'] = t
     }
     if t == 'raw'
     {
@@ -152,7 +152,7 @@ function bcsave(ctx, input, output)
     }
     else
     {
-        if not ctx.modname { ctx.modname = detectmodname(input) }
+        if not ctx['modname'] { ctx['modname'] = detectmodname(input) }
         bcsave_c(ctx, output, s)
     }
 }
@@ -175,18 +175,18 @@ export function docmd(...arg)
             {
                 const opt = a[m]
                 if opt == 'l' { list = true }
-                else if opt == 's' { ctx.mode = true }
+                else if opt == 's' { ctx['mode'] = true }
                 else
                 {
                     if n >= arg.len or m != a.len - 1 { usage() }
                     if opt == 'e'
                     {
                         if n != 0 { usage() }
-                        ctx.string = true
+                        ctx['string'] = true
                     }
                     else if opt == 't'
                     {
-                        ctx.type = map_type[arg[n]]
+                        ctx['type'] = map_type[arg[n]]
                         arg.delete(n)
                     }
                     else
