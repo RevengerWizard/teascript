@@ -279,7 +279,7 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
                 tea_vm_call(T, mo, 1);
                 return --T->top;
             }
-            tea_err_callerv(T, TEA_ERR_INSTSUBSCR, instance->klass->name);
+            tea_err_callerv(T, TEA_ERR_INSTSUBSCR, str_data(instance->klass->name));
         }
         case TEA_TRANGE:
         {
