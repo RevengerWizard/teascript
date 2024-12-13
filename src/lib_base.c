@@ -228,7 +228,6 @@ static void base_pcall(tea_State* T)
 {
     int status;
     tea_check_any(T, 0);
-    printf("PCALL %d\n", tea_get_top(T) - 1);
     status = tea_pcall(T, tea_get_top(T) - 1);
     tea_new_list(T, 2);
     tea_push_bool(T, status);
@@ -247,46 +246,6 @@ static void base_ord(tea_State* T)
 {
     GCstr* c = tea_lib_checkstr(T, 0);
     tea_push_number(T, tea_utf_decode((uint8_t*)str_data(c), c->len));
-}
-
-static void base_hex(tea_State* T)
-{
-    double n = tea_check_number(T, 0);
-    tea_strfmt_pushf(T, "0x%x", (unsigned int)n);
-}
-
-static void base_bin(tea_State* T)
-{
-    int n = tea_check_number(T, 0);
-
-    char buffer[34];
-    int i = 2;
-
-    buffer[0] = '0';
-    buffer[1] = 'b';
-
-    while(n > 0)
-    {
-        buffer[i++] = (n % 2) + '0';
-        n /= 2;
-    }
-    if(i == 2)
-    {
-        buffer[i++] = '0';
-    }
-
-    buffer[i] = '\0';
-
-    /* Reverse the buffer to get the binary representation in the correct order */
-    char temp;
-    for(int j = 0; j < (i - 2) / 2; j++)
-    {
-        temp = buffer[j + 2];
-        buffer[j + 2] = buffer[i - j - 1];
-        buffer[i - j - 1] = temp;
-    }
-
-    tea_push_string(T, buffer);
 }
 
 static void base_rawequal(tea_State* T)
@@ -378,8 +337,6 @@ static const tea_Reg globals[] = {
     { "pcall", base_pcall, TEA_VARG, 0 },
     { "char", base_char, 1, 0 },
     { "ord", base_ord, 1, 0 },
-    { "hex", base_hex, 1, 0 },
-    { "bin", base_bin, 1, 0 },
     { "rawequal", base_rawequal, 2, 0 },
     { "hasattr", base_hasattr, 2, 0 },
     { "getattr", base_getattr, 2, 0 },
