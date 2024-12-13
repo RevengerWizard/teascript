@@ -230,7 +230,7 @@ static void base_pcall(tea_State* T)
     tea_check_any(T, 0);
     status = tea_pcall(T, tea_get_top(T) - 1);
     tea_new_list(T, 2);
-    tea_push_bool(T, status);
+    tea_push_bool(T, (status == 0));
     tea_add_item(T, -2);
     tea_push_value(T, -2);
     tea_add_item(T, -2);
