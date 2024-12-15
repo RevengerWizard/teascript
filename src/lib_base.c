@@ -257,9 +257,9 @@ static void base_rawequal(tea_State* T)
 
 static void base_hasattr(tea_State* T)
 {
-    tea_check_any(T, 0);
-    const char* attr = tea_check_string(T, 1);
-    tea_push_bool(T, tea_has_attr(T, 0, attr));
+    TValue* tv = tea_lib_checkany(T, 0);
+    GCstr* attr = tea_lib_checkstr(T, 1);
+    tea_push_bool(T, tea_meta_hasattr(T, attr, tv));
 }
 
 static void base_getattr(tea_State* T)
