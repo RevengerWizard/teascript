@@ -140,8 +140,8 @@ typedef struct
     GCobj obj;
     GCstr* name;    /* Canonical module name */
     GCstr* path;    /* Absolute module path */
-    Tab vars;   /* Tab of private variables */
-    Tab exports;  /* Tab of exported variables */
+    Tab vars;   /* Table of private variables */
+    Tab exports;  /* Table of exported variables */
 } GCmodule;
 
 /* -- Prototype object -------------------------------------------------- */
@@ -389,9 +389,9 @@ struct tea_State
     uint16_t nccalls;    /* Number of nested C calls */
     /* ------ The following fields are global to the state ------ */
     GCState gc; /* Garbage collector */
-    Tab modules;   /* Tab of cached modules */
-    Tab globals;   /* Tab of globals */
-    Tab constants;    /* Tab to keep track of 'const' variables */
+    Tab modules;   /* Table of cached modules */
+    Tab globals;   /* Table of globals */
+    Tab constants;    /* Table to keep track of 'const' variables */
     Tab strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
     SBuf strbuf;    /* Termorary string conversion buffer */

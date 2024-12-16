@@ -334,6 +334,7 @@ void tea_gc_collect(tea_State* T)
     size_t before = T->gc.total;
 #endif
 
+    tea_gc_markval(T, &T->registrytv);
     gc_mark_roots(T);
     gc_trace_references(T);
 
