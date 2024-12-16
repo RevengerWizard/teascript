@@ -8,6 +8,7 @@ class Base
 
 class Derived : Base 
 {
+    new() {}
     foo() 
     {
         super.foo(1) // expect runtime error: Expected 2 arguments, but got 1

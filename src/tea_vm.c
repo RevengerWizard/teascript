@@ -1004,38 +1004,31 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_INVOKE_NEW):
             {
                 uint8_t nargs = READ_BYTE();
-                if(!tvisclass(T->top - nargs - 1))
+                TValue* o = T->top - nargs - 1;
+                if(!tvisclass(o))
                 {
-                    RUNTIME_ERROR(TEA_ERR_ISCLASS, tea_typename(T->top - nargs - 1));
+                    RUNTIME_ERROR(TEA_ERR_ISCLASS, tea_typename(o));
                 }
-                GCclass* klass = classV(T->top - nargs - 1);
-                TValue* f = &klass->init;
-                if(!tvisnil(f))
+                GCclass* klass = classV(o);
+                o = &klass->init;
+                if(tvisnil(o))
                 {
-                    if(tvisfunc(f) && !iscfunc(funcV(f)))
-                    {
-                        setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
-                    }
-                    else
-                    {
-                        setclassV(T, T->top - nargs - 1, klass);
-                    }
-                    STORE_FRAME;
-                    if(vm_precall(T, f, nargs))
-                    {
-                        (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
-                    }
-                    READ_FRAME();
-                    DISPATCH();
+                    RUNTIME_ERROR(TEA_ERR_NONEW, str_data(klass->name));
                 }
-                else if(nargs != 0)
-                {
-                    RUNTIME_ERROR(TEA_ERR_ARGS, 0, nargs);
-                }
-                else
+                if(tvisfunc(o) && !iscfunc(funcV(o)))
                 {
                     setinstanceV(T, T->top - nargs - 1, tea_instance_new(T, klass));
                 }
+                else
+                {
+                    setclassV(T, T->top - nargs - 1, klass);
+                }
+                STORE_FRAME;
+                if(vm_precall(T, o, nargs))
+                {
+                    (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
+                }
+                READ_FRAME();
                 DISPATCH();
             }
             CASE_CODE(BC_CALL):
