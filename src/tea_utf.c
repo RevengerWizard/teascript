@@ -179,7 +179,7 @@ GCstr* tea_utf_codepoint_at(tea_State* T, GCstr* str, uint32_t idx)
 GCstr* tea_utf_from_codepoint(tea_State* T, int value)
 {
     int len = utf_encode_bytes(value);
-    char bytes[len + 1];
+    char bytes[5];  /* Maximum bytes for UTF-8 code point (4) + \0 */
     tea_utf_encode(value, (uint8_t*)bytes);
     return tea_str_new(T, bytes, len);
 }
