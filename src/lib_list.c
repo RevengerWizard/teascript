@@ -340,7 +340,7 @@ static void list_index(tea_State* T)
         }
         tea_pop(T, 1);
     }
-    tea_push_nil(T);
+    tea_push_number(T, -1);
 }
 
 static void list_join(tea_State* T)
