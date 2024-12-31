@@ -1,7 +1,7 @@
 class Outer 
 {
     new() {}
-    method() 
+    function method() 
     {
         print(self) // expect: <Outer instance>
 
@@ -12,7 +12,7 @@ class Outer
             class Inner 
             {
                 new() {}
-                method() 
+                function method() 
                 {
                     print(self) // expect: <Inner instance>
                 }

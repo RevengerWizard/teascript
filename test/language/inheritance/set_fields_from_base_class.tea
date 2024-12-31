@@ -1,12 +1,12 @@
 class Foo 
 {
-    foo(a, b) 
+    function foo(a, b) 
     {
         self.field1 = a
         self.field2 = b
     }
 
-    fooprint() 
+    function fooprint() 
     {
         print(self.field1)
         print(self.field2)
@@ -16,13 +16,13 @@ class Foo
 class Bar : Foo 
 {
     new() {}
-    bar(a, b) 
+    function bar(a, b) 
     {
         self.field1 = a
         self.field2 = b
     }
 
-    barprint() 
+    function barprint() 
     {
         print(self.field1)
         print(self.field2)

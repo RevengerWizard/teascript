@@ -6,20 +6,20 @@ class Point
         self.y = y
     }
 
-    + (a, b)
+    operator + (a, b)
     {
         assert(a is Point and b is Point)
         return Point.new(a.x + b.x, a.y + b.y)
     }
 
-    distance(other)
+    function distance(other)
     {
         var dx = self.x - other.x
         var dy = self.y - other.y
         return (dx * dx + dy * dy) ** 0.5
     }
 
-    tostring()
+    function tostring()
     {
         return "(${self.x}, ${self.y})"
     }

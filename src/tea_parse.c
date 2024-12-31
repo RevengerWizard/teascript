@@ -1830,10 +1830,6 @@ static void parse_operator(FuncState* fs)
 static void parse_method(FuncState* fs, FuncInfo info)
 {
     uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
-    if(strV(&fs->ls->prev.tv) == fs->ls->T->init_str)
-    {
-        info = FUNC_INIT;
-    }
     parse_body(fs->ls, info, fs->ls->prev.line);
     bcemit_argued(fs, BC_METHOD, k);
 }
@@ -1851,13 +1847,24 @@ static void parse_class_body(FuncState* fs)
 {
     while(!lex_check(fs, '}') && !lex_check(fs, TK_EOF))
     {
-        if(lex_match(fs, TK_NAME) || lex_match(fs, TK_NEW))
+        LexToken t = fs->ls->curr.t;
+        switch(t)
         {
-            parse_method(fs, FUNC_METHOD);
-        }
-        else
-        {
-            parse_operator(fs);
+            case TK_NEW:
+                tea_lex_next(fs->ls);
+                parse_method(fs, FUNC_INIT);
+                break;
+            case TK_FUNCTION:
+                tea_lex_next(fs->ls);
+                lex_consume(fs, TK_NAME);
+                parse_method(fs, FUNC_METHOD);
+                break;
+            case TK_OPERATOR:
+                tea_lex_next(fs->ls);
+                parse_operator(fs);
+                break;
+            default:
+                error(fs, TEA_ERR_XMETHOD);
         }
     }
 }

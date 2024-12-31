@@ -1,6 +1,6 @@
 class Base 
 {
-    foo(a, b) 
+    function foo(a, b) 
     {
         print("Base.foo(" + a + ", " + b + ")")
     }
@@ -9,7 +9,7 @@ class Base
 class Derived : Base 
 {
     new() {}
-    foo() 
+    function foo() 
     {
         super.foo(1) // expect runtime error: Expected 2 arguments, but got 1
     }

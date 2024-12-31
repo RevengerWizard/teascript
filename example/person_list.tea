@@ -6,17 +6,17 @@ class PersonList
         self.current = 0
     }
 
-    iterate(iter)
+    function iterate(iter)
     {
         if self.current < self.people.len
         {
-            iter = [self.people[self.current].name, self.people[self.current].age]
+            iter = [self.people[self.current]['name'], self.people[self.current]['age']]
             self.current++
             return iter
         } 
     }
 
-    iteratorvalue(iter)
+    function iteratorvalue(iter)
     {
         return iter
     }

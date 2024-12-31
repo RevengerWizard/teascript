@@ -1,12 +1,12 @@
 class Base 
 {
-    toString() { return "Base" }
+    function toString() { return "Base" }
 }
 
 class Derived : Base 
 {
     new() {}
-    getClosure() 
+    function getClosure() 
     {
         function closure() 
         {
@@ -15,7 +15,7 @@ class Derived : Base
         return closure
     }
 
-    toString() { return "Derived" }
+    function toString() { return "Derived" }
 }
 
 var closure = Derived.new().getClosure()

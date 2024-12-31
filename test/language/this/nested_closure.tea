@@ -1,7 +1,7 @@
 class Foo 
 {
     new() {}
-    getClosure() 
+    function getClosure() 
     {
         function f() 
         {
@@ -18,7 +18,7 @@ class Foo
         return f
     }
 
-    toString() { return "Foo" }
+    function toString() { return "Foo" }
 }
 
 var closure = Foo.new().getClosure()

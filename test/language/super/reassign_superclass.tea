@@ -1,6 +1,6 @@
 class Base 
 {
-    method() 
+    function method() 
     {
         print("Base.method()")
     }
@@ -9,7 +9,7 @@ class Base
 class Derived : Base 
 {
     new() {}
-    method() 
+    function method() 
     {
         super.method()
     }
@@ -17,7 +17,7 @@ class Derived : Base
 
 class OtherBase 
 {
-    method() 
+    function method() 
     {
         print("OtherBase.method()")
     }

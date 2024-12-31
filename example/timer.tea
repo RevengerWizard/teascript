@@ -6,17 +6,17 @@ class Timer
         self.left = 0
     }
 
-    start()
+    function start()
     {
         self.left = self.total
     }
 
-    step(delta)
+    function step(delta)
     {
         self.left -= delta
     }
 
-    isover()
+    function isover()
     {
         return self.left < 0
     }

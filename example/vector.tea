@@ -6,14 +6,14 @@ class Vector
         self.y = y
     }
 
-    + (a, b)
+    operator + (a, b)
     {
         assert(a is Vector and b is Vector, "wrong argument type")
 
         return Vector.new(a.x + b.x, a.y + b.y)
     }
 
-    - (a, b)
+    operator - (a, b)
     {
         if not b { return Vector(-a.x, -a.y) }
 
@@ -22,7 +22,7 @@ class Vector
         return Vector.new(a.x - b.x, a.y - b.y)
     }
 
-    * (a, b)
+    operator * (a, b)
     {
         if b is Number { return Vector(a.x * b, a.y * b) }
 
@@ -31,31 +31,31 @@ class Vector
         return Vector.new(a.x * b.x, a.y * b.y)
     }
 
-    / (a, b)
+    operator / (a, b)
     {
         assert(a is Vector and b is Vector, "wrong argument type")
 
         return Vector.new(a.x / b.x, a.y / b.y)
     }
 
-    == (a, b)
+    operator == (a, b)
     {
         assert(a is Vector and b is Vector, "wrong argument type")
 
         return a.x == b.x and a.y == b.y
     }
 
-    [] (index)
+    operator [] (index)
     {
         return (index % 2) == 0 ? self.x : self.y
     }
 
-    []= (index, value)
+    operator []= (index, value)
     {   
         return index == 0 ? self.x = value : self.y = value
     }
 
-    tostring()
+    function tostring()
     {
         return '(${self.x}, ${self.y})'
     }

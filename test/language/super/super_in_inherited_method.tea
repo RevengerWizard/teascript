@@ -1,6 +1,6 @@
 class A 
 {
-    say() 
+    function say() 
     {
         print("A")
     }
@@ -8,12 +8,12 @@ class A
 
 class B : A
 {
-    test() 
+    function test() 
     {
         super.say()
     }
 
-    say() 
+    function say() 
     {
         print("B")
     }
@@ -22,7 +22,7 @@ class B : A
 class C : B 
 {
     new() {}
-    say() 
+    function say() 
     {
         print("C")
     }

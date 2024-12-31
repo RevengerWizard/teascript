@@ -14,7 +14,8 @@
 
 /* Teascript lexer tokens */
 #define TKDEF(_) \
-    _(AND, and) _(NOT, not) _(CLASS, class) _(STATIC, static) _(ELSE, else) _(FALSE, false) \
+    _(AND, and) _(NOT, not) _(CLASS, class) \
+    _(STATIC, static) _(OPERATOR, operator) _(ELSE, else) _(FALSE, false) \
     _(FOR, for) _(FUNCTION, function) _(CASE, case) _(SWITCH, switch) _(DEFAULT, default) \
     _(IF, if) _(NIL, nil) _(OR, or) _(IS, is) \
     _(IMPORT, import) _(FROM, from) _(AS, as) \

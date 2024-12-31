@@ -1,6 +1,6 @@
 class A 
 {
-    method(arg) 
+    function method(arg) 
     {
         print("A.method(" + arg + ")")
     }
@@ -9,12 +9,12 @@ class A
 class B : A 
 {
     new() {}
-    getClosure()
+    function getClosure()
     {
         return super.method
     }
 
-    method(arg) 
+    function method(arg) 
     {
         print("B.method(" + arg + ")")
     }

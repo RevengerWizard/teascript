@@ -1,6 +1,6 @@
 class A 
 {
-    say() 
+    function say() 
     {
         print("A")
     }
@@ -8,7 +8,7 @@ class A
 
 class B : A 
 {
-    getClosure() 
+    function getClosure() 
     {
         function closure() 
         {
@@ -17,7 +17,7 @@ class B : A
         return closure
     }
 
-    say() 
+    function say() 
     {
         print("B")
     }
@@ -26,7 +26,7 @@ class B : A
 class C : B 
 {
     new() {}
-    say() 
+    function say() 
     {
         print("C")
     }

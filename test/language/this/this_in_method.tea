@@ -1,8 +1,8 @@
 class Foo 
 {
     new() {}
-    bar() { return self }
-    baz() { return "baz" }
+    function bar() { return self }
+    function baz() { return "baz" }
 }
 
 print(Foo.new().bar().baz()) // expect: baz
