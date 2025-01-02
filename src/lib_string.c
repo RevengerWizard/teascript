@@ -118,15 +118,10 @@ static void string_split(tea_State* T)
         }
     }
 
-    char* temp = tea_mem_newvec(T, char, len + 1);
-    char* temp_free = temp;
-    memcpy(temp, str, len);
-    temp[len] = '\0';
-
-    char* token;
-
     tea_new_list(T, 0);
     int list_len = 0;
+
+    SBuf* sb = tea_buf_tmp_(T);
 
     if(sep_len == 0)
     {
@@ -134,51 +129,44 @@ static void string_split(tea_State* T)
         for(; idx < len && list_len < max_split; idx++)
         {
             list_len++;
-            *(temp) = str[idx];
-            *(temp + 1) = '\0';
-
-            tea_push_string(T, temp);
+            tea_buf_reset(sb);
+            tea_buf_putmem(T, sb, str + idx, 1);
+            setstrV(T, T->top++, tea_buf_str(T, sb));
             tea_add_item(T, count);
         }
 
         if(idx != len && list_len >= max_split)
         {
-            temp = str + idx;
-        }
-        else
-        {
-            temp = NULL;
+            tea_buf_reset(sb);
+            tea_buf_putmem(T, sb, str + idx, len - idx);
+            setstrV(T, T->top++, tea_buf_str(T, sb));
+            tea_add_item(T, count);
         }
     }
     else if(max_split > 0)
     {
-        do
+        const char* start = str;
+        const char* found;
+        
+        while((found = strstr(start, sep)) && list_len < max_split)
         {
             list_len++;
-            token = strstr(temp, sep);
-            if(token)
-            {
-                *token = '\0';
-            }
-
-            tea_push_string(T, temp);
+            size_t part_len = found - start;
+            tea_buf_reset(sb);
+            tea_buf_putmem(T, sb, start, part_len);
+            setstrV(T, T->top++, tea_buf_str(T, sb));
             tea_add_item(T, count);
-            temp = token + sep_len;
+            start = found + sep_len;
         }
-        while(token != NULL && list_len < max_split);
 
-        if(token == NULL)
+        if(*start != '\0' && (list_len < max_split || found == NULL))
         {
-            temp = NULL;
+            tea_buf_reset(sb);
+            tea_buf_putmem(T, sb, start, (str + len) - start);
+            setstrV(T, T->top++, tea_buf_str(T, sb));
+            tea_add_item(T, count);
         }
     }
-
-    if(temp != NULL && list_len >= max_split)
-    {
-        tea_push_string(T, temp);
-        tea_add_item(T, count);
-    }
-    tea_mem_freevec(T, char, temp_free, len + 1);
 }
 
 static void string_contains(tea_State* T)
