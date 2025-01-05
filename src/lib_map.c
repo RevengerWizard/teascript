@@ -8,7 +8,7 @@
 
 #include "tealib.h"
 
-#include "tea_vm.h"
+#include "tea_err.h"
 #include "tea_map.h"
 #include "tea_list.h"
 #include "tea_lib.h"

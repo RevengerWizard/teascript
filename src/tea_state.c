@@ -13,9 +13,7 @@
 
 #include "tea_def.h"
 #include "tea_state.h"
-#include "tea_vm.h"
 #include "tea_str.h"
-#include "tea_import.h"
 #include "tea_err.h"
 #include "tea_gc.h"
 #include "tea_tab.h"
@@ -104,10 +102,14 @@ void tea_state_relimitstack(tea_State* T)
 /* Try to grow stack */
 void tea_state_growstack(tea_State* T, int need)
 {
-	if(need <= T->stack_size)
+    if(need <= T->stack_size)
+    {
         stack_resize(T, 2 * T->stack_size);
+    }
     else
+    {
         stack_resize(T, T->stack_size + need + TEA_STACK_EXTRA);
+    }
 }
 
 void tea_state_growstack1(tea_State* T)

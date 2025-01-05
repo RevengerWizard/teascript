@@ -8,6 +8,9 @@
 
 #include "tea_debug.h"
 #include "tea_obj.h"
+#include "tea_buf.h"
+#include "tea_state.h"
+#include "tea_strfmt.h"
 
 /* -- Line numbers -------------------------------------------------------- */
 
@@ -30,4 +33,28 @@ BCLine tea_debug_line(GCproto* pt, BCPos pc)
             return first + (BCLine)((const uint32_t*)lineinfo)[pc];
     }
     return 0;
+}
+
+void tea_debug_stacktrace(tea_State* T, GCstr* msg)
+{
+    SBuf* sb = &T->strbuf;
+    tea_buf_reset(sb);
+    tea_buf_putstr(T, sb, msg);
+    tea_buf_putlit(T, sb, "\n");
+    for(CallInfo* ci = T->ci; ci > T->ci_base; ci--)
+    {
+        /* Skip stack trace for C functions */
+        if(iscfunc(ci->func)) continue;
+        GCmodule* module = ci->func->t.module;
+        GCproto* pt = ci->func->t.pt;
+        BCPos pc = ci->ip - proto_bc(pt) - 1;
+        tea_strfmt_pushf(T, "File %s [line %d] in function %s\n", 
+            str_data(module->name), tea_debug_line(pt, pc), str_data(pt->name));
+        msg = strV(T->top - 1);
+        tea_buf_putstr(T, sb, msg);
+        T->top--;
+    }
+    sb->w--;
+    setstrV(T, T->top, tea_buf_str(T, sb));
+    incr_top(T);
 }

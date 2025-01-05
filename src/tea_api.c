@@ -15,7 +15,7 @@
 #include "tea_vm.h"
 #include "tea_err.h"
 #include "tea_gc.h"
-#include "tea_lex.h"
+#include "tea_buf.h"
 #include "tea_tab.h"
 #include "tea_list.h"
 #include "tea_strfmt.h"

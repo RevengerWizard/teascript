@@ -15,8 +15,6 @@
 #include "tea_obj.h"
 #include "tea_func.h"
 #include "tea_map.h"
-#include "tea_str.h"
-#include "tea_gc.h"
 #include "tea_vm.h"
 #include "tea_utf.h"
 #include "tea_import.h"
@@ -24,7 +22,6 @@
 #include "tea_bc.h"
 #include "tea_tab.h"
 #include "tea_list.h"
-#include "tea_strfmt.h"
 #include "tea_meta.h"
 
 static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int variadic)

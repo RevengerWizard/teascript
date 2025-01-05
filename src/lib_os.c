@@ -14,7 +14,6 @@
 #include "tealib.h"
 
 #include "tea_arch.h"
-#include "tea_import.h"
 
 #if TEA_TARGET_POSIX
 #include <sys/types.h> 

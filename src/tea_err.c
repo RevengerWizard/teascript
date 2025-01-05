@@ -10,7 +10,6 @@
 
 #include "tea_def.h"
 #include "tea_err.h"
-#include "tea_buf.h"
 #include "tea_str.h"
 #include "tea_vm.h"
 #include "tea_debug.h"
@@ -119,28 +118,8 @@ TEA_NOINLINE void tea_err_mem(tea_State* T)
 /* Runtime error */
 TEA_NOINLINE void tea_err_run(tea_State* T)
 {
-    SBuf* sb = &T->strbuf;
-    tea_buf_reset(sb);
     GCstr* msg = strV(T->top - 1);
-    tea_buf_putmem(T, sb, str_data(msg), msg->len);
-    tea_buf_putlit(T, sb, "\n");
-    /* Stack trace */
-    for(CallInfo* ci = T->ci; ci > T->ci_base; ci--)
-    {
-        /* Skip stack trace for C functions */
-        if(iscfunc(ci->func)) continue;
-
-        GCproto* pt = ci->func->t.pt;
-        BCPos pc = ci->ip - proto_bc(pt) - 1;
-        tea_strfmt_pushf(T, "[line %d] in %s\n", 
-            tea_debug_line(pt, pc), str_data(pt->name));
-        msg = strV(T->top - 1);
-        tea_buf_putmem(T, sb, str_data(msg), msg->len);
-        T->top--;
-    }
-    sb->w--;
-    setstrV(T, T->top, tea_buf_str(T, sb));
-    incr_top(T);
+    tea_debug_stacktrace(T, msg);  /* Stack traceback */
     tea_err_throw(T, TEA_ERROR_RUNTIME);
 }
 

@@ -8,15 +8,14 @@
 #define tea_gc_c
 #define TEA_CORE
 
-#include "tea_state.h"
 #include "tea_gc.h"
-#include "tea_parse.h"
+#include "tea_buf.h"
 #include "tea_tab.h"
 #include "tea_func.h"
 #include "tea_udata.h"
 #include "tea_list.h"
 #include "tea_map.h"
-#include "tea_meta.h"
+#include "tea_str.h"
 #include "tea_vm.h"
 
 #ifdef TEA_DEBUG_LOG_GC

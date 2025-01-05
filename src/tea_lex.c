@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #define tea_lex_c
 #define TEA_CORE
@@ -16,7 +15,6 @@
 #include "tea_char.h"
 #include "tea_obj.h"
 #include "tea_str.h"
-#include "tea_utf.h"
 #include "tea_strscan.h"
 #include "tea_strfmt.h"
 #include "tea_parse.h"

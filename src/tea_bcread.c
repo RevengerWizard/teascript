@@ -13,8 +13,6 @@
 #include "tea_bcdump.h"
 #include "tea_strfmt.h"
 #include "tea_err.h"
-#include "tea_func.h"
-#include "tea_vm.h"
 
 /* Reuse some lexer fields for our own purposes */
 #define bcread_flags(ls)    ls->num_braces

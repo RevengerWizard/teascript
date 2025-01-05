@@ -8,12 +8,9 @@
 #define tea_utf_c
 #define TEA_CORE
 
-#include "tea_def.h"
-
 #include "tea_utf.h"
 #include "tea_obj.h"
 #include "tea_str.h"
-#include "tea_gc.h"
 #include "tea_buf.h"
 
 /* -- UTF-8 encoding/decoding -------------------------------------------------- */

@@ -14,8 +14,6 @@
 
 #include "tea_arch.h"
 #include "tea_import.h"
-#include "tea_state.h"
-#include "tea_vm.h"
 #include "tea_str.h"
 #include "tea_err.h"
 #include "tea_tab.h"

@@ -22,7 +22,6 @@
 #include "tea.h"
 #include "tealib.h"
 
-#include "tea_import.h"
 #include "tea_buf.h"
 
 static void time_sleep(tea_State* T)

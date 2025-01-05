@@ -7,7 +7,6 @@
 #define TEA_CORE
 
 #include "tea_buf.h"
-#include "tea_state.h"
 #include "tea_gc.h"
 #include "tea_err.h"
 

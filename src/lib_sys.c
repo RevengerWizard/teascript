@@ -14,7 +14,7 @@
 #include "tealib.h"
 
 #include "tea_arch.h"
-#include "tea_import.h"
+#include "tea_state.h"
 
 static void sys_exit(tea_State* T)
 {

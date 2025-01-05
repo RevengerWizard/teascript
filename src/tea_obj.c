@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <math.h>
 
 #define tea_obj_c
@@ -16,11 +15,7 @@
 #include "tea_gc.h"
 #include "tea_obj.h"
 #include "tea_map.h"
-#include "tea_list.h"
-#include "tea_str.h"
 #include "tea_tab.h"
-#include "tea_state.h"
-#include "tea_vm.h"
 #include "tea_strscan.h"
 
 /* Object type names */

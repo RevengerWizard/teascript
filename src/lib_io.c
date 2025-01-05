@@ -13,9 +13,7 @@
 
 #include "tea_arch.h"
 #include "tea_str.h"
-#include "tea_import.h"
-#include "tea_vm.h"
-#include "tea_gc.h"
+#include "tea_err.h"
 #include "tea_buf.h"
 #include "tea_lib.h"
 #include "tea_strfmt.h"

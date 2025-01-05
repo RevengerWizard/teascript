@@ -12,7 +12,6 @@
 #include "tea.h"
 #include "tealib.h"
 
-#include "tea_import.h"
 #include "tea_lib.h"
 
 #undef PI

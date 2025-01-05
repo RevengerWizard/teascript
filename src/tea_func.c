@@ -6,8 +6,6 @@
 #define tea_func_c
 #define TEA_CORE
 
-#include "tea_state.h"
-#include "tea_vm.h"
 #include "tea_gc.h"
 
 /* -- Prototypes -------------------------------------------------- */

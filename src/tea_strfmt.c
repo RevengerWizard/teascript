@@ -16,7 +16,6 @@
 #include "tea_err.h"
 #include "tea_state.h"
 #include "tea_vm.h"
-#include "tea_tab.h"
 #include "tea_lib.h"
 #include "tea_meta.h"
 

@@ -11,7 +11,6 @@
 #include "tea.h"
 #include "tealib.h"
 
-#include "tea_vm.h"
 #include "tea_lib.h"
 
 static void range_start(tea_State* T)
