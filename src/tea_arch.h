@@ -17,6 +17,7 @@
 #define TEA_ARCH_X64 2
 #define TEA_ARCH_ARM 3
 #define TEA_ARCH_ARM64 4
+#define TEA_ARCH_WASM 5
 
 /* Target OS */
 #define TEA_OS_OTHER 0
@@ -25,6 +26,7 @@
 #define TEA_OS_MACOSX 3
 #define TEA_OS_BSD 4
 #define TEA_OS_POSIX 5
+#define TEA_OS_WASM 6
 
 /* -- Target detection ---------------------------------------------------- */
 
@@ -39,6 +41,8 @@
 #define TEA_TARGET   TEA_ARCH_ARM
 #elif defined(__aarch64__)
 #define TEA_TARGET   TEA_ARCH_ARM64
+#elif defined(EMSCRIPTEN)
+#define TEA_TARGET   TEA_ARCH_WASM
 #else
 #error "No support for this architecture (yet)"
 #endif
@@ -58,6 +62,8 @@
        defined(__NetBSD__) || defined(__OpenBSD__) || \
        defined(__DragonFly__)) && !defined(__ORBIS__)
 #define TEA_OS       TEA_OS_BSD
+#elif defined(EMSCRIPTEN)
+#define TEA_OS       TEA_OS_WASM
 #else
 #define TEA_OS       TEA_OS_OTHER
 #endif
@@ -85,6 +91,7 @@
 #define TEA_TARGET_BSD      (TEA_OS == TEA_OS_BSD)
 #define TEA_TARGET_POSIX    (TEA_OS > TEA_OS_WINDOWS)
 #define TEA_TARGET_DLOPEN   TEA_TARGET_POSIX
+#define TEA_TARGET_WASM     (TEA_OS == TEA_OS_WASM)
 
 /* -- Arch-specific settings ---------------------------------------------- */
 
@@ -118,6 +125,9 @@
 #define TEA_ARCH_ENDIAN TEA_ENDIAN_LE
 #endif
 
+#elif defined(EMSCRIPTEN)
+#define TEA_ARCH_NAME "wasm"
+#define TEA_ARCH_ENDIAN TEA_LE
 #else
 #error "No target architecture defined"
 #endif
