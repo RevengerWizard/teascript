@@ -157,24 +157,30 @@ static bool pushline(tea_State* T, bool firstline)
     char buffer[TEA_MAX_INPUT];
     char* b = buffer;
     size_t len;
-line:
-    const char* prompt = get_prompt(firstline);
-    if(!t_readline(T, b, prompt))
-        return false;   /* No input */
-    len = strlen(b);
-    if(len > 0 && b[len - 1] == '\n')   /* Line ends with newline? */
-        b[len - 1] = '\0';    /* Remove it */
-    if(strcmp(b, "exit") == 0)
-        return false;
-    if(strcmp(b, "clear") == 0)
-    {
-#if TEA_TARGET_POSIX
-        system("clear");
-#elif TEA_TARGET_WINDOWS
-        system("cls");
-#endif
-        goto line;
+    bool line = false;
+
+    do {
+        line = false;
+        const char* prompt = get_prompt(firstline);
+        if(!t_readline(T, b, prompt))
+            return false;   /* No input */
+        len = strlen(b);
+        if(len > 0 && b[len - 1] == '\n')   /* Line ends with newline? */
+            b[len - 1] = '\0';    /* Remove it */
+        if(strcmp(b, "exit") == 0)
+            return false;
+        if(strcmp(b, "clear") == 0)
+        {
+    #if TEA_TARGET_POSIX
+            system("clear");
+    #elif TEA_TARGET_WINDOWS
+            system("cls");
+    #endif
+            line = true;
+        }
     }
+    while (line);
+
     tea_push_string(T, b);
     t_freeline(T, b);
     return true;
@@ -344,7 +350,7 @@ static void pmain(tea_State* T)
     char** argv = s->argv;
     int argc = s->argc;
     globalT = T;
-    
+
     int flags = 0;
     int script = collect_args(argv, &flags);
     if(script < 0)
@@ -361,7 +367,7 @@ static void pmain(tea_State* T)
     s->status = run_args(T, argv, script);
     if(s->status != TEA_OK)
         return;
-    
+
     if(argc > script)
     {
         const char* name = (flags & FLAG_INTERACTIVE) ? "=<stdin>" : NULL;
