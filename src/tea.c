@@ -12,7 +12,6 @@
 #define tea_c
 
 #include "tea.h"
-#include "tea_obj.h"
 
 #include "tea_arch.h"
 
