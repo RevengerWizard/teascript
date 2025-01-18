@@ -83,6 +83,8 @@ static TValue* index2addr_stack(tea_State* T, int idx)
     }
 }
 
+/* -- State manipulation -------------------------------------------------- */
+
 TEA_API void tea_set_argv(tea_State* T, int argc, char** argv, int argf)
 {
     T->argc = argc;
@@ -90,7 +92,40 @@ TEA_API void tea_set_argv(tea_State* T, int argc, char** argv, int argf)
     T->argf = argf;
 }
 
+TEA_API int tea_get_argv(tea_State* T, char*** argv, int* argf)
+{
+    if(argv) *argv = T->argv;
+    if(argf) *argf = T->argf;
+    return T->argc;
+}
+
+TEA_API tea_Alloc tea_get_allocf(tea_State* T, void** ud)
+{
+    tea_Alloc f;
+    if(ud) *ud = T->allocd;
+    f = T->allocf;
+    return f;
+}
+
+TEA_API void tea_set_allocf(tea_State* T, tea_Alloc f, void* ud)
+{
+    if(f) T->allocf = f;
+    if(ud) T->allocd = ud;
+}
+
 /* -- Stack manipulation -------------------------------------------------- */
+
+#define ispseudo(i) ((i) <= TEA_REGISTRY_INDEX)
+
+TEA_API int tea_absindex(tea_State* T, int idx)
+{
+    return (idx > 0 || ispseudo(idx)) ? idx : ((int)(T->top - T->base + idx));
+}
+
+TEA_API void tea_pop(tea_State* T, int n)
+{
+    T->top -= n;
+}
 
 TEA_API int tea_get_top(tea_State* T)
 {
@@ -110,6 +145,12 @@ TEA_API void tea_set_top(tea_State* T, int idx)
         tea_checkapi(-(idx + 1) <= (T->top - T->base), "bad stack slot #%d", idx);
         T->top += idx + 1;    /* Shrinks top (idx < 0) */
     }
+}
+
+TEA_API void tea_push_value(tea_State* T, int idx)
+{
+    copyTV(T, T->top, index2addr(T, idx));
+    incr_top(T);
 }
 
 TEA_API void tea_remove(tea_State* T, int idx)
@@ -154,13 +195,35 @@ TEA_API void tea_swap(tea_State* T, int index1, int index2)
     copyTV(T, o2, &tv);
 }
 
-TEA_API void tea_push_value(tea_State* T, int idx)
+TEA_API bool tea_test_stack(tea_State* T, int size)
 {
-    copyTV(T, T->top, index2addr(T, idx));
-    incr_top(T);
+    bool res = true;
+    if(size > TEA_MAX_CSTACK || (T->top - T->base + size) > TEA_MAX_CSTACK)
+    {
+        res = false;
+    }
+    else if(size > 0)
+    {
+        tea_state_checkstack(T, size);
+    }
+    return res;
+}
+
+TEA_API void tea_check_stack(tea_State* T, int size, const char* msg)
+{
+    if(!tea_test_stack(T, size))
+    {
+        tea_error(T, "Stack overflow, %s", msg);
+    }
 }
 
 /* -- Stack getters ------------------------------------------------------ */
+
+TEA_API const char* tea_typeof(tea_State* T, int idx)
+{
+    cTValue* o = index2addr(T, idx);
+    return (o == niltv(T)) ? "no value" : tea_typename(o);
+}
 
 TEA_API int tea_get_mask(tea_State* T, int idx)
 {
@@ -178,10 +241,11 @@ TEA_API int tea_get_type(tea_State* T, int idx)
     return itype(o) + 1;
 }
 
-TEA_API const char* tea_typeof(tea_State* T, int idx)
+TEA_API bool tea_get_bool(tea_State* T, int idx)
 {
     cTValue* o = index2addr(T, idx);
-    return (o == niltv(T)) ? "no value" : tea_typename(o);
+    tea_checkapi(tvisbool(o), "stack slot #%d is not a bool", idx);
+    return boolV(o);
 }
 
 TEA_API tea_Number tea_get_number(tea_State* T, int idx)
@@ -198,11 +262,11 @@ TEA_API tea_Integer tea_get_integer(tea_State* T, int idx)
     return (tea_Integer)numV(o);
 }
 
-TEA_API bool tea_get_bool(tea_State* T, int idx)
+TEA_API const void* tea_get_pointer(tea_State* T, int idx)
 {
     cTValue* o = index2addr(T, idx);
-    tea_checkapi(tvisbool(o), "stack slot #%d is not a bool", idx);
-    return boolV(o);
+    tea_checkapi(tvispointer(o), "stack slot #%d is not a pointer", idx);
+    return pointerV(o);
 }
 
 TEA_API void tea_get_range(tea_State* T, int idx, tea_Number* start, tea_Number* end, tea_Number* step)
@@ -238,20 +302,35 @@ TEA_API void* tea_get_userdata(tea_State* T, int idx)
     return ud_data(udataV(o));
 }
 
-TEA_API void tea_set_finalizer(tea_State* T, tea_Finalizer f)
+TEA_API bool tea_get_udvalue(tea_State* T, int ud, int n)
 {
-    tea_checkapi_slot(1);
-    cTValue* o = T->top - 1;
-    tea_checkapi(tvisudata(o), "stack slot #-1 is not a userdata");
-    GCudata* ud = udataV(o);
-    ud->fd = f;
+    GCudata* udata;
+    cTValue* o = index2addr_check(T, ud);
+    tea_checkapi(tvisudata(o), "stack slot #%d is not a userdata", ud);
+    udata = udataV(o);
+    if(n < 0 || n >= udata->nuvals)
+        return false;
+    copyTV(T, T->top, &ud_uvalues(udata)[n]);
+    incr_top(T);
+    return true;
 }
 
-TEA_API const void* tea_get_pointer(tea_State* T, int idx)
+TEA_API void tea_set_udvalue(tea_State* T, int ud, int n)
 {
-    cTValue* o = index2addr(T, idx);
-    tea_checkapi(tvispointer(o), "stack slot #%d is not a pointer", idx);
-    return pointerV(o);
+    GCudata* udata;
+    tea_checkapi_slot(1);
+    cTValue* o = index2addr_check(T, ud);
+    tea_checkapi(tvisudata(o), "stack slot #%d is not a userdata", ud);
+    udata = udataV(o);
+    if(n < 0 || n >= udata->nuvals)
+    {
+        tea_checkapi(0, "attempt to index out of bounds uservalue #%d", n);
+        return;
+    }
+    o = T->top - 1;
+    TValue* uvalues = ud_uvalues(udata);
+    copyTV(T, &uvalues[n], o);
+    T->top--;
 }
 
 TEA_API bool tea_is_object(tea_State* T, int idx)
@@ -264,6 +343,20 @@ TEA_API bool tea_is_cfunction(tea_State* T, int idx)
 {
     cTValue* o = index2addr(T, idx);
     return tvisfunc(o) && !isteafunc(funcV(o));
+}
+
+TEA_API bool tea_equal(tea_State* T, int index1, int index2)
+{
+    cTValue* o1 = index2addr_check(T, index1);
+    cTValue* o2 = index2addr_check(T, index2);
+    return tea_obj_equal(o1, o2);
+}
+
+TEA_API bool tea_rawequal(tea_State* T, int index1, int index2)
+{
+    cTValue* o1 = index2addr_check(T, index1);
+    cTValue* o2 = index2addr_check(T, index2);
+    return tea_obj_rawequal(o1, o2);
 }
 
 TEA_API bool tea_to_bool(tea_State* T, int idx)
@@ -304,6 +397,12 @@ TEA_API tea_Integer tea_to_integer(tea_State* T, int idx)
 {
     TValue* o = index2addr(T, idx);
     return (tea_Integer)tea_obj_tonum(o, NULL);
+}
+
+TEA_API const void* tea_to_pointer(tea_State* T, int idx)
+{
+    cTValue* o = index2addr(T, idx);
+    return tea_obj_pointer(o);
 }
 
 static GCstr* obj_tostring(tea_State* T, cTValue* o)
@@ -354,25 +453,6 @@ TEA_API const char* tea_to_string(tea_State* T, int idx)
     return str_data(str);
 }
 
-TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int idx)
-{
-    cTValue* o = index2addr(T, idx);
-    tea_CFunction f = NULL;
-    if(tvisfunc(o))
-    {
-        GCfunc* func = funcV(o);
-        if(iscfunc(func))
-            f = func->c.fn;
-    }
-    return f;
-}
-
-TEA_API const void* tea_to_pointer(tea_State* T, int idx)
-{
-    cTValue* o = index2addr(T, idx);
-    return tea_obj_pointer(o);
-}
-
 TEA_API void* tea_to_userdata(tea_State* T, int idx)
 {
     cTValue* o = index2addr(T, idx);
@@ -384,18 +464,17 @@ TEA_API void* tea_to_userdata(tea_State* T, int idx)
         return NULL;
 }
 
-TEA_API bool tea_equal(tea_State* T, int index1, int index2)
+TEA_API tea_CFunction tea_to_cfunction(tea_State* T, int idx)
 {
-    cTValue* o1 = index2addr_check(T, index1);
-    cTValue* o2 = index2addr_check(T, index2);
-    return tea_obj_equal(o1, o2);
-}
-
-TEA_API bool tea_rawequal(tea_State* T, int index1, int index2)
-{
-    cTValue* o1 = index2addr_check(T, index1);
-    cTValue* o2 = index2addr_check(T, index2);
-    return tea_obj_rawequal(o1, o2);
+    cTValue* o = index2addr(T, idx);
+    tea_CFunction f = NULL;
+    if(tvisfunc(o))
+    {
+        GCfunc* func = funcV(o);
+        if(iscfunc(func))
+            f = func->c.fn;
+    }
+    return f;
 }
 
 TEA_API void tea_concat(tea_State* T, int n)
@@ -421,25 +500,7 @@ TEA_API void tea_concat(tea_State* T, int n)
     /* else n == 1: nothing to do */
 }
 
-#define ispseudo(i) ((i) <= TEA_REGISTRY_INDEX)
-
-TEA_API int tea_absindex(tea_State* T, int idx)
-{
-    return (idx > 0 || ispseudo(idx)) ? idx : ((int)(T->top - T->base + idx));
-}
-
-TEA_API void tea_pop(tea_State* T, int n)
-{
-    T->top -= n;
-}
-
 /* -- Stack setters (object creation) -------------------------------------------------- */
-
-TEA_API void tea_push_pointer(tea_State* T, void* p)
-{
-    setpointerV(T->top, p);
-    incr_top(T);
-}
 
 TEA_API void tea_push_nil(tea_State* T)
 {
@@ -474,6 +535,12 @@ TEA_API void tea_push_number(tea_State* T, tea_Number n)
 TEA_API void tea_push_integer(tea_State* T, tea_Integer n)
 {
     setnumV(T->top, (tea_Number)n);
+    incr_top(T);
+}
+
+TEA_API void tea_push_pointer(tea_State* T, void* p)
+{
+    setpointerV(T->top, p);
     incr_top(T);
 }
 
@@ -515,6 +582,25 @@ TEA_API void tea_push_range(tea_State* T, tea_Number start, tea_Number end, tea_
     incr_top(T);
 }
 
+TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nup, int nargs, int nopts)
+{
+    GCfunc* cf;
+    tea_checkapi_slot(nup);
+    cf = tea_func_newC(T, C_FUNCTION, fn, nup, nargs, nopts);
+    T->top -= nup;
+    while(nup--)
+        copyTV(T, &cf->c.upvalues[nup], T->top + nup);
+    setfuncV(T, T->top, cf);
+    incr_top(T);
+}
+
+TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs, int nopts)
+{
+    GCfunc* cf = tea_func_newC(T, C_FUNCTION, fn, 0, nargs, nopts);
+    setfuncV(T, T->top, cf);
+    incr_top(T);
+}
+
 TEA_API void tea_new_list(tea_State* T, size_t n)
 {
     GClist* list = tea_list_new(T, n);
@@ -527,75 +613,6 @@ TEA_API void tea_new_map(tea_State* T)
     GCmap* map = tea_map_new(T);
     setmapV(T, T->top, map);
     incr_top(T);
-}
-
-TEA_API bool tea_get_udvalue(tea_State* T, int ud, int n)
-{
-    GCudata* udata;
-    cTValue* o = index2addr_check(T, ud);
-    tea_checkapi(tvisudata(o), "stack slot #%d is not a userdata", ud);
-    udata = udataV(o);
-    if(n < 0 || n >= udata->nuvals)
-        return false;
-    copyTV(T, T->top, &ud_uvalues(udata)[n]);
-    incr_top(T);
-    return true;
-}
-
-TEA_API void tea_set_udvalue(tea_State* T, int ud, int n)
-{
-    GCudata* udata;
-    tea_checkapi_slot(1);
-    cTValue* o = index2addr_check(T, ud);
-    tea_checkapi(tvisudata(o), "stack slot #%d is not a userdata", ud);
-    udata = udataV(o);
-    if(n < 0 || n >= udata->nuvals)
-    {
-        tea_checkapi(0, "attempt to index out of bounds uservalue #%d", n);
-        return;
-    }
-    o = T->top - 1;
-    TValue* uvalues = ud_uvalues(udata);
-    copyTV(T, &uvalues[n], o);
-    T->top--;
-}
-
-TEA_API void* tea_new_userdatav(tea_State* T, size_t size, int nuvs)
-{
-    GCudata* ud;
-    ud = tea_udata_new(T, size, (uint8_t)nuvs);
-    setudataV(T, T->top, ud);
-    incr_top(T);
-    return ud_data(ud);
-}
-
-TEA_API void* tea_new_udatav(tea_State* T, size_t size, int nuvs, const char* name)
-{
-    GCclass* klass = classV(tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name)));
-    GCudata* ud = tea_udata_new(T, size, (uint8_t)nuvs);
-    ud->klass = klass;
-    setudataV(T, T->top, ud);
-    incr_top(T);
-    return ud_data(ud);
-}
-
-TEA_API void* tea_new_userdata(tea_State* T, size_t size)
-{
-    GCudata* ud;
-    ud = tea_udata_new(T, size, 0);
-    setudataV(T, T->top, ud);
-    incr_top(T);
-    return ud_data(ud);
-}
-
-TEA_API void* tea_new_udata(tea_State* T, size_t size, const char* name)
-{
-    GCclass* klass = classV(tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name)));
-    GCudata* ud = tea_udata_new(T, size, 0);
-    ud->klass = klass;
-    setudataV(T, T->top, ud);
-    incr_top(T);
-    return ud_data(ud);
 }
 
 TEA_API void tea_new_class(tea_State* T, const char* name)
@@ -620,25 +637,6 @@ TEA_API void tea_new_submodule(tea_State* T, const char* name)
     GCmodule* mod = tea_submodule_new(T, modname);
     mod->path = modname;
     setmoduleV(T, T->top, mod);
-    incr_top(T);
-}
-
-TEA_API void tea_push_cclosure(tea_State* T, tea_CFunction fn, int nup, int nargs, int nopts)
-{
-    GCfunc* cf;
-    tea_checkapi_slot(nup);
-    cf = tea_func_newC(T, C_FUNCTION, fn, nup, nargs, nopts);
-    T->top -= nup;
-    while(nup--)
-        copyTV(T, &cf->c.upvalues[nup], T->top + nup);
-    setfuncV(T, T->top, cf);
-    incr_top(T);
-}
-
-TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs, int nopts)
-{
-    GCfunc* cf = tea_func_newC(T, C_FUNCTION, fn, 0, nargs, nopts);
-    setfuncV(T, T->top, cf);
     incr_top(T);
 }
 
@@ -740,6 +738,44 @@ TEA_API void tea_create_submodule(tea_State* T, const char* name, const tea_Reg*
     }
 }
 
+TEA_API void* tea_new_userdatav(tea_State* T, size_t size, int nuvs)
+{
+    GCudata* ud;
+    ud = tea_udata_new(T, size, (uint8_t)nuvs);
+    setudataV(T, T->top, ud);
+    incr_top(T);
+    return ud_data(ud);
+}
+
+TEA_API void* tea_new_udatav(tea_State* T, size_t size, int nuvs, const char* name)
+{
+    GCclass* klass = classV(tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name)));
+    GCudata* ud = tea_udata_new(T, size, (uint8_t)nuvs);
+    ud->klass = klass;
+    setudataV(T, T->top, ud);
+    incr_top(T);
+    return ud_data(ud);
+}
+
+TEA_API void* tea_new_userdata(tea_State* T, size_t size)
+{
+    GCudata* ud;
+    ud = tea_udata_new(T, size, 0);
+    setudataV(T, T->top, ud);
+    incr_top(T);
+    return ud_data(ud);
+}
+
+TEA_API void* tea_new_udata(tea_State* T, size_t size, const char* name)
+{
+    GCclass* klass = classV(tea_map_getstr(T, mapV(registry(T)), tea_str_newlen(T, name)));
+    GCudata* ud = tea_udata_new(T, size, 0);
+    ud->klass = klass;
+    setudataV(T, T->top, ud);
+    incr_top(T);
+    return ud_data(ud);
+}
+
 /* -- Object getters -------------------------------------------------- */
 
 TEA_API int tea_len(tea_State* T, int idx)
@@ -767,6 +803,29 @@ TEA_API int tea_len(tea_State* T, int idx)
             break;
     }
     return -1;
+}
+
+TEA_API int tea_next(tea_State* T, int obj)
+{
+    TValue* o = index2addr(T, obj);
+    int more;
+    tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
+    more = tea_map_next(mapV(o), T->top - 1, T->top - 1);
+    if(more > 0)
+    {
+        /* Return new key and value slot */
+        incr_top(T);
+    }
+    else if(!more)
+    {
+        /* Remove key slot */
+        T->top--;
+    }
+    else
+    {
+        tea_err_msg(T, TEA_ERR_NEXTIDX);
+    }
+    return more;
 }
 
 TEA_API bool tea_get_item(tea_State* T, int list, int idx)
@@ -828,29 +887,6 @@ TEA_API bool tea_delete_item(tea_State* T, int list, int idx)
     tea_list_delete(T, l, idx);
     T->top--;
     return true;
-}
-
-TEA_API int tea_next(tea_State* T, int obj)
-{
-    TValue* o = index2addr(T, obj);
-    int more;
-    tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
-    more = tea_map_next(mapV(o), T->top - 1, T->top - 1);
-    if(more > 0)
-    {
-        /* Return new key and value slot */
-        incr_top(T);
-    }
-    else if(!more)
-    {
-        /* Remove key slot */
-        T->top--;
-    }
-    else
-    {
-        tea_err_msg(T, TEA_ERR_NEXTIDX);
-    }
-    return more;
 }
 
 TEA_API bool tea_get_fieldi(tea_State* T, int obj, tea_Integer i)
@@ -1117,32 +1153,16 @@ TEA_API void tea_set_methods(tea_State* T, const tea_Methods* reg, int nup)
     tea_pop(T, nup);    /* Remove upvalues */
 }
 
-TEA_API bool tea_test_stack(tea_State* T, int size)
-{
-    bool res = true;
-    if(size > TEA_MAX_CSTACK || (T->top - T->base + size) > TEA_MAX_CSTACK)
-    {
-        res = false;
-    }
-    else if(size > 0)
-    {
-        tea_state_checkstack(T, size);
-    }
-    return res;
-}
-
-TEA_API void tea_check_stack(tea_State* T, int size, const char* msg)
-{
-    if(!tea_test_stack(T, size))
-    {
-        tea_error(T, "Stack overflow, %s", msg);
-    }
-}
-
 TEA_API void tea_check_type(tea_State* T, int idx, int type)
 {
     if(tea_get_type(T, idx) != type)
         tea_err_argt(T, idx, type);
+}
+
+TEA_API void tea_check_any(tea_State* T, int idx)
+{
+    if(index2addr(T, idx) == niltv(T))
+        tea_err_arg(T, idx, TEA_ERR_NOVAL);
 }
 
 TEA_API bool tea_check_bool(tea_State* T, int idx)
@@ -1151,20 +1171,6 @@ TEA_API bool tea_check_bool(tea_State* T, int idx)
     if(!tvisbool(o))
         tea_err_argt(T, idx, TEA_TYPE_BOOL);
     return boolV(o);
-}
-
-TEA_API void tea_check_range(tea_State* T, int idx, tea_Number* start, tea_Number* end, tea_Number* step)
-{
-    cTValue* o = index2addr(T, idx);
-    if(!tvisrange(o))
-        tea_err_argt(T, idx, TEA_TYPE_RANGE);
-    tea_get_range(T, idx, start, end, step);
-}
-
-TEA_API void tea_check_any(tea_State* T, int idx)
-{
-    if(index2addr(T, idx) == niltv(T))
-        tea_err_arg(T, idx, TEA_ERR_NOVAL);
 }
 
 TEA_API tea_Number tea_check_number(tea_State* T, int idx)
@@ -1181,6 +1187,22 @@ TEA_API tea_Integer tea_check_integer(tea_State* T, int idx)
     if(!tvisnum(o))
         tea_err_argt(T, idx, TEA_TYPE_NUMBER);
     return (tea_Integer)numV(o);
+}
+
+TEA_API const void* tea_check_pointer(tea_State* T, int idx)
+{
+    cTValue* o = index2addr(T, idx);
+    if(!tvispointer(o))
+        tea_err_argt(T, idx, TEA_TYPE_POINTER);
+    return pointerV(o);
+}
+
+TEA_API void tea_check_range(tea_State* T, int idx, tea_Number* start, tea_Number* end, tea_Number* step)
+{
+    cTValue* o = index2addr(T, idx);
+    if(!tvisrange(o))
+        tea_err_argt(T, idx, TEA_TYPE_RANGE);
+    tea_get_range(T, idx, start, end, step);
 }
 
 TEA_API const char* tea_check_lstring(tea_State* T, int idx, size_t* len)
@@ -1235,12 +1257,16 @@ TEA_API void* tea_check_udata(tea_State* T, int idx, const char* name)
     return p;
 }
 
-TEA_API const void* tea_check_pointer(tea_State* T, int idx)
+TEA_API int tea_check_option(tea_State* T, int idx, const char* def, const char* const options[])
 {
-    cTValue* o = index2addr(T, idx);
-    if(!tvispointer(o))
-        tea_err_argt(T, idx, TEA_TYPE_POINTER);
-    return pointerV(o);
+    const char* name = def ? tea_opt_string(T, idx, def) : tea_check_string(T, idx);
+    for(int i = 0; options[i]; i++)
+    {
+        if(strcmp(options[i], name) == 0)
+            return i;
+    }
+    tea_error(T, "Invalid option " TEA_QS, name);
+    return 0;
 }
 
 TEA_API void tea_opt_nil(tea_State* T, int idx)
@@ -1264,6 +1290,11 @@ TEA_API tea_Integer tea_opt_integer(tea_State* T, int idx, tea_Integer def)
     return tea_is_nonenil(T, idx) ? def : tea_check_integer(T, idx);
 }
 
+TEA_API const void* tea_opt_pointer(tea_State* T, int idx, void* def)
+{
+    return tea_is_nonenil(T, idx) ? def : tea_check_pointer(T, idx);
+}
+
 TEA_API const char* tea_opt_lstring(tea_State* T, int idx, const char* def, size_t* len)
 {
     if(tea_is_nonenil(T, idx))
@@ -1280,23 +1311,6 @@ TEA_API const char* tea_opt_string(tea_State* T, int idx, const char* def)
     return tea_is_nonenil(T, idx) ? def : tea_check_string(T, idx);
 }
 
-TEA_API const void* tea_opt_pointer(tea_State* T, int idx, void* def)
-{
-    return tea_is_nonenil(T, idx) ? def : tea_check_pointer(T, idx);
-}
-
-TEA_API int tea_check_option(tea_State* T, int idx, const char* def, const char* const options[])
-{
-    const char* name = def ? tea_opt_string(T, idx, def) : tea_check_string(T, idx);
-    for(int i = 0; options[i]; i++)
-    {
-        if(strcmp(options[i], name) == 0)
-            return i;
-    }
-    tea_error(T, "Invalid option " TEA_QS, name);
-    return 0;
-}
-
 TEA_API void* tea_opt_userdata(tea_State* T, int idx, void* def)
 {
     return tea_is_nonenil(T, idx) ? def : tea_check_userdata(T, idx);
@@ -1305,12 +1319,6 @@ TEA_API void* tea_opt_userdata(tea_State* T, int idx, void* def)
 TEA_API tea_CFunction tea_opt_cfunction(tea_State* T, int idx, tea_CFunction def)
 {
     return tea_is_nonenil(T, idx) ? def : tea_check_cfunction(T, idx);
-}
-
-TEA_API void tea_import(tea_State* T, const char* name)
-{
-    GCstr* s = tea_str_newlen(T, name);
-    tea_imp_logical(T, s);
 }
 
 /* -- GC and memory management -------------------------------------------------- */
@@ -1323,20 +1331,6 @@ TEA_API int tea_gc(tea_State* T)
 
     /* GC values are expressed in Kbytes: number of bytes / 2 ** 10 */
     return collected >> 10;
-}
-
-TEA_API tea_Alloc tea_get_allocf(tea_State* T, void** ud)
-{
-    tea_Alloc f;
-    if(ud) *ud = T->allocd;
-    f = T->allocf;
-    return f;
-}
-
-TEA_API void tea_set_allocf(tea_State* T, tea_Alloc f, void* ud)
-{
-    if(f) T->allocf = f;
-    if(ud) T->allocd = ud;
 }
 
 TEA_API void* tea_alloc(tea_State* T, size_t size)
@@ -1352,6 +1346,15 @@ TEA_API void* tea_realloc(tea_State* T, void* p, size_t size)
 TEA_API void tea_free(tea_State* T, void* p)
 {
     tea_mem_free(T, p, 0);
+}
+
+TEA_API void tea_set_finalizer(tea_State* T, tea_Finalizer f)
+{
+    tea_checkapi_slot(1);
+    cTValue* o = T->top - 1;
+    tea_checkapi(tvisudata(o), "stack slot #-1 is not a userdata");
+    GCudata* ud = udataV(o);
+    ud->fd = f;
 }
 
 /* -- Calls -------------------------------------------------- */
@@ -1394,4 +1397,10 @@ TEA_API int tea_pccall(tea_State* T, tea_CFunction func, void* ud)
     ctx.func = T->top - 2;
     ctx.nargs = 1;
     return tea_vm_pcall(T, call_f, &ctx, stack_save(T, ctx.func));
+}
+
+TEA_API void tea_import(tea_State* T, const char* name)
+{
+    GCstr* s = tea_str_newlen(T, name);
+    tea_imp_logical(T, s);
 }
