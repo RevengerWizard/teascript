@@ -393,7 +393,7 @@ static void vm_execute(tea_State* T)
 
 #ifdef TEA_COMPUTED_GOTO
     static void* dispatch_table[] = {
-        #define BCGOTO(name, _) &&BC_##name,
+        #define BCGOTO(name, _, __) &&BC_##name,
         BCDEF(BCGOTO)
         #undef BCGOTO
     };

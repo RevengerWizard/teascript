@@ -10,7 +10,7 @@
 
 /* Bytecode instruction names */
 TEA_DATADEF const char* const tea_bcnames[] = {
-#define BCNAME(name, _) #name,
+#define BCNAME(name, _, __) #name,
     BCDEF(BCNAME)
 #undef BCNAME
 };

@@ -261,8 +261,9 @@ static void bcemit_bytes(FuncState* fs, uint8_t byte1, uint8_t byte2)
     bcemit_byte(fs, byte2);
 }
 
-static const int stack_effects[] = {
-#define BCEFFECT(_, effect) effect,
+/* Stack effects of each bytecode instruction */
+static const int bc_effects[] = {
+#define BCEFFECT(_, effect, __) effect,
     BCDEF(BCEFFECT)
 #undef BCEFFECT
 };
@@ -271,20 +272,20 @@ static const int stack_effects[] = {
 static void bcemit_op(FuncState* fs, BCOp op)
 {
     bcemit_byte(fs, op);
-    fs->max_slots += stack_effects[op];
+    fs->max_slots += bc_effects[op];
 }
 
 /* Emit 2 bytecode instructions */
 static void bcemit_ops(FuncState* fs, BCOp op1, BCOp op2)
 {
     bcemit_bytes(fs, op1, op2);
-    fs->max_slots += stack_effects[op1] + stack_effects[op2];
+    fs->max_slots += bc_effects[op1] + bc_effects[op2];
 }
 
 static void bcemit_argued(FuncState* fs, BCOp op, uint8_t byte)
 {
     bcemit_bytes(fs, op, byte);
-    fs->max_slots += stack_effects[op];
+    fs->max_slots += bc_effects[op];
 }
 
 static void bcemit_loop(FuncState* fs, BCPos start)
@@ -583,91 +584,12 @@ static void scope_end(FuncState* fs)
 
 /* -- Loop handling -------------------------------------------------- */
 
-/* Get the number of bytes for the arguments of bytecode instructions */
-static int loop_argcount(FuncState* fs, int ip)
-{
-    switch(fs->bcbase[ip].ins)
-    {
-        case BC_NIL:
-        case BC_TRUE:
-        case BC_FALSE:
-        case BC_RANGE:
-        case BC_GET_INDEX:
-        case BC_SET_INDEX:
-        case BC_PUSH_INDEX:
-        case BC_INHERIT:
-        case BC_POP:
-        case BC_IS:
-        case BC_IN:
-        case BC_EQUAL:
-        case BC_GREATER:
-        case BC_GREATER_EQUAL:
-        case BC_LESS:
-        case BC_LESS_EQUAL:
-        case BC_ADD:
-        case BC_SUBTRACT:
-        case BC_MULTIPLY:
-        case BC_DIVIDE:
-        case BC_MOD:
-        case BC_POW:
-        case BC_NOT:
-        case BC_NEGATE:
-        case BC_CLOSE_UPVALUE:
-        case BC_RETURN:
-        case BC_IMPORT_ALIAS:
-        case BC_IMPORT_END:
-        case BC_END:
-        case BC_BAND:
-        case BC_BOR:
-        case BC_BXOR:
-        case BC_BNOT:
-        case BC_LSHIFT:
-        case BC_RSHIFT:
-        case BC_LIST:
-        case BC_MAP:
-        case BC_LIST_EXTEND:
-        case BC_LIST_ITEM:
-        case BC_MAP_FIELD:
-            return 0;
-        case BC_CONSTANT:
-        case BC_GET_LOCAL:
-        case BC_SET_LOCAL:
-        case BC_GET_MODULE:
-        case BC_SET_MODULE:
-        case BC_GET_UPVALUE:
-        case BC_SET_UPVALUE:
-        case BC_GET_ATTR:
-        case BC_PUSH_ATTR:
-        case BC_SET_ATTR:
-        case BC_GET_SUPER:
-        case BC_CLASS:
-        case BC_CALL:
-        case BC_METHOD:
-        case BC_EXTENSION_METHOD:
-        case BC_IMPORT_STRING:
-        case BC_IMPORT_NAME:
-        case BC_UNPACK:
-        case BC_MULTI_CASE:
-        case BC_INVOKE_NEW:
-        case BC_CLOSURE:
-            return 1;
-        case BC_IMPORT_VARIABLE:
-        case BC_UNPACK_REST:
-        case BC_DEFINE_OPTIONAL:
-        case BC_COMPARE_JUMP:
-        case BC_JUMP:
-        case BC_JUMP_IF_FALSE:
-        case BC_JUMP_IF_NIL:
-        case BC_LOOP:
-        case BC_INVOKE:
-        case BC_SUPER:
-        case BC_GET_ITER:
-        case BC_FOR_ITER:
-        case BC_DEFINE_MODULE:
-            return 2;
-    }
-    return 0;
-}
+/* Arg count of each bytecode instruction */
+static const int bc_argcount[] = {
+#define BCARG(_, __, argcount) argcount,
+    BCDEF(BCARG)
+#undef BCARG
+};
 
 static void loop_begin(FuncState* fs, Loop* loop)
 {
@@ -696,7 +618,7 @@ static void loop_end(FuncState* fs)
         }
         else
         {
-            i += 1 + loop_argcount(fs, i);
+            i += 1 + bc_argcount[fs->bcbase[i].ins];
         }
     }
     fs->loop = fs->loop->prev;
