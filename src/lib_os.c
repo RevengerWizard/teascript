@@ -18,9 +18,8 @@
 #if TEA_TARGET_POSIX
 #include <sys/types.h> 
 #include <sys/stat.h> 
-#endif
 
-#if TEA_TARGET_WINDOWS
+#elif TEA_TARGET_WINDOWS
 #include <direct.h>
 
 #define unsetenv(NAME) _putenv_s(NAME, "")
@@ -43,6 +42,11 @@ int setenv(const char* name, const char* value, int overwrite)
 
 #undef mkdir
 #define mkdir(dir, mode) _mkdir(dir)
+
+#else
+#undef mkdir
+#define mkdir(dir, mode) -1
+
 #endif
 
 static void os_getenv(tea_State* T)
