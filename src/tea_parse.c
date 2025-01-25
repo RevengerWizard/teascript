@@ -930,8 +930,8 @@ static void expr_dot(FuncState* fs, bool assign)
     {
         lex_consume(fs, TK_NAME);
     }
-    uint8_t name = const_str(fs, strV(&fs->ls->prev.tv));
 
+    uint8_t name = const_str(fs, strV(&fs->ls->prev.tv));
     if(lex_match(fs, '('))
     {
         uint8_t nargs = parse_args(fs);
@@ -1697,11 +1697,11 @@ static const LexToken ops[] = {
     '&', '|', '~', '^',
     TK_LESS_LESS,        /* << */
     TK_GREATER_GREATER,  /* >> */
-	'<',
-	TK_LESS_EQUAL,       /* <= */
-	'>',
-	TK_GREATER_EQUAL,    /* >= */
-	TK_EQUAL_EQUAL,      /* == */
+    '<',
+    TK_LESS_EQUAL,       /* <= */
+    '>',
+    TK_GREATER_EQUAL,    /* >= */
+    TK_EQUAL_EQUAL,      /* == */
     '[',
     TK_EOF
 };

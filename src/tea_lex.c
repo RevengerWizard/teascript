@@ -750,10 +750,9 @@ static Token lex_scan(LexState* ls)
                     }
                     while(tea_char_isident(ls->c) || tea_char_isdigit(ls->c));
                     TValue tv;
-                    //GCstr* s = tea_str_new(ls->T, ls->sb.b, sbuf_len(&ls->sb));
+                    Token tok;
                     GCstr* s = tea_parse_keepstr(ls, ls->sb.b, sbuf_len(&ls->sb));
                     setstrV(ls->T, &tv, s);
-                    Token tok;
                     if(s->reserved > 0)
                     {
                         tok = lex_token(ls, TK_OFS + s->reserved);

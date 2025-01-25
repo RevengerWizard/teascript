@@ -152,11 +152,12 @@ static void cpteaopen(tea_State* T, void* ud)
     UNUSED(ud);
     stack_init(T);
     setmapV(T, registry(T), tea_map_new(T));
+    tea_str_init(T);
+    tea_meta_init(T);
+    tea_lex_init(T);
     T->init_str = tea_str_newlit(T, "new");
     fix_string(T->init_str);
     fix_string(tea_err_str(T, TEA_ERR_MEM));
-    tea_meta_init(T);
-    tea_lex_init(T);
 }
 
 static void state_close(tea_State* T)
@@ -166,10 +167,11 @@ static void state_close(tea_State* T)
     tea_tab_free(T, &T->modules);
     tea_tab_free(T, &T->globals);
     tea_tab_free(T, &T->constants);
-    tea_tab_free(T, &T->strings);
+    tea_gc_freeall(T);
+    tea_str_freetab(T);
     tea_mem_freevec(T, CallInfo, T->ci_base, T->ci_size);   /* Free CallInfo array */
     tea_mem_freevec(T, TValue, T->stack, T->stack_size);    /* Free stack array */
-    tea_gc_freeall(T);
+    tea_assertT(T->str.num == 0, "leaked %d strings", T->str.num);
     tea_assertT(T->gc.total == 0, "memory leak of %llu bytes", T->gc.total);
     T->allocf(T->allocd, T, sizeof(*T), 0); /* Free the state */
 }
@@ -193,7 +195,6 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_tab_init(&T->modules);
     tea_tab_init(&T->globals);
     tea_tab_init(&T->constants);
-    tea_tab_init(&T->strings);
     setnilV(&T->nilval);
     if(tea_err_protected(T, cpteaopen, NULL) != TEA_OK)
     {

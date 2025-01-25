@@ -372,6 +372,14 @@ typedef struct GCState
     GCobj* mmudata; /* List of userdata to be GC */
 } GCState;
 
+/* String interning state */
+typedef struct StrInternState
+{
+    GCobj** hash;   /* String hash table anchors */
+    uint32_t size;  /* Size of hash table */
+    uint32_t num;   /* Number of strings in hash table */
+} StrInternState;
+
 /* Per interpreter state */
 struct tea_State
 {
@@ -389,10 +397,10 @@ struct tea_State
     uint16_t nccalls;    /* Number of nested C calls */
     /* ------ The following fields are global to the state ------ */
     GCState gc; /* Garbage collector */
+    StrInternState str;   /* String interning */
     Tab modules;   /* Table of cached modules */
     Tab globals;   /* Table of globals */
     Tab constants;    /* Table to keep track of 'const' variables */
-    Tab strings;   /* String interning */
     SBuf tmpbuf;    /* Termorary string buffer */
     SBuf strbuf;    /* Termorary string conversion buffer */
     TValue tmptv;   /* Temporary TValue */

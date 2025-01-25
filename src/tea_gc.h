@@ -17,8 +17,6 @@
 /* Collector */
 TEA_FUNC void tea_gc_separateudata(tea_State* T);
 TEA_FUNC void tea_gc_finalize_udata(tea_State* T);
-TEA_FUNC void tea_gc_markobj(tea_State* T, GCobj* object);
-TEA_FUNC void tea_gc_markval(tea_State* T, TValue* value);
 TEA_FUNC void tea_gc_collect(tea_State* T);
 TEA_FUNC void tea_gc_freeall(tea_State* T);
 

@@ -34,6 +34,7 @@
 #define TEA_MIN_INTEGER -9007199254740991
 
 /* Minimum buffer sizes */
+#define TEA_MIN_STRTAB 256  /* Min. string table size (pow2) */
 #define TEA_MIN_SBUF 32     /* Min. string buffer length */
 #define TEA_MIN_VECSIZE 8   /* Min. size for growable vectors */
 

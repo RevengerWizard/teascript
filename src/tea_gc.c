@@ -26,7 +26,47 @@
 
 #define is_finalized(u) ((u)->marked & TEA_GC_FINALIZED)
 
-/* -- Collector -------------------------------------------------- */
+/* -- Mark phase ---------------------------------------------------------- */
+
+/* Mark a GC object (if needed) */
+static void gc_markobj(tea_State* T, GCobj* obj)
+{
+    if(obj == NULL)
+        return;
+    if(obj->marked)
+        return;
+
+    obj->marked = 1;
+
+    if(T->gc.gray_size < T->gc.gray_count + 1)
+    {
+        T->gc.gray_size = TEA_MEM_GROW(T->gc.gray_size);
+        T->gc.gray_stack = (GCobj**)T->allocf(T->allocd, T->gc.gray_stack, 0, sizeof(GCobj*) * T->gc.gray_size);
+
+        if(T->gc.gray_stack == NULL)
+            tea_err_mem(T);
+    }
+
+    T->gc.gray_stack[T->gc.gray_count++] = obj;
+}
+
+/* Mark a TValue (if needed) */
+static void gc_markval(tea_State* T, TValue* o)
+{
+    if(tvisgcv(o))
+        gc_markobj(T, gcV(o));
+}
+
+/* Mark table elements */
+void gc_marktab(tea_State* T, Tab* tab)
+{
+    for(int i = 0; i < tab->size; i++)
+    {
+        TabEntry* entry = &tab->entries[i];
+        gc_markobj(T, (GCobj*)entry->key);
+        gc_markval(T, &entry->val);
+    }
+}
 
 static void gc_blacken(tea_State* T, GCobj* obj)
 {
@@ -35,17 +75,17 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         case TEA_TUDATA:
         {
             GCudata* ud = (GCudata*)obj;
-            tea_gc_markobj(T, (GCobj*)ud->klass);
-            tea_tab_mark(T, &ud->attrs);
+            gc_markobj(T, (GCobj*)ud->klass);
+            gc_marktab(T, &ud->attrs);
             break;
         }
         case TEA_TMODULE:
         {
             GCmodule* module = (GCmodule*)obj;
-            tea_gc_markobj(T, (GCobj*)module->name);
-            tea_gc_markobj(T, (GCobj*)module->path);
-            tea_tab_mark(T, &module->vars);
-            tea_tab_mark(T, &module->exports);
+            gc_markobj(T, (GCobj*)module->name);
+            gc_markobj(T, (GCobj*)module->path);
+            gc_marktab(T, &module->vars);
+            gc_marktab(T, &module->exports);
             break;
         }
         case TEA_TLIST:
@@ -53,7 +93,7 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             GClist* list = (GClist*)obj;
             for(int i = 0; i < list->len; i++)
             {
-                tea_gc_markval(T, list_slot(list, i));
+                gc_markval(T, list_slot(list, i));
             }
             break;
         }
@@ -63,24 +103,24 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             for(int i = 0; i < map->size; i++)
             {
                 MapEntry* item = &map->entries[i];
-                tea_gc_markval(T, &item->key);
-                tea_gc_markval(T, &item->val);
+                gc_markval(T, &item->key);
+                gc_markval(T, &item->val);
             }
             break;
         }
         case TEA_TMETHOD:
         {
             GCmethod* bound = (GCmethod*)obj;
-            tea_gc_markval(T, &bound->receiver);
-            tea_gc_markobj(T, (GCobj*)bound->func);
+            gc_markval(T, &bound->receiver);
+            gc_markobj(T, (GCobj*)bound->func);
             break;
         }
         case TEA_TCLASS:
         {
             GCclass* klass = (GCclass*)obj;
-            tea_gc_markobj(T, (GCobj*)klass->name);
-            tea_gc_markobj(T, (GCobj*)klass->super);
-            tea_tab_mark(T, &klass->methods);
+            gc_markobj(T, (GCobj*)klass->name);
+            gc_markobj(T, (GCobj*)klass->super);
+            gc_marktab(T, &klass->methods);
             break;
         }
         case TEA_TFUNC:
@@ -88,17 +128,17 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             GCfunc* func = (GCfunc*)obj;
             if(isteafunc(func))
             {
-                tea_gc_markobj(T, (GCobj*)func->t.pt);
+                gc_markobj(T, (GCobj*)func->t.pt);
                 for(int i = 0; i < func->t.upvalue_count; i++)
                 {
-                    tea_gc_markobj(T, (GCobj*)func->t.upvalues[i]);
+                    gc_markobj(T, (GCobj*)func->t.upvalues[i]);
                 }
             }
             else
             {
                 for(int i = 0; i < func->c.upvalue_count; i++)
                 {
-                    tea_gc_markval(T, &func->c.upvalues[i]);
+                    gc_markval(T, &func->c.upvalues[i]);
                 }
             }
             break;
@@ -106,24 +146,24 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         case TEA_TPROTO:
         {
             GCproto* pt = (GCproto*)obj;
-            tea_gc_markobj(T, (GCobj*)pt->name);
+            gc_markobj(T, (GCobj*)pt->name);
             for(int i = 0; i < pt->sizek; i++)
             {
-                tea_gc_markval(T, proto_kgc(pt, i));
+                gc_markval(T, proto_kgc(pt, i));
             }
             break;
         }
         case TEA_TINSTANCE:
         {
             GCinstance* instance = (GCinstance*)obj;
-            tea_gc_markobj(T, (GCobj*)instance->klass);
-            tea_tab_mark(T, &instance->attrs);
+            gc_markobj(T, (GCobj*)instance->klass);
+            gc_marktab(T, &instance->attrs);
             break;
         }
         case TEA_TUPVAL:
         {
             GCupval* uv = (GCupval*)obj;
-            tea_gc_markval(T, &uv->closed);
+            gc_markval(T, &uv->closed);
             break;
         }
         case TEA_TSTR:
@@ -132,100 +172,36 @@ static void gc_blacken(tea_State* T, GCobj* obj)
     }
 }
 
-/* Type of GC free functions */
-typedef void (TEA_FASTCALL *GCFreeFunc)(tea_State* T, GCobj* o);
-
-/* GC free functions */
-static const GCFreeFunc gc_freefunc[] = {
-    (GCFreeFunc)tea_str_free,
-    (GCFreeFunc)tea_range_free,
-    (GCFreeFunc)tea_func_free,
-    (GCFreeFunc)tea_module_free,
-    (GCFreeFunc)tea_class_free,
-    (GCFreeFunc)tea_instance_free,
-    (GCFreeFunc)tea_list_free,
-    (GCFreeFunc)tea_map_free,
-    (GCFreeFunc)tea_udata_free,
-    (GCFreeFunc)tea_func_freeproto,
-    (GCFreeFunc)tea_func_freeuv,
-    (GCFreeFunc)tea_method_free
-};
-
-static void gc_free(tea_State* T, GCobj* obj)
-{
-    gc_freefunc[obj->gct - TEA_TSTR](T, obj);
-}
-
 /* Mark GC roots */
 static void gc_mark_roots(tea_State* T)
 {
     for(TValue* slot = T->stack; slot < T->top; slot++)
     {
-        tea_gc_markval(T, slot);
+        gc_markval(T, slot);
     }
 
     for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
     {
-        tea_gc_markobj(T, (GCobj*)ci->func);
+        gc_markobj(T, (GCobj*)ci->func);
     }
 
     for(GCupval* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
     {
-        tea_gc_markobj(T, (GCobj*)upvalue);
+        gc_markobj(T, (GCobj*)upvalue);
     }
 
-    tea_gc_markval(T, registry(T));
-    tea_tab_mark(T, &T->modules);
-    tea_tab_mark(T, &T->globals);
+    gc_markval(T, registry(T));
+    gc_marktab(T, &T->modules);
+    gc_marktab(T, &T->globals);
 
-    tea_gc_markobj(T, (GCobj*)T->number_class);
-    tea_gc_markobj(T, (GCobj*)T->bool_class);
-    tea_gc_markobj(T, (GCobj*)T->func_class);
-    tea_gc_markobj(T, (GCobj*)T->list_class);
-    tea_gc_markobj(T, (GCobj*)T->map_class);
-    tea_gc_markobj(T, (GCobj*)T->string_class);
-    tea_gc_markobj(T, (GCobj*)T->range_class);
-    tea_gc_markobj(T, (GCobj*)T->object_class);
-}
-
-static void gc_trace_references(tea_State* T)
-{
-    while(T->gc.gray_count > 0)
-    {
-        GCobj* obj = T->gc.gray_stack[--T->gc.gray_count];
-        gc_blacken(T, obj);
-    }
-}
-
-static void gc_sweep(tea_State* T, GCobj** p)
-{
-    GCobj* prev = NULL;
-    GCobj* obj = *p;
-
-    while(obj != NULL)
-    {
-        if(obj->marked)
-        {
-            if(!(obj->marked & TEA_GC_FIXED))
-                obj->marked = 0;
-            prev = obj;
-            obj = obj->next;
-        }
-        else
-        {
-            GCobj* unreached = obj;
-            obj = obj->next;
-            if(prev != NULL)
-            {
-                prev->next = obj;
-            }
-            else
-            {
-                *p = obj;
-            }
-            gc_free(T, unreached);
-        }
-    }
+    gc_markobj(T, (GCobj*)T->number_class);
+    gc_markobj(T, (GCobj*)T->bool_class);
+    gc_markobj(T, (GCobj*)T->func_class);
+    gc_markobj(T, (GCobj*)T->list_class);
+    gc_markobj(T, (GCobj*)T->map_class);
+    gc_markobj(T, (GCobj*)T->string_class);
+    gc_markobj(T, (GCobj*)T->range_class);
+    gc_markobj(T, (GCobj*)T->object_class);
 }
 
 /* Mark userdata in mmudata list */
@@ -271,6 +247,64 @@ void tea_gc_separateudata(tea_State* T)
     T->gc.mmudata = collected;
 }
 
+/* -- Sweep phase --------------------------------------------------------- */
+
+/* Type of GC free functions */
+typedef void (TEA_FASTCALL *GCFreeFunc)(tea_State* T, GCobj* o);
+
+/* GC free functions */
+static const GCFreeFunc gc_freefunc[] = {
+    (GCFreeFunc)tea_str_free,
+    (GCFreeFunc)tea_range_free,
+    (GCFreeFunc)tea_func_free,
+    (GCFreeFunc)tea_module_free,
+    (GCFreeFunc)tea_class_free,
+    (GCFreeFunc)tea_instance_free,
+    (GCFreeFunc)tea_list_free,
+    (GCFreeFunc)tea_map_free,
+    (GCFreeFunc)tea_udata_free,
+    (GCFreeFunc)tea_func_freeproto,
+    (GCFreeFunc)tea_func_freeuv,
+    (GCFreeFunc)tea_method_free
+};
+
+static void gc_free(tea_State* T, GCobj* obj)
+{
+    gc_freefunc[obj->gct - TEA_TSTR](T, obj);
+}
+
+/* Sweep of a GC list */
+static void gc_sweep(tea_State* T, GCobj** p)
+{
+    GCobj* prev = NULL;
+    GCobj* obj = *p;
+
+    while(obj != NULL)
+    {
+        if(obj->marked)
+        {
+            if(!(obj->marked & TEA_GC_FIXED))
+                obj->marked = 0;
+            prev = obj;
+            obj = obj->next;
+        }
+        else
+        {
+            GCobj* unreached = obj;
+            obj = obj->next;
+            if(prev != NULL)
+            {
+                prev->next = obj;
+            }
+            else
+            {
+                *p = obj;
+            }
+            gc_free(T, unreached);
+        }
+    }
+}
+
 /* Finalize all userdata objects from mmudata list */
 void tea_gc_finalize_udata(tea_State* T)
 {
@@ -296,34 +330,16 @@ void tea_gc_finalize_udata(tea_State* T)
     T->top--;
 }
 
-/* Mark a TValue (if needed) */
-void tea_gc_markval(tea_State* T, TValue* o)
+static void gc_trace_references(tea_State* T)
 {
-    if(tvisgcv(o))
-        tea_gc_markobj(T, gcV(o));
-}
-
-/* Mark a GC object (if needed) */
-void tea_gc_markobj(tea_State* T, GCobj* obj)
-{
-    if(obj == NULL)
-        return;
-    if(obj->marked)
-        return;
-
-    obj->marked = 1;
-
-    if(T->gc.gray_size < T->gc.gray_count + 1)
+    while(T->gc.gray_count > 0)
     {
-        T->gc.gray_size = TEA_MEM_GROW(T->gc.gray_size);
-        T->gc.gray_stack = (GCobj**)T->allocf(T->allocd, T->gc.gray_stack, 0, sizeof(GCobj*) * T->gc.gray_size);
-
-        if(T->gc.gray_stack == NULL)
-            tea_err_mem(T);
+        GCobj* obj = T->gc.gray_stack[--T->gc.gray_count];
+        gc_blacken(T, obj);
     }
-
-    T->gc.gray_stack[T->gc.gray_count++] = obj;
 }
+
+/* -- Collector -------------------------------------------------- */
 
 /* Perform a GC collection */
 void tea_gc_collect(tea_State* T)
@@ -333,7 +349,6 @@ void tea_gc_collect(tea_State* T)
     size_t before = T->gc.total;
 #endif
 
-    tea_gc_markval(T, &T->registrytv);
     gc_mark_roots(T);
     gc_trace_references(T);
 
@@ -342,8 +357,16 @@ void tea_gc_collect(tea_State* T)
     gc_trace_references(T); /* And propagate the marks */
 
     gc_sweep(T, &T->gc.rootud);
-    tea_tab_white(&T->strings);
+    for(int i = 0; i < T->str.size; i++)
+    {
+        gc_sweep(T, &T->str.hash[i]);
+    }
     gc_sweep(T, &T->gc.root);
+
+    if(T->str.num < (T->str.size >> 2) && T->str.size > TEA_MIN_STRTAB * 2)
+    {
+        tea_str_resize(T, T->str.size >> 1);    /* Shrink string table */
+    }
     tea_buf_shrink(T, &T->tmpbuf);  /* Shrink temp buffer */
     tea_buf_shrink(T, &T->strbuf);  /* Shrink string buffer */
 
@@ -376,6 +399,17 @@ void tea_gc_freeall(tea_State* T)
         obj = next;
     }
 
+    for(int i = 0; i < T->str.size; i++)
+    {
+        GCobj* obj = T->str.hash[i];
+        while(obj != NULL)
+        {
+            GCobj* next = obj->next;
+            tea_str_free(T, (GCstr*)obj);
+            obj = next;
+        }
+    }
+
     /* Free the gray stack */
     T->allocf(T->allocd, T->gc.gray_stack, sizeof(GCobj*) * T->gc.gray_size, 0);
 }
@@ -394,7 +428,7 @@ void* tea_mem_realloc(tea_State* T, void* p, size_t old_size, size_t new_size)
         tea_gc_collect(T);
 #endif
 
-        if(T->gc.total > T->gc.next_gc)
+        if(TEA_UNLIKELY(T->gc.total > T->gc.next_gc))
         {
             tea_gc_collect(T);
         }
