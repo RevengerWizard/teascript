@@ -1174,13 +1174,13 @@ static void vm_execute(tea_State* T)
                 T->top--;
                 DISPATCH();
             }
-            CASE_CODE(BC_EXTENSION_METHOD):
+            CASE_CODE(BC_ISTYPE):
             {
                 if(!tvisclass(T->top - 2))
                 {
                     RUNTIME_ERROR(TEA_ERR_ISCLASS, tea_typename(T->top - 2));
                 }
-                /* Fallback */
+                DISPATCH();
             }
             CASE_CODE(BC_METHOD):
             {
@@ -1188,7 +1188,7 @@ static void vm_execute(tea_State* T)
                 TValue* mo = T->top - 1;
                 GCclass* klass = classV(T->top - 2);
                 copyTV(T, tea_tab_set(T, &klass->methods, name, NULL), mo);
-                if(name == T->init_str) copyTV(T, &klass->init, mo);
+                if(name == mmname_str(T, MM_NEW)) copyTV(T, &klass->init, mo);
                 T->top--;
                 DISPATCH();
             }

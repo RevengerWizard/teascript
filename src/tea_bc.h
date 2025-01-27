@@ -80,8 +80,8 @@
     _(FOR_ITER, 1, 2) \
     _(CLASS, 1, 1) \
     _(INHERIT, 0, 0) \
+    _(ISTYPE, 0, 0) \
     _(METHOD, -1, 1) \
-    _(EXTENSION_METHOD, 0, 1) \
     _(IMPORT_FMT, 0, 0) \
     _(IMPORT_STRING, 0, 1) \
     _(IMPORT_NAME, 0, 1) \

@@ -155,8 +155,6 @@ static void cpteaopen(tea_State* T, void* ud)
     tea_str_init(T);
     tea_meta_init(T);
     tea_lex_init(T);
-    T->init_str = tea_str_newlit(T, "new");
-    fix_string(T->init_str);
     fix_string(tea_err_str(T, TEA_ERR_MEM));
 }
 

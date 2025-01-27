@@ -649,7 +649,7 @@ static void set_method(tea_State* T, int obj, const char* name)
     GCclass* k = classV(object);
     copyTV(T, tea_tab_set(T, &k->methods, str, NULL), item);
     T->top--;
-    if(str == T->init_str)
+    if(str == mmname_str(T, MM_NEW))
     {
         copyTV(T, &k->init, item);
     }

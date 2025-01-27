@@ -347,7 +347,8 @@ typedef struct
     _(GETATTR, getattr) _(SETATTR, setattr) \
     _(TOSTRING, tostring) _(CALL, call) \
     _(ITER, iterate) _(NEXT, iteratorvalue) \
-    _(CONTAINS, contains) _(GC, gc)
+    _(CONTAINS, contains) _(GC, gc) \
+    _(NEW, new)
 
 typedef enum
 {
@@ -417,7 +418,6 @@ struct tea_State
     GCclass* object_class;
     GCstr strempty; /* Empty string */
     uint8_t strempty0;  /* Zero terminator for empty string */
-    GCstr* init_str;  /* "new" */
     GCstr* opm_name[MM__MAX];   /* Array with special method names  */
     tea_CFunction panic; /* Function to be called in unprotected errors */
     tea_Alloc allocf;  /* Memory allocator */

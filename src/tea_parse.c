@@ -1864,7 +1864,8 @@ static void parse_function_assign(FuncState* fs, BCLine line)
 
         fs->klass = fs->klass->prev;
 
-        bcemit_argued(fs, BC_EXTENSION_METHOD, k);
+        bcemit_op(fs, BC_ISTYPE);
+        bcemit_argued(fs, BC_METHOD, k);
         bcemit_op(fs, BC_POP);
         return;
     }
