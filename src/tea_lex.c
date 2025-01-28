@@ -293,16 +293,12 @@ static Token lex_string(LexState* ls)
 {
     tea_State* T = ls->T;
     LexToken type = TK_STRING;
+    LexChar sc = ls->sc;
 
-    while(ls->c != ls->sc)
+    while(ls->c != sc)
     {
         if(ls->c == '$')
         {
-            if(ls->num_braces >= 4)
-            {
-                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSFMT);
-			}
-
             lex_next(ls);
             if(ls->c != '{')
             {
@@ -310,9 +306,16 @@ static Token lex_string(LexState* ls)
                 continue;
             }
 
-			type = TK_INTERPOLATION;
-			ls->braces[ls->num_braces++] = 1;
-			break;
+            if(ls->num_braces >= 4)
+            {
+                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSFMT);
+            }
+
+            type = TK_INTERPOLATION;
+            ls->braces[ls->num_braces] = 1;
+            ls->str_braces[ls->num_braces] = sc;
+            ls->num_braces++;
+            break;
         }
 
         switch(ls->c)
@@ -505,8 +508,8 @@ static Token lex_scan(LexState* ls)
             {
                 if(ls->num_braces > 0 && --ls->braces[ls->num_braces - 1] == 0)
                 {
+                    ls->sc = ls->str_braces[ls->num_braces - 1];
                     ls->num_braces--;
-
                     return lex_string(ls);
                 }
 
@@ -726,6 +729,12 @@ static Token lex_scan(LexState* ls)
             case '"':
             case '\'':
             {
+                /* Don't allow the same string delimiter inside interpolation*/
+                if(ls->num_braces > 0 && ls->c == ls->str_braces[ls->num_braces - 1])
+                {
+                    tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
+                }
+
                 ls->sc = ls->c;
                 lex_savenext(ls);
                 if(ls->c == ls->sc && lex_lookahead(ls) == ls->sc)

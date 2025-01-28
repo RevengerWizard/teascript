@@ -77,11 +77,12 @@ typedef struct LexState
     void* rdata; /* Reader data */
     GCmodule* module; /* Current module */
     LexChar c;  /* Current character */
-    LexChar sc;    /* Whether string is ' or " */
+    LexChar sc;    /* Whether string is ' " ` */
     Token prev; /* Previous token */
     Token curr;   /* Currently used token */
     Token next; /* Lookahead token */
     BCLine linenumber;   /* Line counter */
+    LexChar str_braces[4];  /* Tracked string interpolations */
     int braces[4];  /* Tracked string interpolations */
     int num_braces; /* Number of string interpolations */
     const char* mode;   /* Load bytecode (b) and/or source text (t) */
