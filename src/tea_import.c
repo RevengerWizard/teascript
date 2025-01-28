@@ -48,13 +48,19 @@
 
 #define TEA_IMPORT_SYM "tea_import_%s"
 
+typedef struct tea_handle
+{
+    void* lib;
+    struct tea_handle* next;
+} tea_handle;
+
 /* ------------------------------------------------------------------------ */
 
 #if TEA_TARGET_DLOPEN
 
 #include <dlfcn.h>
 
-static void ll_unload(void* lib)
+static void ll_unloadlib(void* lib)
 {
     dlclose(lib);
 }
@@ -106,7 +112,7 @@ static void ll_error(tea_State* T)
         tea_error(T, "system error %d\n", error);
 }
 
-static void ll_unload(void* lib)
+static void ll_unloadlib(void* lib)
 {
     FreeLibrary((HMODULE)lib);
 }
@@ -131,7 +137,7 @@ static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
 
 #define DLMSG   "dynamic libraries not enabled"
 
-static void ll_unload(void* lib)
+static void ll_unloadlib(void* lib)
 {
     /* Not used */
     UNUSED(lib);
@@ -152,6 +158,14 @@ static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
 }
 
 #endif
+
+static void ll_register(tea_State* T, void* h)
+{
+    tea_handle* hh = (tea_handle*)tea_mem_new(T, sizeof(tea_handle));
+    hh->lib = h;
+    hh->next = T->handle;
+    T->handle = hh;
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -380,6 +394,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
         const char* symname = tea_push_fstring(T, TEA_IMPORT_SYM, str_data(name));
 
         void* lib = ll_load(T, str_data(path));
+        ll_register(T, lib);
         tea_CFunction fn = ll_sym(T, lib, symname);
         T->top--;
 
@@ -394,4 +409,16 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     T->top--;
 
     setmoduleV(T, T->top++, module);
+}
+
+void tea_imp_freehandle(tea_State* T)
+{
+    tea_handle* h = T->handle;
+    while(h)
+    {
+        tea_handle* next = h->next;
+        ll_unloadlib(h->lib);
+        tea_mem_free(T, h, sizeof(tea_handle));
+        h = next;
+    }
 }

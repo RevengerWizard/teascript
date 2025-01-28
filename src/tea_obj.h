@@ -425,6 +425,7 @@ struct tea_State
     int argc;
     char** argv;
     int argf;
+    struct tea_handle* handle;  /* Dynamic library handles still open */
 };
 
 #define curr_func(T) (T->ci->func)

@@ -22,6 +22,7 @@
 #include "tea_lex.h"
 #include "tea_map.h"
 #include "tea_func.h"
+#include "tea_import.h"
 
 /* -- Stack handling -------------------------------------------------- */
 
@@ -166,6 +167,7 @@ static void state_close(tea_State* T)
     tea_tab_free(T, &T->globals);
     tea_tab_free(T, &T->constants);
     tea_gc_freeall(T);
+    tea_imp_freehandle(T);  /* Close pending library handles */
     tea_str_freetab(T);
     tea_mem_freevec(T, CallInfo, T->ci_base, T->ci_size);   /* Free CallInfo array */
     tea_mem_freevec(T, TValue, T->stack, T->stack_size);    /* Free stack array */

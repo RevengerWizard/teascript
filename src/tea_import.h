@@ -17,4 +17,6 @@ TEA_FUNC GCstr* tea_imp_getdir(tea_State* T, char* source);
 TEA_FUNC void tea_imp_relative(tea_State* T, GCstr* mod, GCstr* path_name);
 TEA_FUNC void tea_imp_logical(tea_State* T, GCstr* name);
 
+TEA_FUNC void tea_imp_freehandle(tea_State* T);
+
 #endif
