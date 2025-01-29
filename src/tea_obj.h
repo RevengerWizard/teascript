@@ -441,6 +441,23 @@ TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, co
 TEA_STATIC_ASSERT(offsetof(GCinstance, klass) == offsetof(GCudata, klass));
 TEA_STATIC_ASSERT(offsetof(GCinstance, attrs) == offsetof(GCudata, attrs));
 
+/* Macros to convert a GCobj pointer to a specific value */
+#define gco2str(o) ((GCstr*)(o))
+#define gco2range(o) ((GCrange*)(o))
+#define gco2func(o) ((GCfunc*)(o))
+#define gco2proto(o) ((GCproto*)(o))
+#define gco2uv(o) ((GCupval*)(o))
+#define gco2module(o) ((GCmodule*)(o))
+#define gco2class(o) ((GCclass*)(o))
+#define gco2instance(o) ((GCinstance*)(o))
+#define gco2method(o) ((GCmethod*)(o))
+#define gco2list(o) ((GClist*)(o))
+#define gco2map(o) ((GCmap*)(o))
+#define gco2udata(o) ((GCudata*)(o))
+
+/* Macros to convert any collectable object into a GCobj pointer */
+#define obj2gco(v) ((GCobj*)(v))
+
 /* -- TValue getters/setters -------------------------------------------------- */
 
 /* Macros to test types */

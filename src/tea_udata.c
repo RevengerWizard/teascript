@@ -26,7 +26,7 @@ GCudata* tea_udata_new(tea_State* T, size_t len, uint8_t nuvals)
         setnilV(&uvs[i]);
     /* Chain to userdata list */
     ud->obj.next = T->gc.rootud;
-    T->gc.rootud = (GCobj*)ud;
+    T->gc.rootud = obj2gco(ud);
     return ud;
 }
 

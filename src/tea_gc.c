@@ -63,7 +63,7 @@ void gc_marktab(tea_State* T, Tab* tab)
     for(int i = 0; i < tab->size; i++)
     {
         TabEntry* entry = &tab->entries[i];
-        gc_markobj(T, (GCobj*)entry->key);
+        gc_markobj(T, obj2gco(entry->key));
         gc_markval(T, &entry->val);
     }
 }
@@ -74,23 +74,23 @@ static void gc_blacken(tea_State* T, GCobj* obj)
     {
         case TEA_TUDATA:
         {
-            GCudata* ud = (GCudata*)obj;
-            gc_markobj(T, (GCobj*)ud->klass);
+            GCudata* ud = gco2udata(obj);
+            gc_markobj(T, obj2gco(ud->klass));
             gc_marktab(T, &ud->attrs);
             break;
         }
         case TEA_TMODULE:
         {
-            GCmodule* module = (GCmodule*)obj;
-            gc_markobj(T, (GCobj*)module->name);
-            gc_markobj(T, (GCobj*)module->path);
+            GCmodule* module = gco2module(obj);
+            gc_markobj(T, obj2gco(module->name));
+            gc_markobj(T, obj2gco(module->path));
             gc_marktab(T, &module->vars);
             gc_marktab(T, &module->exports);
             break;
         }
         case TEA_TLIST:
         {
-            GClist* list = (GClist*)obj;
+            GClist* list = gco2list(obj);
             for(int i = 0; i < list->len; i++)
             {
                 gc_markval(T, list_slot(list, i));
@@ -99,7 +99,7 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         }
         case TEA_TMAP:
         {
-            GCmap* map = (GCmap*)obj;
+            GCmap* map = gco2map(obj);
             for(int i = 0; i < map->size; i++)
             {
                 MapEntry* item = &map->entries[i];
@@ -110,28 +110,28 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         }
         case TEA_TMETHOD:
         {
-            GCmethod* bound = (GCmethod*)obj;
+            GCmethod* bound = gco2method(obj);
             gc_markval(T, &bound->receiver);
-            gc_markobj(T, (GCobj*)bound->func);
+            gc_markobj(T, obj2gco(bound->func));
             break;
         }
         case TEA_TCLASS:
         {
-            GCclass* klass = (GCclass*)obj;
-            gc_markobj(T, (GCobj*)klass->name);
-            gc_markobj(T, (GCobj*)klass->super);
+            GCclass* klass = gco2class(obj);
+            gc_markobj(T, obj2gco(klass->name));
+            gc_markobj(T, obj2gco(klass->super));
             gc_marktab(T, &klass->methods);
             break;
         }
         case TEA_TFUNC:
         {
-            GCfunc* func = (GCfunc*)obj;
+            GCfunc* func = gco2func(obj);
             if(isteafunc(func))
             {
-                gc_markobj(T, (GCobj*)func->t.pt);
+                gc_markobj(T, obj2gco(func->t.pt));
                 for(int i = 0; i < func->t.upvalue_count; i++)
                 {
-                    gc_markobj(T, (GCobj*)func->t.upvalues[i]);
+                    gc_markobj(T, obj2gco(func->t.upvalues[i]));
                 }
             }
             else
@@ -145,8 +145,8 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         }
         case TEA_TPROTO:
         {
-            GCproto* pt = (GCproto*)obj;
-            gc_markobj(T, (GCobj*)pt->name);
+            GCproto* pt = gco2proto(obj);
+            gc_markobj(T, obj2gco(pt->name));
             for(int i = 0; i < pt->sizek; i++)
             {
                 gc_markval(T, proto_kgc(pt, i));
@@ -155,14 +155,14 @@ static void gc_blacken(tea_State* T, GCobj* obj)
         }
         case TEA_TINSTANCE:
         {
-            GCinstance* instance = (GCinstance*)obj;
-            gc_markobj(T, (GCobj*)instance->klass);
+            GCinstance* instance = gco2instance(obj);
+            gc_markobj(T, obj2gco(instance->klass));
             gc_marktab(T, &instance->attrs);
             break;
         }
         case TEA_TUPVAL:
         {
-            GCupval* uv = (GCupval*)obj;
+            GCupval* uv = gco2uv(obj);
             gc_markval(T, &uv->closed);
             break;
         }
@@ -182,26 +182,26 @@ static void gc_mark_roots(tea_State* T)
 
     for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
     {
-        gc_markobj(T, (GCobj*)ci->func);
+        gc_markobj(T, obj2gco(ci->func));
     }
 
-    for(GCupval* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+    for(GCupval* uv = T->open_upvalues; uv != NULL; uv = uv->next)
     {
-        gc_markobj(T, (GCobj*)upvalue);
+        gc_markobj(T, obj2gco(uv));
     }
 
     gc_markval(T, registry(T));
     gc_marktab(T, &T->modules);
     gc_marktab(T, &T->globals);
 
-    gc_markobj(T, (GCobj*)T->number_class);
-    gc_markobj(T, (GCobj*)T->bool_class);
-    gc_markobj(T, (GCobj*)T->func_class);
-    gc_markobj(T, (GCobj*)T->list_class);
-    gc_markobj(T, (GCobj*)T->map_class);
-    gc_markobj(T, (GCobj*)T->string_class);
-    gc_markobj(T, (GCobj*)T->range_class);
-    gc_markobj(T, (GCobj*)T->object_class);
+    gc_markobj(T, obj2gco(T->number_class));
+    gc_markobj(T, obj2gco(T->bool_class));
+    gc_markobj(T, obj2gco(T->func_class));
+    gc_markobj(T, obj2gco(T->list_class));
+    gc_markobj(T, obj2gco(T->map_class));
+    gc_markobj(T, obj2gco(T->string_class));
+    gc_markobj(T, obj2gco(T->range_class));
+    gc_markobj(T, obj2gco(T->object_class));
 }
 
 /* Mark userdata in mmudata list */
@@ -225,7 +225,7 @@ void tea_gc_separateudata(tea_State* T)
     while((curr = *p) != NULL)
     {
         tea_assertT(curr->gct == TEA_TUDATA, "trying to separate non-userdata");
-        GCudata* ud = (GCudata*)curr;
+        GCudata* ud = gco2udata(curr);
         if((curr->marked == 1) || is_finalized(curr))
             p = &curr->next;    /* Don't bother with them */
         else if(tea_tab_get(&ud->klass->methods, mmname_str(T, MM_GC)) == NULL)
@@ -312,7 +312,7 @@ void tea_gc_finalize_udata(tea_State* T)
     while(T->gc.mmudata != NULL)
     {
         GCobj* obj = T->gc.mmudata;
-        GCudata* ud = (GCudata*)obj;
+        GCudata* ud = gco2udata(obj);
         T->gc.mmudata = obj->next;  /* Remove userdata from mmudata list */
         obj->next = T->gc.rootud;   /* Add it back to the 'rootud' list */
         T->gc.rootud = obj;
@@ -405,7 +405,7 @@ void tea_gc_freeall(tea_State* T)
         while(obj != NULL)
         {
             GCobj* next = obj->next;
-            tea_str_free(T, (GCstr*)obj);
+            tea_str_free(T, gco2str(obj));
             obj = next;
         }
     }

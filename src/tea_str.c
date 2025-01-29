@@ -37,7 +37,7 @@ void tea_str_resize(tea_State* T, uint32_t newsize)
         while(obj != NULL)
         {
             GCobj* next = obj->next;
-            StrHash hash = ((GCstr*)obj)->hash;
+            StrHash hash = gco2str(obj)->hash;
             uint32_t idx = hash & (newsize - 1);
             obj->next = newhash[idx];
             newhash[idx] = obj;
@@ -56,7 +56,7 @@ static GCstr* str_alloc(tea_State* T, const char* chars, uint32_t len, StrHash h
     GCobj* obj = (GCobj*)tea_mem_new(T, tea_str_size(len));
     obj->gct = TEA_TSTR;
     obj->marked = 0;
-    GCstr* s = (GCstr*)obj;
+    GCstr* s = gco2str(obj);
     s->reserved = 0;
     s->len = len;
     s->hash = hash;
@@ -65,7 +65,7 @@ static GCstr* str_alloc(tea_State* T, const char* chars, uint32_t len, StrHash h
     /* Add to string hash table */
     hash &= (T->str.size - 1);
     obj->next = T->str.hash[hash];
-    T->str.hash[hash] = (GCobj*)s;
+    T->str.hash[hash] = obj2gco(s);
     T->str.num++;
     if(T->str.num > T->str.size)
     {
@@ -85,8 +85,9 @@ GCstr* tea_str_new(tea_State* T, const char* chars, size_t lenx)
         GCobj* obj = T->str.hash[hash & (T->str.size - 1)];
         while(obj != NULL)
         {
-            GCstr* sx = (GCstr*)obj;
-            if(sx->hash == hash && sx->len == len && memcmp(chars, str_data(sx), len) == 0)
+            GCstr* sx = gco2str(obj);
+            if(sx->hash == hash && sx->len == len 
+                && memcmp(chars, str_data(sx), len) == 0)
             {
                 return sx;  /* Return existing string */
             }

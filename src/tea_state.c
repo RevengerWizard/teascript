@@ -53,9 +53,9 @@ static void stack_resize(tea_State* T, int new_size)
 	T->stack_size = new_size;
     T->stack_max = T->stack + new_size - 1 - TEA_STACK_EXTRA;
     T->top = (T->top - old_stack) + T->stack;
-    for(GCupval* upvalue = T->open_upvalues; upvalue != NULL; upvalue = upvalue->next)
+    for(GCupval* uv = T->open_upvalues; uv != NULL; uv = uv->next)
     {
-        upvalue->location = (upvalue->location - old_stack) + T->stack;
+        uv->location = (uv->location - old_stack) + T->stack;
     }
     for(CallInfo* ci = T->ci_base; ci <= T->ci; ci++)
     {

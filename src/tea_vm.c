@@ -789,7 +789,7 @@ static void vm_execute(tea_State* T)
                         break;
                     }
 
-                    instance_klass = (GCclass*)instance_klass->super;
+                    instance_klass = instance_klass->super;
                 }
 
                 T->top -= 2; /* Drop the instance and class */
