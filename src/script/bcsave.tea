@@ -80,25 +80,28 @@ function bcsave_raw(output, s)
 function bcsave_c(ctx, output, s)
 {
     const fp = savefile(output, 'w')
+    const mod = ctx['modname']
 
     if ctx['type'] == 'c'
     {
         fp.write(
-'#ifdef __cplusplus\n' +
-'extern "C"\n' +
-'#endif\n' +
-'#ifdef _WIN32\n' +
-'__declspec(dllexport)\n' +
-'#endif\n' +
-'const unsigned char ${ctx['modname']}[] = {\n'
-)
+```
+#ifdef __cplusplus
+extern "C"
+#endif
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+const unsigned char %s[] = {
+)```.format(mod))
     }
     else
     {
         fp.write(
-'#define ${ctx['modname']}_SIZE ${s.bytelen}\n' +
-'static const unsigned char ${ctx['modname']}[] = {\n'
-)
+```
+#define %s_SIZE %d
+static const unsigned char %s[] = {
+)```.format(mod, s.bytelen, mod))
     }
 
     const t = []
