@@ -4,8 +4,6 @@
 */
 
 #include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
 #include <math.h>
 
 #define tea_vm_c

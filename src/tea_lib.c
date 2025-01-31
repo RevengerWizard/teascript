@@ -3,6 +3,7 @@
 ** Library function support
 */
 
+#include <string.h>
 #include <errno.h>
 
 #define tea_lib_c

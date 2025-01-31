@@ -6,9 +6,6 @@
 #ifndef _TEA_OBJ_H
 #define _TEA_OBJ_H
 
-#include <stdio.h>
-#include <string.h>
-
 #include "tea.h"
 
 #include "tea_def.h"

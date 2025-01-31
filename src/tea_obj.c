@@ -3,11 +3,6 @@
 ** Teascript values and objects
 */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-
 #define tea_obj_c
 #define TEA_CORE
 

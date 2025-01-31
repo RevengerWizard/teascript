@@ -3,10 +3,6 @@
 ** Lexical analyzer
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #define tea_lex_c
 #define TEA_CORE
 
