@@ -12,7 +12,6 @@
 #include "tea.h"
 
 #include "tea_buf.h"
-#include "tea_tab.h"
 #include "tea_import.h"
 #include "tea_obj.h"
 #include "tea_func.h"
@@ -22,7 +21,7 @@
 #include "tea_parse.h"
 #include "tea_vm.h"
 
-/* -- Load Teascript source code and bytecode -------------------------------------------------- */
+/* -- Load Teascript source code and bytecode ------------------------------------- */
 
 static void parser_f(tea_State* T, void* ud)
 {
@@ -43,7 +42,6 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     GCstr* mname = tea_str_newlen(T, name);
     setstrV(T, T->top++, mname);
     GCmodule* module = tea_module_new(T, mname);
-    tea_tab_merge(T, &T->globals, &module->vars);
     T->top--;
     if(T->last_module != NULL && T->last_module->name == module->name)
     {
@@ -174,7 +172,6 @@ TEA_API int tea_eval(tea_State* T, const char* s)
     ctx.size = strlen(s);
 
     GCmodule* module = tea_module_new(T, tea_str_newlit(T, "?<eval>"));
-    tea_tab_merge(T, &T->globals, &module->vars);
     module->path = tea_str_newlit(T, ".");
 
     LexState ls;
@@ -196,7 +193,7 @@ TEA_API int tea_dump(tea_State* T, tea_Writer writer, void* data)
     cTValue* o = T->top - 1;
     tea_checkapi(T->top > T->base, "top slot empty");
     if(tvisfunc(o) && isteafunc(funcV(o)))
-        return tea_bcwrite(T, funcV(o)->t.pt, writer, data, 0);
+        return tea_bcwrite(T, funcV(o)->t.module, funcV(o)->t.pt, writer, data, 0);
     else
         return TEA_ERROR_SYNTAX;
 }

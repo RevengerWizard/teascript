@@ -17,6 +17,7 @@ typedef struct BCWriteCtx
     tea_State* T;
     SBuf sb;  /* Output buffer */
     GCproto* pt;  /* Root prototype */
+    GCmodule* mod;  /* Module */
     tea_Writer writer;   /* Writer callback */
     void* data;   /* Writer data */
     uint32_t flags; /* BCDUMP_F_* flags */
@@ -183,6 +184,27 @@ static void bcwrite_proto(BCWriteCtx* ctx, GCproto* pt)
     }
 }
 
+/* Write module */
+static void bcwrite_module(BCWriteCtx* ctx, GCmodule* mod)
+{
+    size_t size = mod->size;
+    char* p = tea_buf_need(ctx->T, &ctx->sb, 5);
+    p = bcwrite_wuleb128(p, size);
+    ctx->sb.w = p;
+    for(int i = 0; i < size; i++)
+    {
+        GCstr* name = mod->varnames[i];
+        tea_assertBCW(name != NULL, "bad variable name");
+        size_t len = name->len;
+        p = tea_buf_more(ctx->T, &ctx->sb, 5+len);
+        p = bcwrite_wuleb128(p, len);
+        p = tea_buf_wmem(p, str_data(name), len);
+        ctx->sb.w = p;
+    }
+    ctx->status = ctx->writer(ctx->T, ctx->data, 
+                            ctx->sb.b, (size_t)(p - ctx->sb.b));
+}
+
 /* Write header of bytecode dump */
 static void bcwrite_header(BCWriteCtx* ctx)
 {
@@ -214,16 +236,18 @@ static void f_writer(tea_State* T, void* ud)
     BCWriteCtx* ctx = (BCWriteCtx*)ud;
     tea_buf_need(T, &ctx->sb, 1024);  /* Avoids resize for most prototypes */
     bcwrite_header(ctx);
+    bcwrite_module(ctx, ctx->mod);
     bcwrite_proto(ctx, ctx->pt);
     bcwrite_footer(ctx);
 }
 
 /* Write bytecode for a prototype */
-int tea_bcwrite(tea_State* T, GCproto* pt, tea_Writer writer, void* data, uint32_t flags)
+int tea_bcwrite(tea_State* T, GCmodule* mod, GCproto* pt, tea_Writer writer, void* data, uint32_t flags)
 {
     BCWriteCtx ctx;
     ctx.T = T;
     ctx.pt = pt;
+    ctx.mod = mod;
     ctx.writer = writer;
     ctx.data = data;
     ctx.flags = flags;

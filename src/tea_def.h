@@ -44,6 +44,7 @@
 #define TEA_MAX_BCINS (1 << 26) /* Max. # of bytecode instructions */
 #define TEA_MAX_UPVAL 256  /* Max. # of upvalues */
 #define TEA_MAX_LOCAL 256  /* Max. # of local variables */
+#define TEA_MAX_VAR 256  /* Max. # of module variables */
 
 /* Various macros */
 #ifndef UNUSED

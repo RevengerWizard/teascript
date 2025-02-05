@@ -98,7 +98,7 @@ static void tab_resize(tea_State* T, Tab* tab, int size)
 
 #define TABLE_MAX_LOAD 0.75
 
-TValue* tea_tab_set(tea_State* T, Tab* tab, GCstr* key, bool* b)
+TValue* tea_tab_set(tea_State* T, Tab* tab, GCstr* key)
 {
     if(tab->count + 1 > tab->size * TABLE_MAX_LOAD)
     {
@@ -113,8 +113,6 @@ TValue* tea_tab_set(tea_State* T, Tab* tab, GCstr* key, bool* b)
         tab->count++;
 
     entry->key = key;
-
-    if(b) *b = is_new_key;
 
     return &entry->val;
 }
@@ -143,7 +141,7 @@ void tea_tab_merge(tea_State* T, Tab* from, Tab* to)
         TabEntry* entry = &from->entries[i];
         if(entry->key != NULL)
         {
-            TValue* o = tea_tab_set(T, to, entry->key, NULL);
+            TValue* o = tea_tab_set(T, to, entry->key);
             copyTV(T, o, &entry->val);
         }
     }

@@ -647,7 +647,7 @@ static void set_method(tea_State* T, int obj, const char* name)
     TValue* item = T->top - 1;
     GCstr* str = tea_str_newlen(T, name);
     GCclass* k = classV(object);
-    copyTV(T, tea_tab_set(T, &k->methods, str, NULL), item);
+    copyTV(T, tea_tab_set(T, &k->methods, str), item);
     T->top--;
     if(str == mmname_str(T, MM_NEW))
     {
@@ -1082,7 +1082,7 @@ TEA_API void tea_set_global(tea_State* T, const char* name)
     tea_checkapi_slot(1);
     TValue* o = T->top - 1;
     GCstr* str = tea_str_newlen(T, name);
-    copyTV(T, tea_tab_set(T, &T->globals, str, NULL), o);
+    copyTV(T, tea_tab_set(T, &T->globals, str), o);
     T->top--;
 }
 
@@ -1109,7 +1109,7 @@ TEA_API void tea_set_var(tea_State* T, const char* name, const char* var)
     GCstr* s1 = tea_str_newlen(T, name);
     GCstr* s2 = tea_str_newlen(T, var);
     GCmodule* module = moduleV(tea_tab_get(&T->modules, s1));
-    copyTV(T, tea_tab_set(T, &module->exports, s2, NULL), o);
+    copyTV(T, tea_tab_set(T, &module->exports, s2), o);
     T->top--;
 }
 

@@ -3,8 +3,6 @@
 ** Garbage collector
 */
 
-#include <stdlib.h>
-
 #define tea_gc_c
 #define TEA_CORE
 
@@ -84,14 +82,21 @@ static void gc_blacken(tea_State* T, GCobj* obj)
             GCmodule* module = gco2module(obj);
             gc_markobj(T, obj2gco(module->name));
             gc_markobj(T, obj2gco(module->path));
-            gc_marktab(T, &module->vars);
             gc_marktab(T, &module->exports);
+            for(int i = 0; i < module->size; i++)
+            {
+                gc_markobj(T, obj2gco(module->varnames[i]));
+            }
+            for(int i = 0; i < module->size; i++)
+            {
+                gc_markval(T, &module->vars[i]);
+            }
             break;
         }
         case TEA_TLIST:
         {
             GClist* list = gco2list(obj);
-            for(int i = 0; i < list->len; i++)
+            for(uint32_t i = 0; i < list->len; i++)
             {
                 gc_markval(T, list_slot(list, i));
             }

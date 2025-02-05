@@ -329,6 +329,33 @@ static GCproto* bcread_proto(LexState* ls)
     return pt;
 }
 
+/* Read module */
+static void bcread_module(LexState* ls)
+{
+    tea_State* T = ls->T;
+    GCmodule* mod = ls->module;
+    bcread_want(ls, 5);
+    size_t size = bcread_uleb128(ls);
+    if(mod->size > 0)
+    {
+        tea_mem_freevec(T, TValue, mod->vars, mod->size);
+        tea_mem_freevec(T, GCstr*, mod->varnames, mod->size);
+    }
+    mod->size = size;
+    mod->vars = tea_mem_newvec(T, TValue, size);
+    mod->varnames = tea_mem_newvec(T, GCstr*, size);
+    for(int i = 0; i < size; i++)
+    {
+        bcread_want(ls, 5);
+        size_t len = bcread_uleb128(ls);
+        const char* s = (const char*)bcread_mem(ls, len);
+        tea_assertT(s != NULL, "bad variable name");
+        GCstr* name = tea_str_new(T, s, len);
+        mod->varnames[i] = name;
+        setnilV(&mod->vars[i]);
+    }
+}
+
 /* Read and check header of bytecode dump */
 static bool bcread_header(LexState* ls)
 {
@@ -352,6 +379,7 @@ GCproto* tea_bcread(LexState* ls)
     /* Check for a valid bytecode dump header */
     if(!bcread_header(ls))
         bcread_error(ls, TEA_ERR_BCFMT);
+    bcread_module(ls);
 
     /* Process all functions in the bytecode dump */
     while(true)

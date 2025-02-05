@@ -55,8 +55,8 @@ function bcline(func, ofs, out)
     switch bcname
     {
         case "CONSTANT", "PUSH_ATTR",
-        "GET_MODULE", "SET_MODULE",
         "GET_ATTR", "SET_ATTR",
+        "DEFINE_MODULE", "GET_GLOBAL",
         "GET_SUPER",
         "CLASS",
         "METHOD",
@@ -70,7 +70,6 @@ function bcline(func, ofs, out)
             return ofs + 2
         }
         case "DEFINE_OPTIONAL",
-        "DEFINE_MODULE",
         "UNPACK_REST",
         "FOR_ITER", "GET_ITER"
         {
@@ -106,6 +105,7 @@ function bcline(func, ofs, out)
         }
         case "GET_LOCAL", "SET_LOCAL",
         "GET_UPVALUE", "SET_UPVALUE",
+        "GET_MODULE", "SET_MODULE",
         "MULTI_CASE", "UNPACK",
         "CALL", "INVOKE_NEW"
         {

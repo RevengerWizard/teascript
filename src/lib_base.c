@@ -166,7 +166,8 @@ static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
 
 static void base_dump(tea_State* T)
 {
-    GCproto* pt = tea_lib_checkTproto(T, 0, true);
+    GCfunc* func = tea_lib_checkfunc(T, 0, true);
+    GCproto* pt = func->t.pt;
     uint32_t flags = 0;
     SBuf* sb;
     TValue* o = T->base + 1;
@@ -188,7 +189,7 @@ static void base_dump(tea_State* T)
     }
     sb = tea_buf_tmp_(T);
     T->top = T->base + 1;
-    if(!pt || tea_bcwrite(T, pt, writer_buf, sb, flags))
+    if(tea_bcwrite(T, func->t.module, pt, writer_buf, sb, flags))
     {
         tea_err_msg(T, TEA_ERR_DUMP);
     }

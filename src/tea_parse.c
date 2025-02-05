@@ -4,6 +4,7 @@
 */
 
 #include <math.h>
+#include <stdio.h>
 
 #define tea_parse_c
 #define TEA_CORE
@@ -45,7 +46,7 @@ typedef enum
 
 typedef struct
 {
-    Token name;
+    GCstr* name;
     int depth;
     bool isupval;
     bool isconst;
@@ -105,6 +106,7 @@ typedef struct FuncState
     KlassState* klass; /* Current class state */
     Loop* loop; /* Current loop context */
     FuncInfo info;  /* Info about the function */
+    uint16_t varnum;  /* Number of variables */
     int local_count;    /* Number of local variables in scope */
     Local locals[TEA_MAX_LOCAL];  /* Current scoped locals */
     Upvalue upvalues[TEA_MAX_UPVAL];  /* Saved upvalues */
@@ -154,8 +156,8 @@ static Token lex_synthetic(FuncState* fs, const char* text)
     GCstr* s = tea_str_newlen(fs->ls->T, text);
     setstrV(fs->ls->T, &tok.tv, s);
     return tok;
-}
 
+}
 static void lex_consume(FuncState* fs, LexToken tok)
 {
     if(fs->ls->curr.t == tok)
@@ -522,23 +524,22 @@ static void fs_init(LexState* ls, FuncState* fs, FuncInfo info)
 
     Local* local = &fs->locals[0];
     local->depth = 0;
+    local->init = true;
+    local->isconst = false;
     local->isupval = false;
 
-    GCstr* s;
     switch(info)
     {
         case FUNC_SCRIPT:
         case FUNC_NORMAL:
         case FUNC_ANONYMOUS:
         case FUNC_ARROW:
-            s = &T->strempty;
-            setstrV(T, &local->name.tv, s);
+            local->name = &T->strempty;
             break;
         case FUNC_INIT:
         case FUNC_METHOD:
         case FUNC_OPERATOR:
-            s = tea_str_newlit(T, "self");
-            setstrV(T, &local->name.tv, s);
+            local->name = tea_str_newlit(T, "self");
             break;
         default:
             break;
@@ -553,6 +554,7 @@ static void scope_begin(FuncState* fs)
     fs->scope_depth++;
 }
 
+/* Discare locals with open upvalues in a scope */
 static int scope_discard(FuncState* fs, int depth)
 {
     int local;
@@ -588,6 +590,7 @@ static const int bc_argcount[] = {
 #undef BCARG
 };
 
+/* Begin a loop */
 static void loop_begin(FuncState* fs, Loop* loop)
 {
     loop->start = fs->pc;
@@ -596,6 +599,7 @@ static void loop_begin(FuncState* fs, Loop* loop)
     fs->loop = loop;
 }
 
+/* End a loop */
 static void loop_end(FuncState* fs)
 {
     if(fs->loop->end != -1)
@@ -623,12 +627,13 @@ static void loop_end(FuncState* fs)
 
 /* -- Variable handling --------------------------------------------------- */
 
-static int var_lookup_local(FuncState* fs, Token* name)
+/* Lookup a local variable by name */
+static int var_lookup_local(FuncState* fs, Token* tok)
 {
     for(int i = fs->local_count - 1; i >= 0; i--)
     {
         Local* local = &fs->locals[i];
-        if(strV(&name->tv) == strV(&local->name.tv))
+        if(strV(&tok->tv) == local->name)
         {
             if(local->depth == -1)
                 break;
@@ -638,6 +643,7 @@ static int var_lookup_local(FuncState* fs, Token* name)
     return -1;
 }
 
+/* Map an upvalue to the FuncState */
 static int var_add_uv(FuncState* fs, uint8_t index, bool islocal, bool isconst)
 {
     uint32_t i, n = fs->nuv;
@@ -657,13 +663,14 @@ static int var_add_uv(FuncState* fs, uint8_t index, bool islocal, bool isconst)
     return fs->nuv++;
 }
 
-static int var_lookup_uv(FuncState* fs, Token* name)
+/* Lookup an upvalue by name */
+static int var_lookup_uv(FuncState* fs, Token* tok)
 {
     if(fs->prev == NULL)
         return -1;
 
     bool isconst;
-    int local = var_lookup_local(fs->prev, name);
+    int local = var_lookup_local(fs->prev, tok);
     if(local != -1)
     {
         isconst = fs->prev->locals[local].isconst;
@@ -671,7 +678,7 @@ static int var_lookup_uv(FuncState* fs, Token* name)
         return var_add_uv(fs, (uint8_t)local, true, isconst);
     }
 
-    int upvalue = var_lookup_uv(fs->prev, name);
+    int upvalue = var_lookup_uv(fs->prev, tok);
     if(upvalue != -1)
     {
         isconst = fs->prev->upvalues[upvalue].isconst;
@@ -681,25 +688,34 @@ static int var_lookup_uv(FuncState* fs, Token* name)
     return -1;
 }
 
+/* Mark a variable as constant */
 static void var_mark(FuncState* fs, bool isconst)
 {
-    if(fs->scope_depth == 0) return;
-    fs->locals[fs->local_count - 1].depth = fs->scope_depth;
-    fs->locals[fs->local_count - 1].isconst = isconst;
+    if(fs->scope_depth == 0)
+    {
+        fs->ls->vstack[fs->ls->vtop - 1].isconst = isconst;
+        fs->ls->vstack[fs->ls->vtop - 1].init = true;
+    }
+    else
+    {
+        fs->locals[fs->local_count - 1].depth = fs->scope_depth;
+        fs->locals[fs->local_count - 1].isconst = isconst;
+    }
 }
 
-static int var_add_local(FuncState* fs, Token name)
+/* Add a local variable */
+static int var_add_local(FuncState* fs, Token tok)
 {
     checklimit(fs, fs->local_count, TEA_MAX_LOCAL, "local variables");
-    int found = var_lookup_local(fs, &name);
+    int found = var_lookup_local(fs, &tok);
     if(found != -1 && fs->locals[found].init && 
         fs->locals[found].depth == fs->scope_depth)
     {
-        GCstr* name = strV(&fs->locals[found].name.tv);
+        GCstr* name = fs->locals[found].name;
         tea_lex_error(fs->ls, fs->ls->prev.t, fs->ls->prev.line, TEA_ERR_XDECL, str_data(name));
     }
     Local* local = &fs->locals[fs->local_count++];
-    local->name = name;
+    local->name = strV(&tok.tv);
     local->depth = -1;
     local->isupval = false;
     local->isconst = false;
@@ -707,29 +723,142 @@ static int var_add_local(FuncState* fs, Token name)
     return fs->local_count - 1;
 }
 
-static void var_declare(FuncState* fs, Token* name)
+/* Lookup a top-level variable by name */
+static int var_lookup_var(FuncState* fs, Token* tok)
 {
-    if(fs->scope_depth == 0)
-        return;
-    var_add_local(fs, *name);
+    for(int i = 0; i < fs->ls->vtop; i++)
+    {
+        VarInfo* v = &fs->ls->vstack[i];
+        if(strV(&tok->tv) == v->name)
+        {
+            if(!v->init && fs->scope_depth == 0)
+                break;
+            return i;
+        }
+    }
+    return -1;
 }
 
-static void var_define(FuncState* fs, Token* name, bool isconst, uint8_t export)
+/* Add a top-level variable */
+static void var_add_var(FuncState* fs, Token* tok, bool init)
 {
-    if(fs->scope_depth > 0)
+    LexState* ls = fs->ls;
+    uint32_t vtop = ls->vtop;
+    checklimit(fs, fs->varnum, TEA_MAX_VAR, "variables");
+    int idx = var_lookup_var(fs, tok);
+    if(idx != -1)
     {
-        var_mark(fs, isconst);
-        return;
+        tea_lex_error(ls, ls->prev.t, ls->prev.line, TEA_ERR_XDECL, str_data(ls->vstack[idx].name));
     }
-    GCstr* str = strV(&name->tv);
-    uint8_t k = const_str(fs, str);
-    if(isconst)
+    if(TEA_UNLIKELY(vtop >= ls->sizevstack))
     {
-        TValue* o = tea_tab_set(fs->ls->T, &fs->ls->T->constants, str, NULL);
-        setnilV(o);
+        ls->vstack = tea_mem_growvec(ls->T, VarInfo, ls->vstack, ls->sizevstack, TEA_MAX_VAR);
     }
-    bcemit_argued(fs, BC_DEFINE_MODULE, k);
-    bcemit_byte(fs, export);
+    fs->varnum++;
+    /* Add new var info to the vtop of vstack */
+    ls->vtop = vtop + 1;
+    VarInfo* v = &ls->vstack[vtop]; 
+    v->name = strV(&tok->tv);
+    v->isconst = false;
+    v->init = init;
+}
+
+/* Declare a variable */
+static void var_declare(FuncState* fs, Token* tok)
+{
+    if(fs->scope_depth == 0)
+        var_add_var(fs, tok, false);
+    else
+        var_add_local(fs, *tok);
+}
+
+/* Define a variable */
+static void var_define(FuncState* fs, Token* tok, bool isconst, bool export)
+{
+    var_mark(fs, isconst);
+    if(fs->scope_depth == 0)
+    {
+        uint8_t idx = fs->ls->vtop - 1;
+        bcemit_argued(fs, BC_SET_MODULE, idx);
+        if(export)
+        {
+            GCstr* str = strV(&tok->tv);
+            uint8_t k = const_str(fs, str);
+            bcemit_argued(fs, BC_DEFINE_MODULE, k);
+        }
+        bcemit_byte(fs, BC_POP);
+    }
+}
+
+/* Find get/set bytecodes for variable */
+static int var_find(FuncState* fs, Token* tok, bool assign, uint8_t* get_op, uint8_t* set_op)
+{
+    GCstr* name = strV(&tok->tv);
+    int arg = var_lookup_local(fs, tok);
+    if(arg != -1)
+    {
+        *get_op = BC_GET_LOCAL;
+        *set_op = BC_SET_LOCAL;
+    }
+    else if((arg = var_lookup_uv(fs, tok)) != -1)
+    {
+        *get_op = BC_GET_UPVALUE;
+        *set_op = BC_SET_UPVALUE;
+    }
+    else if((arg = var_lookup_var(fs, tok)) != -1)
+    {
+        *get_op = BC_GET_MODULE;
+        *set_op = BC_SET_MODULE;
+    }
+    else if(!assign && tea_tab_get(&fs->T->globals, name) != NULL)
+    {
+        arg = const_str(fs, name);
+        *get_op = BC_GET_GLOBAL;
+    }
+    else
+    {
+        tea_lex_error(fs->ls, fs->ls->prev.t, fs->ls->prev.line, TEA_ERR_XVAR, str_data(name));
+    }
+    return arg;
+}
+
+/* -- Variable fixup ------------------------------------------------------ */
+
+/* Fixup residue variables from module and globals */ 
+static void var_fixup_start(FuncState* fs)
+{
+    GCmodule* mod = fs->ls->module;
+    /* Add remaining module variables to the vstack */
+    if(mod->vars != NULL)
+    {
+        for(int i = 0; i < mod->size; i++)
+        {
+            GCstr* name = mod->varnames[i];
+            Token tok;
+            setstrV(fs->ls->T, &tok.tv, name);
+            var_add_var(fs, &tok, true);
+        }
+    }
+}
+
+/* Fixup module arrays of variable names and slots */
+static void var_fixup_end(FuncState* fs)
+{
+    tea_State* T = fs->T;
+    GCmodule* mod = fs->ls->module;
+    int oldsize = mod->size;
+    int newsize = fs->varnum;
+    /* Allocate new arrays for module variables */
+    mod->size = newsize;
+    mod->vars = tea_mem_reallocvec(T, TValue, mod->vars, oldsize, newsize);
+    mod->varnames = tea_mem_reallocvec(T, GCstr*, mod->varnames, oldsize, newsize);
+    for(int i = oldsize; i < newsize; i++)
+    {
+        GCstr* name = fs->ls->vstack[i].name;
+        tea_assertT(name != NULL, "bad variable name"); 
+        mod->varnames[i] = name;
+        setnilV(&mod->vars[i]);
+    }
 }
 
 /* -- Expressions --------------------------------------------------------- */
@@ -1198,7 +1327,7 @@ static void expr_interpolation(FuncState* fs, bool assign)
     bcemit_invoke(fs, 0, "join");
 }
 
-static void check_const(FuncState* fs, uint8_t set_op, int arg, GCstr* str)
+static void check_const(FuncState* fs, uint8_t set_op, int arg)
 {
     switch(set_op)
     {
@@ -1220,7 +1349,7 @@ static void check_const(FuncState* fs, uint8_t set_op, int arg, GCstr* str)
         }
         case BC_SET_MODULE:
         {
-            if(tea_tab_get(&fs->ls->T->constants, str))
+            if(fs->ls->vstack[arg].isconst)
             {
                 error(fs, TEA_ERR_XVCONST);
             }
@@ -1233,38 +1362,20 @@ static void check_const(FuncState* fs, uint8_t set_op, int arg, GCstr* str)
 
 static void named_variable(FuncState* fs, Token name, bool assign)
 {
-    GCstr* str = NULL;
     uint8_t get_op, set_op;
-    int arg = var_lookup_local(fs, &name);
-    if(arg != -1)
-    {
-        get_op = BC_GET_LOCAL;
-        set_op = BC_SET_LOCAL;
-    }
-    else if((arg = var_lookup_uv(fs, &name)) != -1)
-    {
-        get_op = BC_GET_UPVALUE;
-        set_op = BC_SET_UPVALUE;
-    }
-    else
-    {
-        str = strV(&name.tv);
-        arg = const_str(fs, str);
-        get_op = BC_GET_MODULE;
-        set_op = BC_SET_MODULE;
-    }
+    int arg = var_find(fs, &name, lex_check(fs, '='), &get_op, &set_op);
 
     int bc;
     if(assign && lex_match(fs, '='))
     {
-        check_const(fs, set_op, arg, str);
+        check_const(fs, set_op, arg);
         expr(fs);
         bcemit_argued(fs, set_op, (uint8_t)arg);
     }
     else if(assign && (bc = bcassign(fs)))
     {
         tea_lex_next(fs->ls);
-        check_const(fs, set_op, arg, str);
+        check_const(fs, set_op, arg);
         bcemit_argued(fs, get_op, (uint8_t)arg);
         expr(fs);
         bcemit_op(fs, bc);
@@ -1277,7 +1388,7 @@ static void named_variable(FuncState* fs, Token name, bool assign)
         else bc = 0;
         if(bc)
         {
-            check_const(fs, set_op, arg, str);
+            check_const(fs, set_op, arg);
             bcemit_argued(fs, get_op, (uint8_t)arg);
             TValue _v;
             setnumV(&_v, 1);
@@ -1316,7 +1427,7 @@ static void expr_super(FuncState* fs, bool assign)
         return;
     }
 
-    /* super() -> super.init() */
+    /* super() -> super.new() */
     if(lex_match(fs, '('))
     {
         Token tok = lex_synthetic(fs, "new");
@@ -2507,25 +2618,10 @@ static void parse_multiple_assign(FuncState* fs)
 finish:
     for(int i = var_count - 1; i >= 0; i--)
     {
-        GCstr* str = NULL;
         Token tok = vars[i];
-        uint8_t set_op;
-        int arg = var_lookup_local(fs, &tok);
-        if(arg != -1)
-        {
-            set_op = BC_SET_LOCAL;
-        }
-        else if((arg = var_lookup_uv(fs, &tok)) != -1)
-        {
-            set_op = BC_SET_UPVALUE;
-        }
-        else
-        {
-            str = strV(&tok.tv);
-            arg = const_str(fs, str);
-            set_op = BC_SET_MODULE;
-        }
-        check_const(fs, set_op, arg, str);
+        uint8_t get_op, set_op;
+        int arg = var_find(fs, &tok, true, &get_op, &set_op);
+        check_const(fs, set_op, arg);
         bcemit_argued(fs, set_op, (uint8_t)arg);
         bcemit_op(fs, BC_POP);
     }
@@ -2552,17 +2648,22 @@ static void parse_export(FuncState* fs)
             Token name;
             lex_consume(fs, TK_NAME);
             name = fs->ls->prev;
+            int idx = var_lookup_var(fs, &name);
+            if(idx == -1)
+            {
+                tea_lex_error(fs->ls, fs->ls->prev.t, fs->ls->prev.line, TEA_ERR_XVAR, str_data(strV(&name.tv)));
+            }
+            bcemit_argued(fs, BC_GET_MODULE, idx);
             uint8_t k = const_str(fs, strV(&name.tv));
-            bcemit_argued(fs, BC_GET_MODULE, k);
             bcemit_argued(fs, BC_DEFINE_MODULE, k);
-            bcemit_byte(fs, 2);
+            bcemit_byte(fs, BC_POP);
         }
         while(lex_match(fs, ','));
     }
     lex_consume(fs, '}');
 }
 
-/* -- Parse statements and declarations ---------------------------------------------------- */
+/* -- Parse statements and declarations ------------------------------------ */
 
 /* Parse a statement */
 static void parse_stmt(FuncState* fs)
@@ -2653,6 +2754,25 @@ static void parse_decl(FuncState* fs, bool export)
     }
 }
 
+/* A chunk is a sequence of statements or a single expression */
+static void parse_chunk(FuncState* fs, bool isexpr)
+{
+    if(isexpr)
+    {
+        expr(fs);
+        bcemit_op(fs, BC_RETURN);
+        lex_consume(fs, TK_EOF);
+    }
+    else
+    {
+        while(!lex_match(fs, TK_EOF))
+        {
+            parse_decl(fs, false);
+        }
+        bcemit_return(fs);
+    }
+}
+
 /* Entry point of bytecode parser */
 GCproto* tea_parse(LexState* ls, bool isexpr)
 {
@@ -2663,29 +2783,13 @@ GCproto* tea_parse(LexState* ls, bool isexpr)
     fs.linedefined = 0;
     fs.bcbase = NULL;
     fs.bclimit = 0;
-
+    fs.varnum = 0;
     tea_lex_next(fs.ls);   /* Read the first token into "next" */
     tea_lex_next(fs.ls);   /* Copy "next" -> "curr" */
-
-    if(isexpr)
-    {
-        expr(&fs);
-        bcemit_op(&fs, BC_RETURN);
-        lex_consume(&fs, TK_EOF);
-    }
-    else
-    {
-        while(!lex_match(&fs, TK_EOF))
-        {
-            parse_decl(&fs, false);
-        }
-        bcemit_return(&fs);
-    }
-    if(strncmp(str_data(ls->module->name), "=<stdin>", 8) != 0)
-    {
-        tea_tab_free(T, &T->constants);
-    }
+    var_fixup_start(&fs);
+    parse_chunk(&fs, isexpr);
     pt = fs_finish(ls, ls->linenumber);
+    var_fixup_end(&fs);
     tea_assertT(fs.prev == NULL && ls->fs == NULL, "mismatched frame nesting");
     tea_assertT(pt->sizeuv == 0, "top level proto has upvalues");
     return pt;

@@ -122,6 +122,23 @@ badtype:
     return 0;
 }
 
+GCfunc* tea_lib_checkfunc(tea_State* T, int idx, bool notea)
+{
+    TValue* o = T->base + idx;
+    if(T->top > o)
+    {
+        if(tvisfunc(o))
+        {
+            if(isteafunc(funcV(o)))
+                return funcV(o);
+            else if(notea)
+                return NULL;
+        }
+    }
+    tea_err_argt(T, idx, TEA_TYPE_FUNCTION);
+    return NULL; /* Unreachable */
+}
+
 GCproto* tea_lib_checkTproto(tea_State* T, int idx, bool notea)
 {
     TValue* o = T->base + idx;

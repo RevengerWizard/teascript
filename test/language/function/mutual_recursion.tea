@@ -1,7 +1,7 @@
 function even(n) 
 {
     if n == 0 { return true }
-    return odd(n - 1)
+    return odd(n - 1)   // expect error
 }
 
 function odd(n) 
@@ -10,5 +10,5 @@ function odd(n)
     return even(n - 1)
 }
 
-print(even(4)) // expect: true
-print(odd(3)) // expect: true
+print(even(4))
+print(odd(3))

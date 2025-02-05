@@ -137,7 +137,9 @@ typedef struct
     GCobj obj;
     GCstr* name;    /* Canonical module name */
     GCstr* path;    /* Absolute module path */
-    Tab vars;   /* Table of private variables */
+    TValue* vars;   /* Array of variables */
+    GCstr** varnames;  /* Array of variable names */
+    uint16_t size;  /* Number of variables */
     Tab exports;  /* Table of exported variables */
 } GCmodule;
 
@@ -398,7 +400,6 @@ struct tea_State
     StrInternState str;   /* String interning */
     Tab modules;   /* Table of cached modules */
     Tab globals;   /* Table of globals */
-    Tab constants;    /* Table to keep track of 'const' variables */
     SBuf tmpbuf;    /* Termorary string buffer */
     SBuf strbuf;    /* Termorary string conversion buffer */
     TValue tmptv;   /* Temporary TValue */

@@ -142,7 +142,7 @@ function bclist(ctx, input, output)
 function bcsave(ctx, input, output)
 {
     const f = readfile(ctx, input)
-    const s = dump(f, ctx.mode)
+    const s = dump(f, ctx['mode'])
     var t = ctx['type']
     if not t
     {

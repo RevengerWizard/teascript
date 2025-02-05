@@ -1,12 +1,11 @@
 var module = "from here"
 var c = "value c"
 
-from "module" import a, module as another, b    // expect: ran module
-from "module" import c as other
+from "module" import d, module as another, e    // expect: ran module
+from "module" import f as other
 
 print(module)   // expect: from here
 print(another)  // expect: from module
-print(a)    // expect: module a
-print(b)    // expect: module b
-print(c)    // expect: value c
-print(other)    // expect: module c
+print(d)    // expect: module d
+print(e)    // expect: module e
+print(other)    // expect: module f

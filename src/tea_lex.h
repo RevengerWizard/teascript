@@ -11,6 +11,7 @@
 #include "tea_buf.h"
 #include "tea_obj.h"
 #include "tea_err.h"
+#include <stdint.h>
 
 /* Teascript lexer tokens */
 #define TKDEF(_) \
@@ -62,6 +63,14 @@ typedef struct BCInsLine
     BCLine line;    /* Line number for this bytecode */
 } BCInsLine;
 
+/* Info for variables. Only used for bytecode generation */
+typedef struct VarInfo
+{
+    GCstr* name;   /* Variable name */
+    bool isconst;   /* Constant variable */
+    bool init;  /* Initialized variable */
+} VarInfo;
+
 /* Teascript lexer state */
 typedef struct LexState
 {
@@ -88,6 +97,9 @@ typedef struct LexState
     const char* mode;   /* Load bytecode (b) and/or source text (t) */
     BCInsLine* bcstack; /* Stack for bytecode instructions/line numbers */
     uint32_t sizebcstack;	/* Size of bytecode stack */
+    VarInfo* vstack;  /* Variable stack */
+    uint32_t vtop;  /* Top of variable stack */
+    uint32_t sizevstack;	/* Size of variable stack */
     bool endmark;   /* Trust bytecode end marker, even if not at EOF */
     bool eval;  /* Evaluate expression */
 } LexState;

@@ -1,5 +1,8 @@
 import math, random
 
+const base = 3
+const side = base * base
+
 function pattern(r, c)
 {
     return (base * (r % base) + math.floor(r / base) + c) % side
@@ -10,13 +13,10 @@ function shuffle(arr)
     return random.shuffle(arr.copy())
 }
 
-const base = 3
-const side = base * base
-
 const rbase = [...0..base]
 const rows = rbase.map((g) => shuffle(rbase).map((r) => g * base + r)).flat()
 const cols = rbase.map((g) => shuffle(rbase).map((c) => g * base + c)).flat()
-const nums = shuffle([...0..base*base]).map((n) => n + 1)
+var nums = shuffle([...0..base*base]).map((n) => n + 1)
 
 const board = rows.map((r) => cols.map((c) => nums[pattern(r, c)]))
 
@@ -27,7 +27,7 @@ const line3 = '╠═══╪═══╪═══╬═══╪═══╪�
 const line4 = '╚═══╧═══╧═══╩═══╧═══╧═══╩═══╧═══╧═══╝'
 
 const symbol = ' 1234567890'
-const nums = board.map((row) => {
+nums = board.map((row) => {
     return [''] + row.map((n) => symbol[n])
 })
 

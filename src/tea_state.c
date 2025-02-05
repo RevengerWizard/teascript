@@ -166,7 +166,6 @@ static void state_close(tea_State* T)
     tea_buf_free(T, &T->strbuf);
     tea_tab_free(T, &T->modules);
     tea_tab_free(T, &T->globals);
-    tea_tab_free(T, &T->constants);
     tea_gc_freeall(T);
     tea_imp_freehandle(T);  /* Close pending library handles */
     tea_str_freetab(T);
@@ -195,7 +194,6 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     tea_buf_init(&T->strbuf);
     tea_tab_init(&T->modules);
     tea_tab_init(&T->globals);
-    tea_tab_init(&T->constants);
     setnilV(&T->nilval);
     if(tea_err_protected(T, cpteaopen, NULL) != TEA_OK)
     {

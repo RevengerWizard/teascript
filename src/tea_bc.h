@@ -23,6 +23,7 @@
     _(SET_LOCAL, 0, 1) \
     _(GET_MODULE, 1, 1) \
     _(SET_MODULE, 0, 1) \
+    _(GET_GLOBAL, 1, 1) \
     _(DEFINE_OPTIONAL, 0, 2) \
     _(DEFINE_MODULE, 0, 2) \
     _(GET_UPVALUE, 1, 1) \

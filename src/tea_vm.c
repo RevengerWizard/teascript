@@ -467,26 +467,30 @@ static void vm_execute(tea_State* T)
             }
             CASE_CODE(BC_GET_MODULE):
             {
-                GCstr* name = READ_STRING();
-                TValue* o = tea_tab_get(&T->ci->func->t.module->vars, name);
-                if(!o)
-                {
-                    RUNTIME_ERROR(TEA_ERR_VAR, str_data(name));
-                }
-                copyTV(T, T->top++, o);
+                uint8_t slot = READ_BYTE();
+                TValue* vars = T->ci->func->t.module->vars;
+                copyTV(T, T->top++, vars + slot);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_MODULE):
             {
-                bool b;
+                uint8_t slot = READ_BYTE();
+                TValue* vars = T->ci->func->t.module->vars;
+                copyTV(T, vars + slot, T->top - 1);
+                DISPATCH();
+            }
+            CASE_CODE(BC_GET_GLOBAL):
+            {
                 GCstr* name = READ_STRING();
-                TValue* o = tea_tab_set(T, &T->ci->func->t.module->vars, name, &b);
-                if(b)
+                cTValue* o = tea_tab_get(&T->globals, name);
+                if(TEA_LIKELY(o))
                 {
-                    tea_tab_delete(&T->ci->func->t.module->vars, name);
-                    RUNTIME_ERROR(TEA_ERR_VAR, str_data(name));
+                    copyTV(T, T->top++, o);
                 }
-                copyTV(T, o, T->top - 1);
+                else
+                {
+                    setnilV(T->top++);
+                }
                 DISPATCH();
             }
             CASE_CODE(BC_DEFINE_OPTIONAL):
@@ -529,31 +533,22 @@ static void vm_execute(tea_State* T)
             CASE_CODE(BC_DEFINE_MODULE):
             {
                 GCstr* name = READ_STRING();
-                uint8_t flag = READ_BYTE();
-                cTValue* o = T->top - 1;
-                if(flag == 1 || flag == 0)
-                {
-                    copyTV(T, tea_tab_set(T, &T->ci->func->t.module->vars, name, NULL), o);
-                }
-                if(flag == 1 || flag == 2)
-                {
-                    copyTV(T, tea_tab_set(T, &T->ci->func->t.module->exports, name, NULL), o);
-                }
-                T->top--;
+                copyTV(T, tea_tab_set(T, 
+                &T->ci->func->t.module->exports, name), T->top - 1);
                 DISPATCH();
             }
             CASE_CODE(BC_GET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                TValue* v = T->ci->func->t.upvalues[slot]->location;
-                copyTV(T, T->top++, v);
+                TValue* o = T->ci->func->t.upvalues[slot]->location;
+                copyTV(T, T->top++, o);
                 DISPATCH();
             }
             CASE_CODE(BC_SET_UPVALUE):
             {
                 uint8_t slot = READ_BYTE();
-                TValue* v = T->ci->func->t.upvalues[slot]->location;
-                copyTV(T, v, T->top - 1);
+                TValue* o = T->ci->func->t.upvalues[slot]->location;
+                copyTV(T, o, T->top - 1);
                 DISPATCH();
             }
             CASE_CODE(BC_GET_ATTR):
@@ -1185,7 +1180,7 @@ static void vm_execute(tea_State* T)
                 GCstr* name = READ_STRING();
                 TValue* mo = T->top - 1;
                 GCclass* klass = classV(T->top - 2);
-                copyTV(T, tea_tab_set(T, &klass->methods, name, NULL), mo);
+                copyTV(T, tea_tab_set(T, &klass->methods, name), mo);
                 if(name == mmname_str(T, MM_NEW)) copyTV(T, &klass->init, mo);
                 T->top--;
                 DISPATCH();

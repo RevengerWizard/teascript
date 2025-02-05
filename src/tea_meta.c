@@ -205,13 +205,13 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
                 tea_vm_call(T, mo, 2);
                 return --T->top;
             }
-            copyTV(T, tea_tab_set(T, &instance->attrs, name, NULL), item);
+            copyTV(T, tea_tab_set(T, &instance->attrs, name), item);
             return item;
         }
         case TEA_TMODULE:
         {
             GCmodule* module = moduleV(obj);
-            copyTV(T, tea_tab_set(T, &module->exports, name, NULL), item);
+            copyTV(T, tea_tab_set(T, &module->exports, name), item);
             return item;
         }
         default:

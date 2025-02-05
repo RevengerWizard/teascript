@@ -33,7 +33,7 @@
 
 /* -- Bytecode reader/writer ---------------------------------------------- */
 
-TEA_FUNC int tea_bcwrite(tea_State* T, GCproto* pt, tea_Writer writer, void* data, uint32_t flags);
+TEA_FUNC int tea_bcwrite(tea_State* T, GCmodule* mod, GCproto* pt, tea_Writer writer, void* data, uint32_t flags);
 TEA_FUNC GCproto* tea_bcread(LexState* ls);
 
 #endif

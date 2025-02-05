@@ -786,6 +786,9 @@ bool tea_lex_setup(tea_State* T, LexState* ls)
     ls->T = T;
     ls->fs = NULL;
     ls->pe = ls->p = NULL;
+    ls->vstack = NULL;
+    ls->sizevstack = 0;
+    ls->vtop = 0;
     ls->bcstack = NULL;
     ls->sizebcstack = 0;
     ls->next.t = 0; /* Initialize the next token */
@@ -822,7 +825,7 @@ bool tea_lex_setup(tea_State* T, LexState* ls)
             ** Loading bytecode with an extra header is disabled for security
             ** reasons. This may circumvent the usual check for bytecode vs.
             ** Teascript code by looking at the first char. Since this is a potential
-            ** security violation no attempt is made to echo the chunkname either.
+            ** security violation no attempt is made to echo the name either.
             */
             setstrV(T, T->top++, tea_err_str(T, TEA_ERR_BCBAD));
             tea_err_throw(T, TEA_ERROR_SYNTAX);
@@ -836,6 +839,7 @@ bool tea_lex_setup(tea_State* T, LexState* ls)
 void tea_lex_cleanup(tea_State* T, LexState* ls)
 {
     tea_mem_freevec(T, BCInsLine, ls->bcstack, ls->sizebcstack);
+    tea_mem_freevec(T, VarInfo, ls->vstack, ls->sizevstack);
     tea_buf_free(T, &ls->sb);
 }
 

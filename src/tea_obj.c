@@ -24,37 +24,37 @@ TEA_DATADEF const char* const tea_obj_typenames[] = {
 GCmodule* tea_module_new(tea_State* T, GCstr* name)
 {
     char c = str_data(name)[0];
-    TValue* module_val = tea_tab_get(&T->modules, name);
-    if(c != '?' && module_val)
+    TValue* mod_val = tea_tab_get(&T->modules, name);
+    if(c != '?' && mod_val)
     {
-        return moduleV(module_val);
+        return moduleV(mod_val);
     }
 
-    GCmodule* module = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
-    tea_tab_init(&module->vars);
-    tea_tab_init(&module->exports);
-    module->name = name;
-    module->path = NULL;
+    GCmodule* mod = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
+    mod->name = name;
+    mod->path = NULL;
+    mod->vars = NULL;
+    mod->varnames = NULL;
+    mod->size = 0;
+    tea_tab_init(&mod->exports);
 
-    setmoduleV(T, T->top++, module);
-
-    TValue o;
-    setmoduleV(T, &o, module);
-    copyTV(T, tea_tab_set(T, &T->modules, name, NULL), &o);
-    
+    setmoduleV(T, T->top++, mod);
+    setmoduleV(T, tea_tab_set(T, &T->modules, name), mod);
     T->top--;
 
-    return module;
+    return mod;
 }
 
 GCmodule* tea_submodule_new(tea_State* T, GCstr* name)
 {
-    GCmodule* module = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
-    tea_tab_init(&module->vars);
-    tea_tab_init(&module->exports);
-    module->name = name;
-    module->path = NULL;
-    return module;
+    GCmodule* mod = tea_mem_newobj(T, GCmodule, TEA_TMODULE);
+    mod->name = name;
+    mod->path = NULL;
+    mod->vars = NULL;
+    mod->varnames = NULL;
+    mod->size = 0;
+    tea_tab_init(&mod->exports);
+    return mod;
 }
 
 GCrange* tea_range_new(tea_State* T, double start, double end, double step)
@@ -94,7 +94,8 @@ GCmethod* tea_method_new(tea_State* T, TValue* receiver, GCfunc* func)
 
 void TEA_FASTCALL tea_module_free(tea_State* T, GCmodule* module)
 {
-    tea_tab_free(T, &module->vars);
+    tea_mem_freevec(T, TValue, module->vars, module->size);
+    tea_mem_freevec(T, GCstr*, module->varnames, module->size);
     tea_tab_free(T, &module->exports);
     tea_mem_freet(T, module);
 }
