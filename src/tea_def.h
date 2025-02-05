@@ -203,7 +203,7 @@ unsigned long _byteswap_ulong(unsigned long);
 #define tea_assertT(c, ...) tea_assert_check((T), (c), __VA_ARGS__)
 #define tea_assertX(c, ...) tea_assert_check(NULL, (c), __VA_ARGS__)
 #else
-#define tea_assertT(c, ...) ((void)0)
+#define tea_assertT(c, ...) ((void)T)
 #define tea_assertX(c, ...) ((void)0)
 #endif
 
