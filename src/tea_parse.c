@@ -4,7 +4,6 @@
 */
 
 #include <math.h>
-#include <stdio.h>
 
 #define tea_parse_c
 #define TEA_CORE
@@ -150,14 +149,16 @@ TEA_NORET static void err_limit(FuncState* fs, uint32_t limit, const char* what)
 
 /* -- Lexer support ------------------------------------------------------- */
 
+/* Synthetic token */
 static Token lex_synthetic(FuncState* fs, const char* text)
 {
     Token tok;
     GCstr* s = tea_str_newlen(fs->ls->T, text);
     setstrV(fs->ls->T, &tok.tv, s);
     return tok;
-
 }
+
+/* Check for matching token and consume it */
 static void lex_consume(FuncState* fs, LexToken tok)
 {
     if(fs->ls->curr.t == tok)
@@ -237,6 +238,7 @@ GCstr* tea_parse_keepstr(LexState* ls, const char* str, size_t len)
 
 /* -- Bytecode emitter ---------------------------------------------------- */
 
+/* Emit a byte, which can be used for opcodes or arguments */
 static void bcemit_byte(FuncState* fs, uint8_t byte)
 {
     BCPos pc = fs->pc;
@@ -254,6 +256,7 @@ static void bcemit_byte(FuncState* fs, uint8_t byte)
     fs->pc = pc + 1;
 }
 
+/* Emit 2 bytes */
 static void bcemit_bytes(FuncState* fs, uint8_t byte1, uint8_t byte2)
 {
     bcemit_byte(fs, byte1);
@@ -281,12 +284,14 @@ static void bcemit_ops(FuncState* fs, BCOp op1, BCOp op2)
     fs->max_slots += bc_effects[op1] + bc_effects[op2];
 }
 
+/* Emit a bytecode instruction with a byte argument */
 static void bcemit_argued(FuncState* fs, BCOp op, uint8_t byte)
 {
     bcemit_bytes(fs, op, byte);
     fs->max_slots += bc_effects[op];
 }
 
+/* Emit a loop instruction */
 static void bcemit_loop(FuncState* fs, BCPos start)
 {
     bcemit_op(fs, BC_LOOP);
@@ -297,6 +302,7 @@ static void bcemit_loop(FuncState* fs, BCPos start)
     bcemit_byte(fs, ofs & 0xff);
 }
 
+/* Emit a jump instruction */
 static BCPos bcemit_jump(FuncState* fs, BCOp op)
 {
     bcemit_op(fs, op);
@@ -304,6 +310,7 @@ static BCPos bcemit_jump(FuncState* fs, BCOp op)
     return fs->pc - 2;
 }
 
+/* Emit a return instruction */
 static void bcemit_return(FuncState* fs)
 {
     if(fs->info == FUNC_INIT)
@@ -317,6 +324,7 @@ static void bcemit_return(FuncState* fs)
     bcemit_op(fs, BC_RETURN);
 }
 
+/* Emit an invoke instruction */
 static void bcemit_invoke(FuncState* fs, int args, const char* name)
 {
     GCstr* str = tea_str_new(fs->T, name, strlen(name));
@@ -334,6 +342,7 @@ static void bcemit_str(FuncState* fs, TValue* o)
     bcemit_argued(fs, BC_CONSTANT, const_str(fs, strV(o)));
 }
 
+/* Patch jump instruction */
 static void bcpatch_jump(FuncState* fs, BCPos ofs)
 {
     /* -2 to adjust for the bytecode for the jump offset itself */
@@ -599,7 +608,7 @@ static void loop_begin(FuncState* fs, Loop* loop)
     fs->loop = loop;
 }
 
-/* End a loop */
+/* End a loop, patch jumps and fixup bytecode */
 static void loop_end(FuncState* fs)
 {
     if(fs->loop->end != -1)
@@ -635,7 +644,7 @@ static int var_lookup_local(FuncState* fs, Token* tok)
         Local* local = &fs->locals[i];
         if(strV(&tok->tv) == local->name)
         {
-            if(local->depth == -1)
+            if(!local->init)
                 break;
             return i;
         }
@@ -644,22 +653,20 @@ static int var_lookup_local(FuncState* fs, Token* tok)
 }
 
 /* Map an upvalue to the FuncState */
-static int var_add_uv(FuncState* fs, uint8_t index, bool islocal, bool isconst)
+static int var_add_uv(FuncState* fs, uint8_t idx, bool islocal, bool isconst)
 {
     uint32_t i, n = fs->nuv;
     for(i = 0; i < n; i++)
     {
-        Upvalue* upvalue = &fs->upvalues[i];
-        if(upvalue->index == index && upvalue->islocal == islocal)
-        {
+        Upvalue* uv = &fs->upvalues[i];
+        if(uv->index == idx && uv->islocal == islocal)
             return i;
-        }
     }
     checklimit(fs, n, TEA_MAX_UPVAL, "closure variables");
     fs->upvalues[n].islocal = islocal;
-    fs->upvalues[n].index = index;
     fs->upvalues[n].isconst = isconst;
-    fs->uvmap[n] = (uint16_t)(((islocal) << 8) | (index));
+    fs->upvalues[n].index = idx;
+    fs->uvmap[n] = (uint16_t)(((islocal) << 8) | (idx));
     return fs->nuv++;
 }
 
@@ -670,19 +677,19 @@ static int var_lookup_uv(FuncState* fs, Token* tok)
         return -1;
 
     bool isconst;
-    int local = var_lookup_local(fs->prev, tok);
-    if(local != -1)
+    int idx = var_lookup_local(fs->prev, tok);
+    if(idx != -1)
     {
-        isconst = fs->prev->locals[local].isconst;
-        fs->prev->locals[local].isupval = true;
-        return var_add_uv(fs, (uint8_t)local, true, isconst);
+        isconst = fs->prev->locals[idx].isconst;
+        fs->prev->locals[idx].isupval = true;
+        return var_add_uv(fs, (uint8_t)idx, true, isconst);
     }
 
-    int upvalue = var_lookup_uv(fs->prev, tok);
-    if(upvalue != -1)
+    idx = var_lookup_uv(fs->prev, tok);
+    if(idx != -1)
     {
-        isconst = fs->prev->upvalues[upvalue].isconst;
-        return var_add_uv(fs, (uint8_t)upvalue, false, isconst);
+        isconst = fs->prev->upvalues[idx].isconst;
+        return var_add_uv(fs, (uint8_t)idx, false, isconst);
     }
 
     return -1;
@@ -698,8 +705,8 @@ static void var_mark(FuncState* fs, bool isconst)
     }
     else
     {
-        fs->locals[fs->local_count - 1].depth = fs->scope_depth;
         fs->locals[fs->local_count - 1].isconst = isconst;
+        fs->locals[fs->local_count - 1].init = true;
     }
 }
 
@@ -707,19 +714,18 @@ static void var_mark(FuncState* fs, bool isconst)
 static int var_add_local(FuncState* fs, Token tok)
 {
     checklimit(fs, fs->local_count, TEA_MAX_LOCAL, "local variables");
-    int found = var_lookup_local(fs, &tok);
-    if(found != -1 && fs->locals[found].init && 
-        fs->locals[found].depth == fs->scope_depth)
+    int idx = var_lookup_local(fs, &tok);
+    if(idx != -1 && fs->locals[idx].depth == fs->scope_depth)
     {
-        GCstr* name = fs->locals[found].name;
+        GCstr* name = fs->locals[idx].name;
         tea_lex_error(fs->ls, fs->ls->prev.t, fs->ls->prev.line, TEA_ERR_XDECL, str_data(name));
     }
     Local* local = &fs->locals[fs->local_count++];
     local->name = strV(&tok.tv);
-    local->depth = -1;
+    local->depth = fs->scope_depth;
     local->isupval = false;
     local->isconst = false;
-    local->init = true;
+    local->init = false;
     return fs->local_count - 1;
 }
 
@@ -824,7 +830,7 @@ static int var_find(FuncState* fs, Token* tok, bool assign, uint8_t* get_op, uin
 
 /* -- Variable fixup ------------------------------------------------------ */
 
-/* Fixup residue variables from module and globals */ 
+/* Fixup residue variables from module */ 
 static void var_fixup_start(FuncState* fs)
 {
     GCmodule* mod = fs->ls->module;

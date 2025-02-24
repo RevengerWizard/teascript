@@ -12,16 +12,16 @@
 #include "tea_gc.h"
 #include "tea_err.h"
 
+/* Create a new list, with a given optional size */
 GClist* tea_list_new(tea_State* T, size_t n)
 {
     TValue* items = NULL;
     if(n > 0)
     {
-        if(n > TEA_MAX_MEM32)
+        if(TEA_UNLIKELY(n > TEA_MAX_MEM32))
             tea_err_msg(T, TEA_ERR_LISTOV);       
         items = tea_mem_newvec(T, TValue, n);
     }
-
     GClist* list = tea_mem_newobj(T, GClist, TEA_TLIST);
     list->items = items;
     list->len = 0;
@@ -29,12 +29,14 @@ GClist* tea_list_new(tea_State* T, size_t n)
     return list;
 }
 
+/* Free a list */
 void TEA_FASTCALL tea_list_free(tea_State* T, GClist* list)
 {
     tea_mem_freevec(T, TValue, list->items, list->size);
     tea_mem_freet(T, list);
 }
 
+/* Copy a list */
 GClist* tea_list_copy(tea_State* T, GClist* list)
 {
     GClist* l = tea_list_new(T, 0);
@@ -46,6 +48,7 @@ GClist* tea_list_copy(tea_State* T, GClist* list)
     return l;
 }
 
+/* Add an item to the end of a list */
 void tea_list_add(tea_State* T, GClist* list, cTValue* o)
 {
     if(list->size < list->len + 1)
@@ -56,6 +59,7 @@ void tea_list_add(tea_State* T, GClist* list, cTValue* o)
     list->len++;
 }
 
+/* Insert an item into a list */
 void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t idx)
 {
     if(list->size < list->len + 1)
@@ -65,11 +69,12 @@ void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t idx)
     list->len++;
     for(int i = list->len - 1; i > idx; i--)
     {
-        list->items[i] = list->items[i - 1];
+        copyTV(T, list_slot(list, i), list_slot(list, i - 1));
     }
     copyTV(T, list_slot(list, idx), o);
 }
 
+/* Delete an item from a list */
 void tea_list_delete(tea_State* T, GClist* list, int32_t idx)
 {
     for(int i = idx; i < list->len - 1; i++)
@@ -79,6 +84,7 @@ void tea_list_delete(tea_State* T, GClist* list, int32_t idx)
     list->len--;
 }
 
+/* Slice a list */
 GClist* tea_list_slice(tea_State* T, GClist* list, GCrange* range)
 {
     GClist* new_list = tea_list_new(T, 0);
