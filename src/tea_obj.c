@@ -70,7 +70,7 @@ GCclass* tea_class_new(tea_State* T, GCstr* name)
 {
     GCclass* k = tea_mem_newobj(T, GCclass, TEA_TCLASS);
     k->name = name;
-    k->super = T->object_class;
+    k->super = gcroot_objclass(T);
     setnilV(&k->init);
     tea_tab_init(&k->methods);
     return k;

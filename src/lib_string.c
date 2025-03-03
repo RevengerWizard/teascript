@@ -439,7 +439,7 @@ static void string_opadd(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Methods string_class[] = {
+static const tea_Methods string_reg[] = {
     { "len", "getter", string_len, 1, 0 },
     { "bytelen", "getter", string_bytelen, 1, 0 },
     { "new", "method", string_init, 2, 0 },
@@ -467,8 +467,8 @@ static const tea_Methods string_class[] = {
 
 void tea_open_string(tea_State* T)
 {
-    tea_create_class(T, TEA_CLASS_STRING, string_class);
-    T->string_class = classV(T->top - 1);
+    tea_create_class(T, TEA_CLASS_STRING, string_reg);
+    T->gcroot[GCROOT_KLSTR] = obj2gco(classV(T->top - 1));
     tea_set_global(T, TEA_CLASS_STRING);
     tea_push_nil(T);
 }

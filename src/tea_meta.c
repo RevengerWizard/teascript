@@ -28,7 +28,7 @@ void tea_meta_init(tea_State* T)
     {
         GCstr* s = tea_str_newlen(T, mmnames[i]);
         fix_string(s);
-        T->opm_name[i] = s;
+        T->gcroot[GCROOT_MMNAME + i] = obj2gco(s);
     }
 }
 
@@ -57,24 +57,24 @@ GCclass* tea_meta_getclass(tea_State* T, cTValue* o)
     switch(itype(o))
     {
         case TEA_TNUM:
-            return T->number_class;
+            return gcroot_numclass(T);
         case TEA_TBOOL:
-            return T->bool_class;
+            return gcroot_boolclass(T);
         case TEA_TFUNC:
-            return T->func_class;
+            return gcroot_funcclass(T);
         case TEA_TUDATA:
         case TEA_TINSTANCE:
             return instanceV(o)->klass;
         case TEA_TLIST: 
-            return T->list_class;
+            return gcroot_listclass(T);
         case TEA_TMAP: 
-            return T->map_class;
+            return gcroot_mapclass(T);
         case TEA_TSTR: 
-            return T->string_class;
+            return gcroot_strclass(T);
         case TEA_TRANGE: 
-            return T->range_class;
+            return gcroot_rangeclass(T);
         default: 
-            return NULL;
+            break;
     }
     return NULL;
 }
@@ -82,13 +82,13 @@ GCclass* tea_meta_getclass(tea_State* T, cTValue* o)
 /* Check if object is a builtin class */
 bool tea_meta_isclass(tea_State* T, GCclass* klass)
 {
-    return (klass == T->number_class ||
-            klass == T->bool_class ||
-            klass == T->func_class ||
-            klass == T->list_class ||
-            klass == T->map_class ||
-            klass == T->string_class ||
-            klass == T->range_class);
+    return (klass == gcroot_numclass(T) ||
+            klass == gcroot_boolclass(T) ||
+            klass == gcroot_funcclass(T) ||
+            klass == gcroot_listclass(T) ||
+            klass == gcroot_mapclass(T) ||
+            klass == gcroot_strclass(T) ||
+            klass == gcroot_rangeclass(T));
 }
 
 /* Check if object has attribute */
@@ -129,7 +129,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
         {
             GCinstance* instance = instanceV(obj);
             uint8_t flags = ACC_GET;
-            cTValue* mo = tea_tab_get(&instance->attrs, name);
+            TValue* mo = tea_tab_get(&instance->attrs, name);
             if(mo) return mo;
             mo = tea_tab_getx(&instance->klass->methods, name, &flags);
             if(mo)
@@ -137,7 +137,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
                 if(flags & ACC_GET)
                 {
                     copyTV(T, T->top++, obj);
-                    tea_vm_call(T, (TValue*)mo, 0);
+                    tea_vm_call(T, mo, 0);
                     return --T->top;
                 }
                 GCmethod* bound = tea_method_new(T, T->top - 1, funcV(mo));
@@ -149,7 +149,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
             {
                 copyTV(T, T->top++, obj);
                 setstrV(T, T->top++, name);
-                tea_vm_call(T, (TValue*)mo, 1);
+                tea_vm_call(T, mo, 1);
                 return --T->top;
             }
             tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
@@ -167,16 +167,16 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
             if(klass)
             {
                 uint8_t flags = ACC_GET;
-                TValue* o = tea_tab_getx(&klass->methods, name, &flags);
-                if(o)
+                TValue* mo = tea_tab_getx(&klass->methods, name, &flags);
+                if(mo)
                 {
                     if(flags & ACC_GET)
                     {
                         copyTV(T, T->top++, obj);
-                        tea_vm_call(T, o, 0);
+                        tea_vm_call(T, mo, 0);
                         return --T->top;
                     }
-                    GCmethod* bound = tea_method_new(T, T->top - 1, funcV(o));
+                    GCmethod* bound = tea_method_new(T, T->top - 1, funcV(mo));
                     setmethodV(T, &T->tmptv, bound);
                     return &T->tmptv;
                 }

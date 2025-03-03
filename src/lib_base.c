@@ -5,8 +5,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
 #define lib_base_c
 #define TEA_CORE
@@ -303,17 +301,17 @@ static void invalid_init(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Methods func_class[] = {
+static const tea_Methods func_reg[] = {
     { "new", "method", invalid_init, TEA_VARG },
     { NULL, NULL }
 };
 
-static const tea_Methods number_class[] = {
+static const tea_Methods number_reg[] = {
     { "new", "method", number_init, 2, 1 },
     { NULL, NULL }
 };
 
-static const tea_Methods bool_class[] = {
+static const tea_Methods bool_reg[] = {
     { "new", "method", bool_init, 2, 0 },
     { NULL, NULL }
 };
@@ -351,20 +349,21 @@ static void tea_open_global(tea_State* T)
         tea_set_global(T, reg->name);
     }
 
-    T->object_class = tea_class_new(T, tea_str_newlit(T, "Object"));
-    setclassV(T, T->top++, T->object_class);
+    GCclass* obj = tea_class_new(T, tea_str_newlit(T, "Object"));
+    T->gcroot[GCROOT_KLOBJ] = obj2gco(obj);
+    setclassV(T, T->top++, obj);
     tea_set_global(T, "Object");
 
-    tea_create_class(T, "Number", number_class);
-    T->number_class = classV(T->top - 1);
-    T->number_class->super = NULL;
+    tea_create_class(T, "Number", number_reg);
+    T->gcroot[GCROOT_KLNUM] = obj2gco(classV(T->top - 1));
+    gcroot_numclass(T)->super = NULL;
     tea_set_global(T, "Number");
-    tea_create_class(T, "Bool", bool_class);
-    T->bool_class = classV(T->top - 1);
-    T->bool_class->super = NULL;
+    tea_create_class(T, "Bool", bool_reg);
+    T->gcroot[GCROOT_KLBOOL] = obj2gco(classV(T->top - 1));
+    gcroot_boolclass(T)->super = NULL;
     tea_set_global(T, "Bool");
-    tea_create_class(T, "Function", func_class);
-    T->func_class = classV(T->top - 1);
+    tea_create_class(T, "Function", func_reg);
+    T->gcroot[GCROOT_KLFUNC] = obj2gco(classV(T->top - 1));
     tea_set_global(T, "Function");
     tea_push_nil(T);
 }

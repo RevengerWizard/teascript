@@ -19,7 +19,7 @@ GCudata* tea_udata_new(tea_State* T, size_t len, uint8_t nuvals)
     ud->nuvals = nuvals;
     ud->len = len;
     ud->fd = NULL;
-    ud->klass = T->object_class;
+    ud->klass = gcroot_objclass(T);
     tea_tab_init(&ud->attrs);
     TValue* uvs = ud_uvalues(ud);
     for(int i = 0; i < nuvals; i++)

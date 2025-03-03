@@ -371,7 +371,32 @@ MMDEF(MMENUM)
     MM__MAX
 } MMS;
 
-#define mmname_str(T, mm) ((T)->opm_name[(mm)])
+/* GC root IDs */
+typedef enum
+{
+    GCROOT_MMNAME,  /* Special method names */
+    GCROOT_MMNAME_LAST = GCROOT_MMNAME + MM__MAX-1,
+    GCROOT_KLBASE,  /* Classes for base types */
+    GCROOT_KLNUM = GCROOT_KLBASE,
+    GCROOT_KLBOOL,
+    GCROOT_KLFUNC,
+    GCROOT_KLSTR,
+    GCROOT_KLLIST,
+    GCROOT_KLMAP,
+    GCROOT_KLRANGE,
+    GCROOT_KLOBJ,
+    GCROOT_MAX
+} GCRootID;
+
+#define mmname_str(T, mm) (gco2str((T)->gcroot[GCROOT_MMNAME+(mm)]))
+#define gcroot_numclass(T) (gco2class((T)->gcroot[GCROOT_KLNUM]))
+#define gcroot_boolclass(T) (gco2class((T)->gcroot[GCROOT_KLBOOL]))
+#define gcroot_funcclass(T) (gco2class((T)->gcroot[GCROOT_KLFUNC]))
+#define gcroot_strclass(T) (gco2class((T)->gcroot[GCROOT_KLSTR]))
+#define gcroot_listclass(T) (gco2class((T)->gcroot[GCROOT_KLLIST]))
+#define gcroot_mapclass(T) (gco2class((T)->gcroot[GCROOT_KLMAP]))
+#define gcroot_rangeclass(T) (gco2class((T)->gcroot[GCROOT_KLRANGE]))
+#define gcroot_objclass(T) (gco2class((T)->gcroot[GCROOT_KLOBJ]))
 
 /* Garbage collector state */
 typedef struct GCState
@@ -415,22 +440,14 @@ struct tea_State
     Tab modules;   /* Table of cached modules */
     Tab globals;   /* Table of globals */
     SBuf tmpbuf;    /* Termorary string buffer */
-    SBuf strbuf;    /* Termorary string conversion buffer */
+    SBuf strbuf;    /* Termorary tostring conversion buffer */
     TValue tmptv;   /* Temporary TValue */
     TValue nilval; /* A nil value */
     TValue registrytv;  /* Anchor for registry */
     GCmodule* last_module;    /* Last cached module */
-    GCclass* number_class;
-    GCclass* bool_class;
-    GCclass* func_class;
-    GCclass* string_class;
-    GCclass* list_class;
-    GCclass* map_class;
-    GCclass* range_class;
-    GCclass* object_class;
     GCstr strempty; /* Empty string */
     uint8_t strempty0;  /* Zero terminator for empty string */
-    GCstr* opm_name[MM__MAX];   /* Array with special method names  */
+    GCobj* gcroot[GCROOT_MAX];  /* GC roots */
     tea_CFunction panic; /* Function to be called in unprotected errors */
     tea_Alloc allocf;  /* Memory allocator */
     void* allocd;   /* Memory allocator data */

@@ -209,14 +209,10 @@ static void gc_mark_roots(tea_State* T)
     gc_marktab(T, &T->modules);
     gc_marktab(T, &T->globals);
 
-    gc_markobj(T, obj2gco(T->number_class));
-    gc_markobj(T, obj2gco(T->bool_class));
-    gc_markobj(T, obj2gco(T->func_class));
-    gc_markobj(T, obj2gco(T->list_class));
-    gc_markobj(T, obj2gco(T->map_class));
-    gc_markobj(T, obj2gco(T->string_class));
-    gc_markobj(T, obj2gco(T->range_class));
-    gc_markobj(T, obj2gco(T->object_class));
+    for(int i = GCROOT_KLBASE; i < GCROOT_MAX; i++)
+    {
+        gc_markobj(T, T->gcroot[i]);
+    }
 }
 
 /* Mark userdata in mmudata list */

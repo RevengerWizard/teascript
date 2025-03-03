@@ -578,7 +578,7 @@ static void list_opadd(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Methods list_class[] = {
+static const tea_Methods list_reg[] = {
     { "len", "getter", list_len, 1, 0 },
     { "new", "method", list_init, 1, 1 },
     { "add", "method", list_add, TEA_VARG, 0 },
@@ -609,8 +609,8 @@ static const tea_Methods list_class[] = {
 
 void tea_open_list(tea_State* T)
 {
-    tea_create_class(T, TEA_CLASS_LIST, list_class);
-    T->list_class = classV(T->top - 1);
+    tea_create_class(T, TEA_CLASS_LIST, list_reg);
+    T->gcroot[GCROOT_KLLIST] = obj2gco(classV(T->top - 1));
     tea_set_global(T, TEA_CLASS_LIST);
     tea_push_nil(T);
 }

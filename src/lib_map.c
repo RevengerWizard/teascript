@@ -227,7 +227,7 @@ static void map_opadd(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Methods map_class[] = {
+static const tea_Methods map_reg[] = {
     { "count", "getter", map_count, 1, 0 },
     { "keys", "getter", map_keys, 1, 0 },
     { "values", "getter", map_values, 1, 0 },
@@ -248,8 +248,8 @@ static const tea_Methods map_class[] = {
 
 void tea_open_map(tea_State* T)
 {
-    tea_create_class(T, TEA_CLASS_MAP, map_class);
-    T->map_class = classV(T->top - 1);
+    tea_create_class(T, TEA_CLASS_MAP, map_reg);
+    T->gcroot[GCROOT_KLMAP] = obj2gco(classV(T->top - 1));
     tea_set_global(T, TEA_CLASS_MAP);
     tea_push_nil(T);
 }

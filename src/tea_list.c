@@ -40,7 +40,7 @@ void TEA_FASTCALL tea_list_free(tea_State* T, GClist* list)
 GClist* tea_list_copy(tea_State* T, GClist* list)
 {
     GClist* l = tea_list_new(T, 0);
-    for(int i = 0; i < list->len; i++)
+    for(uint32_t i = 0; i < list->len; i++)
     {
         TValue* o = list_slot(list, i);
         tea_list_add(T, l, o);
@@ -67,7 +67,7 @@ void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t idx)
         list->items = tea_mem_growvec(T, TValue, list->items, list->size, TEA_MAX_MEM32);
     }
     list->len++;
-    for(int i = list->len - 1; i > idx; i--)
+    for(uint32_t i = list->len - 1; i > idx; i--)
     {
         copyTV(T, list_slot(list, i), list_slot(list, i - 1));
     }
@@ -77,7 +77,7 @@ void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t idx)
 /* Delete an item from a list */
 void tea_list_delete(tea_State* T, GClist* list, int32_t idx)
 {
-    for(int i = idx; i < list->len - 1; i++)
+    for(uint32_t i = idx; i < list->len - 1; i++)
     {
         copyTV(T, list_slot(list, i), list_slot(list, i + 1));
     }

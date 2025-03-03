@@ -146,7 +146,7 @@ static void range_copy(tea_State* T)
 
 /* ------------------------------------------------------------------------ */
 
-static const tea_Methods range_class[] = {
+static const tea_Methods range_reg[] = {
     { "start", "getter", range_start, 1, 0 },
     { "end", "getter", range_end, 1, 0 },
     { "step", "getter", range_step, 1, 0 },
@@ -162,8 +162,8 @@ static const tea_Methods range_class[] = {
 
 void tea_open_range(tea_State* T)
 {
-    tea_create_class(T, TEA_CLASS_RANGE, range_class);
-    T->range_class = classV(T->top - 1);
+    tea_create_class(T, TEA_CLASS_RANGE, range_reg);
+    T->gcroot[GCROOT_KLRANGE] = obj2gco(classV(T->top - 1));
     tea_set_global(T, TEA_CLASS_RANGE);
     tea_push_nil(T);
 }

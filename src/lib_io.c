@@ -317,7 +317,7 @@ static void io_stdfile(tea_State* T, FILE* fp, const char* name, const char* mod
     tea_set_attr(T, 0, name);
 }
 
-static const tea_Methods file_class[] = {
+static const tea_Methods file_reg[] = {
     { "write", "method", file_write, TEA_VARG, 0 },
     { "read", "method", file_read, 1, 1 },
     { "readline", "method", file_readline, 1, 0 },
@@ -343,7 +343,7 @@ static const tea_Reg io_module[] = {
 TEAMOD_API void tea_import_io(tea_State* T)
 {
     tea_new_module(T, TEA_MODULE_IO);
-    tea_create_class(T, "File", file_class);
+    tea_create_class(T, "File", file_reg);
     tea_push_value(T, -1);
     tea_set_attr(T, 0, "File");
     tea_set_funcs(T, io_module, 1);
