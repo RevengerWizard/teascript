@@ -11,7 +11,6 @@
 #include "tea_buf.h"
 #include "tea_obj.h"
 #include "tea_err.h"
-#include <stdint.h>
 
 /* Teascript lexer tokens */
 #define TKDEF(_) \
@@ -77,9 +76,6 @@ typedef struct LexState
     tea_State* T;    /* Teascript state */
     struct FuncState* fs;   /* Current FuncState. Defined in tea_parse.c */
     SBuf sb;  /* String buffer for tokens */
-    TValue prevtv;  /* Previous token value */
-    TValue currtv;  /* Currently used token value */
-    TValue nexttv;  /* Next token value */
     const char* p;  /* Current position in input buffer */
     const char* pe;   /* End of input buffer */
     tea_Reader reader;   /* Reader callback */

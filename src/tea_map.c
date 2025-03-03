@@ -120,7 +120,6 @@ static bool map_find_entry(MapEntry* items, uint32_t size, TValue* key, MapEntry
 static bool map_insert_entry(tea_State* T, MapEntry* items, uint32_t size, TValue* key, TValue* val)
 {
     tea_assertT(items != NULL, "should ensure size before inserting");
-  
     MapEntry* item;
     if(map_find_entry(items, size, key, &item))
     {
@@ -178,21 +177,21 @@ static void map_resize(tea_State* T, GCmap* map, uint32_t size)
         for(int i = 0; i < map->size; i++)
         {
             MapEntry* item = &map->entries[i];
-            if(tvisnil(&item->key))
-                continue;
-  
-            MapEntry* entry;
-            if(map_find_entry(entries, size, &item->key, &entry))
+            if(!tvisnil(&item->key))
             {
-                /* Already present, so just replace the value */
-                copyTV(T, &entry->val, &item->val);
+                MapEntry* entry;
+                if(map_find_entry(entries, size, &item->key, &entry))
+                {
+                    /* Already present, so just replace the value */
+                    copyTV(T, &entry->val, &item->val);
+                }
+                else
+                {
+                    copyTV(T, &entry->key, &item->key);
+                    copyTV(T, &entry->val, &item->val);
+                }
+                map_insert_entry(T, entries, size, &item->key, &item->val);    
             }
-            else
-            {
-                copyTV(T, &entry->key, &item->key);
-                copyTV(T, &entry->val, &item->val);
-            }
-            map_insert_entry(T, entries, size, &item->key, &item->val);
         }
     }
 
@@ -241,10 +240,11 @@ GCmap* tea_map_copy(tea_State* T, GCmap* map)
     GCmap* m = tea_map_new(T);
     for(int i = 0; i < map->size; i++)
     {
-        if(tvisnil(&map->entries[i].key))
-            continue;
-        TValue* o = tea_map_set(T, m, &map->entries[i].key);
-        copyTV(T, o, &map->entries[i].val);
+        if(!tvisnil(&map->entries[i].key))
+        {
+            TValue* o = tea_map_set(T, m, &map->entries[i].key);
+            copyTV(T, o, &map->entries[i].val);
+        }
     }
     return m;
 }
