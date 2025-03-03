@@ -62,7 +62,17 @@ void gc_marktab(tea_State* T, Tab* tab)
     {
         TabEntry* entry = &tab->entries[i];
         gc_markobj(T, obj2gco(entry->key));
-        gc_markval(T, &entry->val);
+        if(entry->flags & (ACC_GET | ACC_SET))
+        {
+            if(entry->flags & ACC_GET)
+                gc_markval(T, &entry->u.acc.get);
+            else
+                gc_markval(T, &entry->u.acc.set);
+        }
+        else
+        {
+            gc_markval(T, &entry->u.val);
+        }
     }
 }
 

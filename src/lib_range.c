@@ -15,58 +15,21 @@
 
 static void range_start(tea_State* T)
 {
-    int count = tea_get_top(T);
-    GCrange* range = rangeV(T->base);
-    double start;
-    if(count == 1)
-    {
-        start = range->start;
-    }
-    else
-    {
-        start = tea_check_number(T, 1);
-        range->start = start;
-    }
-    tea_push_number(T, start);
+    tea_push_number(T, rangeV(T->base)->start);
 }
 
 static void range_end(tea_State* T)
 {
-    int count = tea_get_top(T);
-    GCrange* range = rangeV(T->base);
-    double end;
-    if(count == 1)
-    {
-        end = range->end;
-    }
-    else
-    {
-        end = tea_check_number(T, 1);
-        range->end = end;
-    }
-    tea_push_number(T, end);
+    tea_push_number(T, rangeV(T->base)->end);
 }
 
 static void range_step(tea_State* T)
 {
-    int count = tea_get_top(T);
-    GCrange* range = rangeV(T->base);
-    double step;
-    if(count == 1)
-    {
-        step = range->step;
-    }
-    else
-    {
-        step = tea_check_number(T, 1);
-        range->step = step;
-    }
-    tea_push_number(T, step);
+    tea_push_number(T, rangeV(T->base)->step);
 }
 
 static void range_len(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     double start, end, step;
     tea_get_range(T, 0, &start, &end, &step);
     tea_push_number(T, (end - start) / step);
@@ -184,10 +147,10 @@ static void range_copy(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods range_class[] = {
-    { "start", "property", range_start, TEA_VARG, 0 },
-    { "end", "property", range_end, TEA_VARG, 0 },
-    { "step", "property", range_step, TEA_VARG, 0 },
-    { "len", "property", range_len, TEA_VARG, 0 },
+    { "start", "getter", range_start, 1, 0 },
+    { "end", "getter", range_end, 1, 0 },
+    { "step", "getter", range_step, 1, 0 },
+    { "len", "getter", range_len, 1, 0 },
     { "new", "method", range_init, 2, 2 },
     { "contains", "method", range_contains, 2, 0 },
     { "reverse", "method", range_reverse, 1, 0 },

@@ -104,7 +104,7 @@
     \
     /* OOP ops. */ \
     _(CLASS, 1, 1) \
-    _(METHOD, -1, 1) \
+    _(METHOD, -1, 2) \
     _(INHERIT, 0, 0) \
     _(ISTYPE, 0, 0) \
     \

@@ -15,13 +15,11 @@
 
 static void map_count(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_number(T, tea_lib_checkmap(T, 0)->count);
 }
 
 static void map_keys(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     GCmap* map = mapV(T->base);
 
     tea_new_list(T, 0);
@@ -37,7 +35,6 @@ static void map_keys(tea_State* T)
 
 static void map_values(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     GCmap* map = mapV(T->base);
 
     tea_new_list(T, 0);
@@ -231,9 +228,9 @@ static void map_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods map_class[] = {
-    { "count", "property", map_count, TEA_VARG, 0 },
-    { "keys", "property", map_keys, TEA_VARG, 0 },
-    { "values", "property", map_values, TEA_VARG, 0 },
+    { "count", "getter", map_count, 1, 0 },
+    { "keys", "getter", map_keys, 1, 0 },
+    { "values", "getter", map_values, 1, 0 },
     { "new", "method", map_init, 1, 0 },
     { "get", "method", map_get, 2, 1 },
     { "set", "method", map_set, 2, 1 },

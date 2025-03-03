@@ -37,7 +37,6 @@ static SBufExt* buffer_getp(tea_State* T)
 
 static void buffer_len(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     SBufExt* sbx = buffer_getp(T);
     tea_push_number(T, sbufx_len(sbx));
 }
@@ -147,7 +146,7 @@ static void buffer_tostring(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods buffer_class[] = {
-    { "len", "property", buffer_len, TEA_VARG, 0 },
+    { "len", "getter", buffer_len, 1, 0 },
     { "new", "method", buffer_init, 1, 1 },
     { "skip", "method", buffer_skip, 2, 0 },
     { "reset", "method", buffer_reset, 1, 0 },

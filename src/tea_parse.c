@@ -62,7 +62,8 @@ typedef struct
 typedef struct KlassState
 {
     struct KlassState* prev; /* Enclosing class state */
-    bool has_superclass;
+    bool isinherit;
+    bool isstatic;
 } KlassState;
 
 typedef struct Loop
@@ -81,6 +82,9 @@ typedef enum
     FUNC_ARROW,
     FUNC_INIT,
     FUNC_METHOD,
+    FUNC_STATIC,
+    FUNC_GETTER,
+    FUNC_SETTER,
     FUNC_OPERATOR,
     FUNC_SCRIPT
 } FuncInfo;
@@ -515,6 +519,7 @@ static void fs_init(LexState* ls, FuncState* fs, FuncInfo info)
         case FUNC_NORMAL:
         case FUNC_INIT:
         case FUNC_METHOD:
+        case FUNC_STATIC:
             fs->name = strV(&fs->ls->prev.tv);
             break;
         case FUNC_OPERATOR:
@@ -543,6 +548,7 @@ static void fs_init(LexState* ls, FuncState* fs, FuncInfo info)
         case FUNC_NORMAL:
         case FUNC_ANONYMOUS:
         case FUNC_ARROW:
+        case FUNC_STATIC:
             local->name = &T->strempty;
             break;
         case FUNC_INIT:
@@ -1421,7 +1427,7 @@ static void expr_super(FuncState* fs, bool assign)
     {
         error(fs, TEA_ERR_XSUPERO);
     }
-    else if(!fs->klass->has_superclass)
+    else if(!fs->klass->isinherit)
     {
         error(fs, TEA_ERR_XSUPERK);
     }
@@ -1474,6 +1480,10 @@ static void expr_self(FuncState* fs, bool assign)
     if(fs->klass == NULL)
     {
         error(fs, TEA_ERR_XSELFO);
+    }
+    else if(fs->klass->isstatic)
+    {
+        error(fs, TEA_ERR_XSELFS);
     }
     expr_name(fs, false);
 }
@@ -1759,16 +1769,20 @@ static void parse_body(LexState* ls, FuncInfo info, BCLine line)
     fs.linedefined = line;
     fs.bcbase = pfs->bcbase + pfs->pc;
     fs.bclimit = pfs->bclimit - pfs->pc;
-    if(info != FUNC_ARROW)
+    if(info == FUNC_GETTER)
+    {
+        parse_block(&fs);
+    }
+    else if(info == FUNC_ARROW)
+    {
+        parse_arrow(&fs);
+    }
+    else
     {
         lex_consume(&fs, '(');
         parse_params(&fs);
         parse_block(&fs);
         bcemit_return(&fs);
-    }
-    else
-    {
-        parse_arrow(&fs);
     }
     pt = fs_finish(ls, line);
     pfs->bcbase = ls->bcstack + oldbase;    /* May have been reallocated */
@@ -1850,6 +1864,7 @@ static void parse_operator(FuncState* fs)
     else
     {
         name = mmname_str(fs->ls->T, i);
+        fs->klass->isstatic = true;
     }
 
     TValue tv;
@@ -1859,19 +1874,43 @@ static void parse_operator(FuncState* fs)
     fs->name = name;
     parse_body(fs->ls, FUNC_OPERATOR, fs->ls->prev.line);
     bcemit_argued(fs, BC_METHOD, k);
+    bcemit_byte(fs, 0);
 }
 
-static void parse_method(FuncState* fs, FuncInfo info)
+static void parse_method(FuncState* fs, FuncInfo info, uint8_t flags)
 {
     uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
     parse_body(fs->ls, info, fs->ls->prev.line);
     bcemit_argued(fs, BC_METHOD, k);
+    bcemit_byte(fs, flags);
+}
+
+static void parse_accessor(FuncState* fs)
+{
+    lex_consume(fs, TK_NAME);
+    uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
+    uint8_t flags = 0;
+    FuncInfo info = 0;
+    if(lex_match(fs, '='))
+    {
+        info = FUNC_SETTER;
+        flags = ACC_SET;
+    }
+    else
+    {
+        info = FUNC_GETTER;
+        flags = ACC_GET;
+    }
+    parse_body(fs->ls, info, fs->ls->prev.line);
+    bcemit_argued(fs, BC_METHOD, k);
+    bcemit_byte(fs, flags);
 }
 
 /* Initialize a new KlassState */
 static void ks_init(FuncState* fs, KlassState* ks)
 {
-    ks->has_superclass = false;
+    ks->isinherit = false;
+    ks->isstatic = false;
     ks->prev = fs->klass;
     fs->klass = ks;
 }
@@ -1881,21 +1920,31 @@ static void parse_class_body(FuncState* fs)
 {
     while(!lex_check(fs, '}') && !lex_check(fs, TK_EOF))
     {
+        fs->klass->isstatic = false;
         LexToken t = fs->ls->curr.t;
         switch(t)
         {
             case TK_NEW:
                 tea_lex_next(fs->ls);
-                parse_method(fs, FUNC_INIT);
+                parse_method(fs, FUNC_INIT, 0);
                 break;
             case TK_FUNCTION:
                 tea_lex_next(fs->ls);
                 lex_consume(fs, TK_NAME);
-                parse_method(fs, FUNC_METHOD);
+                parse_method(fs, FUNC_METHOD, 0);
+                break;
+            case TK_STATIC:
+                tea_lex_next(fs->ls);
+                lex_consume(fs, TK_NAME);
+                fs->klass->isstatic = true;
+                parse_method(fs, FUNC_STATIC, ACC_STATIC);
                 break;
             case TK_OPERATOR:
                 tea_lex_next(fs->ls);
                 parse_operator(fs);
+                break;
+            case TK_NAME:
+                parse_accessor(fs);
                 break;
             default:
                 error(fs, TEA_ERR_XMETHOD);
@@ -1928,7 +1977,7 @@ static void parse_class(FuncState* fs, bool export)
 
         named_variable(fs, class_name, false);
         bcemit_op(fs, BC_INHERIT);
-        ks.has_superclass = true;
+        ks.isinherit = true;
     }
 
     named_variable(fs, class_name, false);
@@ -1939,7 +1988,7 @@ static void parse_class(FuncState* fs, bool export)
 
     bcemit_op(fs, BC_POP);
 
-    if(ks.has_superclass)
+    if(ks.isinherit)
     {
         scope_end(fs);
     }
@@ -1980,6 +2029,7 @@ static void parse_function_assign(FuncState* fs, BCLine line)
 
         bcemit_op(fs, BC_ISTYPE);
         bcemit_argued(fs, BC_METHOD, k);
+        bcemit_byte(fs, 0);
         bcemit_op(fs, BC_POP);
         return;
     }

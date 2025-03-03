@@ -3,8 +3,6 @@
 ** Teascript List class
 */
 
-#include <math.h>
-
 #define lib_list_c
 #define TEA_CORE
 
@@ -19,7 +17,6 @@
 
 static void list_len(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_number(T, tea_len(T, 0));
 }
 
@@ -582,7 +579,7 @@ static void list_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods list_class[] = {
-    { "len", "property", list_len, TEA_VARG, 0 },
+    { "len", "getter", list_len, 1, 0 },
     { "new", "method", list_init, 1, 1 },
     { "add", "method", list_add, TEA_VARG, 0 },
     { "remove", "method", list_remove, 2, 0 },

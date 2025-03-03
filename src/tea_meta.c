@@ -51,6 +51,7 @@ TValue* tea_meta_lookup(tea_State* T, cTValue* o, MMS mm)
     return NULL;
 }
 
+/* Get builtin class from object value */
 GCclass* tea_meta_getclass(tea_State* T, cTValue* o)
 {
     switch(itype(o))
@@ -78,6 +79,7 @@ GCclass* tea_meta_getclass(tea_State* T, cTValue* o)
     return NULL;
 }
 
+/* Check if object is a builtin class */
 bool tea_meta_isclass(tea_State* T, GCclass* klass)
 {
     return (klass == T->number_class ||
@@ -89,6 +91,7 @@ bool tea_meta_isclass(tea_State* T, GCclass* klass)
             klass == T->range_class);
 }
 
+/* Check if object has attribute */
 bool tea_meta_hasattr(tea_State* T, GCstr* name, TValue* obj)
 {
     switch(itype(obj))
@@ -99,7 +102,6 @@ bool tea_meta_hasattr(tea_State* T, GCstr* name, TValue* obj)
             GCinstance* instance = instanceV(obj);
             cTValue* o = tea_tab_get(&instance->attrs, name);
             if(o) return true;
-
             o = tea_tab_get(&instance->klass->methods, name);
             if(o) return true;
             break;
@@ -117,6 +119,7 @@ bool tea_meta_hasattr(tea_State* T, GCstr* name, TValue* obj)
     return false;
 }
 
+/* Get attribute from object */ 
 cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
 {
     switch(itype(obj))
@@ -125,26 +128,28 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
         case TEA_TINSTANCE:
         {
             GCinstance* instance = instanceV(obj);
-            cTValue* o = tea_tab_get(&instance->attrs, name);
-            if(o)
+            uint8_t flags = ACC_GET;
+            cTValue* mo = tea_tab_get(&instance->attrs, name);
+            if(mo) return mo;
+            mo = tea_tab_getx(&instance->klass->methods, name, &flags);
+            if(mo)
             {
-                return o;
-            }
-
-            o = tea_tab_get(&instance->klass->methods, name);
-            if(o)
-            {
-                GCmethod* bound = tea_method_new(T, T->top - 1, funcV(o));
+                if(flags & ACC_GET)
+                {
+                    copyTV(T, T->top++, obj);
+                    tea_vm_call(T, (TValue*)mo, 0);
+                    return --T->top;
+                }
+                GCmethod* bound = tea_method_new(T, T->top - 1, funcV(mo));
                 setmethodV(T, &T->tmptv, bound);
                 return &T->tmptv;
             }
-
-            o = tea_meta_lookup(T, obj, MM_GETATTR);
-            if(o)
+            mo = tea_meta_lookup(T, obj, MM_GETATTR);
+            if(mo)
             {
                 copyTV(T, T->top++, obj);
                 setstrV(T, T->top++, name);
-                tea_vm_call(T, (TValue*)o, 1);
+                tea_vm_call(T, (TValue*)mo, 1);
                 return --T->top;
             }
             tea_err_callerv(T, TEA_ERR_METHOD, str_data(name));
@@ -153,10 +158,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
         {
             GCmodule* module = moduleV(obj);
             cTValue* o = tea_tab_get(&module->exports, name);
-            if(o)
-            {
-                return o;
-            }
+            if(o) return o;
             tea_err_callerv(T, TEA_ERR_MODATTR, str_data(module->name), str_data(name));
         }
         default:
@@ -164,22 +166,19 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
             GCclass* klass = tea_meta_getclass(T, obj);
             if(klass)
             {
-                TValue* o = tea_tab_get(&klass->methods, name);
+                uint8_t flags = ACC_GET;
+                TValue* o = tea_tab_getx(&klass->methods, name, &flags);
                 if(o)
                 {
-                    if((tvisfunc(o) && iscfunc(funcV(o))) && 
-                        funcV(o)->c.type == C_PROPERTY)
+                    if(flags & ACC_GET)
                     {
                         copyTV(T, T->top++, obj);
                         tea_vm_call(T, o, 0);
                         return --T->top;
                     }
-                    else
-                    {
-                        GCmethod* bound = tea_method_new(T, T->top - 1, funcV(o));
-                        setmethodV(T, &T->tmptv, bound);
-                        return &T->tmptv;
-                    }
+                    GCmethod* bound = tea_method_new(T, T->top - 1, funcV(o));
+                    setmethodV(T, &T->tmptv, bound);
+                    return &T->tmptv;
                 }
             }
             break;
@@ -188,6 +187,7 @@ cTValue* tea_meta_getattr(tea_State* T, GCstr* name, TValue* obj)
     tea_err_callerv(T, TEA_ERR_NOATTR, tea_typename(obj), str_data(name));
 }
 
+/* Set attribute to object */
 cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
 {
     switch(itype(obj))
@@ -196,7 +196,16 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
         case TEA_TINSTANCE:
         {
             GCinstance* instance = instanceV(obj);
-            TValue* mo = tea_meta_lookup(T, obj, MM_SETATTR);
+            uint8_t flags = ACC_SET;
+            TValue* mo = tea_tab_getx(&instance->klass->methods, name, &flags);
+            if(mo && (flags & ACC_SET))
+            {
+                copyTV(T, T->top++, obj);
+                copyTV(T, T->top++, item);
+                tea_vm_call(T, mo, 1);
+                return --T->top;
+            }
+            mo = tea_meta_lookup(T, obj, MM_SETATTR);
             if(mo)
             {             
                 copyTV(T, T->top++, obj);
@@ -219,17 +228,14 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
             GCclass* klass = tea_meta_getclass(T, obj);
             if(klass)
             {
-                TValue* o = tea_tab_get(&klass->methods, name);
-                if(o)
+                uint8_t flags = ACC_SET;
+                TValue* mo = tea_tab_getx(&klass->methods, name, &flags);
+                if(mo && (flags & ACC_SET))
                 {
-                    if((tvisfunc(o) && iscfunc(funcV(o))) && 
-                        funcV(o)->c.type == C_PROPERTY)
-                    {
-                        copyTV(T, T->top++, obj);
-                        copyTV(T, T->top++, item);
-                        tea_vm_call(T, o, 1);
-                        return --T->top;
-                    }
+                    copyTV(T, T->top++, obj);
+                    copyTV(T, T->top++, item);
+                    tea_vm_call(T, mo, 1);
+                    return --T->top;
                 }
             }
             break;
@@ -238,6 +244,7 @@ cTValue* tea_meta_setattr(tea_State* T, GCstr* name, TValue* obj, TValue* item)
     tea_err_callerv(T, TEA_ERR_SETATTR, tea_typename(obj));
 }
 
+/* Delete attribute from object */
 void tea_meta_delattr(tea_State* T, GCstr* name, TValue* obj)
 {
     switch(itype(obj))
@@ -263,6 +270,7 @@ void tea_meta_delattr(tea_State* T, GCstr* name, TValue* obj)
     tea_err_callerv(T, TEA_ERR_NOATTR, tea_typename(obj), str_data(name));
 }
 
+/* Get index from object */
 cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
 {
     switch(itype(obj))
@@ -283,7 +291,7 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
         }
         case TEA_TRANGE:
         {
-            if(!tvisnum(index_value))
+            if(TEA_UNLIKELY(!tvisnum(index_value)))
             {
                 tea_err_msg(T, TEA_ERR_NUMRANGE);
             }
@@ -309,7 +317,7 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
         }
         case TEA_TLIST:
         {
-            if(!tvisnum(index_value) && !tvisrange(index_value))
+            if(TEA_UNLIKELY(!tvisnum(index_value) && !tvisrange(index_value)))
             {
                 tea_err_msg(T, TEA_ERR_NUMLIST);
             }
@@ -340,15 +348,12 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
         {
             GCmap* map = mapV(obj);
             cTValue* o = tea_map_get(map, index_value);
-            if(o)
-            {
-                return o;
-            }
+            if(o) return o;
             tea_err_msg(T, TEA_ERR_MAPKEY);
         }
         case TEA_TSTR:
         {
-            if(!tvisnum(index_value) && !tvisrange(index_value))
+            if(TEA_UNLIKELY(!tvisnum(index_value) && !tvisrange(index_value)))
             {
                 tea_err_callerv(T, TEA_ERR_NUMSTR, tea_typename(index_value));
             }
@@ -384,6 +389,7 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
     tea_err_callerv(T, TEA_ERR_SUBSCR, tea_typename(obj));
 }
 
+/* Set index to object */
 cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValue* item_value)
 {
     switch(itype(obj))
@@ -405,7 +411,7 @@ cTValue* tea_meta_setindex(tea_State* T, TValue* obj, TValue* index_value, TValu
         }
         case TEA_TLIST:
         {
-            if(!tvisnum(index_value))
+            if(TEA_UNLIKELY(!tvisnum(index_value)))
             {
                 tea_err_msg(T, TEA_ERR_NUMLIST);
             }

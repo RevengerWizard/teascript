@@ -640,14 +640,14 @@ TEA_API void tea_new_submodule(tea_State* T, const char* name)
     incr_top(T);
 }
 
-static void set_method(tea_State* T, int obj, const char* name)
+static void set_method(tea_State* T, int obj, const char* name, uint8_t flags)
 {
     TValue* object = index2addr(T, obj);
     tea_checkapi_slot(1);
     TValue* item = T->top - 1;
     GCstr* str = tea_str_newlen(T, name);
     GCclass* k = classV(object);
-    copyTV(T, tea_tab_set(T, &k->methods, str), item);
+    copyTV(T, tea_tab_setx(T, &k->methods, str, flags), item);
     T->top--;
     if(str == mmname_str(T, MM_NEW))
     {
@@ -655,33 +655,51 @@ static void set_method(tea_State* T, int obj, const char* name)
     }
 }
 
+static void set_ctype(tea_State* T, const char* name, CFuncType* ct, uint8_t* flags)
+{
+    if(strcmp(name, "method") == 0)
+    {
+        *ct = C_METHOD;
+    }
+    else if(strcmp(name, "static") == 0)
+    {
+        *ct = C_FUNCTION;
+        *flags = ACC_STATIC;
+    }
+    else if(strcmp(name, "getter") == 0)
+    {
+        *ct = C_PROPERTY;
+        *flags = ACC_GET;
+    }
+    else if(strcmp(name, "setter") == 0)
+    {
+        *ct = C_PROPERTY;
+        *flags = ACC_SET;
+    }
+    else
+    {
+        tea_error(T, "Invalid option " TEA_QS, name);
+    }
+}
+
 static void set_class(tea_State* T, const tea_Methods* k)
 {
     for(; k->name; k++)
     {
+        uint8_t flags = 0;
         if(k->fn == NULL)
         {
             tea_push_nil(T);
         }
         else
         {
-            if(strcmp(k->type, "method") == 0)
-            {
-                GCfunc* cf = tea_func_newC(T, C_METHOD, k->fn, 0, k->nargs, k->nopts);
-                setfuncV(T, T->top++, cf);
-            }
-            else if(strcmp(k->type, "property") == 0)
-            {
-                GCfunc* cf = tea_func_newC(T, C_PROPERTY, k->fn, 0, k->nargs, k->nopts);
-                setfuncV(T, T->top++, cf);
-            }
-            else if(strcmp(k->type, "static") == 0)
-            {
-                GCfunc* cf = tea_func_newC(T, C_FUNCTION, k->fn, 0, k->nargs, k->nopts);
-                setfuncV(T, T->top++, cf);
-            }
+            CFuncType ct = C_FUNCTION;
+            set_ctype(T, k->type, &ct, &flags);
+            GCfunc* cf = tea_func_newC(T, ct, k->fn, 0, k->nargs, k->nopts);
+            setfuncV(T, T->top, cf);
+            incr_top(T);
         }
-        set_method(T, -2, k->name);
+        set_method(T, -2, k->name, flags);
     }
 }
 
@@ -1132,23 +1150,23 @@ TEA_API void tea_set_methods(tea_State* T, const tea_Methods* reg, int nup)
     tea_check_stack(T, nup, "too many upvalues");
     for(; reg->name; reg++)
     {
-        int ct = C_FUNCTION;
-        if(strcmp(reg->type, "method") == 0)
+        uint8_t flags = 0;
+        if(reg->fn == NULL)
         {
-            ct = C_METHOD;
+            tea_push_nil(T);
         }
-        else if(strcmp(reg->type, "property") == 0)
+        else
         {
-            ct = C_PROPERTY;
+            CFuncType ct = C_FUNCTION;
+            set_ctype(T, reg->type, &ct, &flags);
+            GCfunc* cf = tea_func_newC(T, ct, reg->fn, nup, reg->nargs, reg->nopts);
+            int nupvals = nup;
+            while(nupvals--)
+                copyTV(T, &cf->c.upvalues[nupvals], T->top + nupvals);
+            setfuncV(T, T->top, cf);
+            incr_top(T);
         }
-
-        GCfunc* cf = tea_func_newC(T, ct, reg->fn, nup, reg->nargs, reg->nopts);
-        int nupvals = nup;
-        while(nupvals--)
-            copyTV(T, &cf->c.upvalues[nupvals], T->top + nupvals);
-        setfuncV(T, T->top, cf);
-        incr_top(T);
-        set_method(T, -(nup + 2), reg->name);
+        set_method(T, -(nup + 2), reg->name, flags);
     }
     tea_pop(T, nup);    /* Remove upvalues */
 }

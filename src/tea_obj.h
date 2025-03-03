@@ -106,11 +106,25 @@ typedef struct GCstr
 
 /* -- Hash table -------------------------------------------------- */
 
+/* Accessor flags */
+#define ACC_STATIC 0x1
+#define ACC_GET 0x2
+#define ACC_SET 0x4
+
 /* Hash node */
 typedef struct
 {
     GCstr* key;
-    TValue val;
+    uint8_t flags;
+    union
+    {
+        TValue val;
+        struct
+        {
+            TValue get;
+            TValue set;
+        } acc;
+    } u;
 } TabEntry;
 
 typedef struct

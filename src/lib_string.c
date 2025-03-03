@@ -20,13 +20,11 @@
 
 static void string_len(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_number(T, tea_utf_len(strV(T->base)));
 }
 
 static void string_bytelen(tea_State* T)
 {
-    if(tea_get_top(T) != 1) tea_error(T, "readonly property");
     tea_push_number(T, strV(T->base)->len);
 }
 
@@ -442,8 +440,8 @@ static void string_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods string_class[] = {
-    { "len", "property", string_len, TEA_VARG, 0 },
-    { "bytelen", "property", string_bytelen, TEA_VARG, 0 },
+    { "len", "getter", string_len, 1, 0 },
+    { "bytelen", "getter", string_bytelen, 1, 0 },
     { "new", "method", string_init, 2, 0 },
     { "byte", "method", string_byte, 2, 0 },
     { "upper", "method", string_upper, 1, 0 },
