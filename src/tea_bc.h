@@ -14,13 +14,13 @@
 ** (name, stack effect, byte count)
 */
 #define BCDEF(_) \
-    /* Stack ops. */ \
+    /* Stack ops */ \
     _(GET_LOCAL, 1, 1) \
     _(SET_LOCAL, 0, 1) \
     _(CONSTANT, 1, 1) \
     _(POP, -1, 0) \
     \
-    /* Constant ops. */ \
+    /* Constant ops */ \
     _(NIL, 1, 0) \
     _(TRUE, 1, 0) \
     _(FALSE, 1, 0) \
@@ -32,14 +32,14 @@
     _(SUPER, 0, 2) \
     _(RETURN, 0, 0) \
     \
-    /* Arithmetic ops. */ \
+    /* Arithmetic ops */ \
     _(ADD, -1, 0) \
     _(SUBTRACT, -1, 0) \
     _(MULTIPLY, -1, 0) \
     _(DIVIDE, -1, 0) \
     _(NEGATE, 0, 0) \
     \
-    /* Comparison ops. */ \
+    /* Comparison ops */ \
     _(EQUAL, -1, 0) \
     _(LESS, -1, 0) \
     _(LESS_EQUAL, -1, 0) \
@@ -52,7 +52,7 @@
     _(JUMP_IF_NIL, -1, 2) \
     _(LOOP, 0, 2) \
     \
-    /* Collection ops. */ \
+    /* Collection ops */ \
     _(LIST, 1, 0) \
     _(MAP, 1, 0) \
     _(LIST_ITEM, -1, 0) \
@@ -77,20 +77,20 @@
     _(SET_MODULE, 0, 1) \
     _(DEFINE_MODULE, 0, 2) \
     \
-    /* Closure and upvalue ops. */ \
+    /* Closure and upvalue ops */ \
     _(CLOSURE, 1, 1) \
     _(CLOSE_UPVALUE, -1, 0) \
     _(GET_UPVALUE, 1, 1) \
     _(SET_UPVALUE, 0, 1) \
     \
-    /* Other ops. */ \
+    /* Other ops */ \
     _(MOD, -1, 0) \
     _(POW, -1, 0) \
     _(NOT, 0, 0) \
     _(IS, -1, 0) \
     _(IN, -1, 0) \
     \
-    /* Bitwise ops.*/ \
+    /* Bitwise ops */ \
     _(BAND, -1, 0) \
     _(BOR, -1, 0) \
     _(BNOT, 1, 0) \
@@ -98,17 +98,17 @@
     _(LSHIFT, -1, 0) \
     _(RSHIFT, -1, 0) \
     \
-    /* Iterator ops. */ \
+    /* Iterator ops */ \
     _(GET_ITER, 1, 2) \
     _(FOR_ITER, 1, 2) \
     \
-    /* OOP ops. */ \
+    /* Class ops */ \
     _(CLASS, 1, 1) \
     _(METHOD, -1, 2) \
     _(INHERIT, 0, 0) \
     _(ISTYPE, 0, 0) \
     \
-    /* Import ops. */ \
+    /* Import ops */ \
     _(IMPORT_NAME, 0, 1) \
     _(IMPORT_STRING, 0, 1) \
     _(IMPORT_FMT, 0, 0) \
