@@ -14,7 +14,8 @@
 #define TEA_MAX_CALLS   1000
 #define TEA_MAX_CCALLS  200
 
-#ifndef _MSC_VER
+/* Try to detect computed goto support */
+#if defined(__GNUC__) || defined(__clang__)
 #define TEA_COMPUTED_GOTO
 #endif
 
