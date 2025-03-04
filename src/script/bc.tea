@@ -59,7 +59,6 @@ function bcline(func, ofs, out)
         "DEFINE_MODULE", "GET_GLOBAL",
         "GET_SUPER",
         "CLASS",
-        "METHOD",
         "IMPORT_FMT",
         "IMPORT_STRING",
         "IMPORT_NAME",
@@ -76,6 +75,13 @@ function bcline(func, ofs, out)
             const slot1 = funcbc(func, ofs + 1)
             const slot2 = funcbc(func, ofs + 2)
             out.write("%4d     %4d\n".format(slot1, slot2))
+            return ofs + 3
+        }
+        case "METHOD"
+        {
+            const k = funcbc(func, ofs + 1)
+            const slot1 = funcbc(func, ofs + 2)
+            out.write("%4d %4d %s\n".format(k, slot1, escapestr(funck(func, k))))
             return ofs + 3
         }
         case "NIL", "TRUE", "FALSE",

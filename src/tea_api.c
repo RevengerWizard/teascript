@@ -687,18 +687,11 @@ static void set_class(tea_State* T, const tea_Methods* k)
     for(; k->name; k++)
     {
         uint8_t flags = 0;
-        if(k->fn == NULL)
-        {
-            tea_push_nil(T);
-        }
-        else
-        {
-            CFuncType ct = C_FUNCTION;
-            set_ctype(T, k->type, &ct, &flags);
-            GCfunc* cf = tea_func_newC(T, ct, k->fn, 0, k->nargs, k->nopts);
-            setfuncV(T, T->top, cf);
-            incr_top(T);
-        }
+        CFuncType ct = C_FUNCTION;
+        set_ctype(T, k->type, &ct, &flags);
+        GCfunc* cf = tea_func_newC(T, ct, k->fn, 0, k->nargs, k->nopts);
+        setfuncV(T, T->top, cf);
+        incr_top(T);
         set_method(T, -2, k->name, flags);
     }
 }
@@ -1151,21 +1144,14 @@ TEA_API void tea_set_methods(tea_State* T, const tea_Methods* reg, int nup)
     for(; reg->name; reg++)
     {
         uint8_t flags = 0;
-        if(reg->fn == NULL)
-        {
-            tea_push_nil(T);
-        }
-        else
-        {
-            CFuncType ct = C_FUNCTION;
-            set_ctype(T, reg->type, &ct, &flags);
-            GCfunc* cf = tea_func_newC(T, ct, reg->fn, nup, reg->nargs, reg->nopts);
-            int nupvals = nup;
-            while(nupvals--)
-                copyTV(T, &cf->c.upvalues[nupvals], T->top + nupvals);
-            setfuncV(T, T->top, cf);
-            incr_top(T);
-        }
+        CFuncType ct = C_FUNCTION;
+        set_ctype(T, reg->type, &ct, &flags);
+        GCfunc* cf = tea_func_newC(T, ct, reg->fn, nup, reg->nargs, reg->nopts);
+        int nupvals = nup;
+        while(nupvals--)
+            copyTV(T, &cf->c.upvalues[nupvals], T->top + nupvals);
+        setfuncV(T, T->top, cf);
+        incr_top(T);
         set_method(T, -(nup + 2), reg->name, flags);
     }
     tea_pop(T, nup);    /* Remove upvalues */
