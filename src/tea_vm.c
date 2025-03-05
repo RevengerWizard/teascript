@@ -288,52 +288,31 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
     tea_err_callerv(T, TEA_ERR_ITER, tea_typename(obj));
 }
 
+/* Call operator overload on unary arithmetic operations */
 static void vm_arith_unary(tea_State* T, MMS mm, TValue* o)
 {
+    TValue tv;
     TValue* mo = tea_meta_lookup(T, o, mm);
     if(!mo) tea_err_unoptype(T, o, mm);
-
-    TValue tv;
-    copyTV(T, &tv, o);
-
-    T->top--;
-    copyTV(T, T->top++, mo);
-    copyTV(T, T->top++, &tv);
-    setnilV(T->top++);
+    copyTV(T, &tv, o);  /* Save the operand */
+    copyTV(T, o, mo);  /* Push the function */
+    copyTV(T, T->top++, &tv);   /* Push the operand */
+    setnilV(T->top++);  /* Push a nil operand */
     tea_vm_call(T, mo, 2);
 }
 
-static void vm_arith(tea_State* T, MMS mm, TValue* a, TValue* b)
+/* Call operator overload on binary arithmetic operations */
+static bool vm_arith(tea_State* T, MMS mm, TValue* a, TValue* b)
 {
+    TValue tv1, tv2;
     TValue* mo = tea_meta_lookup(T, a, mm); /* Try first operand */
     if(!mo) mo = tea_meta_lookup(T, b, mm); /* Try second operand */
-    if(!mo) tea_err_bioptype(T, a, b, mm);  /* Bad types */
-
-    TValue tv1, tv2;
-    copyTV(T, &tv1, a);
-    copyTV(T, &tv2, b);
-
-    T->top -= 2;
-    copyTV(T, T->top++, mo);
-    copyTV(T, T->top++, &tv1);
-    copyTV(T, T->top++, &tv2);
-    tea_vm_call(T, mo, 2);
-}
-
-static bool vm_arith_comp(tea_State* T, MMS mm, TValue* a, TValue* b)
-{
-    TValue* mo = tea_meta_lookup(T, a, mm); /* Try first operand */
-    if(!mo) mo = tea_meta_lookup(T, b, mm); /* Try second operand */
-    if(!mo) return false;
-
-    TValue tv1, tv2;
-    copyTV(T, &tv1, a);
-    copyTV(T, &tv2, b);
-
-    T->top -= 2;
-    copyTV(T, T->top++, mo);
-    copyTV(T, T->top++, &tv1);
-    copyTV(T, T->top++, &tv2);
+    if(!mo) return false;  /* Bad types */
+    copyTV(T, &tv1, a); /* Save the first operand */
+    copyTV(T, &tv2, b); /* Save the second operand */
+    copyTV(T, T->top - 2, mo);  /* Push the function */
+    copyTV(T, T->top - 1, &tv1);    /* Push the first operand */
+    copyTV(T, T->top++, &tv2);  /* Push the second operand */
     tea_vm_call(T, mo, 2);
     return true;
 }
@@ -364,7 +343,7 @@ static void vm_execute(tea_State* T)
     } \
     while(false)
 
-#define BINARY_OP(value_type, expr, op_method, type) \
+#define BINARY_OP(value_type, expr, opmm, type) \
     do \
     { \
         TValue* v1 = T->top - 2; \
@@ -378,13 +357,14 @@ static void vm_execute(tea_State* T)
         else \
         { \
             STORE_FRAME; \
-            vm_arith(T, op_method, v1, v2); \
+            if(!vm_arith(T, opmm, v1, v2)) \
+                tea_err_bioptype(T, v1, v2, opmm);\
             READ_FRAME(); \
         } \
     } \
     while(false)
 
-#define UNARY_OP(value_type, expr, op_method, type) \
+#define UNARY_OP(value_type, expr, opmm, type) \
     do \
     { \
         TValue* v1 = T->top - 1; \
@@ -396,7 +376,7 @@ static void vm_execute(tea_State* T)
         else \
         { \
             STORE_FRAME; \
-            vm_arith_unary(T, op_method, v1); \
+            vm_arith_unary(T, opmm, v1); \
             READ_FRAME(); \
         } \
     } \
@@ -605,7 +585,7 @@ static void vm_execute(tea_State* T)
                 (tvisudata(a) || tvisudata(b)))
             {
                 STORE_FRAME;
-                if(!vm_arith_comp(T, MM_EQ, a, b))
+                if(!vm_arith(T, MM_EQ, a, b))
                 {
                     T->top -= 2;
                     setboolV(T->top++, tea_obj_equal(a, b));

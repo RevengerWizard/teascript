@@ -15,7 +15,7 @@ class Vector
 
     operator - (a, b)
     {
-        if not b { return Vector(-a.x, -a.y) }
+        if not b { return Vector.new(-a.x, -a.y) }
 
         assert(a is Vector and b is Vector, "wrong argument type")
 

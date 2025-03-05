@@ -20,6 +20,7 @@
 
 /* -- Parser structures and definitions ----------------------------------- */
 
+/* Precedence levels for operators */
 typedef enum
 {
     PREC_NONE,
@@ -336,9 +337,10 @@ static void bcemit_invoke(FuncState* fs, int args, const char* name)
     bcemit_byte(fs, args);
 }
 
-static void bcemit_num(FuncState* fs, TValue* o)
+static void bcemit_num(FuncState* fs, double n)
 {
-    bcemit_argued(fs, BC_CONSTANT, const_num(fs, o));
+    TValue tv; setnumV(&tv, n);
+    bcemit_argued(fs, BC_CONSTANT, const_num(fs, &tv));
 }
 
 static void bcemit_str(FuncState* fs, TValue* o)
@@ -569,8 +571,8 @@ static void scope_begin(FuncState* fs)
     fs->scope_depth++;
 }
 
-/* Discare locals with open upvalues in a scope */
-static int scope_discard(FuncState* fs, int depth)
+/* Close locals with open upvalues in a scope */
+static int scope_close(FuncState* fs, int depth)
 {
     int local;
     for(local = fs->local_count - 1; local >= 0 && fs->locals[local].depth >= depth; local--)
@@ -590,7 +592,7 @@ static int scope_discard(FuncState* fs, int depth)
 /* End a scope */
 static void scope_end(FuncState* fs)
 {
-    int effect = scope_discard(fs, fs->scope_depth);
+    int effect = scope_close(fs, fs->scope_depth);
     fs->local_count -= effect;
     fs->max_slots -= effect;
     fs->scope_depth--;
@@ -1107,9 +1109,7 @@ static void expr_dot(FuncState* fs, bool assign)
         if(bc)
         {
             bcemit_argued(fs, BC_PUSH_ATTR, name);
-            TValue _v;
-            setnumV(&_v, 1);
-            bcemit_num(fs, &_v);
+            bcemit_num(fs, 1);
             bcemit_op(fs, bc);
             bcemit_argued(fs, BC_SET_ATTR, name);
         }
@@ -1199,22 +1199,18 @@ static bool parse_slice(FuncState* fs)
     /* It's a slice */
     if(lex_match(fs, ':'))
     {
-        TValue tv1, tv2;
         /* [n:] */
         if(lex_check(fs, ']'))
         {
-            setnumV(&tv1, INFINITY);
-            setnumV(&tv2, 1);
-            bcemit_num(fs, &tv1);
-            bcemit_num(fs, &tv2);
+            bcemit_num(fs, INFINITY);
+            bcemit_num(fs, 1);
         }
         else
         {
             /* [n::n] */
             if(lex_match(fs, ':'))
             {
-                setnumV(&tv1, INFINITY);
-                bcemit_num(fs, &tv1);
+                bcemit_num(fs, INFINITY);
                 expr(fs);
             }
             else
@@ -1227,8 +1223,7 @@ static bool parse_slice(FuncState* fs)
                 }
                 else
                 {
-                    setnumV(&tv1, 1);
-                    bcemit_num(fs, &tv1);
+                    bcemit_num(fs, 1);
                 }
             }
         }
@@ -1268,9 +1263,7 @@ static void expr_subscript(FuncState* fs, bool assign)
         if(bc)
         {
             bcemit_op(fs, BC_PUSH_INDEX);
-            TValue _v;
-            setnumV(&_v, 1);
-            bcemit_num(fs, &_v);
+            bcemit_num(fs, 1);
             bcemit_op(fs, bc);
             bcemit_op(fs, BC_SET_INDEX);
         }
@@ -1293,7 +1286,7 @@ static void expr_or(FuncState* fs, bool assign)
 
 static void expr_num(FuncState* fs, bool assign)
 {
-    bcemit_num(fs, &fs->ls->prev.tv);
+    bcemit_argued(fs, BC_CONSTANT, const_num(fs, &fs->ls->prev.tv));
 }
 
 static void expr_str(FuncState* fs, bool assign)
@@ -1332,7 +1325,6 @@ static void expr_interpolation(FuncState* fs, bool assign)
         bcemit_op(fs, BC_LIST_ITEM);
     }
     while(lex_match(fs, TK_INTERPOLATION));
-
     lex_consume(fs, TK_STRING);
     bcemit_str(fs, &fs->ls->prev.tv);
     bcemit_op(fs, BC_LIST_ITEM);
@@ -1402,9 +1394,7 @@ static void named_variable(FuncState* fs, Token name, bool assign)
         {
             check_const(fs, set_op, arg);
             bcemit_argued(fs, get_op, (uint8_t)arg);
-            TValue _v;
-            setnumV(&_v, 1);
-            bcemit_num(fs, &_v);
+            bcemit_num(fs, 1);
             bcemit_op(fs, bc);
             bcemit_argued(fs, set_op, (uint8_t)arg);
         }
@@ -1520,9 +1510,7 @@ static void expr_range(FuncState* fs, bool assign)
     }
     else
     {
-        TValue tv;
-        setnumV(&tv, 1);
-        bcemit_num(fs, &tv);
+        bcemit_num(fs, 1);
     }
     bcemit_op(fs, BC_RANGE);
 }
@@ -2031,7 +2019,6 @@ static void parse_function_assign(FuncState* fs, BCLine line)
         bcemit_argued(fs, BC_METHOD, k);
         bcemit_byte(fs, 0);
         bcemit_op(fs, BC_POP);
-        return;
     }
 }
 
@@ -2042,14 +2029,12 @@ static void parse_function(FuncState* fs, bool export)
     BCLine line = fs->ls->prev.line;
     lex_consume(fs, TK_NAME);
     Token name = fs->ls->prev;
-
     if((lex_check(fs, '.') || lex_check(fs, ':')) && !export)
     {
         named_variable(fs, name, false);
         parse_function_assign(fs, line);
         return;
     }
-
     var_declare(fs, &name);
     var_mark(fs, false);
     parse_body(fs->ls, FUNC_NORMAL, line);
@@ -2355,7 +2340,7 @@ static void parse_break(FuncState* fs)
     }
 
     /* Discard any locals created inside the loop */
-    scope_discard(fs, fs->loop->scope_depth + 1);
+    scope_close(fs, fs->loop->scope_depth + 1);
     bcemit_jump(fs, BC_END);
 }
 
@@ -2369,7 +2354,7 @@ static void parse_continue(FuncState* fs)
     }
 
     /* Discard any locals created inside the loop */
-    scope_discard(fs, fs->loop->scope_depth + 1);
+    scope_close(fs, fs->loop->scope_depth + 1);
 
     /* Jump to the top of the innermost loop */
     bcemit_loop(fs, fs->loop->start);
@@ -2480,7 +2465,6 @@ static void parse_return(FuncState* fs)
         {
             error(fs, TEA_ERR_XINIT);
         }
-
         expr(fs);
         bcemit_op(fs, BC_RETURN);
     }
@@ -2769,18 +2753,14 @@ static void parse_stmt(FuncState* fs)
             parse_continue(fs);
             break;
         case TK_NAME:
-        {
             if(fs->ls->next.t == ',')
                 parse_multiple_assign(fs);
             else
                 parse_expr_stmt(fs);
             break;
-        }
         case '{':
-        {
             parse_code(fs);
             break;
-        }
         default:
             parse_expr_stmt(fs);
             break;
