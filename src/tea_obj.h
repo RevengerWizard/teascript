@@ -324,7 +324,7 @@ enum
 typedef struct
 {
     GCobj obj;
-    TValue receiver;    /* "this" object */
+    TValue receiver;    /* 'self' object */
     GCfunc* func;   /* Function to bound */
 } GCmethod;
 

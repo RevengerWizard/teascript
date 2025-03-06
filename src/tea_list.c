@@ -59,6 +59,17 @@ void tea_list_add(tea_State* T, GClist* list, cTValue* o)
     list->len++;
 }
 
+/* Add a number to the end of a list */
+void tea_list_addn(tea_State* T, GClist* list, double n)
+{
+    if(list->size < list->len + 1)
+    {
+        list->items = tea_mem_growvec(T, TValue, list->items, list->size, TEA_MAX_MEM32);
+    }
+    setnumV(list_slot(list, list->len), n);
+    list->len++;
+}
+
 /* Insert an item into a list */
 void tea_list_insert(tea_State* T, GClist* list, cTValue* o, int32_t idx)
 {
@@ -111,19 +122,11 @@ GClist* tea_list_slice(tea_State* T, GClist* list, GCrange* range)
         }
     }
 
-    if(step > 0)
+    for(int32_t i = start; 
+        step > 0 ? (i < end) : (i > end); 
+        i += step)
     {
-        for(int i = start; i < end; i += step)
-        {
-            tea_list_add(T, new_list, list_slot(list, i));
-        }
-    }
-    else if(step < 0)
-    {
-        for(int i = end + step; i >= start; i += step)
-        {
-            tea_list_add(T, new_list, list_slot(list, i));
-        }
+        tea_list_add(T, new_list, list_slot(list, i));
     }
 
     T->top--;   /* Pop the pushed list */

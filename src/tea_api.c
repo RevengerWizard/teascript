@@ -906,9 +906,7 @@ TEA_API bool tea_get_fieldi(tea_State* T, int obj, tea_Integer i)
     tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
     tea_checkapi_slot(1);
     bool found = false;
-    TValue key;
-    setintV(&key, i);
-
+    TValue key; setintV(&key, i);
     GCmap* map = mapV(o);
     cTValue* v = tea_map_get(map, &key);
     if(v)
@@ -926,9 +924,7 @@ TEA_API void tea_set_fieldi(tea_State* T, int obj, tea_Integer i)
     tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
     tea_checkapi_slot(1);
     TValue* item = T->top - 1;
-    TValue key;
-    setintV(&key, i);
-
+    TValue key; setintV(&key, i);
     GCmap* map = mapV(o);
     copyTV(T, tea_map_set(T, map, &key), item);
     T->top--;
@@ -941,7 +937,6 @@ TEA_API bool tea_get_field(tea_State* T, int obj)
     tea_checkapi_slot(1);
     TValue* key = T->top - 1;
     bool found = false;
-
     GCmap* map = mapV(o);
     cTValue* v = tea_map_get(map, key);
     if(v)
@@ -961,7 +956,6 @@ TEA_API void tea_set_field(tea_State* T, int obj)
     tea_checkapi_slot(2);
     TValue* item = T->top - 1;
     TValue* key = T->top - 2;
-
     GCmap* map = mapV(o);
     copyTV(T, tea_map_set(T, map, key), item);
     T->top -= 2;
@@ -973,7 +967,6 @@ TEA_API bool tea_delete_field(tea_State* T, int obj)
     tea_checkapi(tvismap(o), "stack slot #%d is not a map", obj);
     tea_checkapi_slot(2);
     TValue* key = T->top - 1;
-
     GCmap* map = mapV(o);
     bool found = tea_map_delete(T, map, key);
     T->top--;

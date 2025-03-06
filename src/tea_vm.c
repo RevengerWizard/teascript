@@ -23,11 +23,11 @@
 #include "tea_meta.h"
 
 /* Argument checking */
-static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int variadic)
+static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int varg)
 {
     if(TEA_UNLIKELY(nargs < numparams))
     {
-        if((nargs + variadic) == numparams)
+        if((nargs + varg) == numparams)
         {
             /* Add missing variadic param ([]) */
             GClist* list = tea_list_new(T, 0);
@@ -41,14 +41,14 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
     }
     else if(TEA_UNLIKELY(nargs > numparams + numops))
     {
-        if(variadic)
+        if(varg)
         {
             int xargs = numparams + numops;
             /* +1 for the variadic param itself */
             int varargs = nargs - xargs + 1;
             GClist* list = tea_list_new(T, 0);
             setlistV(T, T->top++, list);
-            for(int i = varargs; i > 0; i--)
+            for(uint32_t i = varargs; i > 0; i--)
             {
                 tea_list_add(T, list, T->top - 1 - i);
             }
@@ -62,7 +62,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
             tea_err_callerv(T, TEA_ERR_ARGS, numparams + numops, nargs);
         }
     }
-    else if(variadic)
+    else if(varg)
     {
         /* Last argument is the variadic arg */
         GClist* list = tea_list_new(T, 0);
@@ -153,9 +153,9 @@ static bool vm_invoke(tea_State* T, TValue* obj, GCstr* name, int nargs)
     {
         case TEA_TCLASS:
         {
-            GCclass* type = classV(obj);
+            GCclass* klass = classV(obj);
             uint8_t flags;
-            TValue* mo = tea_tab_getx(&type->methods, name, &flags);
+            TValue* mo = tea_tab_getx(&klass->methods, name, &flags);
             if(mo && (flags & ACC_STATIC))
             {
                 return vm_precall(T, mo, nargs);
@@ -241,24 +241,15 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
             int32_t start = range->start;
             int32_t end = range->end;
             int32_t step = range->step;
-            TValue n;
-            if(step > 0)
+            if(step == 0)
+                return;
+            for(int32_t i = start; 
+                step > 0 ? (i < end) : (i > end); 
+                i += step)
             {
-                for(uint32_t i = start; i < end; i += step)
-                {
-                    setnumV(&n, i);
-                    tea_list_add(T, list, &n);
-                }
+                tea_list_addn(T, list, i);
             }
-            else if(step < 0)
-            {
-                for(uint32_t i = end + step; i >= 0; i += step)
-                {
-                    setnumV(&n, i);
-                    tea_list_add(T, list, &n);
-                }
-            }
-            return;
+            break;
         }
         case TEA_TLIST:
         {
@@ -267,7 +258,7 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
             {
                 tea_list_add(T, list, list_slot(l, i));
             }
-            return;
+            break;
         }
         case TEA_TSTR:
         {
@@ -276,16 +267,16 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
             for(uint32_t i = 0; i < len; i++)
             {
                 GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str_datawr(str), i));
-                TValue v;
-                setstrV(T, &v, c);
-                tea_list_add(T, list, &v);
+                TValue tv;
+                setstrV(T, &tv, c);
+                tea_list_add(T, list, &tv);
             }
-            return;
+            break;
         }
         default:
+            tea_err_callerv(T, TEA_ERR_ITER, tea_typename(obj));
             break;
     }
-    tea_err_callerv(T, TEA_ERR_ITER, tea_typename(obj));
 }
 
 /* Call operator overload on unary arithmetic operations */
@@ -516,9 +507,9 @@ static void vm_execute(tea_State* T)
         {
             GCstr* method = READ_STRING();
             uint8_t nargs = READ_BYTE();
-            GCclass* superclass = classV(--T->top);
+            GCclass* super = classV(--T->top);
             STORE_FRAME;
-            TValue* mo = tea_tab_get(&superclass->methods, method);
+            TValue* mo = tea_tab_get(&super->methods, method);
             if(TEA_LIKELY(mo && vm_call(T, funcV(mo), nargs)))
             {
                 (T->ci - 1)->state = (CIST_TEA | CIST_CALLING);
@@ -845,8 +836,8 @@ static void vm_execute(tea_State* T)
         CASE_CODE(BC_GET_SUPER):
         {
             GCstr* name = READ_STRING();
-            GCclass* superclass = classV(--T->top);
-            TValue* o = tea_tab_get(&superclass->methods, name);
+            GCclass* super = classV(--T->top);
+            TValue* o = tea_tab_get(&super->methods, name);
             if(TEA_UNLIKELY(!o))
             {
                 RUNTIME_ERROR(TEA_ERR_METHOD, str_data(name));
@@ -941,12 +932,10 @@ static void vm_execute(tea_State* T)
         {
             TValue* instance = T->top - 2;
             TValue* klass = T->top - 1;
-
             if(TEA_UNLIKELY(!tvisclass(klass)))
             {
                 RUNTIME_ERROR(TEA_ERR_IS);
             }
-
             GCclass* instance_klass = tea_meta_getclass(T, instance);
             if(instance_klass == NULL)
             {
@@ -954,10 +943,8 @@ static void vm_execute(tea_State* T)
                 setfalseV(T->top++);
                 DISPATCH();
             }
-
             GCclass* type = classV(klass);
             bool found = false;
-
             while(instance_klass != NULL)
             {
                 if(instance_klass == type)
@@ -965,10 +952,8 @@ static void vm_execute(tea_State* T)
                     found = true;
                     break;
                 }
-
                 instance_klass = instance_klass->super;
             }
-
             T->top -= 2; /* Drop the instance and class */
             setboolV(T->top++, found);
             DISPATCH();
@@ -977,16 +962,11 @@ static void vm_execute(tea_State* T)
         {
             TValue* value = T->top - 2;
             TValue* object = T->top - 1;
-
             TValue v1, v2;
             copyTV(T, &v1, object);
             copyTV(T, &v2, value);
-
-            T->top -= 2;
-
-            copyTV(T, T->top++, &v1);
-            copyTV(T, T->top++, &v2);
-
+            copyTV(T, value, &v1);
+            copyTV(T, object, &v2);
             STORE_FRAME;
             TValue* mo = tea_meta_lookup(T, &v1, MM_CONTAINS);
             if(TEA_UNLIKELY(!mo))
@@ -1031,13 +1011,10 @@ static void vm_execute(tea_State* T)
         {
             uint8_t slot1 = READ_BYTE();    /* seq */
             uint8_t slot2 = READ_BYTE();    /* iter */
-
             TValue* seq = base + slot1;
             TValue* iter = base + slot2;
-
             copyTV(T, T->top++, seq);
             copyTV(T, T->top++, iter);
-
             /* iterate */
             STORE_FRAME;
             TValue* mo = tea_meta_lookup(T, seq, MM_ITER);
@@ -1052,13 +1029,10 @@ static void vm_execute(tea_State* T)
         {
             uint8_t slot1 = READ_BYTE();    /* seq */
             uint8_t slot2 = READ_BYTE();    /* iter */
-
             TValue* seq = base + slot1;
             TValue* iter = base + slot2;
-
             copyTV(T, T->top++, seq);
             copyTV(T, T->top++, iter);
-
             /* iteratorvalue */
             STORE_FRAME;
             TValue* mo = tea_meta_lookup(T, seq, MM_NEXT);
@@ -1089,18 +1063,15 @@ static void vm_execute(tea_State* T)
         CASE_CODE(BC_INHERIT):
         {
             TValue* super = T->top - 2;
-
             if(TEA_UNLIKELY(!tvisclass(super)))
             {
                 RUNTIME_ERROR(TEA_ERR_SUPER);
             }
-
             GCclass* superclass = classV(super);
             if(TEA_UNLIKELY(tea_meta_isclass(T, superclass)))
             {
                 RUNTIME_ERROR(TEA_ERR_BUILTINSELF, str_data(superclass->name));
             }
-
             GCclass* klass = classV(T->top - 1);
             if(TEA_UNLIKELY(klass == superclass))
             {
@@ -1108,7 +1079,6 @@ static void vm_execute(tea_State* T)
             }
             klass->super = superclass;
             klass->init = superclass->init;
-
             tea_tab_merge(T, &superclass->methods, &klass->methods);
             T->top--;
             DISPATCH();

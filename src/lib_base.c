@@ -144,15 +144,12 @@ static void base_eval(tea_State* T)
 {
     const char* s = tea_check_string(T, 0);
     int status = tea_eval(T, s);
-    if(status == TEA_OK)
-    {
-        tea_call(T, 0);
-    }
-    else
+    if(status != TEA_OK)
     {
         /* Rethrow the error */
         tea_err_throw(T, status);
     }
+    tea_call(T, 0);
 }
 
 static int writer_buf(tea_State* T, void* sb, const void* p, size_t size)
@@ -348,12 +345,10 @@ static void tea_open_global(tea_State* T)
         tea_push_cfunction(T, reg->fn, reg->nargs, reg->nopts);
         tea_set_global(T, reg->name);
     }
-
     GCclass* obj = tea_class_new(T, tea_str_newlit(T, "Object"));
     T->gcroot[GCROOT_KLOBJ] = obj2gco(obj);
     setclassV(T, T->top++, obj);
     tea_set_global(T, "Object");
-
     tea_create_class(T, "Number", number_reg);
     T->gcroot[GCROOT_KLNUM] = obj2gco(classV(T->top - 1));
     gcroot_numclass(T)->super = NULL;
@@ -371,7 +366,6 @@ static void tea_open_global(tea_State* T)
 void tea_open_base(tea_State* T)
 {
     const tea_CFunction funcs[] = { tea_open_global, tea_open_list, tea_open_map, tea_open_string, tea_open_range, tea_open_buffer, NULL };
-
     for(int i = 0; funcs[i] != NULL; i++)
     {
         tea_push_cfunction(T, funcs[i], 0, 0);
