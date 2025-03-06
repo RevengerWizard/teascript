@@ -35,7 +35,7 @@ print(line0)
 for const r in 1..side+1
 {
     var i = -1
-    var rowstr = nums[r - 1].map((n) => { i++; return n + line1.split('.')[i] }).join('')
+    var rowstr = nums[r - 1].map((n) => { i += 1; return n + line1.split('.')[i] }).join('')
     print(rowstr)
     var b1 = (r % side == 0) ? 1 : 0
     var b2 = (r % base == 0) ? 1 : 0

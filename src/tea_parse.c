@@ -60,6 +60,7 @@ typedef struct
     bool isconst;
 } Upvalue;
 
+/* Per-class state */
 typedef struct KlassState
 {
     struct KlassState* prev; /* Enclosing class state */
@@ -70,10 +71,10 @@ typedef struct KlassState
 typedef struct Loop
 {
     struct Loop* prev; /* Enclosing loop */
-    BCPos start;
-    BCPos body;
-    int end;
-    int scope_depth;
+    BCPos start;    /* Start of loop */
+    BCPos body; /* Start of loop body */
+    int end;    /* End of loop or -1 */
+    int scope_depth;    /* Scope depth of loop */
 } Loop;
 
 typedef enum
@@ -90,6 +91,7 @@ typedef enum
     FUNC_SCRIPT
 } FuncInfo;
 
+/* Per-function state */
 typedef struct FuncState
 {
     GCmap* kt;  /* Map for constants */
@@ -290,7 +292,7 @@ static void bcemit_ops(FuncState* fs, BCOp op1, BCOp op2)
 }
 
 /* Emit a bytecode instruction with a byte argument */
-static void bcemit_argued(FuncState* fs, BCOp op, uint8_t byte)
+static void bcemit_arg(FuncState* fs, BCOp op, uint8_t byte)
 {
     bcemit_bytes(fs, op, byte);
     fs->max_slots += bc_effects[op];
@@ -320,7 +322,7 @@ static void bcemit_return(FuncState* fs)
 {
     if(fs->info == FUNC_INIT)
     {
-        bcemit_argued(fs, BC_GET_LOCAL, 0);
+        bcemit_arg(fs, BC_GET_LOCAL, 0);
     }
     else
     {
@@ -333,19 +335,19 @@ static void bcemit_return(FuncState* fs)
 static void bcemit_invoke(FuncState* fs, int args, const char* name)
 {
     GCstr* str = tea_str_new(fs->T, name, strlen(name));
-    bcemit_argued(fs, BC_INVOKE, const_str(fs, str));
+    bcemit_arg(fs, BC_INVOKE, const_str(fs, str));
     bcemit_byte(fs, args);
 }
 
 static void bcemit_num(FuncState* fs, double n)
 {
     TValue tv; setnumV(&tv, n);
-    bcemit_argued(fs, BC_CONSTANT, const_num(fs, &tv));
+    bcemit_arg(fs, BC_CONSTANT, const_num(fs, &tv));
 }
 
 static void bcemit_str(FuncState* fs, TValue* o)
 {
-    bcemit_argued(fs, BC_CONSTANT, const_str(fs, strV(o)));
+    bcemit_arg(fs, BC_CONSTANT, const_str(fs, strV(o)));
 }
 
 /* Patch jump instruction */
@@ -382,7 +384,7 @@ static void fs_fixup_k(FuncState* fs, GCproto* pt, void* kptr)
     pt->k = (TValue*)kptr;
     pt->sizek = fs->nk;
     kt = fs->kt;
-    for(int i = 0; i < kt->size; i++)
+    for(uint32_t i = 0; i < kt->size; i++)
     {
         MapEntry* n = &kt->entries[i];
         if(tvisnil(&n->key)) continue;
@@ -791,41 +793,41 @@ static void var_define(FuncState* fs, Token* tok, bool isconst, bool export)
     if(fs->scope_depth == 0)
     {
         uint8_t idx = fs->ls->vtop - 1;
-        bcemit_argued(fs, BC_SET_MODULE, idx);
+        bcemit_arg(fs, BC_SET_MODULE, idx);
         if(export)
         {
             GCstr* str = strV(&tok->tv);
             uint8_t k = const_str(fs, str);
-            bcemit_argued(fs, BC_DEFINE_MODULE, k);
+            bcemit_arg(fs, BC_DEFINE_MODULE, k);
         }
         bcemit_byte(fs, BC_POP);
     }
 }
 
 /* Find get/set bytecodes for variable */
-static int var_find(FuncState* fs, Token* tok, bool assign, uint8_t* get_op, uint8_t* set_op)
+static int var_find(FuncState* fs, Token* tok, bool assign, uint8_t* getbc, uint8_t* setbc)
 {
     GCstr* name = strV(&tok->tv);
     int arg = var_lookup_local(fs, tok);
     if(arg != -1)
     {
-        *get_op = BC_GET_LOCAL;
-        *set_op = BC_SET_LOCAL;
+        *getbc = BC_GET_LOCAL;
+        *setbc = BC_SET_LOCAL;
     }
     else if((arg = var_lookup_uv(fs, tok)) != -1)
     {
-        *get_op = BC_GET_UPVALUE;
-        *set_op = BC_SET_UPVALUE;
+        *getbc = BC_GET_UPVALUE;
+        *setbc = BC_SET_UPVALUE;
     }
     else if((arg = var_lookup_var(fs, tok)) != -1)
     {
-        *get_op = BC_GET_MODULE;
-        *set_op = BC_SET_MODULE;
+        *getbc = BC_GET_MODULE;
+        *setbc = BC_SET_MODULE;
     }
     else if(!assign && tea_tab_get(&fs->T->globals, name) != NULL)
     {
         arg = const_str(fs, name);
-        *get_op = BC_GET_GLOBAL;
+        *getbc = BC_GET_GLOBAL;
     }
     else
     {
@@ -858,13 +860,13 @@ static void var_fixup_end(FuncState* fs)
 {
     tea_State* T = fs->T;
     GCmodule* mod = fs->ls->module;
-    int oldsize = mod->size;
-    int newsize = fs->varnum;
+    uint16_t oldsize = mod->size;
+    uint16_t newsize = fs->varnum;
     /* Allocate new arrays for module variables */
     mod->size = newsize;
     mod->vars = tea_mem_reallocvec(T, TValue, mod->vars, oldsize, newsize);
     mod->varnames = tea_mem_reallocvec(T, GCstr*, mod->varnames, oldsize, newsize);
-    for(int i = oldsize; i < newsize; i++)
+    for(uint16_t i = oldsize; i < newsize; i++)
     {
         GCstr* name = fs->ls->vstack[i].name;
         tea_assertT(name != NULL, "bad variable name"); 
@@ -879,6 +881,7 @@ static void var_fixup_end(FuncState* fs)
 static ParseRule expr_rule(int type);
 static void expr_precedence(FuncState* fs, Precedence prec);
 
+/* Parse logical and expression */
 static void expr_and(FuncState* fs, bool assign)
 {
     BCPos jmp = bcemit_jump(fs, BC_JUMP_IF_FALSE);
@@ -887,29 +890,30 @@ static void expr_and(FuncState* fs, bool assign)
     bcpatch_jump(fs, jmp);
 }
 
+/* Parse binary expression */
 static void expr_binary(FuncState* fs, bool assign)
 {
-    LexToken op = fs->ls->prev.t;
-    if(op == TK_NOT)
+    LexToken tok = fs->ls->prev.t;
+    if(tok == TK_NOT)
     {
         lex_consume(fs, TK_IN);
-        ParseRule rule = expr_rule(op);
+        ParseRule rule = expr_rule(tok);
         expr_precedence(fs, (Precedence)(rule.prec + 1));
         bcemit_ops(fs, BC_IN, BC_NOT);
         return;
     }
 
-    if(op == TK_IS && lex_match(fs, TK_NOT))
+    if(tok == TK_IS && lex_match(fs, TK_NOT))
     {
-        ParseRule rule = expr_rule(op);
+        ParseRule rule = expr_rule(tok);
         expr_precedence(fs, (Precedence)(rule.prec + 1));
         bcemit_ops(fs, BC_IS, BC_NOT);
         return;
     }
 
-    ParseRule rule = expr_rule(op);
+    ParseRule rule = expr_rule(tok);
     expr_precedence(fs, (Precedence)(rule.prec + 1));
-    switch(op)
+    switch(tok)
     {
         case TK_BANG_EQUAL:
             bcemit_ops(fs, BC_EQUAL, BC_NOT);
@@ -976,6 +980,7 @@ static void expr_binary(FuncState* fs, bool assign)
 /* Forward declaration */
 static void expr(FuncState* fs);
 
+/* Parse ternary expression ? : */
 static void expr_ternary(FuncState* fs, bool assign)
 {
     /* Jump to else branch if the condition is false */
@@ -1017,13 +1022,15 @@ static uint8_t parse_args(FuncState* fs)
     return nargs;
 }
 
+/* Parse expression call */
 static void expr_call(FuncState* fs, bool assign)
 {
     uint8_t nargs = parse_args(fs);
-    bcemit_argued(fs, BC_CALL, nargs);
+    bcemit_arg(fs, BC_CALL, nargs);
 }
 
-static int bcassign(FuncState* fs)
+/* Convert token to bytecode assignment */
+static BCOp tok2bcassign(FuncState* fs)
 {
     switch(fs->ls->curr.t)
     {
@@ -1054,6 +1061,7 @@ static int bcassign(FuncState* fs)
     }
 }
 
+/* Parse attribute expression with named field */
 static void expr_dot(FuncState* fs, bool assign)
 {
     bool isnew = false;
@@ -1072,64 +1080,55 @@ static void expr_dot(FuncState* fs, bool assign)
         uint8_t nargs = parse_args(fs);
         if(isnew)
         {
-            bcemit_argued(fs, BC_INVOKE_NEW, nargs);
+            bcemit_arg(fs, BC_INVOKE_NEW, nargs);
         }
         else
         {
-            bcemit_argued(fs, BC_INVOKE, name);
+            bcemit_arg(fs, BC_INVOKE, name);
             bcemit_byte(fs, nargs);
         }
         return;
     }
 
-    int bc;
+    BCOp bc;
     if(assign && lex_match(fs, '='))
     {
         expr(fs);
-        bcemit_argued(fs, BC_SET_ATTR, name);
+        bcemit_arg(fs, BC_SET_ATTR, name);
     }
-    else if(assign && (bc = bcassign(fs)))
+    else if(assign && (bc = tok2bcassign(fs)))
     {
         tea_lex_next(fs->ls);
-        bcemit_argued(fs, BC_PUSH_ATTR, name);
+        bcemit_arg(fs, BC_PUSH_ATTR, name);
         expr(fs);
         bcemit_op(fs, bc);
-        bcemit_argued(fs, BC_SET_ATTR, name);
+        bcemit_arg(fs, BC_SET_ATTR, name);
     }
     else
     {
-        if(lex_match(fs, TK_PLUS_PLUS)) bc = BC_ADD;
-        else if(lex_match(fs, TK_MINUS_MINUS)) bc = BC_SUBTRACT;
-        else bc = 0;
-        if(bc)
-        {
-            bcemit_argued(fs, BC_PUSH_ATTR, name);
-            bcemit_num(fs, 1);
-            bcemit_op(fs, bc);
-            bcemit_argued(fs, BC_SET_ATTR, name);
-        }
-        else
-        {
-            bcemit_argued(fs, BC_GET_ATTR, name);
-        }
+        bcemit_arg(fs, BC_GET_ATTR, name);
     }
 }
 
+/* Return true */
 static void expr_true(FuncState* fs, bool assign)
 {
     bcemit_op(fs, BC_TRUE);
 }
 
+/* Return false */
 static void expr_false(FuncState* fs, bool assign)
 {
     bcemit_op(fs, BC_FALSE);
 }
 
+/* Return nil */
 static void expr_nil(FuncState* fs, bool assign)
 {
     bcemit_op(fs, BC_NIL);
 }
 
+/* Parse list expression */
 static void expr_list(FuncState* fs, bool assign)
 {
     bcemit_op(fs, BC_LIST);
@@ -1156,6 +1155,7 @@ static void expr_list(FuncState* fs, bool assign)
     lex_consume(fs, ']');
 }
 
+/* Parse map expression */
 static void expr_map(FuncState* fs, bool assign)
 {
     bcemit_op(fs, BC_MAP);
@@ -1188,6 +1188,7 @@ static void expr_map(FuncState* fs, bool assign)
     lex_consume(fs, '}');
 }
 
+/* Parse a slice into a range, use infinity to signal no limit */
 static bool parse_slice(FuncState* fs)
 {
     expr(fs);
@@ -1227,6 +1228,7 @@ static bool parse_slice(FuncState* fs)
     return false;
 }
 
+/* Parse index expression with brackets */
 static void expr_subscript(FuncState* fs, bool assign)
 {
     if(parse_slice(fs))
@@ -1236,13 +1238,13 @@ static void expr_subscript(FuncState* fs, bool assign)
 
     lex_consume(fs, ']');
 
-    int bc;
+    BCOp bc;
     if(assign && lex_match(fs, '='))
     {
         expr(fs);
         bcemit_op(fs, BC_SET_INDEX);
     }
-    else if(assign && (bc = bcassign(fs)))
+    else if(assign && (bc = tok2bcassign(fs)))
     {
         tea_lex_next(fs->ls);
         bcemit_op(fs, BC_PUSH_INDEX);
@@ -1252,23 +1254,11 @@ static void expr_subscript(FuncState* fs, bool assign)
     }
     else
     {
-        if(lex_match(fs, TK_PLUS_PLUS)) bc = BC_ADD;
-        else if(lex_match(fs, TK_MINUS_MINUS)) bc = BC_SUBTRACT;
-        else bc = 0;
-        if(bc)
-        {
-            bcemit_op(fs, BC_PUSH_INDEX);
-            bcemit_num(fs, 1);
-            bcemit_op(fs, bc);
-            bcemit_op(fs, BC_SET_INDEX);
-        }
-        else
-        {
-            bcemit_op(fs, BC_GET_INDEX);
-        }
+        bcemit_op(fs, BC_GET_INDEX);
     }
 }
 
+/* Parse logical or expression */
 static void expr_or(FuncState* fs, bool assign)
 {
     BCPos else_jmp = bcemit_jump(fs, BC_JUMP_IF_FALSE);
@@ -1279,11 +1269,13 @@ static void expr_or(FuncState* fs, bool assign)
     bcpatch_jump(fs, jmp);
 }
 
+/* Parse number expression */
 static void expr_num(FuncState* fs, bool assign)
 {
-    bcemit_argued(fs, BC_CONSTANT, const_num(fs, &fs->ls->prev.tv));
+    bcemit_arg(fs, BC_CONSTANT, const_num(fs, &fs->ls->prev.tv));
 }
 
+/* Parse string expression, apply concatenation optimization */
 static void expr_str(FuncState* fs, bool assign)
 {
     tea_State* T = fs->T;
@@ -1308,6 +1300,7 @@ static void expr_str(FuncState* fs, bool assign)
     bcemit_str(fs, &tv);
 }
 
+/* Parse interpolated string expression */
 static void expr_interpolation(FuncState* fs, bool assign)
 {
     bcemit_op(fs, BC_LIST);
@@ -1352,53 +1345,42 @@ static void check_const(FuncState* fs, uint8_t set_op, int arg)
     }
 }
 
-static void named_variable(FuncState* fs, Token name, bool assign)
+/* Parse named expression */
+static void parse_named(FuncState* fs, Token name, bool assign)
 {
-    uint8_t get_op, set_op;
-    int arg = var_find(fs, &name, lex_check(fs, '='), &get_op, &set_op);
+    uint8_t getbc, setbc;
+    int arg = var_find(fs, &name, lex_check(fs, '='), &getbc, &setbc);
 
-    int bc;
+    BCOp bc;
     if(assign && lex_match(fs, '='))
     {
-        check_const(fs, set_op, arg);
+        check_const(fs, setbc, arg);
         expr(fs);
-        bcemit_argued(fs, set_op, (uint8_t)arg);
+        bcemit_arg(fs, setbc, (uint8_t)arg);
     }
-    else if(assign && (bc = bcassign(fs)))
+    else if(assign && (bc = tok2bcassign(fs)))
     {
         tea_lex_next(fs->ls);
-        check_const(fs, set_op, arg);
-        bcemit_argued(fs, get_op, (uint8_t)arg);
+        check_const(fs, setbc, arg);
+        bcemit_arg(fs, getbc, (uint8_t)arg);
         expr(fs);
         bcemit_op(fs, bc);
-        bcemit_argued(fs, set_op, (uint8_t)arg);
+        bcemit_arg(fs, setbc, (uint8_t)arg);
     }
     else
     {
-        if(lex_match(fs, TK_PLUS_PLUS)) bc = BC_ADD;
-        else if(lex_match(fs, TK_MINUS_MINUS)) bc = BC_SUBTRACT;
-        else bc = 0;
-        if(bc)
-        {
-            check_const(fs, set_op, arg);
-            bcemit_argued(fs, get_op, (uint8_t)arg);
-            bcemit_num(fs, 1);
-            bcemit_op(fs, bc);
-            bcemit_argued(fs, set_op, (uint8_t)arg);
-        }
-        else
-        {
-            bcemit_argued(fs, get_op, (uint8_t)arg);
-        }
+        bcemit_arg(fs, getbc, (uint8_t)arg);
     }
 }
 
+/* Parse name expression */
 static void expr_name(FuncState* fs, bool assign)
 {
     Token name = fs->ls->prev;
-    named_variable(fs, name, assign);
+    parse_named(fs, name, assign);
 }
 
+/* Parse super */
 static void expr_super(FuncState* fs, bool assign)
 {
     if(fs->klass == NULL)
@@ -1413,7 +1395,7 @@ static void expr_super(FuncState* fs, bool assign)
     /* super */
     if(!lex_check(fs, '(') && !lex_check(fs, '.'))
     {
-        named_variable(fs, lex_synthetic(fs, "super"), false);
+        parse_named(fs, lex_synthetic(fs, "super"), false);
         return;
     }
 
@@ -1422,10 +1404,10 @@ static void expr_super(FuncState* fs, bool assign)
     {
         Token tok = lex_synthetic(fs, "new");
         uint8_t name = const_str(fs, strV(&tok.tv));
-        named_variable(fs, lex_synthetic(fs, "self"), false);
+        parse_named(fs, lex_synthetic(fs, "self"), false);
         uint8_t nargs = parse_args(fs);
-        named_variable(fs, lex_synthetic(fs, "super"), false);
-        bcemit_argued(fs, BC_SUPER, name);
+        parse_named(fs, lex_synthetic(fs, "super"), false);
+        bcemit_arg(fs, BC_SUPER, name);
         bcemit_byte(fs, nargs);
         return;
     }
@@ -1435,24 +1417,25 @@ static void expr_super(FuncState* fs, bool assign)
     lex_consume(fs, TK_NAME);
     uint8_t name = const_str(fs, strV(&fs->ls->prev.tv));
 
-    named_variable(fs, lex_synthetic(fs, "self"), false);
+    parse_named(fs, lex_synthetic(fs, "self"), false);
 
     if(lex_match(fs, '('))
     {
         /* super.name() */
         uint8_t nargs = parse_args(fs);
-        named_variable(fs, lex_synthetic(fs, "super"), false);
-        bcemit_argued(fs, BC_SUPER, name);
+        parse_named(fs, lex_synthetic(fs, "super"), false);
+        bcemit_arg(fs, BC_SUPER, name);
         bcemit_byte(fs, nargs);
     }
     else
     {
         /* super.name */
-        named_variable(fs, lex_synthetic(fs, "super"), false);
-        bcemit_argued(fs, BC_GET_SUPER, name);
+        parse_named(fs, lex_synthetic(fs, "super"), false);
+        bcemit_arg(fs, BC_GET_SUPER, name);
     }
 }
 
+/* Parse self */
 static void expr_self(FuncState* fs, bool assign)
 {
     if(fs->klass == NULL)
@@ -1466,11 +1449,12 @@ static void expr_self(FuncState* fs, bool assign)
     expr_name(fs, false);
 }
 
+/* Parse unary expression */
 static void expr_unary(FuncState* fs, bool assign)
 {
-    int op = fs->ls->prev.t;
+    LexToken tok = fs->ls->prev.t;
     expr_precedence(fs, PREC_UNARY);
-    switch(op)
+    switch(tok)
     {
         case TK_NOT:
         case '!':
@@ -1487,10 +1471,11 @@ static void expr_unary(FuncState* fs, bool assign)
     }
 }
 
+/* Parse range expression with optional step */
 static void expr_range(FuncState* fs, bool assign)
 {
-    LexToken op_type = fs->ls->prev.t;
-    ParseRule rule = expr_rule(op_type);
+    LexToken tok = fs->ls->prev.t;
+    ParseRule rule = expr_rule(tok);
     expr_precedence(fs, (Precedence)(rule.prec + 1));
     if(lex_match(fs, TK_DOT_DOT))
     {
@@ -1513,9 +1498,10 @@ static void expr_grouping(FuncState* fs, bool assign);
 #define PREFIX(pr)              (ParseRule){ pr, NULL, PREC_NONE }
 #define OPERATOR(in, prec)      (ParseRule){ NULL, in, prec }
 
-static ParseRule expr_rule(int type)
+/* Find the rule for a given token */
+static ParseRule expr_rule(LexToken t)
 {
-    switch(type)
+    switch(t)
     {
         case '(':
             return RULE(expr_grouping, expr_call, PREC_CALL);
@@ -1600,6 +1586,7 @@ static ParseRule expr_rule(int type)
 #undef PREFIX
 #undef OPERATOR
 
+/* Parse expression with precedence */
 static void expr_precedence(FuncState* fs, Precedence prec)
 {
     tea_lex_next(fs->ls);
@@ -1625,6 +1612,7 @@ static void expr_precedence(FuncState* fs, Precedence prec)
     }
 }
 
+/* Parse expression */
 static void expr(FuncState* fs)
 {
     expr_precedence(fs, PREC_ASSIGNMENT);
@@ -1717,6 +1705,7 @@ static void parse_params(FuncState* fs)
     lex_consume(fs, ')');
 }
 
+/* Parse arrow function */
 static void parse_arrow(FuncState* fs)
 {
     parse_params(fs);
@@ -1764,18 +1753,20 @@ static void parse_body(LexState* ls, FuncInfo info, BCLine line)
     pfs->bcbase = ls->bcstack + oldbase;    /* May have been reallocated */
     pfs->bclimit = (BCPos)(ls->sizebcstack - oldbase);
     /* Store new prototype in the constant array of the parent */
-    bcemit_argued(pfs, BC_CLOSURE, const_gc(pfs, (GCobj*)pt, TEA_TPROTO));
+    bcemit_arg(pfs, BC_CLOSURE, const_gc(pfs, (GCobj*)pt, TEA_TPROTO));
     if(!(pfs->flags & PROTO_CHILD))
     {
         pfs->flags |= PROTO_CHILD;
     }
 }
 
+/* Parse anonymous function */
 static void expr_anonymous(FuncState* fs, bool assign)
 {
     parse_body(fs->ls, FUNC_ANONYMOUS, fs->ls->prev.line);
 }
 
+/* Parse grouping expression */
 static void expr_grouping(FuncState* fs, bool assign)
 {
     LexToken curr = fs->ls->curr.t;
@@ -1812,6 +1803,7 @@ static const LexToken ops[] = {
 
 #define SENTINEL 18
 
+/* Parse operator overload method */
 static void parse_operator(FuncState* fs)
 {
     int i = 0;
@@ -1848,18 +1840,20 @@ static void parse_operator(FuncState* fs)
 
     fs->name = name;
     parse_body(fs->ls, FUNC_OPERATOR, fs->ls->prev.line);
-    bcemit_argued(fs, BC_METHOD, k);
+    bcemit_arg(fs, BC_METHOD, k);
     bcemit_byte(fs, 0);
 }
 
+/* Parse method */
 static void parse_method(FuncState* fs, FuncInfo info, uint8_t flags)
 {
     uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
     parse_body(fs->ls, info, fs->ls->prev.line);
-    bcemit_argued(fs, BC_METHOD, k);
+    bcemit_arg(fs, BC_METHOD, k);
     bcemit_byte(fs, flags);
 }
 
+/* Parse get/set accessor methods */
 static void parse_accessor(FuncState* fs)
 {
     lex_consume(fs, TK_NAME);
@@ -1877,7 +1871,7 @@ static void parse_accessor(FuncState* fs)
         flags = ACC_GET;
     }
     parse_body(fs->ls, info, fs->ls->prev.line);
-    bcemit_argued(fs, BC_METHOD, k);
+    bcemit_arg(fs, BC_METHOD, k);
     bcemit_byte(fs, flags);
 }
 
@@ -1936,7 +1930,7 @@ static void parse_class(FuncState* fs, bool export)
     uint8_t k = const_str(fs, strV(&class_name.tv));
     var_declare(fs, &class_name);
 
-    bcemit_argued(fs, BC_CLASS, k);
+    bcemit_arg(fs, BC_CLASS, k);
     var_define(fs, &class_name, false, export);
 
     KlassState ks;
@@ -1950,12 +1944,12 @@ static void parse_class(FuncState* fs, bool export)
         var_add_local(fs, lex_synthetic(fs, "super"));
         var_define(fs, 0, false, false);
 
-        named_variable(fs, class_name, false);
+        parse_named(fs, class_name, false);
         bcemit_op(fs, BC_INHERIT);
         ks.isinherit = true;
     }
 
-    named_variable(fs, class_name, false);
+    parse_named(fs, class_name, false);
 
     lex_consume(fs, '{');
     parse_class_body(fs);
@@ -1971,6 +1965,7 @@ static void parse_class(FuncState* fs, bool export)
     fs->klass = fs->klass->prev;
 }
 
+/* Parse function assignment obj.name or obj:name */
 static void parse_function_assign(FuncState* fs, BCLine line)
 {
     if(lex_match(fs, '.'))
@@ -1979,13 +1974,13 @@ static void parse_function_assign(FuncState* fs, BCLine line)
         uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
         if(!lex_check(fs, '('))
         {
-            bcemit_argued(fs, BC_GET_ATTR, k);
+            bcemit_arg(fs, BC_GET_ATTR, k);
             parse_function_assign(fs, line);
         }
         else
         {
             parse_body(fs->ls, FUNC_NORMAL, line);
-            bcemit_argued(fs, BC_SET_ATTR, k);
+            bcemit_arg(fs, BC_SET_ATTR, k);
             bcemit_op(fs, BC_POP);
             return;
         }
@@ -1999,7 +1994,7 @@ static void parse_function_assign(FuncState* fs, BCLine line)
         parse_body(fs->ls, FUNC_METHOD, line);
         fs->klass = fs->klass->prev;
         bcemit_op(fs, BC_ISTYPE);
-        bcemit_argued(fs, BC_METHOD, k);
+        bcemit_arg(fs, BC_METHOD, k);
         bcemit_byte(fs, 0);
         bcemit_op(fs, BC_POP);
         return;
@@ -2015,7 +2010,7 @@ static void parse_function(FuncState* fs, bool export)
     Token name = fs->ls->prev;
     if((lex_check(fs, '.') || lex_check(fs, ':')) && !export)
     {
-        named_variable(fs, name, false);
+        parse_named(fs, name, false);
         parse_function_assign(fs, line);
         return;
     }
@@ -2104,7 +2099,7 @@ static void parse_var(FuncState* fs, bool isconst, bool export)
             expr_count++;
             if(expr_count == 1 && (!lex_check(fs, ',')))
             {
-                bcemit_argued(fs, BC_UNPACK, var_count);
+                bcemit_arg(fs, BC_UNPACK, var_count);
                 goto finish;
             }
         }
@@ -2193,7 +2188,7 @@ static void parse_for_in(FuncState* fs, Token var, bool isconst)
     scope_begin(fs);
 
     if(var_count > 1)
-        bcemit_argued(fs, BC_UNPACK, var_count);
+        bcemit_arg(fs, BC_UNPACK, var_count);
 
     for(int i = 0; i < var_count; i++)
     {
@@ -2291,7 +2286,7 @@ static void parse_for(FuncState* fs)
     if(loop_var != -1)
     {
         scope_begin(fs);
-        bcemit_argued(fs, BC_GET_LOCAL, (uint8_t)loop_var);
+        bcemit_arg(fs, BC_GET_LOCAL, (uint8_t)loop_var);
         var_add_local(fs, var_name);
         var_mark(fs, false);
         inner_var = fs->local_count - 1;
@@ -2301,8 +2296,8 @@ static void parse_for(FuncState* fs)
 
     if(inner_var != -1)
     {
-        bcemit_argued(fs, BC_GET_LOCAL, (uint8_t)inner_var);
-        bcemit_argued(fs, BC_SET_LOCAL, (uint8_t)loop_var);
+        bcemit_arg(fs, BC_GET_LOCAL, (uint8_t)inner_var);
+        bcemit_arg(fs, BC_SET_LOCAL, (uint8_t)loop_var);
         bcemit_op(fs, BC_POP);
         scope_end(fs);
     }
@@ -2391,7 +2386,7 @@ static void parse_switch(FuncState* fs)
                     expr(fs);
                 }
                 while(lex_match(fs, ','));
-                bcemit_argued(fs, BC_MULTI_CASE, multi);
+                bcemit_arg(fs, BC_MULTI_CASE, multi);
             }
             BCPos jmp = bcemit_jump(fs, BC_COMPARE_JUMP);
             parse_code(fs);
@@ -2455,7 +2450,7 @@ static void parse_import_name(FuncState* fs)
     lex_consume(fs, TK_NAME);
     Token name = fs->ls->prev;
     uint8_t k = const_str(fs, strV(&name.tv));
-    bcemit_argued(fs, BC_IMPORT_NAME, k);
+    bcemit_arg(fs, BC_IMPORT_NAME, k);
     bcemit_op(fs, BC_POP);
 
     if(lex_match(fs, TK_AS))
@@ -2481,7 +2476,7 @@ static void parse_import_string(FuncState* fs)
     if(lex_match(fs, TK_STRING))
     {
         uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
-        bcemit_argued(fs, BC_IMPORT_STRING, k);
+        bcemit_arg(fs, BC_IMPORT_STRING, k);
     }
     else
     {
@@ -2514,7 +2509,7 @@ static void parse_from(FuncState* fs)
     if(lex_match(fs, TK_STRING))
     {
         uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
-        bcemit_argued(fs, BC_IMPORT_STRING, k);
+        bcemit_arg(fs, BC_IMPORT_STRING, k);
     }
     else if(lex_match(fs, TK_INTERPOLATION))
     {
@@ -2525,7 +2520,7 @@ static void parse_from(FuncState* fs)
     {
         lex_consume(fs, TK_NAME);
         uint8_t k = const_str(fs, strV(&fs->ls->prev.tv));
-        bcemit_argued(fs, BC_IMPORT_NAME, k);
+        bcemit_arg(fs, BC_IMPORT_NAME, k);
     }
     lex_consume(fs, TK_IMPORT);
     bcemit_op(fs, BC_POP);
@@ -2541,7 +2536,7 @@ static void parse_from(FuncState* fs)
             name = fs->ls->prev;
         }
         var_declare(fs, &name);
-        bcemit_argued(fs, BC_IMPORT_VARIABLE, k);
+        bcemit_arg(fs, BC_IMPORT_VARIABLE, k);
         var_define(fs, &name, false, false);
     }
     while(lex_match(fs, ','));
@@ -2598,6 +2593,7 @@ static void parse_do(FuncState* fs)
     loop_end(fs);
 }
 
+/* Parse multiple assignment of named variables */
 static void parse_multiple_assign(FuncState* fs)
 {
     int expr_count = 0;
@@ -2620,7 +2616,7 @@ static void parse_multiple_assign(FuncState* fs)
         expr_count++;
         if(expr_count == 1 && (!lex_check(fs, ',')))
         {
-            bcemit_argued(fs, BC_UNPACK, var_count);
+            bcemit_arg(fs, BC_UNPACK, var_count);
             goto finish;
         }
     }
@@ -2635,14 +2631,15 @@ finish:
     for(int i = var_count - 1; i >= 0; i--)
     {
         Token tok = vars[i];
-        uint8_t get_op, set_op;
-        int arg = var_find(fs, &tok, true, &get_op, &set_op);
-        check_const(fs, set_op, arg);
-        bcemit_argued(fs, set_op, (uint8_t)arg);
+        uint8_t getbc, setbc;
+        int arg = var_find(fs, &tok, true, &getbc, &setbc);
+        check_const(fs, setbc, arg);
+        bcemit_arg(fs, setbc, (uint8_t)arg);
         bcemit_op(fs, BC_POP);
     }
 }
 
+/* Parse 'export' statement */
 static void parse_export(FuncState* fs)
 {
     tea_lex_next(fs->ls);
@@ -2669,9 +2666,9 @@ static void parse_export(FuncState* fs)
             {
                 tea_lex_error(fs->ls, fs->ls->prev.t, fs->ls->prev.line, TEA_ERR_XVAR, str_data(strV(&name.tv)));
             }
-            bcemit_argued(fs, BC_GET_MODULE, idx);
+            bcemit_arg(fs, BC_GET_MODULE, idx);
             uint8_t k = const_str(fs, strV(&name.tv));
-            bcemit_argued(fs, BC_DEFINE_MODULE, k);
+            bcemit_arg(fs, BC_DEFINE_MODULE, k);
             bcemit_byte(fs, BC_POP);
         }
         while(lex_match(fs, ','));
@@ -2766,27 +2763,26 @@ static void parse_decl(FuncState* fs, bool export)
     }
 }
 
-/* A chunk is a sequence of statements or a single expression */
-static void parse_chunk(FuncState* fs, bool isexpr)
+/* Parse a single expression and return its result */
+static void parse_eval(FuncState* fs)
 {
-    if(isexpr)
+    expr(fs);
+    bcemit_op(fs, BC_RETURN);
+    lex_consume(fs, TK_EOF);
+}
+
+/* A chunk is a sequence of statements */
+static void parse_chunk(FuncState* fs)
+{
+    while(!lex_match(fs, TK_EOF))
     {
-        expr(fs);
-        bcemit_op(fs, BC_RETURN);
-        lex_consume(fs, TK_EOF);
+        parse_decl(fs, false);
     }
-    else
-    {
-        while(!lex_match(fs, TK_EOF))
-        {
-            parse_decl(fs, false);
-        }
-        bcemit_return(fs);
-    }
+    bcemit_return(fs);
 }
 
 /* Entry point of bytecode parser */
-GCproto* tea_parse(LexState* ls, bool isexpr)
+GCproto* tea_parse(LexState* ls, bool eval)
 {
     FuncState fs;
     GCproto* pt;
@@ -2799,7 +2795,10 @@ GCproto* tea_parse(LexState* ls, bool isexpr)
     tea_lex_next(fs.ls);   /* Read the first token into "next" */
     tea_lex_next(fs.ls);   /* Copy "next" -> "curr" */
     var_fixup_start(&fs);
-    parse_chunk(&fs, isexpr);
+    if(eval)
+        parse_eval(&fs);
+    else
+        parse_chunk(&fs);
     pt = fs_finish(ls, ls->linenumber);
     var_fixup_end(&fs);
     tea_assertT(fs.prev == NULL && ls->fs == NULL, "mismatched frame nesting");

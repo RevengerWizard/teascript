@@ -23,7 +23,6 @@
     _(CONTINUE, continue) _(BREAK, break) _(IN, in) \
     _(TRUE, true) _(VAR, var) _(CONST, const) \
     _(NEW, new) _(EXPORT, export) _(DO, do) _(WHILE, while) \
-    _(PLUS_PLUS, ++) _(MINUS_MINUS, --) \
     _(PLUS_EQUAL, +=) _(MINUS_EQUAL, -=) _(STAR_EQUAL, *=) _(SLASH_EQUAL, /=) \
     _(BANG_EQUAL, !=) _(EQUAL_EQUAL, ==) \
     _(GREATER_EQUAL, >=) _(LESS_EQUAL, <=) _(PERCENT_EQUAL, %=) \

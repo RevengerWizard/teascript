@@ -4,7 +4,7 @@ function fannkuch(n)
 {
     const p, q, s = [], [], []
     var sign, maxflips, sum = 1, 0, 0
-    for var i = 0; i < n; i++
+    for var i = 0; i < n; i += 1
     {
         p.add(i)
         q.add(i)
@@ -15,7 +15,7 @@ function fannkuch(n)
         var q1 = p[0]
         if q1 != 0
         {
-            for var i = 1; i < n; i++
+            for var i = 1; i < n; i += 1
             {
                 q[i] = p[i]
             }
@@ -42,12 +42,12 @@ function fannkuch(n)
                         const temp = q[i]
                         q[i] = q[j]
                         q[j] = temp
-                        i++
-                        j--
+                        i += 1
+                        j -= 1
                     }
                 }
                 q1 = qq
-                flips++
+                flips += 1
             }
         }
 
@@ -66,7 +66,7 @@ function fannkuch(n)
             p[1] = p[2]
             p[2] = temp
             sign = 1
-            for var i = 2; i < n; i++
+            for var i = 2; i < n; i += 1
             {
                 const sx = s[i]
                 if sx != 0
@@ -80,7 +80,7 @@ function fannkuch(n)
                 }
                 s[i] = i
                 const t = p[0]
-                for var j = 0; j <= i; j++
+                for var j = 0; j <= i; j += 1
                 {
                     p[j] = p[j + 1]
                 }

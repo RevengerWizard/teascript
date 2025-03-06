@@ -541,11 +541,6 @@ static Token lex_scan(LexState* ls)
                     lex_next(ls);
                     return lex_token(ls, TK_MINUS_EQUAL);
                 }
-                else if(ls->c == '-')
-                {
-                    lex_next(ls);
-                    return lex_token(ls, TK_MINUS_MINUS);
-                }
                 else
                 {
                     return lex_token(ls, '-');
@@ -558,11 +553,6 @@ static Token lex_scan(LexState* ls)
                 {
                     lex_next(ls);
                     return lex_token(ls, TK_PLUS_EQUAL);
-                }
-                else if(ls->c == '+')
-                {
-                    lex_next(ls);
-                    return lex_token(ls, TK_PLUS_PLUS);
                 }
                 else
                 {
