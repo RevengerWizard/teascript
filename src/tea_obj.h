@@ -599,16 +599,16 @@ TEA_FUNC void TEA_FASTCALL tea_method_free(tea_State* T, GCmethod* method);
 TEA_FUNC const void* tea_obj_pointer(cTValue* v);
 TEA_FUNC bool tea_obj_equal(cTValue* a, cTValue* b);
 TEA_FUNC bool tea_obj_rawequal(cTValue* a, cTValue* b);
-TEA_FUNC double tea_obj_tonum(TValue* value, bool* x);
+TEA_FUNC double tea_obj_tonum(TValue* o, bool* x);
 
-static TEA_AINLINE bool tea_obj_isfalse(cTValue* value)
+static TEA_AINLINE bool tea_obj_isfalse(cTValue* o)
 {
-    return  tvisnil(value) ||
-            (tvisbool(value) && !boolV(value)) ||
-            (tvisnum(value) && numV(value) == 0) ||
-            (tvisstr(value) && str_data(strV(value))[0] == '\0') ||
-            (tvislist(value) && listV(value)->len == 0) ||
-            (tvismap(value) && mapV(value)->count == 0);
+    return  tvisnil(o) ||
+            (tvisbool(o) && !boolV(o)) ||
+            (tvisnum(o) && numV(o) == 0) ||
+            (tvisstr(o) && str_data(strV(o))[0] == '\0') ||
+            (tvislist(o) && listV(o)->len == 0) ||
+            (tvismap(o) && mapV(o)->count == 0);
 }
 
 #endif

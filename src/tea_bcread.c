@@ -20,7 +20,7 @@
     ((bcread_flags(ls) & BCDUMP_F_BE) != TEA_BE * BCDUMP_F_BE)
 #define bcread_oldtop(L, ls)	stack_restore(L, ls->linenumber)
 #define bcread_savetop(L, ls, top) \
-  ls->linenumber = (BCLine)stack_save(L, (top))
+    ls->linenumber = (BCLine)stack_save(L, (top))
 
 /* -- Input buffer handling -------------------------------------------------- */
 

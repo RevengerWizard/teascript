@@ -27,7 +27,8 @@
 #define TEA_MAX_BUF TEA_MAX_MEM32   /* Max. buffer length */
 #define TEA_MAX_UDATA TEA_MAX_MEM32 /* Max. userdata length */
 
-#define TEA_MAX_LINE TEA_MAX_MEM32
+#define TEA_MAX_LINE TEA_MAX_MEM32  /* Max. source code line number */
+#define TEA_MAX_XLEVEL 200          /* Max. syntactic nesting level */
 
 #define TEA_BUFFER_SIZE 512
 

@@ -6,6 +6,7 @@
 /* This file may be included multiple times with different ERRDEF macros */
 
 /* Basic error handling */
+#include "tea_err.h"
 ERRDEF(MEM, "Not enough memory")
 ERRDEF(ERRERR, "Error in error handling")
 
@@ -82,6 +83,7 @@ ERRDEF(BCBAD, "Cannot load malformed bytecode")
 ERRDEF(XMODE, "Attempt to load code with wrong mode")
 ERRDEF(XNEAR, "%s near " TEA_QS)
 ERRDEF(XNUMBER, "Malformed number")
+ERRDEF(XLEVELS, "Too many syntax levels")
 ERRDEF(XSFMT, "String interpolation too deep")
 ERRDEF(XSTR, "Unterminated string")
 ERRDEF(XHESC, "Incomplete hex escape sequence")

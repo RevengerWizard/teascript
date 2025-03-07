@@ -565,12 +565,12 @@ static void list_opadd(tea_State* T)
     GClist* list = tea_list_new(T, 0);
     setlistV(T, T->top++, list);
 
-    for(int i = 0; i < l1->len; i++)
+    for(uint32_t i = 0; i < l1->len; i++)
     {
         tea_list_add(T, list, list_slot(l1, i));
     }
 
-    for(int i = 0; i < l2->len; i++)
+    for(uint32_t i = 0; i < l2->len; i++)
     {
         tea_list_add(T, list, list_slot(l2, i));
     }

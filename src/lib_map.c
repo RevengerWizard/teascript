@@ -3,6 +3,7 @@
 ** Teascript Map class
 */
 
+#include <stdint.h>
 #define lib_map_c
 #define TEA_CORE
 
@@ -25,11 +26,12 @@ static void map_keys(tea_State* T)
     tea_new_list(T, 0);
 
     GClist* list = listV(T->base + 1);
-    for(int i = 0; i < map->size; i++)
+    for(uint32_t i = 0; i < map->size; i++)
     {
-        if(tvisnil(&map->entries[i].key))
-            continue;
-        tea_list_add(T, list, &map->entries[i].key);
+        if(!tvisnil(&map->entries[i].key))
+        {
+            tea_list_add(T, list, &map->entries[i].key);
+        }
     }
 }
 
@@ -40,11 +42,12 @@ static void map_values(tea_State* T)
     tea_new_list(T, 0);
 
     GClist* list = listV(T->base + 1);
-    for(int i = 0; i < map->size; i++)
+    for(uint32_t i = 0; i < map->size; i++)
     {
-        if(tvisnil(&map->entries[i].key))
-            continue;
-        tea_list_add(T, list, &map->entries[i].val);
+        if(!tvisnil(&map->entries[i].key))
+        {
+            tea_list_add(T, list, &map->entries[i].val);
+        }
     }
 }
 
@@ -128,17 +131,17 @@ static void map_foreach(tea_State* T)
 
     for(int i = 0; i < map->size; i++)
     {
-        if(tvisnil(&map->entries[i].key))
-            continue;
-
-        TValue* key = &map->entries[i].key;
-        TValue* value = &map->entries[i].val;
-
-        tea_push_value(T, 1);
-        copyTV(T, T->top++, key);
-        copyTV(T, T->top++, value);
-        tea_call(T, 2);
-        tea_pop(T, 1);
+        if(!tvisnil(&map->entries[i].key))
+        {
+            TValue* key = &map->entries[i].key;
+            TValue* val = &map->entries[i].val;
+    
+            tea_push_value(T, 1);
+            copyTV(T, T->top++, key);
+            copyTV(T, T->top++, val);
+            tea_call(T, 2);
+            tea_pop(T, 1);
+        }
     }
     tea_set_top(T, 1);
 }
@@ -153,7 +156,7 @@ static void map_iterate(tea_State* T)
     }
 
     /* If we're starting the iteration, start at the first used entry */
-    int idx = 0;
+    uint32_t idx = 0;
 
     /* Otherwise, start one past the last entry we stopped at */
     if(!tea_is_nil(T, 1))

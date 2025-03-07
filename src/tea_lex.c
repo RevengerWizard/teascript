@@ -420,6 +420,35 @@ static Token lex_scan(LexState* ls)
     tea_buf_reset(&ls->sb);
     while(true)
     {
+        if(tea_char_isident(ls->c))
+        {
+            /* Numeric literal */
+            if(tea_char_isdigit(ls->c))
+            {
+                return lex_number(ls);
+            }
+            /* Identifier or reserved word */
+            do
+            {
+                lex_savenext(ls);
+            }
+            while(tea_char_isident(ls->c) || tea_char_isdigit(ls->c));
+            TValue tv;
+            Token tok;
+            GCstr* s = tea_parse_keepstr(ls, ls->sb.b, sbuf_len(&ls->sb));
+            setstrV(ls->T, &tv, s);
+            if(s->reserved > 0)
+            {
+                tok = lex_token(ls, TK_OFS + s->reserved);
+                copyTV(ls->T, &tok.tv, &tv);
+            }
+            else
+            {
+                tok = lex_token(ls, TK_NAME);
+                copyTV(ls->T, &tok.tv, &tv);
+            }
+            return tok;
+        }
         switch(ls->c)
         {
             case '/':
@@ -730,39 +759,8 @@ static Token lex_scan(LexState* ls)
                 return lex_string(ls);
             }
             default:
-            {
-                if(tea_char_isident(ls->c))
-                {
-                    if(tea_char_isdigit(ls->c))
-                    {
-                        return lex_number(ls);
-                    }
-
-                    /* Identifier or reserved word */
-                    do
-                    {
-                        lex_savenext(ls);
-                    }
-                    while(tea_char_isident(ls->c) || tea_char_isdigit(ls->c));
-                    TValue tv;
-                    Token tok;
-                    GCstr* s = tea_parse_keepstr(ls, ls->sb.b, sbuf_len(&ls->sb));
-                    setstrV(ls->T, &tv, s);
-                    if(s->reserved > 0)
-                    {
-                        tok = lex_token(ls, TK_OFS + s->reserved);
-                        copyTV(ls->T, &tok.tv, &tv);
-                    }
-                    else
-                    {
-                        tok = lex_token(ls, TK_NAME);
-                        copyTV(ls->T, &tok.tv, &tv);
-                    }
-                    return tok;
-                }
-                else
-                    tea_lex_error(ls, 0, ls->linenumber, TEA_ERR_XCHAR);
-            }
+                tea_lex_error(ls, 0, ls->linenumber, TEA_ERR_XCHAR);
+                break;
         }
     }
 }

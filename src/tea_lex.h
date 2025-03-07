@@ -11,6 +11,7 @@
 #include "tea_buf.h"
 #include "tea_obj.h"
 #include "tea_err.h"
+#include <stdint.h>
 
 /* Teascript lexer tokens */
 #define TKDEF(_) \
@@ -95,6 +96,7 @@ typedef struct LexState
     VarInfo* vstack;  /* Variable stack */
     uint32_t vtop;  /* Top of variable stack */
     uint32_t sizevstack;	/* Size of variable stack */
+    uint32_t level; /* Syntactical nesting level */
     bool endmark;   /* Trust bytecode end marker, even if not at EOF */
     bool eval;  /* Evaluate expression */
 } LexState;
