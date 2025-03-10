@@ -101,20 +101,20 @@ const unsigned char %s[] = {
 ```
 #define %s_SIZE %d
 static const unsigned char %s[] = {
-)```.format(mod, s.bytelen, mod))
+)```.format(mod, s.len, mod))
     }
 
     const t = []
     var n, m = 0, 0
-    for const i in 0..s.bytelen
+    for const i in 0..s.len
     {
         var b = tostring(s.byte(i))
-        m += b.bytelen + 1
+        m += b.len + 1
         if m > 78
         {
             fp.write(t[0:n].join(',') + ",\n")
             n = 0
-            m = b.bytelen + 1
+            m = b.len + 1
         }
         n += 1
         if t.len <= n - 1

@@ -14,7 +14,6 @@
 #include "tea_map.h"
 #include "tea_list.h"
 #include "tea_vm.h"
-#include "tea_utf.h"
 
 /* String interning of special method names for fast indexing */
 void tea_meta_init(tea_State* T)
@@ -358,24 +357,23 @@ cTValue* tea_meta_getindex(tea_State* T, TValue* obj, TValue* index_value)
 
             if(tvisrange(index_value))
             {
-                GCstr* s = tea_utf_slice(T, strV(obj), rangeV(index_value));
+                GCstr* s = tea_str_slice(T, strV(obj), rangeV(index_value));
                 setstrV(T, &T->tmptv, s);
                 return &T->tmptv;
             }
 
             GCstr* str = strV(obj);
             int32_t idx = numV(index_value);
-            int32_t ulen = tea_utf_len(str);
 
             /* Allow negative indexes */
             if(idx < 0)
             {
-                idx = ulen + idx;
+                idx = str->len + idx;
             }
 
-            if(idx >= 0 && idx < ulen)
+            if(idx >= 0 && idx < str->len)
             {
-                GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str_datawr(str), idx));
+                GCstr* c = tea_str_new(T, str_data(str) + idx, 1);
                 setstrV(T, &T->tmptv, c);
                 return &T->tmptv;
             }

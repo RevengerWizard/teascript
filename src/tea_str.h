@@ -11,6 +11,9 @@
 #include "tea_def.h"
 #include "tea_obj.h"
 
+/* String helpers */
+TEA_FUNC GCstr* tea_str_slice(tea_State* T, GCstr* str, GCrange* range);
+
 /* String interning */
 TEA_FUNC void tea_str_resize(tea_State* T, uint32_t newsize);
 TEA_FUNC GCstr* tea_str_new(tea_State* T, const char* chars, size_t lenx);

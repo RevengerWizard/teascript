@@ -14,7 +14,7 @@
 #include "tea_func.h"
 #include "tea_map.h"
 #include "tea_vm.h"
-#include "tea_utf.h"
+#include "tea_str.h"
 #include "tea_import.h"
 #include "tea_err.h"
 #include "tea_bc.h"
@@ -263,10 +263,9 @@ static void vm_extend(tea_State* T, GClist* list, TValue* obj)
         case TEA_TSTR:
         {
             GCstr* str = strV(obj);
-            uint32_t len = tea_utf_len(str);
-            for(uint32_t i = 0; i < len; i++)
+            for(uint32_t i = 0; i < str->len; i++)
             {
-                GCstr* c = tea_utf_codepoint_at(T, str, tea_utf_char_offset(str_datawr(str), i));
+                GCstr* c = tea_str_new(T, str_data(str) + i, 1);
                 TValue tv;
                 setstrV(T, &tv, c);
                 tea_list_add(T, list, &tv);

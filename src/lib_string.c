@@ -20,11 +20,6 @@
 
 static void string_len(tea_State* T)
 {
-    tea_push_number(T, tea_utf_len(strV(T->base)));
-}
-
-static void string_bytelen(tea_State* T)
-{
     tea_push_number(T, strV(T->base)->len);
 }
 
@@ -81,7 +76,14 @@ static void string_lower(tea_State* T)
 static void string_reverse(tea_State* T)
 {
     GCstr* str = tea_lib_checkstr(T, 0);
-    setstrV(T, T->top++, tea_utf_reverse(T, str));
+    SBuf* sb = tea_buf_tmp_(T);
+    uint32_t len = str->len;
+    char* w = tea_buf_more(T, sb, len), *e = w + len;
+    const char* q = str_data(str) + len - 1;    
+    while(w < e)
+        *w++ = *q--;
+    sb->w = w;
+    setstrV(T, T->top++, tea_buf_str(T, sb));
 }
 
 static void string_split(tea_State* T)
@@ -441,7 +443,6 @@ static void string_opadd(tea_State* T)
 
 static const tea_Methods string_reg[] = {
     { "len", "getter", string_len, 1, 0 },
-    { "bytelen", "getter", string_bytelen, 1, 0 },
     { "new", "method", string_init, 2, 0 },
     { "byte", "method", string_byte, 2, 0 },
     { "upper", "method", string_upper, 1, 0 },

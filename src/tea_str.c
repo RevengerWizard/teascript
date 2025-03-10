@@ -3,12 +3,51 @@
 ** String handling
 */
 
+#include "tea_obj.h"
+#include <math.h>
+
 #define tea_str_c
 #define TEA_CORE
 
 #include "tea_str.h"
 #include "tea_gc.h"
 #include "tea_err.h"
+
+/* -- String helpers ------------------------------------------------------ */
+
+GCstr* tea_str_slice(tea_State* T, GCstr* str, GCrange* range)
+{
+    int32_t len = str->len;
+    int32_t start = range->start;
+    int32_t end;
+
+    if(isinf(range->end))
+    {
+        end = str->len;
+    }
+    else
+    {
+        end = range->end;
+        if(end > len)
+        {
+            end = len;
+        }
+        else if(end < 0)
+        {
+            end = len + end;
+        }
+    }
+
+    /* Ensure the start index is below the end index */
+    if(start > end)
+    {
+        return &T->strempty;
+    }
+    else
+    {
+        return tea_str_new(T, str_data(str) + start, end - start);
+    }
+}
 
 /* -- String hashing ------------------------------------------------------ */
 
