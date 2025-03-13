@@ -6,19 +6,17 @@ class PersonList
         self.current = 0
     }
 
-    function iterate(iter)
+    function iter()
     {
-        if self.current < self.people.len
+        return function()
         {
-            iter = [self.people[self.current]['name'], self.people[self.current]['age']]
-            self.current += 1
-            return iter
-        } 
-    }
-
-    function iteratorvalue(iter)
-    {
-        return iter
+            if self.current < self.people.len
+            {
+                var p = [self.people[self.current]['name'], self.people[self.current]['age']]
+                self.current += 1
+                return p
+            } 
+        }
     }
 }
 

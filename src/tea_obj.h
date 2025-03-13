@@ -359,7 +359,7 @@ typedef struct
     _(GETINDEX, []) _(SETINDEX, []=) \
     _(GETATTR, getattr) _(SETATTR, setattr) \
     _(TOSTRING, tostring) _(CALL, call) \
-    _(ITER, iterate) _(NEXT, iteratorvalue) \
+    _(ITER, iter) \
     _(CONTAINS, contains) _(GC, gc) \
     _(NEW, new)
 

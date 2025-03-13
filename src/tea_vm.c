@@ -632,6 +632,7 @@ static void vm_execute(tea_State* T)
             uint16_t ofs = READ_SHORT();
             if(tvisnil(T->top - 1))
             {
+                T->top--;
                 ip += ofs;
             }
             DISPATCH();
@@ -1008,36 +1009,31 @@ static void vm_execute(tea_State* T)
         /* -- Iterator ops -------------------------------------------------- */
         CASE_CODE(BC_GET_ITER):
         {
-            uint8_t slot1 = READ_BYTE();    /* seq */
-            uint8_t slot2 = READ_BYTE();    /* iter */
-            TValue* seq = base + slot1;
-            TValue* iter = base + slot2;
-            copyTV(T, T->top++, seq);
-            copyTV(T, T->top++, iter);
-            /* iterate */
-            STORE_FRAME;
-            TValue* mo = tea_meta_lookup(T, seq, MM_ITER);
-            if(TEA_UNLIKELY(!mo))
-                RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
-            tea_vm_call(T, mo, 1);
-            READ_FRAME();
-            copyTV(T, iter, T->top - 1);
+            uint8_t slot = READ_BYTE();    /* seq */
+            TValue* seq = base + slot;
+            if(tvisfunc(seq))
+            {
+                copyTV(T, T->top++, seq);
+            }
+            else
+            {
+                STORE_FRAME;
+                TValue* mo = tea_meta_lookup(T, seq, MM_ITER);
+                if(TEA_UNLIKELY(!mo))
+                    RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
+                copyTV(T, T->top++, seq);
+                tea_vm_call(T, mo, 0);
+                READ_FRAME();
+            }
             DISPATCH();
         }
         CASE_CODE(BC_FOR_ITER):
         {
-            uint8_t slot1 = READ_BYTE();    /* seq */
-            uint8_t slot2 = READ_BYTE();    /* iter */
-            TValue* seq = base + slot1;
-            TValue* iter = base + slot2;
-            copyTV(T, T->top++, seq);
-            copyTV(T, T->top++, iter);
-            /* iteratorvalue */
+            uint8_t slot = READ_BYTE();    /* iter */
+            TValue* iter = base + slot;
             STORE_FRAME;
-            TValue* mo = tea_meta_lookup(T, seq, MM_NEXT);
-            if(TEA_UNLIKELY(!mo))
-                RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(seq));
-            tea_vm_call(T, mo, 1);
+            copyTV(T, T->top++, iter);
+            tea_vm_call(T, iter, 0);
             READ_FRAME();
             DISPATCH();
         }

@@ -2170,22 +2170,19 @@ static void parse_for_in(FuncState* fs, Token var, bool isconst)
     int seq_slot = var_add_local(fs, lex_synthetic(fs, "seq "));
     var_mark(fs, false);
 
-    bcemit_op(fs, BC_NIL);
+    /* Get the iterator */
+    bcemit_arg(fs, BC_GET_ITER, seq_slot);
     int iter_slot = var_add_local(fs, lex_synthetic(fs, "iter "));
     var_mark(fs, false);
 
     Loop loop;
     loop_begin(fs, &loop);
 
-    /* Get the iterator index. If it's nil, it means the loop is over */
-    bcemit_op(fs, BC_GET_ITER);
-    bcemit_bytes(fs, seq_slot, iter_slot);
-    fs->loop->end = bcemit_jump(fs, BC_JUMP_IF_NIL);
-    bcemit_op(fs, BC_POP);
+    loop.end = -1;
 
-    /* Get the iterator value */
-    bcemit_op(fs, BC_FOR_ITER);
-    bcemit_bytes(fs, seq_slot, iter_slot);
+    /* Call the iterator, if nil it means the loop is over */
+    bcemit_arg(fs, BC_FOR_ITER, iter_slot);
+    BCPos end_jpm = bcemit_jump(fs, BC_JUMP_IF_NIL);
 
     scope_begin(fs);
 
@@ -2205,6 +2202,7 @@ static void parse_for_in(FuncState* fs, Token var, bool isconst)
     scope_end(fs);
 
     bcemit_loop(fs, fs->loop->start);
+    bcpatch_jump(fs, end_jpm);
     loop_end(fs);
 
     /* Hidden variables */

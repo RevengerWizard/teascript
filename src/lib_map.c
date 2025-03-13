@@ -3,7 +3,6 @@
 ** Teascript Map class
 */
 
-#include <stdint.h>
 #define lib_map_c
 #define TEA_CORE
 
@@ -146,71 +145,45 @@ static void map_foreach(tea_State* T)
     tea_set_top(T, 1);
 }
 
-static void map_iterate(tea_State* T)
+static void map_iternext(tea_State* T)
 {
-    GCmap* map = tea_lib_checkmap(T, 0);
-    if(map->count == 0)
+    GCmap* map = mapV(tea_lib_upvalue(T, 0));
+    uint32_t idx = (uint32_t)tea_get_number(T, tea_upvalue_index(1));
+
+    if(idx >= map->size || map->count == 0)
     {
         tea_push_nil(T);
         return;
     }
 
-    /* If we're starting the iteration, start at the first used entry */
-    uint32_t idx = 0;
-
-    /* Otherwise, start one past the last entry we stopped at */
-    if(!tea_is_nil(T, 1))
-    {
-        if(!tea_is_number(T, 1))
-        {
-            tea_error(T, "Expected a number to iterate");
-        }
-
-        idx = (uint32_t)tea_get_number(T, 1);
-        if(idx < 0)
-        {
-            tea_push_nil(T);
-            return;
-        }
-
-        if(idx >= map->size)
-        {
-            tea_push_nil(T);
-            return;
-        }
-
-        /* Advance the iterator */
-        idx++;
-    }
-
-    /* Find a used entry, if any */
+    /* Find a used entry */
     for(; idx < map->size; idx++)
     {
         if(!tvisnil(&map->entries[idx].key))
         {
-            tea_push_number(T, idx);
+            tea_new_list(T, 2);
+            
+            /* Add key to the list */
+            copyTV(T, T->top++, &map->entries[idx].key);
+            tea_add_item(T, -2);
+            /* Add value to the list */
+            copyTV(T, T->top++, &map->entries[idx].val);
+            tea_add_item(T, -2);
+
+            tea_push_number(T, idx + 1);
+            tea_replace(T, tea_upvalue_index(1));
             return;
         }
     }
 
-    /* If we get here, walked all of the entries */
     tea_push_nil(T);
 }
 
-static void map_iteratorvalue(tea_State* T)
+static void map_iter(tea_State* T)
 {
-    GCmap* map = tea_lib_checkmap(T, 0);
-    int idx = tea_check_number(T, 1);
-    MapEntry* entry = &map->entries[idx];
-    if(tvisnil(&entry->key))
-    {
-        tea_error(T, "Invalid map iterator");
-    }
-    tea_new_list(T, 2);
-    copyTV(T, T->top++, &entry->key);
-    tea_add_item(T, 2);
-    copyTV(T, T->top++, &entry->val);
-    tea_add_item(T, 2);
+    tea_lib_checkmap(T, 0);
+    tea_push_number(T, 0);  /* Starting index */
+    tea_push_cclosure(T, map_iternext, 2, 0, 0);
 }
 
 static void map_opadd(tea_State* T)
@@ -243,8 +216,7 @@ static const tea_Methods map_reg[] = {
     { "delete", "method", map_delete, 2, 0 },
     { "copy", "method", map_copy, 1, 0 },
     { "foreach", "method", map_foreach, 2, 0 },
-    { "iterate", "method", map_iterate, 2, 0 },
-    { "iteratorvalue", "method", map_iteratorvalue, 2, 0 },
+    { "iter", "method", map_iter, 1, 0 },
     { "+", "static", map_opadd, 2, 0 },
     { NULL, NULL, NULL }
 };

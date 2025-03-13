@@ -99,8 +99,8 @@
     _(RSHIFT, -1, 0) \
     \
     /* Iterator ops */ \
-    _(GET_ITER, 1, 2) \
-    _(FOR_ITER, 1, 2) \
+    _(GET_ITER, 1, 1) \
+    _(FOR_ITER, 1, 1) \
     \
     /* Class ops */ \
     _(CLASS, 1, 1) \

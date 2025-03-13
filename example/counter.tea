@@ -7,19 +7,17 @@ class Counter
         self.current = start
     }
 
-    function iterate(iter) 
+    function iter()
     {
-        if self.current <= self.end
+        return function()
         {
-            iter = self.current
-            self.current += 1
-            return iter
-        } 
-    }
-
-    function iteratorvalue(iter) 
-    {
-        return iter
+            if self.current <= self.end
+            {
+                var i = self.current
+                self.current += 1
+                return i
+            }
+        }
     }
 }
 

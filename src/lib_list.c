@@ -514,44 +514,31 @@ static void list_foreach(tea_State* T)
     tea_set_top(T, 1);
 }
 
-static void list_iterate(tea_State* T)
+static void list_iternext(tea_State* T)
 {
-    int len = tea_len(T, 0);
+    GClist* list = listV(tea_lib_upvalue(T, 0));
+    double curr = tea_get_number(T, tea_upvalue_index(1));
 
-    /* If we're starting the iteration, return the first index */
-    if(tea_is_nil(T, 1))
-    {
-        if(len == 0)
-        {
-            tea_push_nil(T);
-            return;
-        }
-        tea_push_number(T, 0);
-        return;
-    }
-
-    if(!tea_is_number(T, 1))
-    {
-        tea_error(T, "Expected a number to iterate");
-        return;
-    }
-
-    int idx = tea_get_number(T, 1);
-    /* Stop if we're out of bounds */
-    if(idx < 0 || idx >= len - 1)
+    /* Check if iteration is complete */
+    if(curr >= list->len)
     {
         tea_push_nil(T);
         return;
     }
 
-    /* Otherwise, move to the next index */
-    tea_push_number(T, idx + 1);
+    /* Push current item */
+    tea_get_item(T, tea_upvalue_index(0), curr);
+    curr++;
+
+    tea_push_number(T, curr);
+    tea_replace(T, tea_upvalue_index(1));
 }
 
-static void list_iteratorvalue(tea_State* T)
+static void list_iter(tea_State* T)
 {
-    int idx = tea_check_number(T, 1);
-    tea_get_item(T, 0, idx);
+    tea_lib_checklist(T, 0);
+    tea_push_number(T, 0);  /* Current index */
+    tea_push_cclosure(T, list_iternext, 2, 0, 0);
 }
 
 static void list_opadd(tea_State* T)
@@ -601,8 +588,7 @@ static const tea_Methods list_reg[] = {
     { "filter", "method", list_filter, 2, 0 },
     { "reduce", "method", list_reduce, 2, 0 },
     { "foreach", "method", list_foreach, 2, 0 },
-    { "iterate", "method", list_iterate, 2, 0 },
-    { "iteratorvalue", "method", list_iteratorvalue, 2, 0 },
+    { "iter", "method", list_iter, 1, 0 },
     { "+", "static", list_opadd, 2, 0 },
     { NULL, NULL, NULL }
 };

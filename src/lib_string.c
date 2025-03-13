@@ -383,48 +383,40 @@ static void string_repeat(tea_State* T)
     setstrV(T, T->top - 1, tea_buf_str(T, sb));
 }
 
-static void string_iterate(tea_State* T)
+static void string_iternext(tea_State* T)
 {
-    size_t len;
-    const char* str = tea_check_lstring(T, 0, &len);
+    GCstr* str = strV(tea_lib_upvalue(T, 0));
+    const char* s = str_data(str);
+    uint32_t idx = (uint32_t)tea_get_number(T, tea_upvalue_index(1));
 
-	if(tea_is_nil(T, 1))
-    {
-		if(len == 0)
-        {
-            tea_push_nil(T);
-            return;
-        }
-		tea_push_number(T, 0);
-        return;
-	}
-
-    int idx = tea_check_number(T, 1);
-	if(idx < 0)
+    if(str->len == 0 || idx >= str->len)
     {
         tea_push_nil(T);
         return;
     }
 
-	do
+    /* Get the current byte */
+    GCstr* chr = tea_utf_codepoint_at(T, str, idx);
+    setstrV(T, T->top++, chr);
+    
+    /* Find the next index (skipping UTF-8 continuation bytes) */
+    do
     {
-		idx++;
-		if(idx >= len)
-        {
-            tea_push_nil(T);
-            return;
-        }
-	}
-    while((str[idx] & 0xc0) == 0x80);
-
-	tea_push_number(T, idx);
+        idx++;
+        if(idx >= str->len) break;
+    }
+    while((s[idx] & 0xc0) == 0x80);
+    
+    /* Update the index */
+    tea_push_number(T, idx);
+    tea_replace(T, tea_upvalue_index(1));
 }
 
-static void string_iteratorvalue(tea_State* T)
+static void string_iter(tea_State* T)
 {
-	int idx = tea_check_number(T, 1);
-    GCstr* s = tea_utf_codepoint_at(T, strV(T->base), idx);
-    setstrV(T, T->top++, s);
+    tea_lib_checkstr(T, 0);
+    tea_push_number(T, 0);  /* Current index */
+    tea_push_cclosure(T, string_iternext, 2, 0, 0);
 }
 
 static void string_opadd(tea_State* T)
@@ -460,8 +452,7 @@ static const tea_Methods string_reg[] = {
     { "replace", "method", string_replace, 3, 0 },
     { "format", "method", string_format, TEA_VARG, 0 },
     { "repeat", "method", string_repeat, 2, 1 },
-    { "iterate", "method", string_iterate, 2, 0 },
-    { "iteratorvalue", "method", string_iteratorvalue, 2, 0 },
+    { "iter", "method", string_iter, 1, 0 },
     { "+", "static", string_opadd, 2, 0 },
     { NULL, NULL, NULL }
 };

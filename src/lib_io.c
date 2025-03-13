@@ -257,12 +257,19 @@ static void file_tostring(tea_State* T)
         tea_push_literal(T, "<file>");
 }
 
-static void file_iterate(tea_State* T)
+static void file_iternext(tea_State* T)
 {
-    file_readline(T);
+    IOFileUD* iof = (IOFileUD*)ud_data(udataV(tea_lib_upvalue(T, 0)));
+    int ok = io_file_readline(T, iof->fp);
+    if(!ok)
+        setnilV(T->top - 1);
 }
 
-static void file_iteratorvalue(tea_State* T) {}
+static void file_iter(tea_State* T)
+{
+    io_get_filep(T);
+    tea_push_cclosure(T, file_iternext, 1, 0, 0);
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -326,8 +333,7 @@ static const tea_Methods file_reg[] = {
     { "setvbuf", "method", file_setvbuf, 1, 1 },
     { "close", "method", file_close, 1, 0 },
     { "tostring", "method", file_tostring, 1, 0 },
-    { "iterate", "method", file_iterate, 2, 0 },
-    { "iteratorvalue", "method", file_iteratorvalue, 2, 0 },
+    { "iter", "method", file_iter, 1, 0 },
     { NULL, NULL, NULL }
 };
 

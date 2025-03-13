@@ -35,62 +35,6 @@ static void range_len(tea_State* T)
     tea_push_number(T, (end - start) / step);
 }
 
-static void range_iterate(tea_State* T)
-{
-    double start, end;
-    tea_check_range(T, 0, &start, &end, NULL);
-
-    /* Empty range */
-    if(start == end)
-    {
-        tea_push_nil(T);
-        return;
-    }
-
-    /* Start the iteration */
-    if(tea_is_nil(T, 1))
-    {
-        tea_push_number(T, start);
-        return;
-    }
-
-    if(!tea_is_number(T, 1))
-    {
-        tea_error(T, "Expected a number to iterate");
-    }
-
-    int iterator = tea_get_number(T, 1);
-
-    /* Iterate towards [end] from [start] */
-    if(start < end)
-    {
-        iterator++;
-        if(iterator > end)
-        {
-            tea_push_nil(T);
-            return;
-        }
-    }
-    else
-    {
-        iterator--;
-        if(iterator < end)
-        {
-            tea_push_nil(T);
-            return;
-        }
-    }
-    if(iterator == end)
-    {
-        tea_push_nil(T);
-        return;
-    }
-
-    tea_push_number(T, iterator);
-}
-
-static void range_iteratorvalue(tea_State* T) {}
-
 static void range_init(tea_State* T)
 {
     int count = tea_get_top(T);
@@ -144,6 +88,38 @@ static void range_copy(tea_State* T)
     setrangeV(T, T->top++, newrange);
 }
 
+static void range_iternext(tea_State* T)
+{
+    double curr = tea_get_number(T, tea_upvalue_index(0));
+    double end = tea_get_number(T, tea_upvalue_index(1));
+    double step = tea_get_number(T, tea_upvalue_index(2));
+
+    /* Check if iteration is complete */
+    if((step > 0 && curr >= end) || (step < 0 && curr <= end) || step == 0)
+    {
+        //puts("push nill please");
+        tea_push_nil(T);
+        return;
+    }
+    
+    /* Push current value */
+    tea_push_number(T, curr);
+    curr += step;
+    
+    /* Update current for next iteration */
+    tea_push_number(T, curr);
+    tea_replace(T, tea_upvalue_index(0));
+}
+
+static void range_iter(tea_State* T)
+{
+    GCrange* range = tea_lib_checkrange(T, 0);
+    tea_push_number(T, range->start);
+    tea_push_number(T, range->end);
+    tea_push_number(T, range->step);
+    tea_push_cclosure(T, range_iternext, 3, 0, 0);
+}
+
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods range_reg[] = {
@@ -155,8 +131,7 @@ static const tea_Methods range_reg[] = {
     { "contains", "method", range_contains, 2, 0 },
     { "reverse", "method", range_reverse, 1, 0 },
     { "copy", "method", range_copy, 1, 0 },
-    { "iterate", "method", range_iterate, 2, 0 },
-    { "iteratorvalue", "method", range_iteratorvalue, 2, 0 },
+    { "iter", "method", range_iter, 1, 0 },
     { NULL, NULL, NULL }
 };
 

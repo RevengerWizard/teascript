@@ -24,4 +24,6 @@ TEA_FUNC GCproto* tea_lib_checkTproto(tea_State* T, int idx, bool notea);
 
 TEA_FUNC void tea_lib_fileresult(tea_State* T, const char* fname);
 
+#define tea_lib_upvalue(T, idx) (&(T)->ci->func->c.upvalues[(idx)])
+
 #endif
