@@ -13,7 +13,6 @@
 
 #include "tea_char.h"
 #include "tea_err.h"
-#include "tea_utf.h"
 #include "tea_buf.h"
 #include "tea_strfmt.h"
 #include "tea_lib.h"
@@ -388,24 +387,21 @@ static void string_iternext(tea_State* T)
     GCstr* str = strV(tea_lib_upvalue(T, 0));
     const char* s = str_data(str);
     uint32_t idx = (uint32_t)tea_get_number(T, tea_upvalue_index(1));
-
+    
     if(str->len == 0 || idx >= str->len)
     {
         tea_push_nil(T);
         return;
     }
-
-    /* Get the current byte */
-    GCstr* chr = tea_utf_codepoint_at(T, str, idx);
-    setstrV(T, T->top++, chr);
     
-    /* Find the next index (skipping UTF-8 continuation bytes) */
-    do
-    {
-        idx++;
-        if(idx >= str->len) break;
-    }
-    while((s[idx] & 0xc0) == 0x80);
+    /* Get the current byte */
+    char byte = s[idx];
+    /* Create a single-byte string */
+    GCstr* c = tea_str_new(T, &byte, 1);
+    setstrV(T, T->top++, c);
+    
+    /* Move to the next byte */
+    idx++;
     
     /* Update the index */
     tea_push_number(T, idx);

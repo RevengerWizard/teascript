@@ -244,7 +244,7 @@ TEALIB_O = lib_base.o \
 	lib_list.o lib_map.o lib_range.o \
 	lib_string.o lib_buffer.o \
 	lib_io.o lib_os.o lib_random.o lib_math.o \
-	lib_sys.o lib_time.o lib_debug.o
+	lib_sys.o lib_time.o lib_debug.o lib_utf8.o
 
 TEACORE_O = tea_assert.o tea_api.o tea_lib.o tea_prng.o \
 	tea_udata.o tea_meta.o \

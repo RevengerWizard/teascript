@@ -16,7 +16,6 @@
 #include "tea_bcdump.h"
 #include "tea_buf.h"
 #include "tea_str.h"
-#include "tea_utf.h"
 #include "tea_lib.h"
 #include "tea_meta.h"
 
@@ -228,18 +227,6 @@ static void base_pcall(tea_State* T)
     tea_add_item(T, -2);
 }
 
-static void base_char(tea_State* T)
-{
-    int n = tea_check_number(T, 0);
-    setstrV(T, T->top++, tea_utf_from_codepoint(T, n));
-}
-
-static void base_ord(tea_State* T)
-{
-    GCstr* c = tea_lib_checkstr(T, 0);
-    tea_push_number(T, tea_utf_decode((uint8_t*)str_data(c), c->len));
-}
-
 static void base_rawequal(tea_State* T)
 {
     cTValue* o1 = tea_lib_checkany(T, 0);
@@ -327,8 +314,6 @@ static const tea_Reg globals[] = {
     { "loadfile", base_loadfile, 1, 0 },
     { "loadstring", base_loadstring, 1, 1 },
     { "pcall", base_pcall, TEA_VARG, 0 },
-    { "char", base_char, 1, 0 },
-    { "ord", base_ord, 1, 0 },
     { "rawequal", base_rawequal, 2, 0 },
     { "hasattr", base_hasattr, 2, 0 },
     { "getattr", base_getattr, 2, 0 },

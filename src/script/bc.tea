@@ -10,12 +10,13 @@ from vmdef import bcnames
 
 function ctlsub(c)
 {
+    const b = c.byte(0)
     if c == "\n" { return "n" }
     else if c == "\r" { return "r" }
     else if c == "\t" { return "t" }
-    else if ord(c) < 32 or ord(c) == 127
+    else if b < 32 or b == 127
     {
-        return "\\%03d".format(ord(c))
+        return "\\%03d".format(b)
     }
     return c
 }

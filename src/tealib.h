@@ -29,6 +29,9 @@ TEAMOD_API void tea_import_random(tea_State* T);
 #define TEA_MODULE_DEBUG "debug"
 TEAMOD_API void tea_import_debug(tea_State* T);
 
+#define TEA_MODULE_UTF8 "utf8"
+TEAMOD_API void tea_import_utf8(tea_State* T);
+
 #define TEA_CLASS_LIST "List"
 TEAMOD_API void tea_open_list(tea_State* T);
 
