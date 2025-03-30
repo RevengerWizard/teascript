@@ -29,7 +29,7 @@ lib_sys.o: lib_sys.c tea.h teaconf.h tealib.h tea_arch.h tea_state.h \
 lib_time.o: lib_time.c tea_arch.h tea.h teaconf.h tealib.h tea_buf.h \
  tea_def.h tea_obj.h tea_gc.h tea_str.h
 lib_utf8.o: lib_utf8.c tea.h teaconf.h tealib.h tea_obj.h tea_def.h \
- tea_utf.h tea_lib.h
+ tea_str.h tea_buf.h tea_gc.h tea_lib.h
 onetea.o: onetea.c tea.h teaconf.h tea_def.h tea_assert.c tea_obj.h \
  tea_bc.c tea_bc.h tea_char.c tea_char.h tea_api.c tea_state.h tea_str.h \
  tea_func.h tea_map.h tea_vm.h tea_err.h tea_errmsg.h tea_gc.h tea_buf.h \
@@ -39,9 +39,9 @@ onetea.o: onetea.c tea.h teaconf.h tea_def.h tea_assert.c tea_obj.h \
  tea_parse.c tea_debug.c tea_debug.h tea_strscan.c tea_strscan.h \
  tea_strfmt.c tea_strfmt_num.c tea_err.c tea_import.c tealib.h tea_func.c \
  tea_str.c tea_map.c tea_list.c tea_udata.c tea_obj.c tea_gc.c tea_lex.c \
- tea_state.c tea_meta.c tea_tab.c tea_utf.c tea_utf.h tea_vm.c lib_base.c \
- lib_list.c lib_map.c lib_range.c lib_string.c lib_buffer.c lib_io.c \
- lib_os.c lib_random.c lib_math.c lib_sys.c lib_time.c tea.c
+ tea_state.c tea_meta.c tea_tab.c tea_vm.c lib_base.c lib_list.c \
+ lib_map.c lib_range.c lib_string.c lib_buffer.c lib_io.c lib_os.c \
+ lib_random.c lib_math.c lib_sys.c lib_time.c lib_utf8.c tea.c
 tea.o: tea.c tea.h teaconf.h tea_arch.h
 tea_api.o: tea_api.c tea.h teaconf.h tea_state.h tea_def.h tea_obj.h \
  tea_str.h tea_func.h tea_map.h tea_vm.h tea_err.h tea_errmsg.h tea_gc.h \
@@ -107,8 +107,6 @@ tea_tab.o: tea_tab.c tea_gc.h tea_obj.h tea.h teaconf.h tea_def.h \
  tea_tab.h
 tea_udata.o: tea_udata.c tea_udata.h tea_obj.h tea.h teaconf.h tea_def.h \
  tea_tab.h tea_gc.h
-tea_utf.o: tea_utf.c tea_utf.h tea_def.h tea_obj.h tea.h teaconf.h \
- tea_str.h tea_buf.h tea_gc.h
 tea_vm.o: tea_vm.c tea_def.h tea_obj.h tea.h teaconf.h tea_func.h \
  tea_map.h tea_vm.h tea_state.h tea_err.h tea_errmsg.h tea_str.h \
  tea_import.h tea_bc.h tea_tab.h tea_list.h tea_meta.h

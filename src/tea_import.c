@@ -178,6 +178,7 @@ static const tea_Reg modules[] = {
     { TEA_MODULE_IO, tea_import_io },
     { TEA_MODULE_RANDOM, tea_import_random },
     { TEA_MODULE_DEBUG, tea_import_debug },
+    { TEA_MODULE_UTF8, tea_import_utf8 },
     { NULL, NULL }
 };
 

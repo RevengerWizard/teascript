@@ -252,7 +252,7 @@ TEACORE_O = tea_assert.o tea_api.o tea_lib.o tea_prng.o \
 	tea_bc.o tea_parse.o tea_debug.o \
 	tea_err.o tea_gc.o tea_import.o tea_obj.o tea_func.o \
 	tea_list.o tea_map.o tea_str.o tea_lex.o tea_buf.o \
-	tea_state.o tea_tab.o tea_utf.o tea_vm.o \
+	tea_state.o tea_tab.o tea_vm.o \
 	tea_char.o tea_strscan.o tea_strfmt.o tea_strfmt_num.o \
 	$(TEALIB_O)
 

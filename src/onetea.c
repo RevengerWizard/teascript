@@ -45,7 +45,6 @@
 #include "tea_state.c"
 #include "tea_meta.c"
 #include "tea_tab.c"
-#include "tea_utf.c"
 #include "tea_vm.c"
 
 #include "lib_base.c"
@@ -61,5 +60,6 @@
 #include "lib_math.c"
 #include "lib_sys.c"
 #include "lib_time.c"
+#include "lib_utf8.c"
 
 #include "tea.c"
