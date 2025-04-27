@@ -17,8 +17,9 @@
 
 /* Teascript lexer token names */
 static const char* const lex_tokennames[] = {
-#define TKSTR(name, sym) #sym,
-    TKDEF(TKSTR)
+#define TKSTR1(name) #name,
+#define TKSTR2(name, sym) #sym,
+    TKDEF(TKSTR1, TKSTR2)
 #undef TKSTR
     NULL
 };
@@ -64,11 +65,10 @@ static LexChar lex_lookahead(LexState* ls)
             return LEX_EOF;
         else
         {
-            ls->pe--;
             ls->p--;
         }
     }
-    return (int)(uint8_t)*ls->p;
+    return (LexChar)(uint8_t)*ls->p;
 }
 
 /* Save character */
@@ -126,7 +126,7 @@ static Token lex_number(LexState* ls)
             if(und)
             {
                 /* Do not allow double underscores */
-                tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
+                tea_lex_error(ls, TK_number, ls->linenumber, TEA_ERR_XNUMBER);
             }
             und = true;
             lex_next(ls);
@@ -143,7 +143,7 @@ static Token lex_number(LexState* ls)
             if(d == '.') break;
             else if(!tea_char_isxdigit(d))
             {
-                tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
+                tea_lex_error(ls, TK_number, ls->linenumber, TEA_ERR_XNUMBER);
             }
         }
         c = ls->c;
@@ -152,7 +152,7 @@ static Token lex_number(LexState* ls)
     /* Do not allow leading '_' */
     if(und)
     {
-        tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
+        tea_lex_error(ls, TK_number, ls->linenumber, TEA_ERR_XNUMBER);
     }
     lex_save(ls, '\0');
 
@@ -166,10 +166,10 @@ static Token lex_number(LexState* ls)
     else
     {
         tea_assertLS(fmt == STRSCAN_ERROR, "unexpected number format %d", fmt);
-        tea_lex_error(ls, TK_NUMBER, ls->linenumber, TEA_ERR_XNUMBER);
+        tea_lex_error(ls, TK_number, ls->linenumber, TEA_ERR_XNUMBER);
     }
 
-    Token tok = lex_token(ls, TK_NUMBER);
+    Token tok = lex_token(ls, TK_number);
     tv.tt = TEA_TNUM;
     copyTV(ls->T, &tok.tv, &tv);
 	return tok;
@@ -250,7 +250,7 @@ static Token lex_multistring(LexState* ls)
         {
             case LEX_EOF:
             {
-                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
+                tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XSTR);
                 break;
             }
             case '\r':
@@ -275,10 +275,10 @@ static Token lex_multistring(LexState* ls)
 
     if((c != ls->sc) || (c1 != ls->sc) || (c2 != ls->sc))
     {
-        tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
+        tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XSTR);
     }
 
-    Token tok = lex_token(ls, TK_STRING);
+    Token tok = lex_token(ls, TK_string);
     GCstr* str = tea_parse_keepstr(ls, ls->sb.b + 3, sbuf_len(&ls->sb) - 6);
     setstrV(ls->T, &tok.tv, str);
     return tok;
@@ -288,7 +288,7 @@ static Token lex_multistring(LexState* ls)
 static Token lex_string(LexState* ls)
 {
     tea_State* T = ls->T;
-    LexToken type = TK_STRING;
+    LexToken type = TK_string;
     LexChar sc = ls->sc;
 
     while(ls->c != sc)
@@ -304,10 +304,10 @@ static Token lex_string(LexState* ls)
 
             if(ls->num_braces >= 4)
             {
-                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSFMT);
+                tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XSFMT);
             }
 
-            type = TK_INTERPOLATION;
+            type = TK_interpolation;
             ls->braces[ls->num_braces] = 1;
             ls->str_braces[ls->num_braces] = sc;
             ls->num_braces++;
@@ -318,13 +318,13 @@ static Token lex_string(LexState* ls)
         {
             case LEX_EOF:
             {
-                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
+                tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XSTR);
                 continue;
             }
             case '\n':
             case '\r':
             {
-                tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
+                tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XSTR);
                 continue;
             }
             case '\\':
@@ -352,7 +352,7 @@ static Token lex_string(LexState* ls)
                         c = lex_hex_escape(ls);
                         if(c == -1)
                         {
-                            tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XHESC);
+                            tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XHESC);
                         }
                         break;
                     }
@@ -364,7 +364,7 @@ static Token lex_string(LexState* ls)
                         c = lex_unicode_escape(ls, u);
                         if(c == -1)
                         {
-                            tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XUESC);
+                            tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XUESC);
                         }
                         lex_save(ls, c);
                         continue;
@@ -383,7 +383,7 @@ static Token lex_string(LexState* ls)
                                 if(c > 255)
                                 {
                                 err_xesc:
-                                    tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XESC);
+                                    tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XESC);
                                 }
                                 lex_next(ls);
                             }
@@ -444,7 +444,7 @@ static Token lex_scan(LexState* ls)
             }
             else
             {
-                tok = lex_token(ls, TK_NAME);
+                tok = lex_token(ls, TK_name);
                 copyTV(ls->T, &tok.tv, &tv);
             }
             return tok;
@@ -496,7 +496,7 @@ static Token lex_scan(LexState* ls)
                 else if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_SLASH_EQUAL);
+                    return lex_token(ls, TK_diveq);
                 }
                 else
                 {
@@ -504,7 +504,7 @@ static Token lex_scan(LexState* ls)
                 }
             }
             case LEX_EOF:
-                return lex_token(ls, TK_EOF);
+                return lex_token(ls, TK_eof);
             case '\r':
             case '\n':
             {
@@ -550,11 +550,11 @@ static Token lex_scan(LexState* ls)
                     if(ls->c == '.')
                     {
                         lex_next(ls);
-                        return lex_token(ls, TK_DOT_DOT_DOT);
+                        return lex_token(ls, TK_dotdotdot);
                     }
                     else
                     {
-                        return lex_token(ls, TK_DOT_DOT);
+                        return lex_token(ls, TK_dotdot);
                     }
                 }
                 else
@@ -568,7 +568,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_MINUS_EQUAL);
+                    return lex_token(ls, TK_mineq);
                 }
                 else
                 {
@@ -581,7 +581,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_PLUS_EQUAL);
+                    return lex_token(ls, TK_pluseq);
                 }
                 else
                 {
@@ -594,7 +594,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_STAR_EQUAL);
+                    return lex_token(ls, TK_muleq);
                 }
                 else if(ls->c == '*')
                 {
@@ -602,11 +602,11 @@ static Token lex_scan(LexState* ls)
                     if(ls->c == '=')
                     {
                         lex_next(ls);
-                        return lex_token(ls, TK_STAR_STAR_EQUAL);
+                        return lex_token(ls, TK_poweq);
                     }
                     else
                     {
-                        return lex_token(ls, TK_STAR_STAR);
+                        return lex_token(ls, TK_pow);
                     }
                 }
                 else
@@ -620,7 +620,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_PERCENT_EQUAL);
+                    return lex_token(ls, TK_modeq);
                 }
                 return lex_token(ls, '%');
             }
@@ -630,7 +630,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_AMPERSAND_EQUAL);
+                    return lex_token(ls, TK_bandeq);
                 }
                 return lex_token(ls, '&');
             }
@@ -640,7 +640,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_PIPE_EQUAL);
+                    return lex_token(ls, TK_boreq);
                 }
                 return lex_token(ls, '|');
             }
@@ -650,7 +650,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_CARET_EQUAL);
+                    return lex_token(ls, TK_bxoreq);
                 }
                 return lex_token(ls, '^');
             }
@@ -670,7 +670,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_BANG_EQUAL);
+                    return lex_token(ls, TK_noteq);
                 }
                 return lex_token(ls, '!');
             }
@@ -680,12 +680,12 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_EQUAL_EQUAL);
+                    return lex_token(ls, TK_eq);
                 }
                 else if(ls->c == '>')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_ARROW);
+                    return lex_token(ls, TK_arrow);
                 }
                 else
                 {
@@ -698,7 +698,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_LESS_EQUAL);
+                    return lex_token(ls, TK_le);
                 }
                 else if(ls->c == '<')
                 {
@@ -706,11 +706,11 @@ static Token lex_scan(LexState* ls)
                     if(ls->c == '=')
                     {
                         lex_next(ls);
-                        return lex_token(ls, TK_LESS_LESS_EQUAL);
+                        return lex_token(ls, TK_lshifteq);
                     }
                     else
                     {
-                        return lex_token(ls, TK_LESS_LESS);
+                        return lex_token(ls, TK_lshift);
                     }
                 }
                 else
@@ -722,7 +722,7 @@ static Token lex_scan(LexState* ls)
                 if(ls->c == '=')
                 {
                     lex_next(ls);
-                    return lex_token(ls, TK_GREATER_EQUAL);
+                    return lex_token(ls, TK_ge);
                 }
                 else if(ls->c == '>')
                 {
@@ -730,11 +730,11 @@ static Token lex_scan(LexState* ls)
                     if(ls->c == '=')
                     {
                         lex_next(ls);
-                        return lex_token(ls, TK_GREATER_GREATER_EQUAL);
+                        return lex_token(ls, TK_rshifteq);
                     }
                     else
                     {
-                        return lex_token(ls, TK_GREATER_GREATER);
+                        return lex_token(ls, TK_rshift);
                     }
                 }
                 else
@@ -747,7 +747,7 @@ static Token lex_scan(LexState* ls)
                 /* Don't allow the same string delimiter inside interpolation*/
                 if(ls->num_braces > 0 && ls->c == ls->str_braces[ls->num_braces - 1])
                 {
-                    tea_lex_error(ls, TK_STRING, ls->linenumber, TEA_ERR_XSTR);
+                    tea_lex_error(ls, TK_string, ls->linenumber, TEA_ERR_XSTR);
                 }
 
                 ls->sc = ls->c;
@@ -869,8 +869,8 @@ void tea_lex_next(LexState* ls)
 {
     ls->prev = ls->curr;
     ls->curr = ls->next;
-    if(ls->next.t == TK_EOF) return;
-    if(ls->curr.t == TK_EOF) return;
+    if(ls->next.t == TK_eof) return;
+    if(ls->curr.t == TK_eof) return;
     ls->next = lex_scan(ls);
 }
 

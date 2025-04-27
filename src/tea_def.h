@@ -57,7 +57,7 @@
 
 #define checki32(x) ((x) == (int32_t)(x))
 
-#if defined(__GNUC__) || defined(__clang)
+#if defined(__GNUC__) || defined(__clang) || defined(__clang__)
 
 #define TEA_NORET __attribute__((noreturn))
 #define TEA_INLINE inline

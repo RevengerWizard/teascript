@@ -188,8 +188,8 @@ TEA_API tea_State* tea_new_state(tea_Alloc allocf, void* ud)
     T->allocd = ud;
     T->gc.next_gc = 1024 * 1024;
     T->panic = panic;
-    T->strempty.obj.gct = TEA_TSTR;
-    T->strempty.obj.marked = TEA_GC_FIXED;
+    T->strempty.gct = TEA_TSTR;
+    T->strempty.marked = TEA_GC_FIXED;
     tea_buf_init(&T->tmpbuf);
     tea_buf_init(&T->strbuf);
     tea_tab_init(&T->modules);

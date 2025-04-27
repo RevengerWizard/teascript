@@ -409,13 +409,13 @@ static void vm_execute(tea_State* T)
     INTERPRET_LOOP
     {
         /* -- Stack ops ----------------------------------------------------- */
-        CASE_CODE(BC_GET_LOCAL):
+        CASE_CODE(BC_GETLOCAL):
         {
             uint8_t slot = READ_BYTE();
             copyTV(T, T->top++, base + slot);
             DISPATCH();
         }
-        CASE_CODE(BC_SET_LOCAL):
+        CASE_CODE(BC_SETLOCAL):
         {
             uint8_t slot = READ_BYTE();
             copyTV(T, base + slot, T->top - 1);
@@ -433,17 +433,17 @@ static void vm_execute(tea_State* T)
             DISPATCH();
         }
         /* -- Constant ops -------------------------------------------------- */
-        CASE_CODE(BC_NIL):
+        CASE_CODE(BC_KNIL):
         {
             setnilV(T->top++);
             DISPATCH();
         }
-        CASE_CODE(BC_TRUE):
+        CASE_CODE(BC_KTRUE):
         {
             settrueV(T->top++);
             DISPATCH();
         }
-        CASE_CODE(BC_FALSE):
+        CASE_CODE(BC_KFALSE):
         {
             setfalseV(T->top++);
             DISPATCH();
@@ -472,7 +472,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_INVOKE_NEW):
+        CASE_CODE(BC_NEW):
         {
             uint8_t nargs = READ_BYTE();
             TValue* o = T->top - nargs - 1;
@@ -546,28 +546,28 @@ static void vm_execute(tea_State* T)
             BINARY_OP(setnumV, (a + b), MM_PLUS, double);
             DISPATCH();
         }
-        CASE_CODE(BC_SUBTRACT):
+        CASE_CODE(BC_SUB):
         {
             BINARY_OP(setnumV, (a - b), MM_MINUS, double);
             DISPATCH();
         }
-        CASE_CODE(BC_MULTIPLY):
+        CASE_CODE(BC_MUL):
         {
             BINARY_OP(setnumV, (a * b), MM_MULT, double);
             DISPATCH();
         }
-        CASE_CODE(BC_DIVIDE):
+        CASE_CODE(BC_DIV):
         {
             BINARY_OP(setnumV, (a / b), MM_DIV, double);
             DISPATCH();
         }
-        CASE_CODE(BC_NEGATE):
+        CASE_CODE(BC_NEG):
         {
             UNARY_OP(setnumV, (-v), MM_MINUS, double);
             DISPATCH();
         }
         /* -- Comparison ops ------------------------------------------------ */
-        CASE_CODE(BC_EQUAL):
+        CASE_CODE(BC_ISEQ):
         {
             TValue* a = T->top - 2;
             TValue* b = T->top - 1;
@@ -591,34 +591,34 @@ static void vm_execute(tea_State* T)
             }
             DISPATCH();
         }
-        CASE_CODE(BC_LESS):
+        CASE_CODE(BC_ISLT):
         {
             BINARY_OP(setboolV, (a < b), MM_LT, double);
             DISPATCH();
         }
-        CASE_CODE(BC_LESS_EQUAL):
+        CASE_CODE(BC_ISLE):
         {
             BINARY_OP(setboolV, (a <= b), MM_LE, double);
             DISPATCH();
         }
-        CASE_CODE(BC_GREATER):
+        CASE_CODE(BC_ISGT):
         {
             BINARY_OP(setboolV, (a > b), MM_GT, double);
             DISPATCH();
         }
-        CASE_CODE(BC_GREATER_EQUAL):
+        CASE_CODE(BC_ISGE):
         {
             BINARY_OP(setboolV, (a >= b), MM_GE, double);
             DISPATCH();
         }
         /* -- Control flow -------------------------------------------------- */
-        CASE_CODE(BC_JUMP):
+        CASE_CODE(BC_JMP):
         {
             uint16_t ofs = READ_SHORT();
             ip += ofs;
             DISPATCH();
         }
-        CASE_CODE(BC_JUMP_IF_FALSE):
+        CASE_CODE(BC_JMPFALSE):
         {
             uint16_t ofs = READ_SHORT();
             if(tea_obj_isfalse(T->top - 1))
@@ -627,7 +627,7 @@ static void vm_execute(tea_State* T)
             }
             DISPATCH();
         }
-        CASE_CODE(BC_JUMP_IF_NIL):
+        CASE_CODE(BC_JMPNIL):
         {
             uint16_t ofs = READ_SHORT();
             if(tvisnil(T->top - 1))
@@ -656,7 +656,7 @@ static void vm_execute(tea_State* T)
             setmapV(T, T->top++, map);
             DISPATCH();
         }
-        CASE_CODE(BC_LIST_ITEM):
+        CASE_CODE(BC_LISTITEM):
         {
             GClist* list = listV(T->top - 2);
             cTValue* item = T->top - 1;
@@ -664,7 +664,7 @@ static void vm_execute(tea_State* T)
             T->top--;
             DISPATCH();
         }
-        CASE_CODE(BC_MAP_FIELD):
+        CASE_CODE(BC_MAPFIELD):
         {
             GCmap* map = mapV(T->top - 3);
             TValue* key = T->top - 2;
@@ -718,7 +718,7 @@ static void vm_execute(tea_State* T)
 
             DISPATCH();
         }
-        CASE_CODE(BC_UNPACK_REST):
+        CASE_CODE(BC_UNPACKREST):
         {
             uint8_t var_count = READ_BYTE();
             uint8_t rest_pos = READ_BYTE();
@@ -756,7 +756,7 @@ static void vm_execute(tea_State* T)
 
             DISPATCH();
         }
-        CASE_CODE(BC_LIST_EXTEND):
+        CASE_CODE(BC_LISTEXTEND):
         {
             GClist* list = listV(T->top - 2);
             TValue* item = T->top - 1;
@@ -767,7 +767,7 @@ static void vm_execute(tea_State* T)
             DISPATCH();
         }
         /* -- Object access ------------------------------------------------- */
-        CASE_CODE(BC_GET_ATTR):
+        CASE_CODE(BC_GETATTR):
         {
             TValue* obj = T->top - 1;
             GCstr* name = READ_STRING();
@@ -778,7 +778,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_PUSH_ATTR):
+        CASE_CODE(BC_PUSHATTR):
         {
             TValue* obj = T->top - 1;
             GCstr* name = READ_STRING();
@@ -788,7 +788,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_SET_ATTR):
+        CASE_CODE(BC_SETATTR):
         {
             GCstr* name = READ_STRING();
             TValue* obj = T->top - 2;
@@ -800,7 +800,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_GET_INDEX):
+        CASE_CODE(BC_GETIDX):
         {
             TValue* obj = T->top - 2;
             TValue* idx = T->top - 1;
@@ -811,7 +811,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_PUSH_INDEX):
+        CASE_CODE(BC_PUSHIDX):
         {
             TValue* obj = T->top - 2;
             TValue* idx = T->top - 1;
@@ -821,7 +821,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_SET_INDEX):
+        CASE_CODE(BC_SETIDX):
         {
             TValue* obj = T->top - 3;
             TValue* idx = T->top - 2;
@@ -833,7 +833,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_GET_SUPER):
+        CASE_CODE(BC_GETSUPER):
         {
             GCstr* name = READ_STRING();
             GCclass* super = classV(--T->top);
@@ -848,7 +848,7 @@ static void vm_execute(tea_State* T)
             DISPATCH();
         }
         /* -- Global/module access ------------------------------------------ */
-        CASE_CODE(BC_GET_GLOBAL):
+        CASE_CODE(BC_GETGLOBAL):
         {
             GCstr* name = READ_STRING();
             cTValue* o = tea_tab_get(&T->globals, name);
@@ -862,21 +862,21 @@ static void vm_execute(tea_State* T)
             }
             DISPATCH();
         }
-        CASE_CODE(BC_GET_MODULE):
+        CASE_CODE(BC_GETMODULE):
         {
             uint8_t slot = READ_BYTE();
             TValue* vars = T->ci->func->t.module->vars;
             copyTV(T, T->top++, vars + slot);
             DISPATCH();
         }
-        CASE_CODE(BC_SET_MODULE):
+        CASE_CODE(BC_SETMODULE):
         {
             uint8_t slot = READ_BYTE();
             TValue* vars = T->ci->func->t.module->vars;
             copyTV(T, vars + slot, T->top - 1);
             DISPATCH();
         }
-        CASE_CODE(BC_DEFINE_MODULE):
+        CASE_CODE(BC_DEFMODULE):
         {
             GCstr* name = READ_STRING();
             copyTV(T, tea_tab_set(T,
@@ -891,20 +891,20 @@ static void vm_execute(tea_State* T)
             setfuncV(T, T->top++, func);
             DISPATCH();
         }
-        CASE_CODE(BC_CLOSE_UPVALUE):
+        CASE_CODE(BC_CLOSEUPVAL):
         {
             tea_func_closeuv(T, T->top - 1);
             T->top--;
             DISPATCH();
         }
-        CASE_CODE(BC_GET_UPVALUE):
+        CASE_CODE(BC_GETUPVAL):
         {
             uint8_t slot = READ_BYTE();
             TValue* o = T->ci->func->t.upvalues[slot]->location;
             copyTV(T, T->top++, o);
             DISPATCH();
         }
-        CASE_CODE(BC_SET_UPVALUE):
+        CASE_CODE(BC_SETUPVAL):
         {
             uint8_t slot = READ_BYTE();
             TValue* o = T->ci->func->t.upvalues[slot]->location;
@@ -1007,7 +1007,7 @@ static void vm_execute(tea_State* T)
             DISPATCH();
         }
         /* -- Iterator ops -------------------------------------------------- */
-        CASE_CODE(BC_GET_ITER):
+        CASE_CODE(BC_GETITER):
         {
             uint8_t slot = READ_BYTE();    /* seq */
             TValue* seq = base + slot;
@@ -1027,7 +1027,7 @@ static void vm_execute(tea_State* T)
             }
             DISPATCH();
         }
-        CASE_CODE(BC_FOR_ITER):
+        CASE_CODE(BC_FORITER):
         {
             uint8_t slot = READ_BYTE();    /* iter */
             TValue* iter = base + slot;
@@ -1087,7 +1087,7 @@ static void vm_execute(tea_State* T)
             DISPATCH();
         }
         /* -- Import ops ---------------------------------------------------- */
-        CASE_CODE(BC_IMPORT_NAME):
+        CASE_CODE(BC_IMPORTNAME):
         {
             GCstr* name = READ_STRING();
             STORE_FRAME;
@@ -1095,7 +1095,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_IMPORT_STRING):
+        CASE_CODE(BC_IMPORTSTR):
         {
             GCstr* path_name = READ_STRING();
             STORE_FRAME;
@@ -1103,7 +1103,7 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_IMPORT_FMT):
+        CASE_CODE(BC_IMPORTFMT):
         {
             tea_assertT(tvisstr(T->top - 1), "expected interpolated string");
             GCstr* path = strV(--T->top);
@@ -1112,12 +1112,12 @@ static void vm_execute(tea_State* T)
             READ_FRAME();
             DISPATCH();
         }
-        CASE_CODE(BC_IMPORT_ALIAS):
+        CASE_CODE(BC_IMPORTALIAS):
         {
             setmoduleV(T, T->top++, T->last_module);
             DISPATCH();
         }
-        CASE_CODE(BC_IMPORT_VARIABLE):
+        CASE_CODE(BC_IMPORTVAR):
         {
             GCstr* name = READ_STRING();
             TValue* o = tea_tab_get(&T->last_module->exports, name);
@@ -1128,13 +1128,13 @@ static void vm_execute(tea_State* T)
             copyTV(T, T->top++, o);
             DISPATCH();
         }
-        CASE_CODE(BC_IMPORT_END):
+        CASE_CODE(BC_IMPORTEND):
         {
             T->last_module = T->ci->func->t.module;
             DISPATCH();
         }
         /* -- Special cases ------------------------------------------------- */
-        CASE_CODE(BC_DEFINE_OPTIONAL):
+        CASE_CODE(BC_DEFOPT):
         {
             uint8_t nargs = READ_BYTE();
             uint8_t nopts = READ_BYTE();
@@ -1171,7 +1171,7 @@ static void vm_execute(tea_State* T)
             }
             DISPATCH();
         }
-        CASE_CODE(BC_MULTI_CASE):
+        CASE_CODE(BC_MULTICASE):
         {
             uint8_t count = READ_BYTE();
             TValue* switch_value = T->top - 1 - (count + 1);
@@ -1193,7 +1193,7 @@ static void vm_execute(tea_State* T)
             copyTV(T, T->top++, case_value);
             DISPATCH();
         }
-        CASE_CODE(BC_COMPARE_JUMP):
+        CASE_CODE(BC_JMPCMP):
         {
             uint16_t ofs = READ_SHORT();
             TValue* o = --T->top;

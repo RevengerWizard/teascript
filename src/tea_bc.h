@@ -15,73 +15,73 @@
 */
 #define BCDEF(_) \
     /* Stack ops */ \
-    _(GET_LOCAL, 1, 1) \
-    _(SET_LOCAL, 0, 1) \
+    _(GETLOCAL, 1, 1) \
+    _(SETLOCAL, 0, 1) \
     _(CONSTANT, 1, 1) \
     _(POP, -1, 0) \
     \
     /* Constant ops */ \
-    _(NIL, 1, 0) \
-    _(TRUE, 1, 0) \
-    _(FALSE, 1, 0) \
+    _(KNIL, 1, 0) \
+    _(KTRUE, 1, 0) \
+    _(KFALSE, 1, 0) \
     \
     /* Function calls */ \
     _(CALL, 0, 1) \
     _(INVOKE, 0, 2) \
-    _(INVOKE_NEW, 0, 1) \
+    _(NEW, 0, 1) \
     _(SUPER, 0, 2) \
     _(RETURN, 0, 0) \
     \
     /* Arithmetic ops */ \
     _(ADD, -1, 0) \
-    _(SUBTRACT, -1, 0) \
-    _(MULTIPLY, -1, 0) \
-    _(DIVIDE, -1, 0) \
-    _(NEGATE, 0, 0) \
+    _(SUB, -1, 0) \
+    _(MUL, -1, 0) \
+    _(DIV, -1, 0) \
+    _(NEG, 0, 0) \
     \
     /* Comparison ops */ \
-    _(EQUAL, -1, 0) \
-    _(LESS, -1, 0) \
-    _(LESS_EQUAL, -1, 0) \
-    _(GREATER, -1, 0) \
-    _(GREATER_EQUAL, -1, 0) \
+    _(ISEQ, -1, 0) \
+    _(ISLT, -1, 0) \
+    _(ISLE, -1, 0) \
+    _(ISGT, -1, 0) \
+    _(ISGE, -1, 0) \
     \
     /* Control flow */ \
-    _(JUMP, 0, 2) \
-    _(JUMP_IF_FALSE, -1, 2) \
-    _(JUMP_IF_NIL, -1, 2) \
+    _(JMP, 0, 2) \
+    _(JMPFALSE, -1, 2) \
+    _(JMPNIL, -1, 2) \
     _(LOOP, 0, 2) \
     \
     /* Collection ops */ \
     _(LIST, 1, 0) \
     _(MAP, 1, 0) \
-    _(LIST_ITEM, -1, 0) \
-    _(MAP_FIELD, -2, 0) \
+    _(LISTITEM, -1, 0) \
+    _(MAPFIELD, -2, 0) \
     _(RANGE, -2, 0) \
     _(UNPACK, -1, 1) \
-    _(UNPACK_REST, -1, 2) \
-    _(LIST_EXTEND, -1, 0) \
+    _(UNPACKREST, -1, 2) \
+    _(LISTEXTEND, -1, 0) \
     \
     /* Object access */ \
-    _(GET_ATTR, 1, 1) \
-    _(PUSH_ATTR, 0, 1) \
-    _(SET_ATTR, 0, 1) \
-    _(GET_INDEX, -1, 0) \
-    _(PUSH_INDEX, 1, 0) \
-    _(SET_INDEX, 0, 0) \
-    _(GET_SUPER, 1, 1) \
+    _(GETATTR, 1, 1) \
+    _(PUSHATTR, 0, 1) \
+    _(SETATTR, 0, 1) \
+    _(GETIDX, -1, 0) \
+    _(PUSHIDX, 1, 0) \
+    _(SETIDX, 0, 0) \
+    _(GETSUPER, 1, 1) \
     \
     /* Global/module access */ \
-    _(GET_GLOBAL, 1, 1) \
-    _(GET_MODULE, 1, 1) \
-    _(SET_MODULE, 0, 1) \
-    _(DEFINE_MODULE, 0, 2) \
+    _(GETGLOBAL, 1, 1) \
+    _(GETMODULE, 1, 1) \
+    _(SETMODULE, 0, 1) \
+    _(DEFMODULE, 0, 2) \
     \
     /* Closure and upvalue ops */ \
     _(CLOSURE, 1, 1) \
-    _(CLOSE_UPVALUE, -1, 0) \
-    _(GET_UPVALUE, 1, 1) \
-    _(SET_UPVALUE, 0, 1) \
+    _(CLOSEUPVAL, -1, 0) \
+    _(GETUPVAL, 1, 1) \
+    _(SETUPVAL, 0, 1) \
     \
     /* Other ops */ \
     _(MOD, -1, 0) \
@@ -99,8 +99,8 @@
     _(RSHIFT, -1, 0) \
     \
     /* Iterator ops */ \
-    _(GET_ITER, 1, 1) \
-    _(FOR_ITER, 1, 1) \
+    _(GETITER, 1, 1) \
+    _(FORITER, 1, 1) \
     \
     /* Class ops */ \
     _(CLASS, 1, 1) \
@@ -109,17 +109,17 @@
     _(ISTYPE, 0, 0) \
     \
     /* Import ops */ \
-    _(IMPORT_NAME, 0, 1) \
-    _(IMPORT_STRING, 0, 1) \
-    _(IMPORT_FMT, 0, 0) \
-    _(IMPORT_VARIABLE, 1, 2) \
-    _(IMPORT_ALIAS, 1, 0) \
-    _(IMPORT_END, 1, 0) \
+    _(IMPORTNAME, 0, 1) \
+    _(IMPORTSTR, 0, 1) \
+    _(IMPORTFMT, 0, 0) \
+    _(IMPORTVAR, 1, 2) \
+    _(IMPORTALIAS, 1, 0) \
+    _(IMPORTEND, 1, 0) \
     \
     /* Special cases */ \
-    _(DEFINE_OPTIONAL, 0, 2) \
-    _(MULTI_CASE, 0, 1) \
-    _(COMPARE_JUMP, 0, 2) \
+    _(DEFOPT, 0, 2) \
+    _(MULTICASE, 0, 1) \
+    _(JMPCMP, 0, 2) \
     _(END, 0, 0)
 
 /* Bytecode opcode numbers */

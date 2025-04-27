@@ -75,10 +75,10 @@ void tea_str_resize(tea_State* T, uint32_t newsize)
         GCobj* obj = T->str.hash[i];
         while(obj != NULL)
         {
-            GCobj* next = obj->next;
+            GCobj* next = obj->gch.nextgc;
             StrHash hash = gco2str(obj)->hash;
             uint32_t idx = hash & (newsize - 1);
-            obj->next = newhash[idx];
+            obj->gch.nextgc = newhash[idx];
             newhash[idx] = obj;
             obj = next;
         }
@@ -92,10 +92,9 @@ void tea_str_resize(tea_State* T, uint32_t newsize)
 /* Allocate a new string and add to string interning table */
 static GCstr* str_alloc(tea_State* T, const char* chars, uint32_t len, StrHash hash)
 {
-    GCobj* obj = (GCobj*)tea_mem_new(T, tea_str_size(len));
-    obj->gct = TEA_TSTR;
-    obj->marked = 0;
-    GCstr* s = gco2str(obj);
+    GCstr* s = (GCstr*)tea_mem_new(T, tea_str_size(len));
+    s->gct = TEA_TSTR;
+    s->marked = 0;
     s->reserved = 0;
     s->len = len;
     s->hash = hash;
@@ -103,7 +102,7 @@ static GCstr* str_alloc(tea_State* T, const char* chars, uint32_t len, StrHash h
     str_datawr(s)[len] = '\0';
     /* Add to string hash table */
     hash &= (T->str.size - 1);
-    obj->next = T->str.hash[hash];
+    s->nextgc = T->str.hash[hash];
     T->str.hash[hash] = obj2gco(s);
     T->str.num++;
     if(T->str.num > T->str.size)
@@ -130,7 +129,7 @@ GCstr* tea_str_new(tea_State* T, const char* chars, size_t lenx)
             {
                 return sx;  /* Return existing string */
             }
-            obj = obj->next;
+            obj = obj->gch.nextgc;
         }
         /* Otherwise allocate a new string */
         return str_alloc(T, chars, len, hash);

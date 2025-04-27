@@ -11,8 +11,8 @@
 #define TEA_GC_FINALIZED 0x10
 #define TEA_GC_FIXED 0x20
 
-#define fix_string(s) (((GCobj*)(s))->marked |= TEA_GC_FIXED)
-#define mark_finalized(x) (((GCobj*)(x))->marked |= TEA_GC_FINALIZED)
+#define fix_string(s) (((GCobj*)(s))->gch.marked |= TEA_GC_FIXED)
+#define mark_finalized(x) (((GCobj*)(x))->gch.marked |= TEA_GC_FINALIZED)
 
 /* Collector */
 TEA_FUNC void tea_gc_separateudata(tea_State* T);

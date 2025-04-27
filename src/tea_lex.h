@@ -11,38 +11,42 @@
 #include "tea_buf.h"
 #include "tea_obj.h"
 #include "tea_err.h"
-#include <stdint.h>
 
 /* Teascript lexer tokens */
-#define TKDEF(_) \
-    _(AND, and) _(NOT, not) _(CLASS, class) \
-    _(STATIC, static) _(OPERATOR, operator) _(ELSE, else) _(FALSE, false) \
-    _(FOR, for) _(FUNCTION, function) _(CASE, case) _(SWITCH, switch) _(DEFAULT, default) \
-    _(IF, if) _(NIL, nil) _(OR, or) _(IS, is) \
-    _(IMPORT, import) _(FROM, from) _(AS, as) \
-    _(RETURN, return) _(SUPER, super) _(SELF, self) \
-    _(CONTINUE, continue) _(BREAK, break) _(IN, in) \
-    _(TRUE, true) _(VAR, var) _(CONST, const) \
-    _(NEW, new) _(EXPORT, export) _(DO, do) _(WHILE, while) \
-    _(PLUS_EQUAL, +=) _(MINUS_EQUAL, -=) _(STAR_EQUAL, *=) _(SLASH_EQUAL, /=) \
-    _(BANG_EQUAL, !=) _(EQUAL_EQUAL, ==) \
-    _(GREATER_EQUAL, >=) _(LESS_EQUAL, <=) _(PERCENT_EQUAL, %=) \
-    _(STAR_STAR, **) _(STAR_STAR_EQUAL, **=) \
-    _(DOT_DOT, ..) _(DOT_DOT_DOT, ...) \
-    _(AMPERSAND_EQUAL, &=) _(PIPE_EQUAL, |=) \
-    _(CARET_EQUAL, ^=) _(ARROW, =>) \
-    _(GREATER_GREATER, >>) _(LESS_LESS, <<) \
-    _(GREATER_GREATER_EQUAL, >>=) _(LESS_LESS_EQUAL, <<=) \
-    _(NAME, <name>) _(STRING, <string>) _(INTERPOLATION, <interpolation>) _(NUMBER, <number>) \
-    _(EOF, <eof>)
+#define TKDEF(_, __) \
+    /* Keywords */ \
+    _(and) _(not) _(class) \
+    _(static) _(operator) _(else) _(false) \
+    _(for) _(function) _(case) _(switch) _(default) \
+    _(if) _(nil) _(or) _(is) \
+    _(import) _(from) _(as) \
+    _(return) _(super) _(self) \
+    _(continue) _(break) _(in) \
+    _(true) _(var) _(const) \
+    _(new) _(export) _(do) _(while) \
+    /* Symbols */ \
+    __(noteq, !=) __(eq, ==) \
+    __(ge, >=) __(le, <=) \
+    __(rshift, >>) __(lshift, <<) \
+    __(pluseq, +=) __(mineq, -=) \
+    __(muleq, *=) __(diveq, /=) __(modeq, %=) \
+    __(poweq, **=) \
+    __(bandeq, &=) __(boreq, |=) __(bxoreq, ^=) \
+    __(rshifteq, >>=) __(lshifteq, <<=) \
+    __(pow, **) __(arrow, =>) \
+    __(dotdot, ..) __(dotdotdot, ...) \
+    __(name, <name>) __(string, <string>) \
+    __(interpolation, <interpolation>) __(number, <number>) \
+    __(eof, <eof>)
 
 enum
 {
     TK_OFS = 256,
-#define TKENUM(name, sym) TK_##name,
-    TKDEF(TKENUM)
+#define TKENUM1(name) TK_##name,
+#define TKENUM2(name, sym) TK_##name,
+    TKDEF(TKENUM1, TKENUM2)
 #undef TKENUM
-    TK_RESERVED = TK_WHILE - TK_OFS
+    TK_RESERVED = TK_while - TK_OFS
 };
 
 typedef int LexChar;  /* Lexical character*/

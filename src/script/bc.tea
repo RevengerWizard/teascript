@@ -55,23 +55,23 @@ function bcline(func, ofs, out)
 
     switch bcname
     {
-        case "CONSTANT", "PUSH_ATTR",
-        "GET_ATTR", "SET_ATTR",
-        "DEFINE_MODULE", "GET_GLOBAL",
-        "GET_SUPER",
+        case "CONSTANT", "PUSHATTR",
+        "GETATTR", "SETATTR",
+        "DEFMODULE", "GETGLOBAL",
+        "GETSUPER",
         "CLASS",
-        "IMPORT_FMT",
-        "IMPORT_STRING",
-        "IMPORT_NAME",
-        "IMPORT_VARIABLE"
+        "IMPORTFMT",
+        "IMPORTSTR",
+        "IMPORTNAME",
+        "IMPORTVAR"
         {
             const k = funcbc(func, ofs + 1)
             out.write("%4d %s\n".format(k, escapestr(funck(func, k))))
             return ofs + 2
         }
-        case "DEFINE_OPTIONAL",
-        "UNPACK_REST",
-        "FOR_ITER", "GET_ITER"
+        case "DEFOPT",
+        "UNPACKREST",
+        "FORITER", "GETITER"
         {
             const slot1 = funcbc(func, ofs + 1)
             const slot2 = funcbc(func, ofs + 2)
@@ -85,43 +85,43 @@ function bcline(func, ofs, out)
             out.write("%4d %4d %s\n".format(k, slot1, escapestr(funck(func, k))))
             return ofs + 3
         }
-        case "NIL", "TRUE", "FALSE",
+        case "KNIL", "KTRUE", "KFALSE",
         "POP", "RANGE",
         "LIST", "MAP",
-        "GET_INDEX", "SET_INDEX", "PUSH_INDEX",
-        "LIST_EXTEND", "LIST_ITEM",
-        "MAP_FIELD",
-        "EQUAL", "IS", "IN",
-        "GREATER", "GREATER_EQUAL",
-        "LESS", "LESS_EQUAL",
-        "ADD", "SUBTRACT",
-        "MULTIPLY", "DIVIDE",
+        "GETIDX", "SETIDX", "PUSHIDX",
+        "LISTEXTEND", "LISTITEM",
+        "MAPFIELD",
+        "ISEQ", "IS", "IN",
+        "ISGT", "ISGE",
+        "ISLT", "ISLE",
+        "ADD", "SUB",
+        "MUL", "DIV",
         "MOD", "POW",
         "BAND", "BOR", "BNOT", "BXOR",
         "LSHIFT", "RSHIFT",
-        "NOT", "NEGATE",
-        "CLOSE_UPVALUE", "RETURN",
+        "NOT", "NEG",
+        "CLOSEUPVAL", "RETURN",
         "INHERIT",
         "ISTYPE",
-        "IMPORT_ALIAS",
-        "IMPORT_END",
+        "IMPORTALIAS",
+        "IMPORTEND",
         "END"
         {
             out.write('\n')
             return ofs + 1
         }
-        case "GET_LOCAL", "SET_LOCAL",
-        "GET_UPVALUE", "SET_UPVALUE",
-        "GET_MODULE", "SET_MODULE",
-        "MULTI_CASE", "UNPACK",
-        "CALL", "INVOKE_NEW"
+        case "GETLOCAL", "SETLOCAL",
+        "GETUPVAL", "SETUPVAL",
+        "GETMODULE", "SETMODULE",
+        "MULTICASE", "UNPACK",
+        "CALL", "NEW"
         {
             const slot = funcbc(func, ofs + 1)
             out.write("%4d\n".format(slot))
             return ofs + 2
         }
-        case "COMPARE_JUMP", "JUMP",
-        "JUMP_IF_FALSE", "JUMP_IF_NIL",
+        case "JMPCMP", "JMP",
+        "JMPFALSE", "JMPNIL",
         "LOOP"
         {
             const sign = bcname == "LOOP" ? -1 : 1

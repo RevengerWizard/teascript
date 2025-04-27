@@ -12,6 +12,8 @@
 
 /* -- Tags and values ----------------------------------------------------- */
 
+typedef union GCobj GCobj;
+
 /* Tagged value */
 typedef struct
 {
@@ -21,7 +23,7 @@ typedef struct
         bool b;
         void* p;
         double n;
-        struct GCobj* gc;
+        GCobj* gc;
     } value;
 } TValue;
 
@@ -48,13 +50,8 @@ enum
     TEA_TMETHOD,
 };
 
-/* GC common header */
-typedef struct GCobj
-{
-    uint8_t gct;
-    uint8_t marked;
-    struct GCobj* next;
-} GCobj;
+/* Common GC header for all collectable objects */
+#define GCheader GCobj* nextgc; uint8_t marked; uint8_t gct
 
 /* -- Common type definitions --------------------------------------------- */
 
@@ -94,7 +91,7 @@ typedef uint32_t StrHash;   /* String hash value */
 /* String object header. String payload follows */
 typedef struct GCstr
 {
-    GCobj obj;
+    GCheader;
     uint8_t reserved;   /* Used by lexer for fast lookup of reserved words */
     StrHash hash;  /* Hash of string */
     uint32_t len;    /* Size of string */
@@ -138,7 +135,7 @@ typedef struct
 
 typedef struct
 {
-    GCobj obj;
+    GCheader;
     double start;
     double end;
     double step;
@@ -148,7 +145,7 @@ typedef struct
 
 typedef struct
 {
-    GCobj obj;
+    GCheader;
     GCstr* name;    /* Canonical module name */
     GCstr* path;    /* Absolute module path */
     TValue* vars;   /* Array of variables */
@@ -161,7 +158,7 @@ typedef struct
 
 typedef struct
 {
-    GCobj obj;
+    GCheader;
     uint8_t numparams;  /* Number of parameters */
     uint8_t numopts; /* Number of optional parameters */
     uint8_t sizeuv;  /* Number of upvalues */
@@ -193,7 +190,7 @@ typedef struct
 
 typedef struct GCupval
 {
-    GCobj obj;
+    GCheader;
     TValue* location;
     TValue closed;
     struct GCupval* next;
@@ -203,7 +200,7 @@ typedef struct GCupval
 
 /* Common header of functions */
 #define GCfuncHeader \
-    GCobj obj; uint8_t ffid; uint8_t upvalue_count; \
+    GCheader; uint8_t ffid; uint8_t upvalue_count; \
     GCmodule* module
 
 typedef enum
@@ -248,7 +245,7 @@ typedef union
 
 typedef struct
 {
-    GCobj obj;
+    GCheader;
     uint32_t len;  /* Number of list items */
     uint32_t size;
     TValue* items;  /* Array of list values */
@@ -267,7 +264,7 @@ typedef struct
 
 typedef struct
 {
-    GCobj obj;
+    GCheader;
     uint32_t count;  /* Number of map fields */
     uint32_t size;
     MapEntry* entries;
@@ -277,7 +274,7 @@ typedef struct
 
 typedef struct GCclass
 {
-    GCobj obj;
+    GCheader;
     GCstr* name;
     struct GCclass* super;  /* Inherited class or NULL */
     TValue init; /* Cached */
@@ -288,7 +285,7 @@ typedef struct GCclass
 
 typedef struct
 {
-    GCobj obj;
+    GCheader;
     GCclass* klass; /* Instance class */
     Tab attrs;    /* Instance attributes */
 } GCinstance;
@@ -298,7 +295,7 @@ typedef struct
 /* Userdata object. Payload follows */
 typedef struct GCudata
 {
-    GCobj obj;
+    GCheader;
     GCclass* klass;
     Tab attrs;
     uint8_t udtype; /* Userdata type */
@@ -323,7 +320,7 @@ enum
 
 typedef struct
 {
-    GCobj obj;
+    GCheader;
     TValue receiver;    /* 'self' object */
     GCfunc* func;   /* Function to bound */
 } GCmethod;
@@ -466,23 +463,48 @@ struct tea_State
 TEA_FUNC_NORET void tea_assert_fail(tea_State* T, const char* file, int line, const char* func, const char* fmt, ...);
 #endif
 
+/* -- GC object definition and conversions -------------------------- */
+
+/* GC header for generic access to common fields of GC objects */
+typedef struct GChead
+{
+    GCheader;
+} GChead;
+
 /* The klass and attrs fields MUST be at the same offset */
 TEA_STATIC_ASSERT(offsetof(GCinstance, klass) == offsetof(GCudata, klass));
 TEA_STATIC_ASSERT(offsetof(GCinstance, attrs) == offsetof(GCudata, attrs));
 
+union GCobj
+{
+    GChead gch;
+    GCstr str;
+    GCrange range;
+    GCmodule mod;
+    GCproto proto;
+    GCupval uv;
+    GCfunc func;
+    GClist list;
+    GCmap map;
+    GCclass klass;
+    GCinstance inst;
+    GCudata ud;
+    GCmethod met;
+};
+
 /* Macros to convert a GCobj pointer to a specific value */
-#define gco2str(o) ((GCstr*)(o))
-#define gco2range(o) ((GCrange*)(o))
-#define gco2func(o) ((GCfunc*)(o))
-#define gco2proto(o) ((GCproto*)(o))
-#define gco2uv(o) ((GCupval*)(o))
-#define gco2module(o) ((GCmodule*)(o))
-#define gco2class(o) ((GCclass*)(o))
-#define gco2instance(o) ((GCinstance*)(o))
-#define gco2method(o) ((GCmethod*)(o))
-#define gco2list(o) ((GClist*)(o))
-#define gco2map(o) ((GCmap*)(o))
-#define gco2udata(o) ((GCudata*)(o))
+#define gco2str(o) (&(o)->str)
+#define gco2range(o) (&(o)->range)
+#define gco2func(o) (&(o)->func)
+#define gco2proto(o) (&(o)->proto)
+#define gco2uv(o) (&(o)->uv)
+#define gco2module(o) (&(o)->mod)
+#define gco2class(o) (&(o)->klass)
+#define gco2instance(o) (&(o)->inst)
+#define gco2method(o) (&(o)->met)
+#define gco2list(o) (&(o)->list)
+#define gco2map(o) (&(o)->map)
+#define gco2udata(o) (&(o)->ud)
 
 /* Macros to convert any collectable object into a GCobj pointer */
 #define obj2gco(v) ((GCobj*)(v))
@@ -515,17 +537,17 @@ TEA_STATIC_ASSERT(offsetof(GCinstance, attrs) == offsetof(GCudata, attrs));
 #define numV(o) ((o)->value.n)
 #define pointerV(o) ((o)->value.p)
 #define gcV(o) ((o)->value.gc)
-#define strV(o) ((GCstr*)gcV(o))
-#define rangeV(o) ((GCrange*)gcV(o))
-#define funcV(o) ((GCfunc*)gcV(o))
-#define protoV(o) ((GCproto*)gcV(o))
-#define moduleV(o) ((GCmodule*)gcV(o))
-#define instanceV(o) ((GCinstance*)gcV(o))
-#define methodV(o) ((GCmethod*)gcV(o))
-#define classV(o) ((GCclass*)gcV(o))
-#define listV(o) ((GClist*)gcV(o))
-#define mapV(o) ((GCmap*)gcV(o))
-#define udataV(o) ((GCudata*)gcV(o))
+#define strV(o) (&gcV(o)->str)
+#define rangeV(o) (&gcV(o)->range)
+#define funcV(o) (&gcV(o)->func)
+#define protoV(o) (&gcV(o)->proto)
+#define moduleV(o) (&gcV(o)->mod)
+#define instanceV(o) (&gcV(o)->inst)
+#define methodV(o) (&gcV(o)->met)
+#define classV(o) (&gcV(o)->klass)
+#define listV(o) (&gcV(o)->list)
+#define mapV(o) (&gcV(o)->map)
+#define udataV(o) (&gcV(o)->ud)
 
 /* Macros to set tagged values */
 #define setnilV(o) ((o)->tt = TEA_TNIL)

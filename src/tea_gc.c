@@ -22,7 +22,7 @@
 
 #define GC_HEAP_GROW_FACTOR 2
 
-#define is_finalized(u) ((u)->marked & TEA_GC_FINALIZED)
+#define is_finalized(u) ((u)->gch.marked & TEA_GC_FINALIZED)
 
 /* -- Mark phase ---------------------------------------------------------- */
 
@@ -31,10 +31,10 @@ static void gc_markobj(tea_State* T, GCobj* obj)
 {
     if(obj == NULL)
         return;
-    if(obj->marked)
+    if(obj->gch.marked)
         return;
 
-    obj->marked = 1;
+    obj->gch.marked = 1;
 
     if(T->gc.gray_size < T->gc.gray_count + 1)
     {
@@ -78,7 +78,7 @@ void gc_marktab(tea_State* T, Tab* tab)
 
 static void gc_blacken(tea_State* T, GCobj* obj)
 {
-    switch(obj->gct)
+    switch(obj->gch.gct)
     {
         case TEA_TUDATA:
         {
@@ -219,9 +219,9 @@ static void gc_mark_roots(tea_State* T)
 static void gc_mark_mmudata(tea_State* T)
 {
     GCobj* obj;
-    for(obj = T->gc.mmudata; obj; obj = obj->next)
+    for(obj = T->gc.mmudata; obj; obj = obj->gch.nextgc)
     {
-        obj->marked = 0;
+        obj->gch.marked = 0;
         gc_blacken(T, obj);
     }
 }
@@ -235,22 +235,22 @@ void tea_gc_separateudata(tea_State* T)
     GCobj** lastcollected = &collected;
     while((curr = *p) != NULL)
     {
-        tea_assertT(curr->gct == TEA_TUDATA, "trying to separate non-userdata");
+        tea_assertT(curr->gch.gct == TEA_TUDATA, "trying to separate non-userdata");
         GCudata* ud = gco2udata(curr);
-        if((curr->marked == 1) || is_finalized(curr))
-            p = &curr->next;    /* Don't bother with them */
+        if((curr->gch.marked == 1) || is_finalized(curr))
+            p = &curr->gch.nextgc;    /* Don't bother with them */
         else if(tea_tab_get(&ud->klass->methods, mmname_str(T, MM_GC)) == NULL)
         {
             mark_finalized(curr);   /* Don't need finalization */
-            p = &curr->next;
+            p = &curr->gch.nextgc;
         }
         else
         {
             /* Must call its gc method */
-            *p = curr->next;
-            curr->next = NULL;  /* Link 'curr' at the end of 'collected' list */
+            *p = curr->gch.nextgc;
+            curr->gch.nextgc = NULL;  /* Link 'curr' at the end of 'collected' list */
             *lastcollected = curr;
-            lastcollected = &curr->next;
+            lastcollected = &curr->gch.nextgc;
         }
     }
     /* Insert finalizable userdata into 'mmudata' list */
@@ -281,7 +281,7 @@ static const GCFreeFunc gc_freefunc[] = {
 
 static void gc_free(tea_State* T, GCobj* obj)
 {
-    gc_freefunc[obj->gct - TEA_TSTR](T, obj);
+    gc_freefunc[obj->gch.gct - TEA_TSTR](T, obj);
 }
 
 /* Sweep of a GC list */
@@ -292,20 +292,20 @@ static void gc_sweep(tea_State* T, GCobj** p)
 
     while(obj != NULL)
     {
-        if(obj->marked)
+        if(obj->gch.marked)
         {
-            if(!(obj->marked & TEA_GC_FIXED))
-                obj->marked = 0;
+            if(!(obj->gch.marked & TEA_GC_FIXED))
+                obj->gch.marked = 0;
             prev = obj;
-            obj = obj->next;
+            obj = obj->gch.nextgc;
         }
         else
         {
             GCobj* unreached = obj;
-            obj = obj->next;
+            obj = obj->gch.nextgc;
             if(prev != NULL)
             {
-                prev->next = obj;
+                prev->gch.nextgc = obj;
             }
             else
             {
@@ -324,11 +324,11 @@ void tea_gc_finalize_udata(tea_State* T)
     {
         GCobj* obj = T->gc.mmudata;
         GCudata* ud = gco2udata(obj);
-        T->gc.mmudata = obj->next;  /* Remove userdata from mmudata list */
-        obj->next = T->gc.rootud;   /* Add it back to the 'rootud' list */
+        T->gc.mmudata = obj->gch.nextgc;  /* Remove userdata from mmudata list */
+        obj->gch.nextgc = T->gc.rootud;   /* Add it back to the 'rootud' list */
         T->gc.rootud = obj;
         setudataV(T, T->top - 1, ud);   /* Keep a reference to it */
-        obj->marked = 0;
+        obj->gch.marked = 0;
         mark_finalized(ud);
         cTValue* mo = tea_tab_get(&ud->klass->methods, mmname_str(T, MM_GC));
         if(mo != NULL)
@@ -397,7 +397,7 @@ void tea_gc_freeall(tea_State* T)
     GCobj* obj = T->gc.root;
     while(obj != NULL)
     {
-        GCobj* next = obj->next;
+        GCobj* next = obj->gch.nextgc;
         gc_free(T, obj);
         obj = next;
     }
@@ -405,7 +405,7 @@ void tea_gc_freeall(tea_State* T)
     obj = T->gc.rootud;
     while(obj != NULL)
     {
-        GCobj* next = obj->next;
+        GCobj* next = obj->gch.nextgc;
         gc_free(T, obj);
         obj = next;
     }
@@ -415,7 +415,7 @@ void tea_gc_freeall(tea_State* T)
         GCobj* obj = T->str.hash[i];
         while(obj != NULL)
         {
-            GCobj* next = obj->next;
+            GCobj* next = obj->gch.nextgc;
             tea_str_free(T, gco2str(obj));
             obj = next;
         }
@@ -456,9 +456,9 @@ void* tea_mem_realloc(tea_State* T, void* p, size_t old_size, size_t new_size)
 GCobj* tea_mem_newgco(tea_State* T, size_t size, uint8_t type)
 {
     GCobj* obj = (GCobj*)tea_mem_realloc(T, NULL, 0, size);
-    obj->gct = type;
-    obj->marked = 0;
-    obj->next = T->gc.root;
+    obj->gch.gct = type;
+    obj->gch.marked = 0;
+    obj->gch.nextgc = T->gc.root;
     T->gc.root = obj;
     return obj;
 }

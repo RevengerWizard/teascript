@@ -13,8 +13,8 @@
 GCudata* tea_udata_new(tea_State* T, size_t len, uint8_t nuvals)
 {
     GCudata* ud = (GCudata*)tea_mem_new(T, tea_udata_size(len, nuvals));
-    ud->obj.gct = TEA_TUDATA;
-    ud->obj.marked = 0;
+    ud->gct = TEA_TUDATA;
+    ud->marked = 0;
     ud->udtype = UDTYPE_USERDATA;
     ud->nuvals = nuvals;
     ud->len = len;
@@ -25,7 +25,7 @@ GCudata* tea_udata_new(tea_State* T, size_t len, uint8_t nuvals)
     for(int i = 0; i < nuvals; i++)
         setnilV(&uvs[i]);
     /* Chain to userdata list */
-    ud->obj.next = T->gc.rootud;
+    ud->nextgc = T->gc.rootud;
     T->gc.rootud = obj2gco(ud);
     return ud;
 }
