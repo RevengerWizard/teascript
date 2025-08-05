@@ -162,7 +162,7 @@ typedef struct
     uint8_t numparams;  /* Number of parameters */
     uint8_t numopts; /* Number of optional parameters */
     uint8_t sizeuv;  /* Number of upvalues */
-    uint8_t max_slots;  /* Max stack size used by the function */
+    uint16_t max_slots;  /* Max stack size used by the function */
     uint8_t flags;   /* Miscellaneous flags */
     uint32_t sizept;    /* Total size including colocated arrays */
     uint32_t sizebc;  /* Number of bytecode instructions */

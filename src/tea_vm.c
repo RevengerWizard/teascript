@@ -48,7 +48,7 @@ static int vm_argcheck(tea_State* T, int nargs, int numparams, int numops, int v
             int varargs = nargs - xargs + 1;
             GClist* list = tea_list_new(T, 0);
             setlistV(T, T->top++, list);
-            for(uint32_t i = varargs; i > 0; i--)
+            for(int i = varargs; i > 0; i--)
             {
                 tea_list_add(T, list, T->top - 1 - i);
             }
@@ -764,6 +764,29 @@ static void vm_execute(tea_State* T)
             vm_extend(T, list, item);
             READ_FRAME();
             T->top--;
+            DISPATCH();
+        }
+        CASE_CODE(BC_SPREAD):
+        {
+            uint16_t ofs = READ_SHORT();
+            uint8_t nargs = READ_BYTE();
+            TValue* o = T->top - 1;
+            if(TEA_UNLIKELY(!tvislist(o)))
+            {
+                RUNTIME_ERROR(TEA_ERR_ITER, tea_typename(o));
+            }
+            GClist* list = listV(o);
+            uint32_t len = list->len;
+            if(TEA_UNLIKELY((nargs + len - 1) > 255))
+            {
+                RUNTIME_ERROR(TEA_ERR_XARGS);
+            }
+            ip[ofs] = (uint8_t)(nargs + len - 1);  /* -1 for this list */
+            T->top--;
+            for(uint32_t i = 0; i < len; i++)
+            {
+                copyTV(T, T->top++, list_slot(list, i));
+            }
             DISPATCH();
         }
         /* -- Object access ------------------------------------------------- */

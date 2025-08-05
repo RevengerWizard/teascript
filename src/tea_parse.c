@@ -91,6 +91,13 @@ typedef enum
     FUNC_SCRIPT
 } FuncInfo;
 
+/* Argument call context */
+typedef struct ArgCtx
+{
+    BCPos pos[TEA_MAX_LOCAL];
+    int num;
+} ArgCtx;
+
 /* Per-function state */
 typedef struct FuncState
 {
@@ -1002,15 +1009,36 @@ static void expr_ternary(FuncState* fs, bool assign)
     bcpatch_jump(fs, end_jmp);
 }
 
+/* Patch call argument spreads, if any */
+static void arg_patch(FuncState* fs, ArgCtx* ctx, uint8_t nargs)
+{
+    for(int i = 0; i < ctx->num; i++)
+    {
+        BCPos ofs = ctx->pos[i];
+        BCPos pos = (fs->pc - 1) - ofs - 3; /* -3 to adjust for the bytecode of the arg offset itself */
+        fs->bcbase[ofs].ins = (pos >> 8) & 0xff;
+        fs->bcbase[ofs + 1].ins = pos & 0xff;
+        fs->bcbase[ofs + 2].ins = nargs;
+    }
+}
+
 /* Parse function argument list */
-static uint8_t parse_args(FuncState* fs)
+static uint8_t parse_args(FuncState* fs, ArgCtx* ctx)
 {
     uint8_t nargs = 0;
     if(!lex_check(fs, ')'))
     {
         do
         {
+            bool spread = lex_match(fs, TK_dotdotdot);
             expr(fs);
+            if(spread)
+            {
+                bcemit_op(fs, BC_SPREAD);
+                bcemit_bytes(fs, 0xff, 0xff);
+                bcemit_byte(fs, 0xff);
+                ctx->pos[ctx->num++] = fs->pc - 3;
+            }
             if(nargs == 255)
             {
                 error(fs, TEA_ERR_XARGS);
@@ -1026,8 +1054,11 @@ static uint8_t parse_args(FuncState* fs)
 /* Parse expression call */
 static void expr_call(FuncState* fs, bool assign)
 {
-    uint8_t nargs = parse_args(fs);
+    ArgCtx ctx;
+    ctx.num = 0;
+    uint8_t nargs = parse_args(fs, &ctx);
     bcemit_arg(fs, BC_CALL, nargs);
+    arg_patch(fs, &ctx, nargs);
 }
 
 /* Convert token to bytecode assignment */
@@ -1078,7 +1109,9 @@ static void expr_dot(FuncState* fs, bool assign)
     uint8_t name = const_str(fs, strV(&fs->ls->prev.tv));
     if(lex_match(fs, '('))
     {
-        uint8_t nargs = parse_args(fs);
+        ArgCtx sp;
+        sp.num = 0;
+        uint8_t nargs = parse_args(fs, &sp);
         if(isnew)
         {
             bcemit_arg(fs, BC_NEW, nargs);
@@ -1088,6 +1121,7 @@ static void expr_dot(FuncState* fs, bool assign)
             bcemit_arg(fs, BC_INVOKE, name);
             bcemit_byte(fs, nargs);
         }
+        arg_patch(fs, &sp, nargs);
         return;
     }
 
@@ -1403,13 +1437,16 @@ static void expr_super(FuncState* fs, bool assign)
     /* super() -> super.new() */
     if(lex_match(fs, '('))
     {
+        ArgCtx ctx;
+        ctx.num = 0;
         Token tok = lex_synthetic(fs, "new");
         uint8_t name = const_str(fs, strV(&tok.tv));
         parse_named(fs, lex_synthetic(fs, "self"), false);
-        uint8_t nargs = parse_args(fs);
+        uint8_t nargs = parse_args(fs, &ctx);
         parse_named(fs, lex_synthetic(fs, "super"), false);
         bcemit_arg(fs, BC_SUPER, name);
         bcemit_byte(fs, nargs);
+        arg_patch(fs, &ctx, nargs);
         return;
     }
 
@@ -1423,10 +1460,13 @@ static void expr_super(FuncState* fs, bool assign)
     if(lex_match(fs, '('))
     {
         /* super.name() */
-        uint8_t nargs = parse_args(fs);
+        ArgCtx ctx;
+        ctx.num = 0;
+        uint8_t nargs = parse_args(fs, &ctx);
         parse_named(fs, lex_synthetic(fs, "super"), false);
         bcemit_arg(fs, BC_SUPER, name);
         bcemit_byte(fs, nargs);
+        arg_patch(fs, &ctx, nargs);
     }
     else
     {

@@ -120,6 +120,15 @@ function bcline(func, ofs, out)
             out.write("%4d\n".format(slot))
             return ofs + 2
         }
+        case "SPREAD"
+        {
+            const sign = bcname == "LOOP" ? -1 : 1
+            var pos = funcbc(func, ofs + 1) << 8
+            pos |= funcbc(func, ofs + 2)
+            const nargs = funcbc(func, ofs + 3)
+            out.write("%4d -> %d (%d args)\n".format(ofs, ofs + 4 + pos, nargs))
+            return ofs + 4
+        }
         case "JMPCMP", "JMP",
         "JMPFALSE", "JMPNIL",
         "LOOP"

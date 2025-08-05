@@ -61,6 +61,7 @@
     _(UNPACK, -1, 1) \
     _(UNPACKREST, -1, 2) \
     _(LISTEXTEND, -1, 0) \
+    _(SPREAD, 0, 3) \
     \
     /* Object access */ \
     _(GETATTR, 1, 1) \
