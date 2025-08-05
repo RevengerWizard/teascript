@@ -93,7 +93,7 @@ static void string_split(tea_State* T)
     char* str = (char*)tea_get_lstring(T, 0, &len);
 
     const char* sep = "";
-    size_t sep_len;
+    size_t sep_len = 0;
     size_t max_split = len + 1;
 
     if(count == 1)

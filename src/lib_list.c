@@ -453,7 +453,6 @@ static void list_filter(tea_State* T)
 
     tea_new_list(T, 0);
 
-    int j = 0;
     for(int i = 0; i < len; i++)
     {
         tea_push_value(T, 1);
@@ -467,7 +466,6 @@ static void list_filter(tea_State* T)
         {
             tea_get_item(T, 0, i);
             tea_add_item(T, 2);
-            j++;
         }
     }
     tea_push_value(T, 2);

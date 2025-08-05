@@ -92,7 +92,7 @@ static tea_CFunction ll_sym(tea_State* T, void* lib, const char* sym)
 static const char* setprogdir(tea_State* T)
 {
     char buff[MAX_PATH + 1];
-    char* lb;
+    char* lb = NULL;
     DWORD nsize = sizeof(buff);
     DWORD n = GetModuleFileNameA(NULL, buff, nsize);
     if(n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
