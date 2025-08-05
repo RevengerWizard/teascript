@@ -175,6 +175,7 @@ static Token lex_number(LexState* ls)
 	return tok;
 }
 
+/* Parse hex \xXX escape */
 static LexChar lex_hex_escape(LexState* ls)
 {
     LexChar c = (lex_next(ls) & 15u) << 4;
@@ -194,6 +195,7 @@ static LexChar lex_hex_escape(LexState* ls)
     return c;
 }
 
+/* Parse unicode \uXXXX or \UXXXXXXXX escapes */
 static int lex_unicode_escape(LexState* ls, int len)
 {
     LexChar c = 0;
