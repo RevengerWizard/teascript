@@ -506,7 +506,7 @@ static void fs_init(LexState* ls, FuncState* fs, FuncInfo info)
     fs->T = T;
     fs->klass = NULL;
     fs->loop = NULL;
-    if(fs->prev) 
+    if(fs->prev)
         fs->klass = fs->prev->klass;
     fs->numparams = 0;
     fs->numopts = 0;
@@ -778,7 +778,7 @@ static void var_add_var(FuncState* fs, Token* tok, bool init)
     fs->varnum++;
     /* Add new var info to the vtop of vstack */
     ls->vtop = vtop + 1;
-    VarInfo* v = &ls->vstack[vtop]; 
+    VarInfo* v = &ls->vstack[vtop];
     v->name = strV(&tok->tv);
     v->isconst = false;
     v->init = init;
@@ -845,7 +845,7 @@ static int var_find(FuncState* fs, Token* tok, bool assign, uint8_t* getbc, uint
 
 /* -- Variable fixup ------------------------------------------------------ */
 
-/* Fixup residue variables from module */ 
+/* Fixup residue variables from module */
 static void var_fixup_start(FuncState* fs)
 {
     GCmodule* mod = fs->ls->module;
@@ -876,7 +876,7 @@ static void var_fixup_end(FuncState* fs)
     for(uint16_t i = oldsize; i < newsize; i++)
     {
         GCstr* name = fs->ls->vstack[i].name;
-        tea_assertT(name != NULL, "bad variable name"); 
+        tea_assertT(name != NULL, "bad variable name");
         mod->varnames[i] = name;
         setnilV(&mod->vars[i]);
     }
@@ -1321,7 +1321,7 @@ static void expr_str(FuncState* fs, bool assign)
     {
         SBuf* sb = tea_buf_tmp_(T);
         tea_buf_putstr(T, sb, strV(&tv));
-        while((fs->ls->curr.t == '+') && (fs->ls->next.t == TK_string)) 
+        while((fs->ls->curr.t == '+') && (fs->ls->next.t == TK_string))
         {
             TValue* o = &fs->ls->next.tv;
             GCstr* s2 = strV(o);
@@ -1826,8 +1826,8 @@ static void expr_group(FuncState* fs, bool assign)
     LexToken next = fs->ls->next.t;
     /* () => ...; (...v) => ... */
     /* (a) => ...; (a, ) => ... */
-    if((curr == ')' && curr == TK_dotdotdot) || 
-        (curr == TK_name && (next == ',' || next == ')')) || 
+    if((curr == ')' && curr == TK_dotdotdot) ||
+        (curr == TK_name && (next == ',' || next == ')')) ||
         (curr == ')' && next == TK_arrow))
     {
         parse_body(fs->ls, FUNC_ARROW, fs->ls->prev.line);
@@ -2385,7 +2385,7 @@ static void parse_if(FuncState* fs)
 
     BCPos else_jmp = bcemit_jump(fs, BC_JMPFALSE);
     bcemit_op(fs, BC_POP);
-    
+
     parse_code(fs);
 
     BCPos end_jmp = bcemit_jump(fs, BC_JMP);
@@ -2412,34 +2412,28 @@ static void parse_switch(FuncState* fs)
 
     tea_lex_next(fs->ls);  /* Skip 'switch' */
     expr(fs);
-    lex_consume(fs, '{');
-
-    if(lex_match(fs, TK_case))
+    while(lex_match(fs, TK_case))
     {
-        do
+        expr(fs);
+        int multi = 0;  /* Keep track of multi-cases */
+        if(lex_match(fs, ','))
         {
-            expr(fs);
-            int multi = 0;  /* Keep track of multi-cases */
-            if(lex_match(fs, ','))
+            do
             {
-                do
-                {
-                    multi++;
-                    expr(fs);
-                }
-                while(lex_match(fs, ','));
-                bcemit_arg(fs, BC_MULTICASE, multi);
+                multi++;
+                expr(fs);
             }
-            BCPos jmp = bcemit_jump(fs, BC_JMPCMP);
-            parse_code(fs);
-            case_ends[casenum++] = bcemit_jump(fs, BC_JMP);
-            bcpatch_jump(fs, jmp);
-            if(casenum > 255)
-            {
-                error(fs, TEA_ERR_XSWITCH);
-            }
+            while(lex_match(fs, ','));
+            bcemit_arg(fs, BC_MULTICASE, multi);
         }
-        while(lex_match(fs, TK_case));
+        BCPos jmp = bcemit_jump(fs, BC_JMPCMP);
+        parse_code(fs);
+        case_ends[casenum++] = bcemit_jump(fs, BC_JMP);
+        bcpatch_jump(fs, jmp);
+        if(casenum > 255)
+        {
+            error(fs, TEA_ERR_XSWITCH);
+        }
     }
 
     bcemit_op(fs, BC_POP); /* Expression */
@@ -2452,8 +2446,6 @@ static void parse_switch(FuncState* fs)
     {
         error(fs, TEA_ERR_XCASE);
     }
-
-    lex_consume(fs, '}');
 
     for(int i = 0; i < casenum; i++)
     {
@@ -2500,7 +2492,7 @@ static void parse_import_name(FuncState* fs)
         lex_consume(fs, TK_name);
         name = fs->ls->prev;
     }
-    
+
     var_declare(fs, &name);
     bcemit_op(fs, BC_IMPORTALIAS);
     var_define(fs, &name, false, false);
