@@ -142,7 +142,7 @@ uninstall:
 
 ##############################################################################
 
-clean depend:
+clean depend wasm wasm-lib:
 	$(MAKE) -C src $@
 
 amalg:
@@ -153,6 +153,6 @@ amalg:
 test:
 	@$(TEST) util/test.py
 
-.PHONY: all amalg clean depend test
+.PHONY: all amalg clean depend test wasm wasm-lib
 
 ##############################################################################

@@ -348,7 +348,53 @@ clean:
 depend:
 	$(Q)$(HOST_CC) $(HOST_ACFLAGS) -MM *.c > Makefile.dep
 
-.PHONY: default all amalg clean depend
+##############################################################################
+# WASM target
+# Requires:
+#   - clang with wasm32-wasi target support
+#   - wasm-ld (ships with LLVM)
+#   - wasi-sdk
+#     Override WASI_SYSROOT for another installation, e.g.:
+#       make wasm WASI_SYSROOT=/opt/wasi-sdk/share/wasi-sysroot
+##############################################################################
+
+# Environment variable
+WASI_SYSROOT ?=
+
+WASM_CC = clang --target=wasm32-wasip1 --sysroot=$(WASI_SYSROOT)
+WASM_LD = $(WASI_CC)
+WASM_AR ?= llvm-ar
+WASM_OUT = tea.wasm
+WASM_A = libtea-wasm.a
+
+# Teascript uses setjmp/longjmp for error recovery. WebAssembly lowers these
+# through SJLJ support, which requires the engine's Exception Handling support.
+WASM_CFLAGS = -O2 -I. $(XCFLAGS) -D_WASI_EMULATED_SIGNAL -fno-stack-protector -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false
+
+# wasm-ld flags:
+#   --no-entry          no main(), JS drives execution
+#   --export-all        export everything; needed because setjmp/longjmp
+#                       uses internals that must survive dead-code elimination
+#   --allow-undefined   WASI imports resolved at runtime by the JS host
+#   -lsetjmp   			linker library for WASM setjmp support
+WASM_LDFLAGS = -Wl,--no-entry,--export-all,--allow-undefined,--stack-first,-z,stack-size=1048576,-lsetjmp
+
+WASM_O = $(TEAVMCORE_O:.o=.wasm.o)
+
+%.wasm.o: %.c
+	$(E) "WASM CC   $@"
+	$(Q)$(WASM_CC) $(WASM_CFLAGS) -c -o $@ $<
+
+wasm-lib: $(WASM_O)
+	$(E) "WASM AR   $(WASM_A)"
+	$(Q)$(WASM_AR) rcs $(WASM_A) $(WASM_O)
+
+wasm: $(WASM_O)
+	$(E) "WASM LD   $(WASM_OUT)"
+	$(Q)$(WASM_LD) $(WASM_LDFLAGS) -o $(WASM_OUT) $(WASM_O)
+	$(E) "OK        Successfully built $(WASM_OUT)"
+
+.PHONY: default all amalg clean depend wasm wasm-lib
 
 ##############################################################################
 # Object file rules

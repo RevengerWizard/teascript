@@ -39,6 +39,8 @@
 #define TEA_TARGET   TEA_ARCH_ARM
 #elif defined(__aarch64__)
 #define TEA_TARGET   TEA_ARCH_ARM64
+#elif defined(__wasm__)
+
 #else
 #error "No support for this architecture (yet)"
 #endif
@@ -75,6 +77,8 @@
 #define TEA_OS_NAME  "bsd"
 #elif TEA_OS == TEA_OS_POSIX
 #define TEA_OS_NAME  "posix"
+#elif defined(__wasm__)
+#define TEA_OS_NAME  "browser"
 #else
 #define TEA_OS_NAME  "other"
 #endif
@@ -118,6 +122,8 @@
 #define TEA_ARCH_ENDIAN TEA_ENDIAN_LE
 #endif
 
+#elif defined(__wasm__)
+#define TEA_ARCH_NAME "wasm"
 #else
 #error "No target architecture defined"
 #endif
