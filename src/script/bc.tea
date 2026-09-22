@@ -54,8 +54,7 @@ function bcline(func, ofs, out)
     out.write("%-16s ".format(bcname))
 
     switch bcname
-    {
-        case "CONSTANT", "PUSHATTR",
+    case "CONSTANT", "PUSHATTR",
         "GETATTR", "SETATTR",
         "DEFMODULE", "GETGLOBAL",
         "GETSUPER",
@@ -64,28 +63,28 @@ function bcline(func, ofs, out)
         "IMPORTSTR",
         "IMPORTNAME",
         "IMPORTVAR"
-        {
-            const k = funcbc(func, ofs + 1)
-            out.write("%4d %s\n".format(k, escapestr(funck(func, k))))
-            return ofs + 2
-        }
-        case "DEFOPT",
+    {
+        const k = funcbc(func, ofs + 1)
+        out.write("%4d %s\n".format(k, escapestr(funck(func, k))))
+        return ofs + 2
+    }
+    case "DEFOPT",
         "UNPACKREST",
         "FORITER", "GETITER"
-        {
-            const slot1 = funcbc(func, ofs + 1)
-            const slot2 = funcbc(func, ofs + 2)
-            out.write("%4d     %4d\n".format(slot1, slot2))
-            return ofs + 3
-        }
-        case "METHOD"
-        {
-            const k = funcbc(func, ofs + 1)
-            const slot1 = funcbc(func, ofs + 2)
-            out.write("%4d %4d %s\n".format(k, slot1, escapestr(funck(func, k))))
-            return ofs + 3
-        }
-        case "KNIL", "KTRUE", "KFALSE",
+    {
+        const slot1 = funcbc(func, ofs + 1)
+        const slot2 = funcbc(func, ofs + 2)
+        out.write("%4d     %4d\n".format(slot1, slot2))
+        return ofs + 3
+    }
+    case "METHOD"
+    {
+        const k = funcbc(func, ofs + 1)
+        const slot1 = funcbc(func, ofs + 2)
+        out.write("%4d %4d %s\n".format(k, slot1, escapestr(funck(func, k))))
+        return ofs + 3
+    }
+    case "KNIL", "KTRUE", "KFALSE",
         "POP", "RANGE",
         "LIST", "MAP",
         "GETIDX", "SETIDX", "PUSHIDX",
@@ -106,66 +105,65 @@ function bcline(func, ofs, out)
         "IMPORTALIAS",
         "IMPORTEND",
         "END"
-        {
-            out.write('\n')
-            return ofs + 1
-        }
-        case "GETLOCAL", "SETLOCAL",
+    {
+        out.write('\n')
+        return ofs + 1
+    }
+    case "GETLOCAL", "SETLOCAL",
         "GETUPVAL", "SETUPVAL",
         "GETMODULE", "SETMODULE",
         "MULTICASE", "UNPACK",
         "CALL", "NEW"
-        {
-            const slot = funcbc(func, ofs + 1)
-            out.write("%4d\n".format(slot))
-            return ofs + 2
-        }
-        case "SPREAD"
-        {
-            const sign = bcname == "LOOP" ? -1 : 1
-            var pos = funcbc(func, ofs + 1) << 8
-            pos |= funcbc(func, ofs + 2)
-            const nargs = funcbc(func, ofs + 3)
-            out.write("%4d -> %d (%d args)\n".format(ofs, ofs + 4 + pos, nargs))
-            return ofs + 4
-        }
-        case "JMPCMP", "JMP",
+    {
+        const slot = funcbc(func, ofs + 1)
+        out.write("%4d\n".format(slot))
+        return ofs + 2
+    }
+    case "SPREAD"
+    {
+        const sign = bcname == "LOOP" ? -1 : 1
+        var pos = funcbc(func, ofs + 1) << 8
+        pos |= funcbc(func, ofs + 2)
+        const nargs = funcbc(func, ofs + 3)
+        out.write("%4d -> %d (%d args)\n".format(ofs, ofs + 4 + pos, nargs))
+        return ofs + 4
+    }
+    case "JMPCMP", "JMP",
         "JMPFALSE", "JMPNIL",
         "LOOP"
-        {
-            const sign = bcname == "LOOP" ? -1 : 1
-            var jump = funcbc(func, ofs + 1) << 8
-            jump |= funcbc(func, ofs + 2)
-            out.write("%4d -> %d\n".format(ofs, ofs + 3 + sign * jump))
-            return ofs + 3
-        }
-        case "INVOKE", "SUPER"
-        {
-            const k = funcbc(func, ofs + 1)
-            const nargs = funcbc(func, ofs + 2)
-            out.write("   (%d args) %4d %s\n".format(nargs, k, escapestr(funck(func, k))))
-            return ofs + 3;
-        }
-        case "CLOSURE"
-        {
-            const k = funcbc(func, ofs + 1)
-            const proto = funck(func, k)
-            out.write("%4d %s\n".format(k, escapestr(proto)))
+    {
+        const sign = bcname == "LOOP" ? -1 : 1
+        var jump = funcbc(func, ofs + 1) << 8
+        jump |= funcbc(func, ofs + 2)
+        out.write("%4d -> %d\n".format(ofs, ofs + 3 + sign * jump))
+        return ofs + 3
+    }
+    case "INVOKE", "SUPER"
+    {
+        const k = funcbc(func, ofs + 1)
+        const nargs = funcbc(func, ofs + 2)
+        out.write("   (%d args) %4d %s\n".format(nargs, k, escapestr(funck(func, k))))
+        return ofs + 3;
+    }
+    case "CLOSURE"
+    {
+        const k = funcbc(func, ofs + 1)
+        const proto = funck(func, k)
+        out.write("%4d %s\n".format(k, escapestr(proto)))
 
-            const upvalues = funcinfo(proto)['upvalues']
-            for var j = 0; j < upvalues; j += 1
-            {
-                const uv = funcuv(proto, j)
-                const islocal = (uv & 0x0100) != 0
-                const idx = uv & 0xff
-                out.write("        |                     %s %d\n".format(islocal ? "local" : "upvalue", idx))
-            }
-            return ofs + 2
-        }
-        default
+        const upvalues = funcinfo(proto)['upvalues']
+        for var j = 0; j < upvalues; j += 1
         {
-            return ofs + 1
+            const uv = funcuv(proto, j)
+            const islocal = (uv & 0x0100) != 0
+            const idx = uv & 0xff
+            out.write("        |                     %s %d\n".format(islocal ? "local" : "upvalue", idx))
         }
+        return ofs + 2
+    }
+    default
+    {
+        return ofs + 1
     }
 }
 
