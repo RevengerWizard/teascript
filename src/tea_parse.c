@@ -34,7 +34,7 @@ typedef enum
     PREC_BXOR,       /*  ^  */
     PREC_BAND,       /*  &  */
     PREC_SHIFT,      /*  << >>  */
-    PREC_RANGE,      /*  .. ...  */
+    PREC_RANGE,      /*  ..  */
     PREC_TERM,       /*  + -  */
     PREC_FACTOR,     /*  * /  */
     PREC_INDICES,    /*  **  */

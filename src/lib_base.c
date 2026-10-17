@@ -301,25 +301,25 @@ static const tea_Methods bool_reg[] = {
 };
 
 static const tea_Reg globals[] = {
-    { "print", base_print, TEA_VARG, 0 },
-    { "input", base_input, 0, 1 },
-    { "assert", base_assert, 1, 1 },
-    { "error", base_error, 1, 0 },
-    { "typeof", base_typeof, 1, 0 },
-    { "tonumber", base_tonumber, 1, 1 },
-    { "tostring", base_tostring, 1, 0 },
-    { "gc", base_gc, 0, 0 },
-    { "eval", base_eval, 1, 0 },
-    { "dump", base_dump, 1, 1 },
-    { "loadfile", base_loadfile, 1, 0 },
-    { "loadstring", base_loadstring, 1, 1 },
-    { "pcall", base_pcall, TEA_VARG, 0 },
-    { "rawequal", base_rawequal, 2, 0 },
-    { "hasattr", base_hasattr, 2, 0 },
-    { "getattr", base_getattr, 2, 0 },
-    { "setattr", base_setattr, 3, 0 },
-    { "delattr", base_delattr, 2, 0 },
-    { NULL, NULL }
+    {"print", base_print, TEA_VARG, 0},
+    {"input", base_input, 0, 1},
+    {"assert", base_assert, 1, 1},
+    {"error", base_error, 1, 0},
+    {"typeof", base_typeof, 1, 0},
+    {"tonumber", base_tonumber, 1, 1},
+    {"tostring", base_tostring, 1, 0},
+    {"gc", base_gc, 0, 0},
+    {"eval", base_eval, 1, 0},
+    {"dump", base_dump, 1, 1},
+    {"loadfile", base_loadfile, 1, 0},
+    {"loadstring", base_loadstring, 1, 1},
+    {"pcall", base_pcall, TEA_VARG, 0},
+    {"rawequal", base_rawequal, 2, 0},
+    {"hasattr", base_hasattr, 2, 0},
+    {"getattr", base_getattr, 2, 0},
+    {"setattr", base_setattr, 3, 0},
+    {"delattr", base_delattr, 2, 0},
+    {NULL}
 };
 
 static void tea_open_global(tea_State* T)
@@ -350,7 +350,7 @@ static void tea_open_global(tea_State* T)
 
 void tea_open_base(tea_State* T)
 {
-    const tea_CFunction funcs[] = { tea_open_global, tea_open_list, tea_open_map, tea_open_string, tea_open_range, tea_open_buffer, NULL };
+    static const tea_CFunction funcs[] = {tea_open_global, tea_open_list, tea_open_map, tea_open_string, tea_open_range, tea_open_buffer, NULL};
     for(int i = 0; funcs[i] != NULL; i++)
     {
         tea_push_cfunction(T, funcs[i], 0, 0);

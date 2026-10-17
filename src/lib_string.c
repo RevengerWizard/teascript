@@ -78,7 +78,7 @@ static void string_reverse(tea_State* T)
     SBuf* sb = tea_buf_tmp_(T);
     uint32_t len = str->len;
     char* w = tea_buf_more(T, sb, len), *e = w + len;
-    const char* q = str_data(str) + len - 1;    
+    const char* q = str_data(str) + len - 1;
     while(w < e)
         *w++ = *q--;
     sb->w = w;
@@ -144,7 +144,7 @@ static void string_split(tea_State* T)
     {
         const char* start = str;
         const char* found;
-        
+
         while((found = strstr(start, sep)) && list_len < max_split)
         {
             list_len++;
@@ -387,22 +387,22 @@ static void string_iternext(tea_State* T)
     GCstr* str = strV(tea_lib_upvalue(T, 0));
     const char* s = str_data(str);
     uint32_t idx = (uint32_t)tea_get_number(T, tea_upvalue_index(1));
-    
+
     if(str->len == 0 || idx >= str->len)
     {
         tea_push_nil(T);
         return;
     }
-    
+
     /* Get the current byte */
     char byte = s[idx];
     /* Create a single-byte string */
     GCstr* c = tea_str_new(T, &byte, 1);
     setstrV(T, T->top++, c);
-    
+
     /* Move to the next byte */
     idx++;
-    
+
     /* Update the index */
     tea_push_number(T, idx);
     tea_replace(T, tea_upvalue_index(1));
@@ -430,27 +430,27 @@ static void string_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods string_reg[] = {
-    { "len", "getter", string_len, 1, 0 },
-    { "new", "method", string_init, 2, 0 },
-    { "byte", "method", string_byte, 2, 0 },
-    { "upper", "method", string_upper, 1, 0 },
-    { "lower", "method", string_lower, 1, 0 },
-    { "reverse", "method", string_reverse, 1, 0 },
-    { "split", "method", string_split, 1, 2 },
-    { "contains", "method", string_contains, 2, 0 },
-    { "startswith", "method", string_startswith, 2, 0 },
-    { "endswith", "method", string_endswith, 2, 0 },
-    { "leftstrip", "method", string_leftstrip, 1, 0 },
-    { "rightstrip", "method", string_rightstrip, 1, 0 },
-    { "strip", "method", string_strip, 1, 0 },
-    { "count", "method", string_count, 2, 0 },
-    { "find", "method", string_find, 2, 1 },
-    { "replace", "method", string_replace, 3, 0 },
-    { "format", "method", string_format, TEA_VARG, 0 },
-    { "repeat", "method", string_repeat, 2, 1 },
-    { "iter", "method", string_iter, 1, 0 },
-    { "+", "static", string_opadd, 2, 0 },
-    { NULL, NULL, NULL }
+    {"len", "getter", string_len, 1, 0},
+    {"new", "method", string_init, 2, 0},
+    {"byte", "method", string_byte, 2, 0},
+    {"upper", "method", string_upper, 1, 0},
+    {"lower", "method", string_lower, 1, 0},
+    {"reverse", "method", string_reverse, 1, 0},
+    {"split", "method", string_split, 1, 2},
+    {"contains", "method", string_contains, 2, 0},
+    {"startswith", "method", string_startswith, 2, 0},
+    {"endswith", "method", string_endswith, 2, 0},
+    {"leftstrip", "method", string_leftstrip, 1, 0},
+    {"rightstrip", "method", string_rightstrip, 1, 0},
+    {"strip", "method", string_strip, 1, 0},
+    {"count", "method", string_count, 2, 0},
+    {"find", "method", string_find, 2, 1},
+    {"replace", "method", string_replace, 3, 0},
+    {"format", "method", string_format, TEA_VARG, 0},
+    {"repeat", "method", string_repeat, 2, 1},
+    {"iter", "method", string_iter, 1, 0},
+    {"+", "static", string_opadd, 2, 0},
+    {NULL}
 };
 
 void tea_open_string(tea_State* T)

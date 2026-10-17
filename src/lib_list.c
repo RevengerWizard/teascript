@@ -543,7 +543,7 @@ static void list_opadd(tea_State* T)
 {
     if(!tvislist(T->base) || !tvislist(T->base + 1))
         tea_err_bioptype(T, T->base, T->base + 1, MM_PLUS);
-    
+
     GClist* l1 = tea_lib_checklist(T, 0);
     GClist* l2 = tea_lib_checklist(T, 1);
 
@@ -564,31 +564,31 @@ static void list_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods list_reg[] = {
-    { "len", "getter", list_len, 1, 0 },
-    { "new", "method", list_init, 1, 1 },
-    { "add", "method", list_add, TEA_VARG, 0 },
-    { "remove", "method", list_remove, 2, 0 },
-    { "delete", "method", list_delete, 2, 0 },
-    { "clear", "method", list_clear, 1, 0 },
-    { "insert", "method", list_insert, 3, 0 },
-    { "extend", "method", list_extend, 2, 0 },
-    { "reverse", "method", list_reverse, 1, 0 },
-    { "contains", "method", list_contains, 2, 0 },
-    { "count", "method", list_count, 2, 0 },
-    { "fill", "method", list_fill, 2, 0 },
-    { "sort", "method", list_sort, 1, 1 },
-    { "index", "method", list_index, 2, 0 },
-    { "join", "method", list_join, 1, 1 },
-    { "copy", "method", list_copy, 1, 0 },
-    { "find", "method", list_find, 2, 0 },
-    { "flat", "method", list_flat, 1, 0 },
-    { "map", "method", list_map, 2, 0 },
-    { "filter", "method", list_filter, 2, 0 },
-    { "reduce", "method", list_reduce, 2, 0 },
-    { "foreach", "method", list_foreach, 2, 0 },
-    { "iter", "method", list_iter, 1, 0 },
-    { "+", "static", list_opadd, 2, 0 },
-    { NULL, NULL, NULL }
+    {"len", "getter", list_len, 1, 0},
+    {"new", "method", list_init, 1, 1},
+    {"add", "method", list_add, TEA_VARG, 0},
+    {"remove", "method", list_remove, 2, 0},
+    {"delete", "method", list_delete, 2, 0},
+    {"clear", "method", list_clear, 1, 0},
+    {"insert", "method", list_insert, 3, 0},
+    {"extend", "method", list_extend, 2, 0},
+    {"reverse", "method", list_reverse, 1, 0},
+    {"contains", "method", list_contains, 2, 0},
+    {"count", "method", list_count, 2, 0},
+    {"fill", "method", list_fill, 2, 0},
+    {"sort", "method", list_sort, 1, 1},
+    {"index", "method", list_index, 2, 0},
+    {"join", "method", list_join, 1, 1},
+    {"copy", "method", list_copy, 1, 0},
+    {"find", "method", list_find, 2, 0},
+    {"flat", "method", list_flat, 1, 0},
+    {"map", "method", list_map, 2, 0},
+    {"filter", "method", list_filter, 2, 0},
+    {"reduce", "method", list_reduce, 2, 0},
+    {"foreach", "method", list_foreach, 2, 0},
+    {"iter", "method", list_iter, 1, 0},
+    {"+", "static", list_opadd, 2, 0},
+    {NULL}
 };
 
 void tea_open_list(tea_State* T)

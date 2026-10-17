@@ -1,0 +1,22 @@
+class Temperature
+{
+    new(celsius)
+    {
+        self.celsius = celsius
+    }
+
+    fahrenheit
+    {
+        return self.celsius * 9 / 5 + 32
+    }
+
+    fahrenheit=(value)
+    {
+        self.celsius = (value - 32) * 5 / 9
+    }
+}
+
+const t = Temperature.new(100)
+print(t.fahrenheit)
+t.fahrenheit = 32
+print(t.celsius)

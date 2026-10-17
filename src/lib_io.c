@@ -325,25 +325,25 @@ static void io_stdfile(tea_State* T, FILE* fp, const char* name, const char* mod
 }
 
 static const tea_Methods file_reg[] = {
-    { "write", "method", file_write, TEA_VARG, 0 },
-    { "read", "method", file_read, 1, 1 },
-    { "readline", "method", file_readline, 1, 0 },
-    { "seek", "method", file_seek, 1, 0 },
-    { "flush", "method", file_flush, 1, 0 },
-    { "setvbuf", "method", file_setvbuf, 1, 1 },
-    { "close", "method", file_close, 1, 0 },
-    { "tostring", "method", file_tostring, 1, 0 },
-    { "iter", "method", file_iter, 1, 0 },
-    { NULL, NULL, NULL }
+    {"write", "method", file_write, TEA_VARG, 0},
+    {"read", "method", file_read, 1, 1},
+    {"readline", "method", file_readline, 1, 0},
+    {"seek", "method", file_seek, 1, 0},
+    {"flush", "method", file_flush, 1, 0},
+    {"setvbuf", "method", file_setvbuf, 1, 1},
+    {"close", "method", file_close, 1, 0},
+    {"tostring", "method", file_tostring, 1, 0},
+    {"iter", "method", file_iter, 1, 0},
+    {NULL}
 };
 
 static const tea_Reg io_module[] = {
-    { "open", io_open, 1, 1 },
-    { "popen", io_popen, 1, 1 },
-    { "stdin", NULL },
-    { "stdout", NULL },
-    { "stderr", NULL },
-    { NULL, NULL }
+    {"open", io_open, 1, 1},
+    {"popen", io_popen, 1, 1},
+    {"stdin", NULL},
+    {"stdout", NULL},
+    {"stderr", NULL},
+    {NULL}
 };
 
 TEAMOD_API void tea_import_io(tea_State* T)

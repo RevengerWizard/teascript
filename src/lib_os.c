@@ -16,8 +16,8 @@
 #include "tea_arch.h"
 
 #if TEA_TARGET_POSIX
-#include <sys/types.h> 
-#include <sys/stat.h> 
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #elif TEA_TARGET_WINDOWS
 #include <direct.h>
@@ -158,16 +158,16 @@ static void init_env(tea_State* T)
 }
 
 static const tea_Reg os_module[] = {
-    { "getenv", os_getenv, 1, 1 },
-    { "setenv", os_setenv, 1, 1 },
-    { "execute", os_execute, 1, 0 },
-    { "remove", os_remove, 1, 0 },
-    { "rename", os_rename, 2, 0 },
-    { "mkdir", os_mkdir, 1, 0 },
-    { "name", NULL },
-    { "arch", NULL },
-    { "env", NULL },
-    { NULL, NULL }
+    {"getenv", os_getenv, 1, 1},
+    {"setenv", os_setenv, 1, 1},
+    {"execute", os_execute, 1, 0},
+    {"remove", os_remove, 1, 0},
+    {"rename", os_rename, 2, 0},
+    {"mkdir", os_mkdir, 1, 0},
+    {"name", NULL},
+    {"arch", NULL},
+    {"env", NULL},
+    {NULL}
 };
 
 TEAMOD_API void tea_import_os(tea_State* T)

@@ -28,7 +28,7 @@
 /* Minimum Teascript stack available to a C function */
 #define TEA_MIN_STACK 20
 
-/* 
+/*
 ** Pseudo-indices
 */
 #define TEA_REGISTRY_INDEX (-10000)
@@ -218,7 +218,6 @@ TEA_API void tea_push_cfunction(tea_State* T, tea_CFunction fn, int nargs, int n
 /*
 ** Object creation
 */
-
 TEA_API void tea_new_list(tea_State* T, size_t n);
 TEA_API void tea_new_map(tea_State* T);
 TEA_API void tea_new_class(tea_State* T, const char* name);
@@ -315,7 +314,7 @@ TEA_API void* tea_opt_userdata(tea_State* T, int index, void* def);
 TEA_API tea_CFunction tea_opt_cfunction(tea_State* T, int index, tea_CFunction def);
 
 /*
-** Garbage collection function
+** Garbage collection functions
 */
 TEA_API int tea_gc(tea_State* T);
 

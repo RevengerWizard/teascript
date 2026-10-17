@@ -100,12 +100,12 @@ static void debug_funcline(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Reg debug_module[] = {
-    { "funcinfo", debug_funcinfo, 1, 0 },
-    { "funck", debug_funck, 2, 0 },
-    { "funcbc", debug_funcbc, 2, 0 },
-    { "funcuv", debug_funcuv, 2, 0 },
-    { "funcline", debug_funcline, 2, 0 },
-    { NULL, NULL }
+    {"funcinfo", debug_funcinfo, 1, 0},
+    {"funck", debug_funck, 2, 0},
+    {"funcbc", debug_funcbc, 2, 0},
+    {"funcuv", debug_funcuv, 2, 0},
+    {"funcline", debug_funcline, 2, 0},
+    {NULL}
 };
 
 TEAMOD_API void tea_import_debug(tea_State* T)

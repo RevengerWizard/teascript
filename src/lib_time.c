@@ -112,7 +112,7 @@ static void time_format(tea_State* T)
     struct tm rtm;
 #endif
     if(*s == '!')
-    {  
+    {
         /* UTC? */
         s++;  /* Skip '!' */
 #if tea_TARGET_POSIX
@@ -208,12 +208,12 @@ static void time_diff(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Reg time_module[] = {
-    { "sleep", time_sleep, 1, 0 },
-    { "clock", time_clock, 0, 0 },
-    { "format", time_format, 0, 2 },
-    { "time", time_time, 0, 1 },
-    { "diff", time_diff, 1, 1 },
-    { NULL, NULL }
+    {"sleep", time_sleep, 1, 0},
+    {"clock", time_clock, 0, 0},
+    {"format", time_format, 0, 2},
+    {"time", time_time, 0, 1},
+    {"diff", time_diff, 1, 1},
+    {NULL}
 };
 
 TEAMOD_API void tea_import_time(tea_State* T)

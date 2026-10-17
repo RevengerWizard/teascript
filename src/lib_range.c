@@ -101,11 +101,11 @@ static void range_iternext(tea_State* T)
         tea_push_nil(T);
         return;
     }
-    
+
     /* Push current value */
     tea_push_number(T, curr);
     curr += step;
-    
+
     /* Update current for next iteration */
     tea_push_number(T, curr);
     tea_replace(T, tea_upvalue_index(0));
@@ -123,16 +123,16 @@ static void range_iter(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods range_reg[] = {
-    { "start", "getter", range_start, 1, 0 },
-    { "end", "getter", range_end, 1, 0 },
-    { "step", "getter", range_step, 1, 0 },
-    { "len", "getter", range_len, 1, 0 },
-    { "new", "method", range_init, 2, 2 },
-    { "contains", "method", range_contains, 2, 0 },
-    { "reverse", "method", range_reverse, 1, 0 },
-    { "copy", "method", range_copy, 1, 0 },
-    { "iter", "method", range_iter, 1, 0 },
-    { NULL, NULL, NULL }
+    {"start", "getter", range_start, 1, 0},
+    {"end", "getter", range_end, 1, 0},
+    {"step", "getter", range_step, 1, 0},
+    {"len", "getter", range_len, 1, 0},
+    {"new", "method", range_init, 2, 2},
+    {"contains", "method", range_contains, 2, 0},
+    {"reverse", "method", range_reverse, 1, 0},
+    {"copy", "method", range_copy, 1, 0},
+    {"iter", "method", range_iter, 1, 0},
+    {NULL}
 };
 
 void tea_open_range(tea_State* T)

@@ -134,7 +134,7 @@ static void map_foreach(tea_State* T)
         {
             TValue* key = &map->entries[i].key;
             TValue* val = &map->entries[i].val;
-    
+
             tea_push_value(T, 1);
             copyTV(T, T->top++, key);
             copyTV(T, T->top++, val);
@@ -162,7 +162,7 @@ static void map_iternext(tea_State* T)
         if(!tvisnil(&map->entries[idx].key))
         {
             tea_new_list(T, 2);
-            
+
             /* Add key to the list */
             copyTV(T, T->top++, &map->entries[idx].key);
             tea_add_item(T, -2);
@@ -204,21 +204,21 @@ static void map_opadd(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Methods map_reg[] = {
-    { "count", "getter", map_count, 1, 0 },
-    { "keys", "getter", map_keys, 1, 0 },
-    { "values", "getter", map_values, 1, 0 },
-    { "new", "method", map_init, 1, 0 },
-    { "get", "method", map_get, 2, 1 },
-    { "set", "method", map_set, 2, 1 },
-    { "update", "method", map_update, 2, 0 },
-    { "clear", "method", map_clear, 1, 0 },
-    { "contains", "method", map_contains, 2, 0 },
-    { "delete", "method", map_delete, 2, 0 },
-    { "copy", "method", map_copy, 1, 0 },
-    { "foreach", "method", map_foreach, 2, 0 },
-    { "iter", "method", map_iter, 1, 0 },
-    { "+", "static", map_opadd, 2, 0 },
-    { NULL, NULL, NULL }
+    {"count", "getter", map_count, 1, 0},
+    {"keys", "getter", map_keys, 1, 0},
+    {"values", "getter", map_values, 1, 0},
+    {"new", "method", map_init, 1, 0},
+    {"get", "method", map_get, 2, 1},
+    {"set", "method", map_set, 2, 1},
+    {"update", "method", map_update, 2, 0},
+    {"clear", "method", map_clear, 1, 0},
+    {"contains", "method", map_contains, 2, 0},
+    {"delete", "method", map_delete, 2, 0},
+    {"copy", "method", map_copy, 1, 0},
+    {"foreach", "method", map_foreach, 2, 0},
+    {"iter", "method", map_iter, 1, 0},
+    {"+", "static", map_opadd, 2, 0},
+    {NULL}
 };
 
 void tea_open_map(tea_State* T)

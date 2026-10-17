@@ -3,7 +3,6 @@
 ** Teascript random module
 */
 
-#include <stdlib.h>
 #include <time.h>
 #include <math.h>
 
@@ -18,7 +17,7 @@
 
 /* ------------------------------------------------------------------------ */
 
-/* 
+/*
 ** This implements a Tausworthe PRNG with period 2^223. Based on:
 **   Tables of maximally-equidistributed combined LFSR generators,
 **   Pierre L'Ecuyer, 1991, table 3, 1st entry.
@@ -199,15 +198,15 @@ static void random_choice(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Reg random_module[] = {
-    { "seed", random_seed, 1, 0 },
-    { "random", random_random, 0, 0 },
-    { "bool", random_bool, 0, 0 },
-    { "int", random_int, 2, 0 },
-    { "number", random_number, 2, 0 },
-    { "range", random_range, 1, 2 },
-    { "choice", random_choice, 1, 0 },
-    { "shuffle", random_shuffle, 1, 0 },
-    { NULL, NULL },
+    {"seed", random_seed, 1, 0},
+    {"random", random_random, 0, 0},
+    {"bool", random_bool, 0, 0},
+    {"int", random_int, 2, 0},
+    {"number", random_number, 2, 0},
+    {"range", random_range, 1, 2},
+    {"choice", random_choice, 1, 0},
+    {"shuffle", random_shuffle, 1, 0},
+    {NULL},
 };
 
 TEAMOD_API void tea_import_random(tea_State* T)

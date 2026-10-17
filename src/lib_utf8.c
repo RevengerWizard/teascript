@@ -266,7 +266,7 @@ static void utf8_iternext(tea_State* T)
     /* Get the current byte */
     GCstr* chr = utf8_codepoint_at(T, str, idx);
     setstrV(T, T->top++, chr);
-    
+
     /* Find the next index (skipping UTF-8 continuation bytes) */
     do
     {
@@ -274,7 +274,7 @@ static void utf8_iternext(tea_State* T)
         if(idx >= str->len) break;
     }
     while((s[idx] & 0xc0) == 0x80);
-    
+
     /* Update the index */
     tea_push_number(T, idx);
     tea_replace(T, tea_upvalue_index(1));
@@ -290,12 +290,12 @@ static void utf8_iter(tea_State* T)
 /* ------------------------------------------------------------------------ */
 
 static const tea_Reg utf8_module[] = {
-    { "len", utf8_len, 1, 0 },
-    { "char", utf8_char, 1, 0 },
-    { "ord", utf8_ord, 1, 0 },
-    { "reverse", utf8_reverse, 1, 0 },
-    { "iter", utf8_iter, 1, 0 },
-    { NULL, NULL }
+    {"len", utf8_len, 1, 0},
+    {"char", utf8_char, 1, 0},
+    {"ord", utf8_ord, 1, 0},
+    {"reverse", utf8_reverse, 1, 0},
+    {"iter", utf8_iter, 1, 0},
+    {NULL}
 };
 
 TEAMOD_API void tea_import_utf8(tea_State* T)
