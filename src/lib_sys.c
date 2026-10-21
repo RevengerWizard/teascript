@@ -60,12 +60,13 @@ static void set_version(tea_State* T)
 }
 
 static const tea_Reg sys_module[] = {
-    { "exit", sys_exit, 0, 1 },
-    { "argv", NULL },
-    { "version", NULL },
-    { "byteorder", NULL },
-    { "bits", NULL },
-    { NULL, NULL }
+    {"exit", sys_exit, 0, 1},
+    {"argv", NULL},
+    {"version", NULL},
+    {"loaders", NULL},
+    {"byteorder", NULL},
+    {"bits", NULL},
+    {NULL}
 };
 
 TEAMOD_API void tea_import_sys(tea_State* T)
@@ -77,4 +78,6 @@ TEAMOD_API void tea_import_sys(tea_State* T)
     tea_set_attr(T, 0, "byteorder");
     init_argv(T);
     set_version(T);
+    tea_new_list(T, 0);
+    tea_set_attr(T, 0, "loaders");
 }

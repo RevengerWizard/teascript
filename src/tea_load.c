@@ -40,26 +40,28 @@ static void parser_f(tea_State* T, void* ud)
 TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* name, const char* mode)
 {
     GCstr* mname = tea_str_newlen(T, name);
-    setstrV(T, T->top++, mname);
-    GCmodule* module = tea_module_new(T, mname);
-    T->top--;
+    char c = name[0];
+    bool volatile_mod = (c == '?' || c == '=' || c == '<');
+    GCmodule* module;
+
+    setstrV(T, T->top++, mname);    /* Root the name */
+    module = tea_module_new(T, mname);
+    setmoduleV(T, T->top++, module);    /* Root the module during the parse */
+
     if(T->last_module != NULL && T->last_module->name == module->name)
     {
         /* Already found the path */
     }
     else
     {
-        char c = name[0];
-        setmoduleV(T, T->top++, module);
-        if(c != '<' && c != '?' && c != '=')
-        {
-            module->path = tea_imp_getdir(T, (char*)name);
-        }
-        else
+        if(volatile_mod)
         {
             module->path = tea_str_newlit(T, ".");
         }
-        T->top--;
+        else
+        {
+            module->path = tea_imp_getdir(T, (char*)name);
+        }
     }
 
     LexState ls;
@@ -71,6 +73,10 @@ TEA_API int tea_loadx(tea_State* T, tea_Reader reader, void* data, const char* n
     tea_buf_init(&ls.sb);
     int status = tea_vm_pcall(T, parser_f, &ls, stack_save(T, T->top));
     tea_lex_cleanup(T, &ls);
+
+    /* Collapse [name, module, fn] into [fn] */
+    copyTV(T, T->top - 3, T->top - 1);
+    T->top -= 2;
     return status;
 }
 

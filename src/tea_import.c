@@ -279,7 +279,7 @@ static GCstr* imp_search_path(tea_State* T, char* dir, char* path_name)
 {
     GCstr* file = NULL;
 
-    const char* exts[] = { ".tea", ".tbc", SHARED_EXT, "/init.tea" };
+    const char* exts[] = {".tea", ".tbc", SHARED_EXT, "/init.tea"};
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     size_t l;
@@ -306,6 +306,92 @@ static GCstr* imp_search_path(tea_State* T, char* dir, char* path_name)
     return file;
 }
 
+/* Returns true if a loader handled it; leaves the module on the stack */
+static bool imp_custom_loader(tea_State* T, GCstr* dir, GCstr* path_name)
+{
+    if(!tea_tab_get(&T->modules, tea_str_newlit(T, TEA_MODULE_SYS)))
+        return false;
+
+    tea_get_var(T, TEA_MODULE_SYS, "loaders");
+    if(!tea_is_list(T, -1))
+    {
+        T->top--;
+        return false;
+    }
+
+    GClist* loaders = listV(T->top - 1);       /* rooted on the stack */
+    for(size_t i = 0; i < loaders->len; i++)
+    {
+        TValue* slot = list_slot(loaders, i);
+        if(!tvisfunc(slot))
+            continue;
+
+        copyTV(T, T->top, slot);
+        incr_top(T);
+        tea_push_string(T, str_data(path_name));
+        tea_push_string(T, str_data(dir));
+        tea_call(T, 2);
+
+        TValue* res = T->top - 1;               /* [loaders, res] */
+        if(tvisnil(res))
+        {
+            T->top--;
+            continue;
+        }
+
+        if(!tvislist(res) || listV(res)->len != 2 ||
+           !tvisstr(list_slot(listV(res), 0)) || !tvisfunc(list_slot(listV(res), 1)))
+        {
+            tea_error(T, "resolver must return nil or a list [key, load]");
+        }
+
+        GClist* pair = listV(res);              /* rooted by res */
+        GCstr* key = strV(list_slot(pair, 0));  /* rooted by pair */
+
+        /* Cache hit: no loading at all */
+        TValue* cached = tea_tab_get(&T->modules, key);
+        if(cached)
+        {
+            GCmodule* module = moduleV(cached);
+            T->last_module = module;
+            T->top -= 2;                        /* res, loaders */
+            setmoduleV(T, T->top++, module);
+            return true;
+        }
+
+        /* Miss: load(key) */
+        copyTV(T, T->top, list_slot(pair, 1));
+        incr_top(T);
+        setstrV(T, T->top++, key);
+        tea_call(T, 1);                         /* [loaders, res, fn] */
+
+        TValue* fn = T->top - 1;
+        if(!tvisfunc(fn) || !isteafunc(funcV(fn)))
+            tea_error(T, "loader must return a Teascript function");
+
+        GCmodule* module = funcV(fn)->t.module; /* rooted by the function */
+        module->path = tea_imp_dirname(T, str_datawr(key), key->len);
+
+        /* Register before running, so circular imports see it */
+        setmoduleV(T, tea_tab_set(T, &T->modules, key), module);
+
+        T->last_module = module;
+        int status = tea_pcall(T, 0);
+        if(status != TEA_OK)
+        {
+            tea_tab_delete(&T->modules, key);    /* Don't keep a half-built module */
+            tea_err_throw(T, status);
+        }
+
+        T->top -= 3;                            /* result, res, loaders */
+        setmoduleV(T, T->top++, module);
+        return true;
+    }
+
+    T->top--;                                   /* loaders list */
+    return false;
+}
+
 static GCmodule* imp_module_load(tea_State* T, GCstr* path)
 {
     GCmodule* module = tea_module_new(T, path);
@@ -324,6 +410,9 @@ static GCmodule* imp_module_load(tea_State* T, GCstr* path)
 
 void tea_imp_relative(tea_State* T, GCstr* dir, GCstr* path_name)
 {
+    if(imp_custom_loader(T, dir, path_name))
+        return;
+
     GCstr* path = imp_search_path(T, str_datawr(dir), str_datawr(path_name));
     if(!path)
     {
@@ -352,7 +441,8 @@ void tea_imp_logical(tea_State* T, GCstr* name)
 
     for(int i = 0; modules[i].name; i++)
     {
-        if(strncmp(modules[i].name, str_data(name), name->len) == 0)
+        if(strlen(modules[i].name) == name->len &&
+           memcmp(modules[i].name, str_data(name), name->len) == 0)
         {
             tea_push_cfunction(T, modules[i].fn, 0, 0);
             tea_call(T, 0);
@@ -365,7 +455,7 @@ void tea_imp_logical(tea_State* T, GCstr* name)
     GCstr* dir = tea_str_newlen(T, exe);
     T->top--;
 
-    const char* exts[] = { TEA_PATH_SCRIPT, TEA_PATH_LIB, TEA_PATH_PACKAGE };
+    const char* exts[] = {TEA_PATH_SCRIPT, TEA_PATH_LIB, TEA_PATH_PACKAGE};
     const int n = sizeof(exts) / sizeof(exts[0]);
 
     GCstr* path;
