@@ -1,0 +1,31 @@
+name: Windows Release Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Windows SDK and linker
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build with Clang
+        shell: bash
+        run: |
+          clang --version
+          make -C src clean all CC=clang
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: teascript-windows
+          path: |
+            src/tea.exe
+            src/tea00.dll
+            src/script/
+          if-no-files-found: error
