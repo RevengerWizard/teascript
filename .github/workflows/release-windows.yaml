@@ -18,7 +18,7 @@ jobs:
         shell: bash
         run: |
           clang --version
-          make -C src clean all CC=clang TARGET_SYS=Windows
+          make -C src clean all CC=clang OS=Windows_NT TARGET_SYS=Windows
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
