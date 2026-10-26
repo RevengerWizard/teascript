@@ -18,7 +18,8 @@ jobs:
         shell: bash
         run: |
           clang --version
-          make -C src clean all CC=clang OS=Windows_NT TARGET_SYS=Windows TARGET_XLIBS= 'TARGET_XSHLDFLAGS=-shared -Wl,/implib:tea00.lib'
+          make -C src clean tea00.dll CC=clang OS=Windows_NT TARGET_SYS=Windows TARGET_XLIBS= 'TARGET_XSHLDFLAGS=-shared -Wl,/implib:tea00.lib'
+          make -C src tea.exe CC=clang OS=Windows_NT TARGET_SYS=Windows TARGET_XLIBS= TARGET_O=tea00.lib 'TARGET_XSHLDFLAGS=-shared -Wl,/implib:tea00.lib'
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
