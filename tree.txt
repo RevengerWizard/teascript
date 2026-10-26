@@ -1,0 +1,56 @@
+src/
+├── lib_base.c           ← Teascript base classes and functions
+├── lib_buffer.c         ← Buffer class
+├── lib_debug.c          ← Teascript debug module
+├── lib_io.c             ← Teascript io module
+├── lib_list.c           ← Teascript List class
+├── lib_map.c            ← Teascript Map class
+├── lib_math.c           ← Teascript math module
+├── lib_os.c             ← Teascript os module
+├── lib_random.c         ← Teascript random module
+├── lib_range.c          ← Teascript Range class
+├── lib_string.c         ← Teascript String class
+├── lib_sys.c            ← Teascript sys module
+├── lib_time.c           ← Teascript time module
+├── lib_utf8.c           ← Teascript UTF-8 module
+├── onetea.c             ← Teascript core, libraries and interpreter in a single file
+├── tea.c                ← Teascript standalone interpreter
+├── tea_api.c            ← Public Teascript C API
+├── tea_arch.h           ← Target architecture selection
+├── tea_assert.c         ← Internal assertions
+├── tea_bc.c/h           ← Bytecode instructions
+├── tea_bcdump.h         ← Bytecode dump definitions
+├── tea_bcread.c         ← Teascript bytecode reader
+├── tea_bcwrite.c        ← Teascript bytecode writer
+├── tea_buf.c/h          ← Buffer handling
+├── tea_char.c/h         ← Character types
+├── tea_debug.c          ← Debugging and introspection
+├── tea_debug.h          ← Teascript debug functions
+├── tea_def.h            ← Teascript common internal definitions
+├── tea_err.c/h          ← Error handling
+├── tea_errmsg.h         ← VM error messages
+├── tea_func.c/h         ← Function handling (prototypes, functions and upvalues)
+├── tea_gc.c/h           ← Garbage collector
+├── tea.h                ← Teascript C API
+├── tea_import.c/h       ← Import loader
+├── tea_lex.c/h          ← Lexical analyzer
+├── tea_lib.c/h          ← Library function support
+├── tea_list.c/h         ← List handling
+├── tea_load.c           ← Load and dump code from strings and files
+├── tea_map.c/h          ← Map handling
+├── tea_meta.c/h         ← Method handling
+├── tea_obj.c            ← Teascript values and objects
+├── tea_obj.h            ← Teascript VM tags, values and objects
+├── tea_parse.c/h        ← Teascript parser (source code -> bytecode)
+├── tea_prng.c/h         ← Pseudo-random number generation
+├── tea_state.c          ← Teascript global state
+├── tea_state.h          ← State and stack handling
+├── tea_str.c/h          ← String handling
+├── tea_strfmt.c/h       ← String formatting
+├── tea_strfmt_num.c     ← String formatting for floating-point numbers
+├── tea_strscan.c/h      ← String scanning
+├── tea_tab.c/h          ← Hash table handling
+├── tea_udata.c/h        ← Userdata handling
+├── tea_vm.c/h           ← Teascript virtual machine
+├── teaconf.h            ← Configuration header
+└── tealib.h             ← Standard library header
