@@ -1,0 +1,82 @@
+name: Release Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Windows SDK and linker
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build with Clang
+        shell: bash
+        run: |
+          clang --version
+          make -C src clean tea00.dll CC=clang OS=Windows_NT TARGET_SYS=Windows TARGET_XLIBS= CFLAGS=-Wno-deprecated-declarations 'TARGET_XSHLDFLAGS=-shared -Wl,/implib:tea00.lib'
+          make -C src tea.exe CC=clang OS=Windows_NT TARGET_SYS=Windows TARGET_XLIBS= TARGET_O=tea00.lib CFLAGS=-Wno-deprecated-declarations 'TARGET_XSHLDFLAGS=-shared -Wl,/implib:tea00.lib'
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: teascript-windows-x64
+          path: |
+            src/tea.exe
+            src/tea00.dll
+            src/script/
+          if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build with Clang
+        run: make -C src clean all CC=clang CFLAGS=-Wno-deprecated-declarations
+
+      - name: Package Linux artifact
+        run: |
+          mkdir -p teascript-linux-x64/script
+          cp src/tea teascript-linux-x64/
+          cp src/libtea.so teascript-linux-x64/
+          cp src/script/* teascript-linux-x64/script/
+          tar -czf teascript-linux-x64.tar.gz teascript-linux-x64
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: teascript-linux-x64
+          path: teascript-linux-x64.tar.gz
+          if-no-files-found: error
+
+  build-macos:
+    runs-on: macos-14
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build with Clang
+        run: make -C src clean all CC=clang CFLAGS=-Wno-deprecated-declarations TARGET_SYS=Darwin MACOSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Package macOS artifact
+        run: |
+          mkdir -p teascript-macos-arm64/script
+          cp src/tea teascript-macos-arm64/
+          cp src/libtea.* teascript-macos-arm64/
+          cp src/script/* teascript-macos-arm64/script/
+          tar -czf teascript-macos-arm64.tar.gz teascript-macos-arm64
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: teascript-macos-arm64
+          path: teascript-macos-arm64.tar.gz
+          if-no-files-found: error
