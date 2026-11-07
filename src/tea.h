@@ -383,7 +383,7 @@ TEA_API void tea_concat(tea_State* T, int n);
 #define tea_is_nil(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NIL)
 #define tea_is_bool(T, n) (tea_get_type(T, (n)) == TEA_TYPE_BOOL)
 #define tea_is_number(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NUMBER)
-#define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_NIL)
+#define tea_is_pointer(T, n) (tea_get_type(T, (n)) == TEA_TYPE_POINTER)
 #define tea_is_range(T, n) (tea_get_type(T, (n)) == TEA_TYPE_RANGE)
 #define tea_is_string(T, n) (tea_get_type(T, (n)) == TEA_TYPE_STRING)
 #define tea_is_list(T, n) (tea_get_type(T, (n)) == TEA_TYPE_LIST)
