@@ -1,0 +1,18 @@
+function range(start, end, step=1)
+{
+    var i = start
+    return function()
+    {
+        if(i < end)
+        {
+            const x = i
+            i += step
+            return x
+        }
+    }
+}
+
+for(const i in range(0, 10))
+{
+    print(i)
+}
