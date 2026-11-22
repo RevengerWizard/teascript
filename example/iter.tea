@@ -3,7 +3,7 @@ function range(start, end, step=1)
     var i = start
     return function()
     {
-        if(i < end)
+        if i < end
         {
             const x = i
             i += step
@@ -12,7 +12,7 @@ function range(start, end, step=1)
     }
 }
 
-for(const i in range(0, 10))
+for const i in range(0, 10)
 {
     print(i)
 }
